@@ -13,15 +13,29 @@ export async function GET(request: NextRequest) {
     
     // Use service role to bypass RLS for fetching all roles
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseKey = serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
     if (!supabaseUrl || !supabaseKey) {
+      logger.error('Supabase not configured', { 
+        action: 'getRoles',
+        hasUrl: !!supabaseUrl,
+        hasServiceKey: !!serviceRoleKey,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
+    }
+
+    // Warn if service role key is not being used (will be subject to RLS)
+    if (!serviceRoleKey) {
+      logger.warn('Using ANON key instead of SERVICE_ROLE_KEY - may be subject to RLS policies', { 
+        action: 'getRoles'
+      });
     }
 
     const serviceSupabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch all roles with related data
+    // Fetch all roles with related data using explicit foreign key constraints
     const { data: roles, error } = await serviceSupabase
       .from('roles')
       .select(`
@@ -36,11 +50,11 @@ export async function GET(request: NextRequest) {
         permissions,
         created_at,
         updated_at,
-        departments:department_id (
+        departments!roles_department_id_fkey (
           id,
           name
         ),
-        reporting_role:reporting_role_id (
+        reporting_role:roles!roles_reporting_role_id_fkey (
           id,
           name
         )
@@ -48,8 +62,59 @@ export async function GET(request: NextRequest) {
       .order('display_order', { ascending: true });
 
     if (error) {
-      logger.error('Error fetching roles', { action: 'getRoles' }, error);
-      return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 });
+      logger.error('Error fetching roles', { 
+        action: 'getRoles',
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      }, error);
+      return NextResponse.json({ 
+        error: 'Failed to fetch roles',
+        details: error.message,
+        code: error.code
+      }, { status: 500 });
+    }
+
+    // Log the query results for debugging
+    logger.info('Roles query result', {
+      action: 'getRoles',
+      rolesCount: roles?.length || 0,
+      usingServiceKey: !!serviceRoleKey
+    });
+
+    // If no roles returned and not using service key, try a simple query to check if RLS is blocking
+    if ((!roles || roles.length === 0) && !serviceRoleKey) {
+      logger.warn('No roles returned - checking if RLS is blocking queries', { action: 'getRoles' });
+      const { data: simpleRoles, error: simpleError } = await serviceSupabase
+        .from('roles')
+        .select('id, name')
+        .limit(1);
+      
+      if (simpleError) {
+        logger.error('Simple roles query also failed', { 
+          action: 'getRoles',
+          error: simpleError.message,
+          code: simpleError.code
+        });
+      } else {
+        logger.warn('Simple query returned roles but full query did not - likely RLS or query syntax issue', {
+          action: 'getRoles',
+          simpleQueryCount: simpleRoles?.length || 0
+        });
+      }
+    }
+
+    // If still no roles, return early with a helpful error
+    if (!roles || roles.length === 0) {
+      logger.warn('No roles found in database', { action: 'getRoles' });
+      return NextResponse.json({
+        roles: [],
+        containers: [],
+        totalRoles: 0,
+        totalLevels: 0,
+        warning: !serviceRoleKey ? 'Using ANON key - ensure SUPABASE_SERVICE_ROLE_KEY is set in production' : undefined
+      });
     }
 
     // Get user counts for each role
