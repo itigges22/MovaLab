@@ -1,4 +1,4 @@
-import { supabase, createClientSupabase } from './supabase';
+import { createClientSupabase } from './supabase';
 import { Database } from './supabase';
 
 // Helper functions for status mapping
