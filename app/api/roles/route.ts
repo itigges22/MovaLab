@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { Permission } from '@/lib/permissions';
 import { validateRole } from '@/lib/validation';
 import { logger, apiCall, apiResponse, databaseQuery, databaseError } from '@/lib/debug-logger';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,32 +11,20 @@ export async function GET(request: NextRequest) {
     // Must pass request to parse cookies manually (cookies() doesn't work in Route Handlers)
     await requireAuthAndPermission(Permission.VIEW_ROLES, {}, request);
     
-    // Use service role to bypass RLS for fetching all roles
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const supabaseKey = serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Use authenticated user's Supabase client - RLS policies will control access
+    // Users with VIEW_ROLES permission should be able to view roles based on RLS policies
+    const supabase = createApiSupabaseClient(request);
     
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabase) {
       logger.error('Supabase not configured', { 
-        action: 'getRoles',
-        hasUrl: !!supabaseUrl,
-        hasServiceKey: !!serviceRoleKey,
-        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        action: 'getRoles'
       });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    // Warn if service role key is not being used (will be subject to RLS)
-    if (!serviceRoleKey) {
-      logger.warn('Using ANON key instead of SERVICE_ROLE_KEY - may be subject to RLS policies', { 
-        action: 'getRoles'
-      });
-    }
-
-    const serviceSupabase = createClient(supabaseUrl, supabaseKey);
-
     // Fetch all roles with related data using explicit foreign key constraints
-    const { data: roles, error } = await serviceSupabase
+    // RLS policies should allow users with VIEW_ROLES permission to view roles
+    const { data: roles, error } = await supabase
       .from('roles')
       .select(`
         id,
@@ -50,7 +38,7 @@ export async function GET(request: NextRequest) {
         permissions,
         created_at,
         updated_at,
-        departments!roles_department_id_fkey (
+        department:departments!roles_department_id_fkey (
           id,
           name
         ),
@@ -79,52 +67,44 @@ export async function GET(request: NextRequest) {
     // Log the query results for debugging
     logger.info('Roles query result', {
       action: 'getRoles',
-      rolesCount: roles?.length || 0,
-      usingServiceKey: !!serviceRoleKey
+      rolesCount: roles?.length || 0
     });
 
-    // If no roles returned and not using service key, try a simple query to check if RLS is blocking
-    if ((!roles || roles.length === 0) && !serviceRoleKey) {
-      logger.warn('No roles returned - checking if RLS is blocking queries', { action: 'getRoles' });
-      const { data: simpleRoles, error: simpleError } = await serviceSupabase
-        .from('roles')
-        .select('id, name')
-        .limit(1);
-      
-      if (simpleError) {
-        logger.error('Simple roles query also failed', { 
-          action: 'getRoles',
-          error: simpleError.message,
-          code: simpleError.code
-        });
-      } else {
-        logger.warn('Simple query returned roles but full query did not - likely RLS or query syntax issue', {
-          action: 'getRoles',
-          simpleQueryCount: simpleRoles?.length || 0
-        });
-      }
-    }
-
-    // If still no roles, return early with a helpful error
+    // If no roles returned, check if it's an RLS issue or empty database
     if (!roles || roles.length === 0) {
-      logger.warn('No roles found in database', { action: 'getRoles' });
+      if (error) {
+        logger.error('Roles query failed', { 
+          action: 'getRoles',
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        return NextResponse.json({ 
+          error: 'Failed to fetch roles',
+          details: error.message,
+          code: error.code
+        }, { status: 500 });
+      }
+      
+      // No error but no roles - could be RLS blocking or empty database
+      logger.warn('No roles found - may be RLS policy blocking access', { action: 'getRoles' });
       return NextResponse.json({
         roles: [],
         containers: [],
         totalRoles: 0,
-        totalLevels: 0,
-        warning: !serviceRoleKey ? 'Using ANON key - ensure SUPABASE_SERVICE_ROLE_KEY is set in production' : undefined
+        totalLevels: 0
       });
     }
 
     // Get user counts for each role
     const rolesWithData = await Promise.all(
       (roles || []).map(async (role: any) => {
-        const { data: userRoles, error: userError } = await serviceSupabase
+        const { data: userRoles, error: userError } = await supabase
           .from('user_roles')
           .select(`
             user_id,
-            user_profiles:user_id (
+            user_profiles!user_roles_user_id_fkey (
               id,
               name,
               email,
@@ -137,8 +117,8 @@ export async function GET(request: NextRequest) {
 
         return {
           ...role,
-          department_name: role.departments?.name || null,
-          department: role.departments ? { id: role.departments.id, name: role.departments.name } : { id: '', name: 'No Department' },
+          department_name: role.department?.name || null,
+          department: role.department ? { id: role.department.id, name: role.department.name } : { id: '', name: 'No Department' },
           user_count: users.length,
           users: users,
           display_order: role.display_order || 0,
@@ -186,16 +166,14 @@ export async function POST(request: NextRequest) {
     // Require CREATE_ROLE permission
     await requireAuthAndPermission(Permission.CREATE_ROLE, {}, request);
     
-    // Use service role key for direct database access
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Use authenticated user's Supabase client - RLS policies will control access
+    // Users with CREATE_ROLE permission should be able to create roles based on RLS policies
+    const supabase = createApiSupabaseClient(request);
     
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabase) {
       logger.error('Supabase not configured', { action: 'createRole' });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await request.json();
     const { name, description, department_id, permissions, reporting_role_id } = body;
