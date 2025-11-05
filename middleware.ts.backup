@@ -1,0 +1,203 @@
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+/**
+ * Middleware - Permission-Based Route Protection
+ * 
+ * This middleware uses the new RBAC system to protect routes based on permissions
+ * rather than hardcoded role names.
+ */
+
+// Public routes that don't require authentication
+const publicRoutes = [
+  '/',
+  '/login',
+  '/signup',
+  '/pending-approval',
+  '/welcome'
+];
+
+// Route-to-permission mapping
+const routePermissions: Record<string, string[]> = {
+  '/admin/roles': ['view_roles'],
+  '/admin/users': ['view_users'],
+  '/admin/departments': ['view_departments'],
+  '/admin/accounts': ['view_accounts'],
+  '/admin': ['view_roles', 'view_users', 'view_departments', 'view_accounts'], // Need ANY of these
+  '/departments': ['view_departments'],
+  '/accounts': ['view_accounts'],
+  '/gantt': ['view_gantt'],
+  '/kanban': ['view_kanban'],
+  '/profile': ['view_own_profile'],
+};
+
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const pathname = req.nextUrl.pathname;
+
+  // Allow public routes
+  if (publicRoutes.includes(pathname)) {
+    return res;
+  }
+
+  // Create Supabase client
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          req.cookies.set({ name, value, ...options });
+          res.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          req.cookies.set({ name, value: '', ...options });
+          res.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
+
+  try {
+    // Get authenticated user
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    // If no user and route is protected, redirect to login
+    if (error || !user) {
+      const redirectUrl = new URL('/login', req.url);
+      redirectUrl.searchParams.set('redirectTo', pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // If authenticated user tries to access login/signup, redirect home
+    if (pathname === '/login' || pathname === '/signup') {
+      return NextResponse.redirect(new URL('/welcome', req.url));
+    }
+
+    // Get user profile with roles
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        user_roles(
+          id,
+          role_id,
+          roles(
+            *,
+            departments(*)
+          )
+        )
+      `)
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !userProfile) {
+      console.error('Failed to fetch user profile:', profileError);
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+
+    // Check if user is superadmin (bypass all checks)
+    const isSuperadmin = userProfile.is_superadmin || 
+      userProfile.user_roles?.some((ur: any) => 
+        ur.roles?.is_system_role && ur.roles?.name?.toLowerCase() === 'superadmin'
+      );
+
+    if (isSuperadmin) {
+      return res; // Superadmin has access to everything
+    }
+
+    // Check if user is unassigned (only has Unassigned role)
+    const hasRoles = userProfile.user_roles && userProfile.user_roles.length > 0;
+    const isUnassigned = !hasRoles || (
+      userProfile.user_roles.length === 1 &&
+      userProfile.user_roles[0].roles?.is_system_role &&
+      userProfile.user_roles[0].roles?.name?.toLowerCase() === 'unassigned'
+    );
+
+    // If unassigned, only allow /welcome and /profile
+    if (isUnassigned) {
+      if (pathname !== '/welcome' && pathname !== '/profile') {
+        return NextResponse.redirect(new URL('/welcome', req.url));
+      }
+      return res;
+    }
+
+    // Check route permissions
+    for (const [route, permissions] of Object.entries(routePermissions)) {
+      if (pathname.startsWith(route)) {
+        // Check if user has any of the required permissions
+        const hasPermission = await checkUserPermissions(supabase, user.id, permissions);
+        
+        if (!hasPermission) {
+          console.warn(`Access denied to ${pathname} for user ${user.id}`);
+          return NextResponse.redirect(new URL('/welcome', req.url));
+        }
+        
+        return res; // User has permission
+      }
+    }
+
+    // If no specific permission check, allow access (for routes like /dashboard)
+    return res;
+
+  } catch (error) {
+    console.error('Middleware error:', error);
+    const redirectUrl = new URL('/login', req.url);
+    redirectUrl.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+}
+
+/**
+ * Check if user has any of the required permissions
+ */
+async function checkUserPermissions(
+  supabase: any,
+  userId: string,
+  requiredPermissions: string[]
+): Promise<boolean> {
+  try {
+    // Get user's roles
+    const { data: userRoles, error } = await supabase
+      .from('user_roles')
+      .select('roles(permissions)')
+      .eq('user_id', userId);
+
+    if (error || !userRoles) {
+      return false;
+    }
+
+    // Check if any role has any of the required permissions
+    for (const userRole of userRoles) {
+      const permissions = userRole.roles?.permissions || {};
+      
+      for (const requiredPerm of requiredPermissions) {
+        if (permissions[requiredPerm] === true) {
+          return true; // Found a matching permission
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error checking permissions:', error);
+    return false;
+  }
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
