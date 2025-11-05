@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
-import { requireAuthentication, requirePermission, PermissionError } from '@/lib/server-guards';
+import { requireAuthentication, requirePermission, requireAuthAndPermission, PermissionError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 
 /**
