@@ -14,9 +14,9 @@ import {
   Building2,
   Trash2
 } from 'lucide-react';
-import { Department, UserProfile } from '@/lib/supabase';
+import { Department } from '@/lib/supabase';
 import { DepartmentMetrics } from '@/lib/department-client-service';
-import { hasPermission, canViewDepartment } from '@/lib/rbac';
+import { hasPermission, canViewDepartment, UserWithRoles } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 // Permission check is handled server-side via canManageDepartments prop
 import DepartmentCreateDialog from './department-create-dialog';
@@ -26,29 +26,7 @@ interface DepartmentListProps {
   departments: Department[];
   canCreateDepartments: boolean;
   canManageDepartments: boolean;
-  userProfile: UserProfile & {
-    user_roles: {
-      id: string;
-      role_id: string;
-      assigned_at: string;
-      assigned_by: string | null;
-      roles: {
-        id: string;
-        name: string;
-        department_id: string;
-        permissions: any;
-        created_at: string;
-        updated_at: string;
-        departments: {
-          id: string;
-          name: string;
-          description: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-      };
-    }[];
-  };
+  userProfile: UserWithRoles | null;
   initialDepartmentMetrics?: Map<string, DepartmentMetrics>;
 }
 

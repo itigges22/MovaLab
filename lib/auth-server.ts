@@ -44,6 +44,7 @@ export async function getCurrentUserProfileServer() {
         *,
         user_roles!user_roles_user_id_fkey (
           id,
+          user_id,
           role_id,
           assigned_at,
           assigned_by,
