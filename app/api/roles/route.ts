@@ -70,25 +70,9 @@ export async function GET(request: NextRequest) {
       rolesCount: roles?.length || 0
     });
 
-    // If no roles returned, check if it's an RLS issue or empty database
+    // If no roles returned, could be RLS blocking or empty database
     if (!roles || roles.length === 0) {
-      if (error) {
-        logger.error('Roles query failed', { 
-          action: 'getRoles',
-          error: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
-        return NextResponse.json({ 
-          error: 'Failed to fetch roles',
-          details: error.message,
-          code: error.code
-        }, { status: 500 });
-      }
-      
-      // No error but no roles - could be RLS blocking or empty database
-      logger.warn('No roles found - may be RLS policy blocking access', { action: 'getRoles' });
+      logger.warn('No roles found - may be RLS policy blocking access or empty database', { action: 'getRoles' });
       return NextResponse.json({
         roles: [],
         containers: [],
