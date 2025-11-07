@@ -49,18 +49,21 @@ export function useAuth() {
               if (isMounted && currentProfileRequest === initialProfileRequest) {
                 console.log('Initial user profile loaded:', profile ? 'Success' : 'Failed')
                 setUserProfile(profile)
+                setLoading(false) // Set loading false AFTER profile loads
               }
             })
             .catch(error => {
               if (isMounted) {
                 console.error('Error loading initial user profile:', error)
                 setUserProfile(null)
+                setLoading(false) // Set loading false even on error
               }
             })
         } else {
           // No session, user is not authenticated
           setUser(null)
           setUserProfile(null)
+          setLoading(false)
         }
       } catch (error) {
         if (isMounted) {
@@ -68,9 +71,6 @@ export function useAuth() {
           setError('Failed to load user session')
           setUser(null)
           setUserProfile(null)
-        }
-      } finally {
-        if (isMounted) {
           setLoading(false)
         }
       }
@@ -78,15 +78,37 @@ export function useAuth() {
 
     getInitialSession()
 
-    // Listen for auth changes
+    // Listen for auth changes - handle session refresh automatically
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: any) => {
         console.log('Auth state changed:', event, session?.user?.id)
         
-        // Cancel any in-flight profile request
+        if (!isMounted) return
+        
+        // Ignore INITIAL_SESSION events - profile is already loaded in getInitialSession
+        // Don't cancel the profile request from getInitialSession
+        if (event === 'INITIAL_SESSION') {
+          return
+        }
+        
+        // Cancel any in-flight profile request for other events
         currentProfileRequest = null
         
-        if (!isMounted) return
+        // Handle token refresh - automatically refresh session when token expires
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log('Token refreshed, updating session')
+          setUser(session.user)
+          // Don't reload profile on token refresh to avoid unnecessary requests
+          return
+        }
+        
+        // Handle signed out event
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setUserProfile(null)
+          setLoading(false)
+          return
+        }
         
         if (session?.user) {
           setUser(session.user)
@@ -113,10 +135,40 @@ export function useAuth() {
               }
             })
         } else {
-          // Sign out or no session
-          setUser(null)
-          setUserProfile(null)
-          setLoading(false)
+          // No session - try to refresh if we had a user before
+          // Check current user state via a callback to avoid stale closure
+          setUser(currentUser => {
+            if (currentUser) {
+              console.log('Session expired, attempting refresh...')
+              // Attempt refresh asynchronously
+              supabase.auth.refreshSession()
+                .then(({ data: { session: refreshedSession }, error: refreshError }) => {
+                  if (refreshError || !refreshedSession) {
+                    // Refresh failed, user needs to log in again
+                    setUser(null)
+                    setUserProfile(null)
+                    setLoading(false)
+                  } else {
+                    // Refresh succeeded, update session
+                    setUser(refreshedSession.user)
+                    setLoading(false)
+                  }
+                })
+                .catch(refreshErr => {
+                  console.error('Error refreshing session:', refreshErr)
+                  setUser(null)
+                  setUserProfile(null)
+                  setLoading(false)
+                })
+              // Return current user while refresh is in progress
+              return currentUser
+            } else {
+              // No user and no session
+              setUserProfile(null)
+              setLoading(false)
+              return null
+            }
+          })
         }
       }
     )

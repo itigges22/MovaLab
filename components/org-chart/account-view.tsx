@@ -15,6 +15,9 @@ import {
   Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { UserWithRoles } from '@/lib/rbac-types';
+import { Permission } from '@/lib/permissions';
+import { hasPermission } from '@/lib/rbac';
 
 interface AccountMember {
   id: string;
@@ -53,6 +56,7 @@ interface AccountViewProps {
   onAccountSelect?: (account: any) => void;
   onUserAssign?: (userId: string, accountId: string) => void;
   isReadOnly?: boolean;
+  userProfile?: UserWithRoles | null;
 }
 
 interface AccountCardProps {
@@ -61,6 +65,7 @@ interface AccountCardProps {
   onAccountSelect?: (account: any) => void;
   onUserAssign?: (userId: string, accountId: string) => void;
   isReadOnly?: boolean;
+  userProfile?: UserWithRoles | null;
 }
 
 function AccountCard({
@@ -69,6 +74,7 @@ function AccountCard({
   onAccountSelect,
   onUserAssign,
   isReadOnly = false,
+  userProfile,
 }: AccountCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [allUsers, setAllUsers] = useState<Array<{ 
@@ -90,6 +96,38 @@ function AccountCard({
     }>;
   }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [canViewTab, setCanViewTab] = useState(false);
+  const [canAssignUsers, setCanAssignUsers] = useState(false);
+  const [canRemoveUsers, setCanRemoveUsers] = useState(false);
+
+  // Check permissions
+  useEffect(() => {
+    async function checkPermissions() {
+      if (!userProfile) {
+        setCanViewTab(false);
+        setCanAssignUsers(false);
+        setCanRemoveUsers(false);
+        return;
+      }
+
+      try {
+        const canView = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB);
+        const canAssign = await hasPermission(userProfile, Permission.ASSIGN_ACCOUNT_USERS);
+        const canRemove = await hasPermission(userProfile, Permission.REMOVE_ACCOUNT_USERS);
+
+        setCanViewTab(canView);
+        setCanAssignUsers(canAssign);
+        setCanRemoveUsers(canRemove);
+      } catch (error) {
+        console.error('Error checking permissions:', error);
+        setCanViewTab(false);
+        setCanAssignUsers(false);
+        setCanRemoveUsers(false);
+      }
+    }
+
+    checkPermissions();
+  }, [userProfile]);
 
   // Filter account by search query
   const matchesSearch = !searchQuery || 
@@ -121,7 +159,10 @@ function AccountCard({
   };
 
   const handleAssignUser = async (userId: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !canAssignUsers) {
+      toast.error('You do not have permission to assign users to accounts');
+      return;
+    }
     
     try {
       const response = await fetch(`/api/accounts/${account.id}/members`, {
@@ -159,7 +200,10 @@ function AccountCard({
   };
 
   const handleRemoveUser = async (userId: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !canRemoveUsers) {
+      toast.error('You do not have permission to remove users from accounts');
+      return;
+    }
     
     if (!confirm('Are you sure you want to remove this user from the account?')) {
       return;
@@ -239,7 +283,11 @@ function AccountCard({
 
             {expanded && (
               <div className="mt-3 space-y-2">
-                {account.members.length === 0 ? (
+                {!canViewTab ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    You do not have permission to view account users
+                  </p>
+                ) : account.members.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No members assigned to this account
                   </p>
@@ -280,7 +328,7 @@ function AccountCard({
                           )}
                         </div>
                       </div>
-                      {!isReadOnly && (
+                      {!isReadOnly && canRemoveUsers && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -295,7 +343,7 @@ function AccountCard({
                 )}
 
                 {/* Add User Section */}
-                {!isReadOnly && (
+                {!isReadOnly && canAssignUsers && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm font-medium mb-2">Add Member</p>
                     {loadingUsers ? (
@@ -379,6 +427,7 @@ export function AccountView({
   onAccountSelect,
   onUserAssign,
   isReadOnly = false,
+  userProfile,
 }: AccountViewProps) {
   const [accounts, setAccounts] = useState<AccountWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
@@ -489,6 +538,7 @@ export function AccountView({
               onAccountSelect={handleAccountSelect}
               onUserAssign={handleUserAssign}
               isReadOnly={isReadOnly}
+              userProfile={userProfile}
             />
           ))}
         </div>

@@ -11,6 +11,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, Mail, Building2, Shield, Save, Edit3, AlertCircle, Lock, Bell, Palette } from 'lucide-react'
 import { updateUserProfile, updatePassword } from '@/lib/auth'
+import { RoleGuard } from '@/components/role-guard'
+import { Permission } from '@/lib/permissions'
+import { hasPermission } from '@/lib/rbac'
 
 export default function ProfilePage() {
   const { user, userProfile, loading, refreshProfile } = useAuth()
@@ -19,6 +22,9 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [canViewProfile, setCanViewProfile] = useState(false)
+  const [canEditProfile, setCanEditProfile] = useState(false)
+  const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -43,6 +49,38 @@ export default function ProfilePage() {
     }
   }, [user, loading, router])
 
+  // Check permissions
+  useEffect(() => {
+    if (loading || !userProfile) {
+      setPermissionsLoading(true)
+      return
+    }
+
+    async function checkPermissions() {
+      try {
+        const canView = await hasPermission(userProfile, Permission.VIEW_OWN_PROFILE)
+        const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_PROFILE)
+        
+        setCanViewProfile(canView)
+        setCanEditProfile(canEdit)
+        
+        // If user can't view profile, redirect
+        if (!canView) {
+          router.push('/welcome')
+          return
+        }
+      } catch (error) {
+        console.error('Error checking permissions:', error)
+        setCanViewProfile(false)
+        setCanEditProfile(false)
+      } finally {
+        setPermissionsLoading(false)
+      }
+    }
+
+    checkPermissions()
+  }, [userProfile, loading, router])
+
   useEffect(() => {
     if (userProfile) {
       setFormData({
@@ -54,7 +92,7 @@ export default function ProfilePage() {
     }
   }, [userProfile])
 
-  if (loading) {
+  if (loading || permissionsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -65,8 +103,8 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user || !userProfile) {
-    return null // Will redirect to login
+  if (!user || !userProfile || !canViewProfile) {
+    return null // Will redirect to login or welcome
   }
 
   const handleSave = async () => {
@@ -168,29 +206,37 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <RoleGuard requirePermission={Permission.VIEW_OWN_PROFILE}>
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
         <p className="text-gray-600">Manage your account information and preferences</p>
-        <div className="mt-4">
-          <Button
-            onClick={() => setIsEditing(!isEditing)}
-            variant={isEditing ? "outline" : "default"}
-            disabled={isSaving}
-          >
-            {isEditing ? (
-              <>
-                <Edit3 className="w-4 h-4 mr-2" />
-                Cancel
-              </>
-            ) : (
-              <>
-                <Edit3 className="w-4 h-4 mr-2" />
-                Edit Profile
-              </>
-            )}
-          </Button>
-        </div>
+        {canEditProfile && (
+          <div className="mt-4">
+            <Button
+              onClick={() => setIsEditing(!isEditing)}
+              variant={isEditing ? "outline" : "default"}
+              disabled={isSaving}
+            >
+              {isEditing ? (
+                <>
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Cancel
+                </>
+              ) : (
+                <>
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        {!canEditProfile && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-500">You don't have permission to edit your profile.</p>
+          </div>
+        )}
       </div>
 
       {/* Success/Error Messages */}
@@ -306,7 +352,7 @@ export default function ProfilePage() {
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    disabled={!isEditing}
+                    disabled={!isEditing || !canEditProfile}
                   />
                 </div>
                 <div className="space-y-2">
@@ -316,7 +362,7 @@ export default function ProfilePage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    disabled={!isEditing}
+                    disabled={!isEditing || !canEditProfile}
                   />
                 </div>
               </div>
@@ -342,7 +388,7 @@ export default function ProfilePage() {
                       className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
                     >
                       {skill}
-                      {isEditing && (
+                      {isEditing && canEditProfile && (
                         <button
                           onClick={() => handleRemoveSkill(skill)}
                           className="ml-2 text-gray-500 hover:text-red-500"
@@ -353,7 +399,7 @@ export default function ProfilePage() {
                     </span>
                   ))}
                 </div>
-                {isEditing && (
+                {isEditing && canEditProfile && (
                   <div className="flex space-x-2">
                     <Input
                       value={newSkill}
@@ -368,7 +414,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {isEditing && (
+              {isEditing && canEditProfile && (
                 <div className="flex justify-end space-x-2">
                   <Button 
                     variant="outline" 
@@ -576,6 +622,7 @@ export default function ProfilePage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </RoleGuard>
   )
 }

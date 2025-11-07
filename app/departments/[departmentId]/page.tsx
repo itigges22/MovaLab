@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { serverDepartmentService } from '@/lib/department-service';
-import { isAdminLevel, canViewDepartment, canManageDepartment } from '@/lib/rbac';
+import { isAdminLevel, canViewDepartment, canManageDepartment, hasPermission } from '@/lib/rbac';
+import { Permission } from '@/lib/permissions';
 import { DepartmentOverview } from '@/components/department-overview';
 
 interface DepartmentPageProps {
@@ -20,7 +21,11 @@ export default async function DepartmentPage({ params }: DepartmentPageProps) {
   }
 
   // Check if user can view this department
-  if (!canViewDepartment(userProfile, departmentId)) {
+  // Allow access if user has VIEW_ALL_DEPARTMENTS override OR can view this specific department
+  const hasViewAllDepartments = await hasPermission(userProfile, Permission.VIEW_ALL_DEPARTMENTS);
+  const canViewThisDepartment = await canViewDepartment(userProfile, departmentId);
+  
+  if (!hasViewAllDepartments && !canViewThisDepartment) {
     notFound();
   }
 

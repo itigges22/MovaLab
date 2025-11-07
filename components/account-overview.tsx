@@ -30,7 +30,8 @@ import {
   ExternalLink,
   Move,
   SortAsc,
-  SortDesc
+  SortDesc,
+  Edit
 } from 'lucide-react';
 import { AccountWithProjects, AccountMetrics, UrgentItem, ProjectWithDetails, accountService } from '@/lib/account-service';
 import { UserProfile } from '@/lib/supabase';
@@ -72,6 +73,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { AccountEditDialog } from '@/components/account-edit-dialog';
 
 interface AccountOverviewProps {
   account: AccountWithProjects;
@@ -93,6 +95,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   // Account overview component
   const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'table'>('kanban');
   const [projects, setProjects] = useState(account.projects);
+  const [projectsLoading, setProjectsLoading] = useState(false);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>(DEFAULT_KANBAN_COLUMNS);
   const [accountMembers, setAccountMembers] = useState<Array<{
     id: string;
@@ -155,6 +158,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   const [canEditKanban, setCanEditKanban] = useState(false);
   const [canEditGantt, setCanEditGantt] = useState(false);
   const [canMoveAllKanbanItems, setCanMoveAllKanbanItems] = useState(false);
+  const [canEditAccount, setCanEditAccount] = useState(false);
 
   // Load account members
   useEffect(() => {
@@ -210,6 +214,50 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     loadAccountMembers();
   }, [account.id]);
 
+  // Fetch remaining hours for all projects
+  useEffect(() => {
+    const fetchRemainingHours = async () => {
+      if (!projects || projects.length === 0) return;
+      
+      setProjectsLoading(true);
+      try {
+        const supabase = createClientSupabase();
+        if (!supabase) return;
+
+        const projectIds = projects.map(p => p.id);
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('project_id, remaining_hours, estimated_hours')
+          .in('project_id', projectIds);
+
+        if (tasksData) {
+          // Calculate remaining hours per project
+          const projectRemainingHours: Record<string, number> = {};
+          tasksData.forEach((task: any) => {
+            if (!projectRemainingHours[task.project_id]) {
+              projectRemainingHours[task.project_id] = 0;
+            }
+            projectRemainingHours[task.project_id] += (task.remaining_hours ?? task.estimated_hours ?? 0);
+          });
+
+          // Update projects with remaining hours
+          setProjects(prevProjects => 
+            prevProjects.map(project => ({
+              ...project,
+              remaining_hours: projectRemainingHours[project.id] ?? null
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching remaining hours:', error);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+
+    fetchRemainingHours();
+  }, [account.id]); // Re-fetch when account changes
+
   // Check permissions
   useEffect(() => {
     if (!userProfile) return;
@@ -225,6 +273,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       const editKanban = await hasPermission(userProfile, Permission.EDIT_KANBAN_LAYOUT);
       const moveAllKanban = await hasPermission(userProfile, Permission.MOVE_ALL_KANBAN_ITEMS);
       const editGantt = await hasPermission(userProfile, Permission.EDIT_GANTT);
+      const editAccount = await hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId: account.id });
       
       setCanCreateProject(create);
       setCanEditProject(edit);
@@ -236,6 +285,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       setCanEditKanban(editKanban);
       setCanMoveAllKanbanItems(moveAllKanban);
       setCanEditGantt(editGantt);
+      setCanEditAccount(editAccount);
       
       // If user doesn't have permission for current view mode, switch to an allowed view
       if (viewMode === 'kanban' && !viewKanban) {
@@ -1077,6 +1127,20 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
+                {canEditAccount && (
+                  <AccountEditDialog
+                    account={account}
+                    userProfile={userProfile}
+                    onAccountUpdated={() => {
+                      // Account will be refreshed via page reload in the dialog
+                    }}
+                  >
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden sm:inline">Edit Account</span>
+                    </Button>
+                  </AccountEditDialog>
+                )}
                 {!hasFullAccess && (
                   <Badge variant="secondary" className="text-xs px-3 py-1">
                     Read-Only Access
@@ -1496,13 +1560,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
           <CardContent>
             {viewMode === 'kanban' && canViewKanban && (
               <div className="space-y-4">
-                {/* Configure Button - Only visible on Kanban tab */}
-                {(() => {
-                  const isUserSuperadmin = isSuperadmin(userProfile);
-                  console.log('[KANBAN CONFIG] User profile:', userProfile);
-                  console.log('[KANBAN CONFIG] Is superadmin:', isUserSuperadmin);
-                  return isUserSuperadmin;
-                })() && (
+                {/* Configure Button - Only visible on Kanban tab if user has EDIT_KANBAN_LAYOUT permission */}
+                {canEditKanban && (
                   <div className="flex justify-end">
                     <KanbanConfigDialog
                       accountId={account.id}
@@ -1610,6 +1669,28 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                                     <p className="m-0 text-muted-foreground text-xs mt-2">
                                       {format(item.startAt, 'MMM dd')} - {format(item.endAt, 'MMM dd, yyyy')}
                                     </p>
+                                    {/* Estimated & Remaining Hours */}
+                                    {project && (project.estimated_hours || project.remaining_hours) && (
+                                      <div className="flex items-center gap-3 mt-2 text-xs">
+                                        {project.estimated_hours && (
+                                          <div className="flex items-center gap-1 text-gray-600">
+                                            <Clock className="w-3 h-3" />
+                                            <span>{project.estimated_hours}h est</span>
+                                          </div>
+                                        )}
+                                        {project.remaining_hours !== null && project.remaining_hours !== undefined && (
+                                          <div className="flex items-center gap-1 text-blue-600 font-semibold">
+                                            <Clock className="w-3 h-3" />
+                                            <span>{project.remaining_hours.toFixed(1)}h left</span>
+                                            {project.estimated_hours && (
+                                              <span className="text-gray-500 font-normal">
+                                                ({Math.round((1 - project.remaining_hours / project.estimated_hours) * 100)}%)
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                     <div 
                                       className="flex items-center justify-between mt-2"
                                       onMouseDown={(e) => e.stopPropagation()}
@@ -1989,6 +2070,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                           <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                           <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                           <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Est Hours</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-600">Remaining</th>
                           <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
                           <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                         </tr>
@@ -2024,6 +2107,27 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                             </td>
                             <td className="py-3 px-4">
                               <span className="text-sm text-gray-600">{account.name}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4 text-gray-400" />
+                                <span className="text-sm text-gray-900">
+                                  {project.estimated_hours ? `${project.estimated_hours}h` : '-'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4 text-blue-500" />
+                                <span className="text-sm font-semibold text-blue-600">
+                                  {project.remaining_hours !== null && project.remaining_hours !== undefined ? `${project.remaining_hours.toFixed(1)}h` : '-'}
+                                </span>
+                                {project.estimated_hours && project.remaining_hours !== null && project.remaining_hours !== undefined && (
+                                  <span className="text-xs text-gray-500 ml-1">
+                                    ({Math.round((1 - project.remaining_hours / project.estimated_hours) * 100)}%)
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-3 px-4">
                               {project.end_date ? (

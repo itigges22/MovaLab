@@ -38,8 +38,15 @@ export default async function DepartmentsPage() {
   // Get all departments
   const allDepartments = await serverDepartmentService.getAllDepartments();
 
+  // Check if user has VIEW_ALL_DEPARTMENTS override - if so, show all departments
+  const hasViewAllDepartments = await hasPermission(userProfile, Permission.VIEW_ALL_DEPARTMENTS);
+  
   // Filter departments based on user access
-  const departments = allDepartments.filter(dept => 
+  // If user has VIEW_ALL_DEPARTMENTS, show all departments
+  // Otherwise, filter by department assignment
+  const departments = hasViewAllDepartments 
+    ? allDepartments 
+    : allDepartments.filter(dept => 
     canViewDepartment(userProfile, dept.id)
   );
 

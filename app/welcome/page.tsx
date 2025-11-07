@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from '@/components/ui/badge'
 import { isAdminLevel, isUnassigned, isSuperadmin, hasPermission } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
-import ProjectUpdatesCard from '@/components/project-updates-card'
-import NewsletterCard from '@/components/newsletter-card'
+import dynamic from 'next/dynamic'
 import { 
   CheckCircle,
   Users,
@@ -19,6 +18,32 @@ import {
   MapPin,
   ArrowRight
 } from 'lucide-react'
+
+// Dynamically import heavy components to reduce initial bundle size and improve load time
+const ProjectUpdatesCard = dynamic(
+  () => import('@/components/project-updates-card'),
+  { 
+    loading: () => (
+      <Card className="w-full">
+        <CardContent className="py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Loading updates...</p>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    ssr: false
+  }
+)
+
+const NewsletterCard = dynamic(
+  () => import('@/components/newsletter-card'),
+  { 
+    loading: () => null, // Don't show loading for newsletter card
+    ssr: false
+  }
+)
 
 export default function WelcomePage() {
   const { user, userProfile, loading } = useAuth()

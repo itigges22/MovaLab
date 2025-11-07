@@ -5,6 +5,7 @@ import { UserProfile, UserRole, Role, Department } from './supabase';
 
 /**
  * Get the current authenticated user (client-side only)
+ * Automatically refreshes session if expired
  * @returns The current user or null if not authenticated
  */
 export async function getCurrentUser() {
@@ -12,7 +13,22 @@ export async function getCurrentUser() {
     const supabase = createClientSupabase();
     if (!supabase) return null;
 
+    // Try to get user - this will automatically refresh if needed
     const { data: { user }, error } = await supabase.auth.getUser();
+    
+    // If error indicates expired session, try to refresh
+    if (error && (error.message?.includes('session') || error.message?.includes('token') || error.message?.includes('expired'))) {
+      console.log('Session expired, attempting refresh...');
+      try {
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && session?.user) {
+          // Refresh succeeded, return the user
+          return session.user;
+        }
+      } catch (refreshErr) {
+        console.error('Error refreshing session:', refreshErr);
+      }
+    }
     
     if (error || !user) {
       console.error('Error getting current user:', error);
@@ -485,29 +501,26 @@ export async function updateUserProfile(profileData: {
       throw new Error('User not authenticated');
     }
 
-    const supabase = createClientSupabase();
-    if (!supabase) {
-      throw new Error('Supabase not configured');
+    console.log('Updating user profile via API:', profileData);
+
+    // Call the API endpoint which enforces permission checks
+    const response = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(profileData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to update profile' }));
+      throw new Error(errorData.error || `Failed to update profile: ${response.status} ${response.statusText}`);
     }
 
-    console.log('Updating user profile:', profileData);
-
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({
-        name: profileData.name,
-        bio: profileData.bio,
-        skills: profileData.skills,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
-
-    if (error) {
-      console.error('Error updating user profile:', error);
-      throw new Error(`Failed to update profile: ${error.message}`);
-    }
-
+    const data = await response.json();
     console.log('User profile updated successfully');
+    return data.profile;
   } catch (error) {
     console.error('Error in updateUserProfile:', error);
     throw error;

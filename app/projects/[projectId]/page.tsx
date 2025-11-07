@@ -16,12 +16,15 @@ import TaskCreateEditDialog from '@/components/task-create-edit-dialog'
 import { projectUpdatesService, ProjectUpdate } from '@/lib/project-updates-service'
 import { projectIssuesService, ProjectIssue } from '@/lib/project-issues-service'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatDistance } from 'date-fns'
 import { accountService } from '@/lib/account-service'
 import { taskServiceDB, Task } from '@/lib/task-service-db'
 import { Permission } from '@/lib/permissions'
 import { hasPermission } from '@/lib/rbac'
+import { toast } from 'sonner'
 
 type Project = Database['public']['Tables']['projects']['Row']
 type Account = Database['public']['Tables']['accounts']['Row']
@@ -82,6 +85,9 @@ export default function ProjectDetailPage() {
   const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [calculatedEstimatedHours, setCalculatedEstimatedHours] = useState<number | null>(null)
+  const [calculatedRemainingHours, setCalculatedRemainingHours] = useState<number | null>(null)
+  const [updatingRemainingHours, setUpdatingRemainingHours] = useState<string | null>(null)
+  const [remainingHoursInputs, setRemainingHoursInputs] = useState<Record<string, string>>({})
 
   // Default status options matching the database schema
   const statusOptions = [
@@ -128,6 +134,18 @@ export default function ProjectDetailPage() {
     }
   }
 
+  // Calculate remaining hours based on tasks
+  const calculateRemainingHours = (projectTasks: Task[]) => {
+    if (projectTasks.length === 0) {
+      return null
+    }
+    // Sum up all task remaining_hours
+    const total = projectTasks.reduce((sum, task) => {
+      return sum + (task.remaining_hours || 0)
+    }, 0)
+    return total
+  }
+
   // Load tasks
   const loadTasks = async () => {
     if (!projectId) return
@@ -138,9 +156,11 @@ export default function ProjectDetailPage() {
       const projectTasks = await taskServiceDB.getTasksByProject(projectId)
       setTasks(projectTasks)
       
-      // Calculate estimated hours based on tasks
+      // Calculate estimated and remaining hours based on tasks
       const calculatedHours = calculateEstimatedHours(projectTasks, project)
+      const remainingHours = calculateRemainingHours(projectTasks)
       setCalculatedEstimatedHours(calculatedHours)
+      setCalculatedRemainingHours(remainingHours)
     } catch (error) {
       console.error('Error loading tasks:', error)
     } finally {
@@ -302,6 +322,141 @@ export default function ProjectDetailPage() {
     setEditTaskDialogOpen(false)
     setSelectedTask(null)
     await loadTasks()
+  }
+
+  // Initialize remaining hours inputs when tasks load
+  useEffect(() => {
+    const initialInputs: Record<string, string> = {}
+    tasks.forEach(task => {
+      initialInputs[task.id] = task.remaining_hours?.toString() ?? ''
+    })
+    setRemainingHoursInputs(initialInputs)
+  }, [tasks])
+
+  // Handle remaining hours input change (local state only)
+  const handleRemainingHoursInputChange = (taskId: string, value: string) => {
+    setRemainingHoursInputs(prev => ({
+      ...prev,
+      [taskId]: value
+    }))
+  }
+
+  // Handle remaining hours update (on blur or Enter)
+  const handleRemainingHoursUpdate = async (task: Task) => {
+    const newRemainingHours = remainingHoursInputs[task.id]
+    
+    // If empty or unchanged, skip
+    if (newRemainingHours === '' || newRemainingHours === task.remaining_hours?.toString()) {
+      return
+    }
+    
+    const remaining = parseFloat(newRemainingHours)
+    const previousRemaining = task.remaining_hours || 0
+    
+    // Validate input
+    if (isNaN(remaining) || remaining < 0) {
+      toast.error('Please enter a valid number of hours (0 or greater)')
+      // Reset to current value
+      setRemainingHoursInputs(prev => ({
+        ...prev,
+        [task.id]: task.remaining_hours?.toString() ?? ''
+      }))
+      return
+    }
+
+    // Check if remaining hours exceeds estimated hours
+    if (task.estimated_hours !== null && remaining > task.estimated_hours) {
+      const excess = remaining - task.estimated_hours
+      toast.error(
+        `Remaining hours cannot exceed estimated hours. You need ${excess.toFixed(1)} more estimated hours. Please update the task's estimated hours first.`,
+        {
+          duration: 5000,
+        }
+      )
+      // Reset to current value
+      setRemainingHoursInputs(prev => ({
+        ...prev,
+        [task.id]: task.remaining_hours?.toString() ?? ''
+      }))
+      return
+    }
+
+    setUpdatingRemainingHours(task.id)
+    try {
+      // Calculate hours worked (if remaining decreased)
+      const hoursWorked = previousRemaining - remaining
+      
+      const updatedTask = await taskServiceDB.updateRemainingHours(task.id, remaining, task.estimated_hours)
+      
+      if (updatedTask) {
+        // Log time entry if hours were worked (remaining decreased)
+        if (hoursWorked > 0 && projectId) {
+          try {
+            const today = new Date().toISOString().split('T')[0]
+            const timeEntryResponse = await fetch('/api/time-entries', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                taskId: task.id,
+                projectId: projectId,
+                hoursLogged: hoursWorked,
+                entryDate: today,
+                description: `Updated remaining hours from ${previousRemaining}h to ${remaining}h`,
+              }),
+            })
+
+            if (!timeEntryResponse.ok) {
+              console.warn('Failed to log time entry, but task update succeeded')
+            } else {
+              console.log(`Automatically logged ${hoursWorked}h time entry`)
+            }
+          } catch (timeError) {
+            console.error('Error logging time entry:', timeError)
+            // Don't fail the whole operation if time logging fails
+          }
+        }
+        
+        // Update local state
+        setTasks(prevTasks => 
+          prevTasks.map(t => t.id === task.id ? updatedTask : t)
+        )
+        
+        // Recalculate remaining hours
+        const updatedTasks = tasks.map(t => t.id === task.id ? updatedTask : t)
+        const newRemainingTotal = calculateRemainingHours(updatedTasks)
+        setCalculatedRemainingHours(newRemainingTotal)
+        
+        // Show success message
+        if (remaining === 0) {
+          toast.success(`Task marked as done! ${hoursWorked > 0 ? `Logged ${hoursWorked.toFixed(1)}h of work.` : ''}`)
+        } else if (hoursWorked > 0) {
+          toast.success(`Remaining hours updated and ${hoursWorked.toFixed(1)}h logged`)
+        } else {
+          toast.success('Remaining hours updated successfully')
+        }
+      } else {
+        toast.error('Failed to update remaining hours')
+        // Reset to current value on error
+        setRemainingHoursInputs(prev => ({
+          ...prev,
+          [task.id]: task.remaining_hours?.toString() ?? ''
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error updating remaining hours:', error)
+      if (error.message && error.message.includes('cannot exceed')) {
+        toast.error(error.message, { duration: 5000 })
+      } else {
+        toast.error('Failed to update remaining hours')
+      }
+      // Reset to current value on error
+      setRemainingHoursInputs(prev => ({
+        ...prev,
+        [task.id]: task.remaining_hours?.toString() ?? ''
+      }))
+    } finally {
+      setUpdatingRemainingHours(null)
+    }
   }
   
   const handleProjectUpdated = async () => {
@@ -636,6 +791,171 @@ export default function ProjectDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Tasks - Only show if user has VIEW_TASKS permission */}
+            {canViewTasks && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FolderOpen className="w-5 h-5 text-blue-600" />
+                        Tasks
+                      </CardTitle>
+                      <CardDescription>Manage project tasks and assignments</CardDescription>
+                    </div>
+                    {canCreateTasks ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedTask(null)
+                          setEditTaskDialogOpen(true)
+                        }}
+                      >
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        New Task
+                      </Button>
+                    ) : (
+                      <span className="text-sm text-gray-500 italic">
+                        Read-only access - cannot create tasks
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {loadingTasks ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-sm text-gray-500 mt-2">Loading tasks...</p>
+                    </div>
+                  ) : tasks.length > 0 ? (
+                    <div className="space-y-3">
+                      {tasks.slice(0, 10).map((task) => (
+                        <div key={task.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-gray-900">{task.name}</h4>
+                                <Badge className={`text-xs ${
+                                  task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                  task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {task.priority}
+                                </Badge>
+                                <Badge className={`text-xs ${
+                                  task.status === 'done' ? 'bg-green-100 text-green-800' :
+                                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                  task.status === 'review' ? 'bg-purple-100 text-purple-800' :
+                                  task.status === 'blocked' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {task.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              {task.description && (
+                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                              )}
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
+                                {task.created_by_user && (
+                                  <span>Created by: {task.created_by_user.name}</span>
+                                )}
+                                {task.start_date && task.due_date && (
+                                  <span>
+                                    {new Date(task.start_date).toLocaleDateString()} - {new Date(task.due_date).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {task.estimated_hours && (
+                                  <span>Est: {task.estimated_hours}h</span>
+                                )}
+                                {task.actual_hours > 0 && (
+                                  <span>Actual: {task.actual_hours}h</span>
+                                )}
+                              </div>
+                              {canEditTasks && task.estimated_hours !== null && task.estimated_hours > 0 && (
+                                <div className="flex flex-col gap-2 mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-xs font-medium text-gray-700">
+                                      Remaining Hours
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-semibold text-blue-600">
+                                        {remainingHoursInputs[task.id] !== undefined ? parseFloat(remainingHoursInputs[task.id] || '0').toFixed(1) : (task.remaining_hours?.toFixed(1) || '0.0')}h
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        / {task.estimated_hours}h
+                                      </span>
+                                      {updatingRemainingHours === task.id && (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Slider
+                                    value={[parseFloat(remainingHoursInputs[task.id] ?? task.remaining_hours?.toString() ?? '0')]}
+                                    max={task.estimated_hours}
+                                    min={0}
+                                    step={0.5}
+                                    onValueChange={(value) => handleRemainingHoursInputChange(task.id, value[0].toString())}
+                                    onValueCommit={(value) => {
+                                      handleRemainingHoursInputChange(task.id, value[0].toString())
+                                      handleRemainingHoursUpdate(task)
+                                    }}
+                                    disabled={updatingRemainingHours === task.id}
+                                    className="w-full"
+                                  />
+                                  <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <span>0h (Complete)</span>
+                                    <span className="font-medium">
+                                      {task.remaining_hours !== null && task.estimated_hours > 0
+                                        ? `${((task.remaining_hours / task.estimated_hours) * 100).toFixed(0)}% remaining`
+                                        : '0% remaining'}
+                                    </span>
+                                    <span>{task.estimated_hours}h (Not Started)</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {canEditTasks && (
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditTask(task)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {tasks.length > 10 && (
+                        <div className="text-center pt-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href="/kanban">View All Tasks ({tasks.length})</Link>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <FolderOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No tasks yet. {canCreateTasks && 'Click "New Task" to create one.'}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Project Updates - Journal Style */}
             <Card>
               <CardHeader>
@@ -758,129 +1078,6 @@ export default function ProjectDetailPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Tasks - Only show if user has VIEW_TASKS permission */}
-            {canViewTasks && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <FolderOpen className="w-5 h-5 text-blue-600" />
-                        Tasks
-                      </CardTitle>
-                      <CardDescription>Manage project tasks and assignments</CardDescription>
-                    </div>
-                    {canCreateTasks ? (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedTask(null)
-                          setEditTaskDialogOpen(true)
-                        }}
-                      >
-                        <PlusIcon className="w-4 h-4 mr-2" />
-                        New Task
-                      </Button>
-                    ) : (
-                      <span className="text-sm text-gray-500 italic">
-                        Read-only access - cannot create tasks
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingTasks ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                      <p className="text-sm text-gray-500 mt-2">Loading tasks...</p>
-                    </div>
-                  ) : tasks.length > 0 ? (
-                    <div className="space-y-3">
-                      {tasks.slice(0, 10).map((task) => (
-                        <div key={task.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-gray-900">{task.name}</h4>
-                                <Badge className={`text-xs ${
-                                  task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                                  task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-green-100 text-green-800'
-                                }`}>
-                                  {task.priority}
-                                </Badge>
-                                <Badge className={`text-xs ${
-                                  task.status === 'done' ? 'bg-green-100 text-green-800' :
-                                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                                  task.status === 'review' ? 'bg-purple-100 text-purple-800' :
-                                  task.status === 'blocked' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {task.status.replace('_', ' ')}
-                                </Badge>
-                              </div>
-                              {task.description && (
-                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                              )}
-                              <div className="flex items-center gap-4 text-xs text-gray-500">
-                                {task.created_by_user && (
-                                  <span>Created by: {task.created_by_user.name}</span>
-                                )}
-                                {task.start_date && task.due_date && (
-                                  <span>
-                                    {new Date(task.start_date).toLocaleDateString()} - {new Date(task.due_date).toLocaleDateString()}
-                                  </span>
-                                )}
-                                {task.estimated_hours && (
-                                  <span>Est: {task.estimated_hours}h</span>
-                                )}
-                                {task.actual_hours > 0 && (
-                                  <span>Actual: {task.actual_hours}h</span>
-                                )}
-                              </div>
-                            </div>
-                            {canEditTasks && (
-                              <div className="flex items-center gap-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => handleEditTask(task)}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => handleDeleteTask(task.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {tasks.length > 10 && (
-                        <div className="text-center pt-2">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href="/kanban">View All Tasks ({tasks.length})</Link>
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <FolderOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No tasks yet. {canCreateTasks && 'Click "New Task" to create one.'}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
             {/* Issues & Roadblocks - Journal Style */}
             <Card>
@@ -1123,6 +1320,22 @@ export default function ProjectDetailPage() {
                       </p>
                     </div>
                   </div>
+                  {tasks.length > 0 && calculatedRemainingHours !== null && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-500">Remaining Hours</p>
+                        <p className="text-sm font-semibold text-blue-600">
+                          {calculatedRemainingHours.toFixed(1)}h
+                          {calculatedEstimatedHours !== null && calculatedEstimatedHours > 0 && (
+                            <span className="text-xs text-gray-500 ml-2">
+                              ({((calculatedRemainingHours / calculatedEstimatedHours) * 100).toFixed(0)}% remaining)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4 space-y-2">

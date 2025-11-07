@@ -45,7 +45,7 @@ next-env.d.ts
 *.cursor
 
 #readme files for debugging/ testing. Not needed in Production environment.
-*.md
+
 
 #Removing .env local files from the repo for security reasons.
 .env.local

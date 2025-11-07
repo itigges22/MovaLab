@@ -47,7 +47,7 @@ export default function TaskCreateEditDialog({
     start_date: '',
     due_date: '',
     estimated_hours: '',
-    assigned_to: '',
+    assigned_to: 'unassigned', // Use 'unassigned' instead of empty string to avoid Select component error
   });
 
   const isEditMode = !!task;
@@ -71,7 +71,7 @@ export default function TaskCreateEditDialog({
         start_date: task.start_date ? new Date(task.start_date).toISOString().split('T')[0] : '',
         due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
         estimated_hours: task.estimated_hours?.toString() || '',
-        assigned_to: task.assigned_to || '',
+        assigned_to: task.assigned_to || 'unassigned', // Use 'unassigned' instead of empty string
       });
     } else {
       // Reset form for create mode
@@ -83,7 +83,7 @@ export default function TaskCreateEditDialog({
         start_date: '',
         due_date: '',
         estimated_hours: '',
-        assigned_to: '',
+        assigned_to: 'unassigned', // Use 'unassigned' instead of empty string
       });
     }
   }, [task, open]);
@@ -94,9 +94,11 @@ export default function TaskCreateEditDialog({
       const response = await fetch('/api/users');
       if (!response.ok) throw new Error('Failed to load users');
       const data = await response.json();
-      setUsers(data);
+      // API returns { users: [...] }, extract the array
+      setUsers(data.users || []);
     } catch (error) {
       console.error('Error loading users:', error);
+      setUsers([]); // Set to empty array on error
     } finally {
       setLoadingUsers(false);
     }
@@ -135,7 +137,7 @@ export default function TaskCreateEditDialog({
           start_date: formData.start_date || null,
           due_date: formData.due_date || null,
           estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
-          assigned_to: formData.assigned_to || null,
+          assigned_to: formData.assigned_to && formData.assigned_to !== 'unassigned' ? formData.assigned_to : null,
         };
 
         const updatedTask = await taskServiceDB.updateTask(updateData);
@@ -157,20 +159,29 @@ export default function TaskCreateEditDialog({
           due_date: formData.due_date || null,
           estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
           created_by: userProfile.id,
-          assigned_to: formData.assigned_to || null,
+          assigned_to: formData.assigned_to && formData.assigned_to !== 'unassigned' ? formData.assigned_to : null,
         };
 
+        console.log('Creating task with data:', createData);
         const newTask = await taskServiceDB.createTask(createData);
         if (newTask) {
+          console.log('Task created successfully:', newTask);
           onTaskSaved();
           onOpenChange(false);
         } else {
-          alert('Failed to create task');
+          console.error('Task creation returned null');
+          alert('Failed to create task. Please check the console for details.');
         }
       }
-    } catch (error) {
-      console.error('Error saving task:', error);
-      alert('An error occurred while saving the task');
+    } catch (error: any) {
+      console.error('Error saving task:', {
+        error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code
+      });
+      alert(`An error occurred while saving the task: ${error?.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -306,7 +317,7 @@ export default function TaskCreateEditDialog({
                   <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user (optional)"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name} ({user.email})

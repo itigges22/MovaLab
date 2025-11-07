@@ -56,6 +56,7 @@ export default function RoleManagementPage() {
   const [canEditRole, setCanEditRole] = useState(false);
   const [canDeleteRole, setCanDeleteRole] = useState(false);
   const [canAssignUsers, setCanAssignUsers] = useState(false);
+  const [canViewAccountsTab, setCanViewAccountsTab] = useState(false);
   
   // Edit Mode (from RoleHierarchyDnd component)
   const [inEditMode, setInEditMode] = useState(false);
@@ -90,6 +91,13 @@ export default function RoleManagementPage() {
     });
   }, [roles]);
 
+  // Redirect away from accounts tab if user doesn't have permission
+  useEffect(() => {
+    if (!authLoading && viewType === 'accounts' && !canViewAccountsTab) {
+      setViewType('hierarchy');
+    }
+  }, [authLoading, viewType, canViewAccountsTab]);
+
   async function checkPermissions() {
     if (!userProfile) return;
     
@@ -98,11 +106,13 @@ export default function RoleManagementPage() {
       const canEdit = await hasPermission(userProfile, Permission.EDIT_ROLE);
       const canDelete = await hasPermission(userProfile, Permission.DELETE_ROLE);
       const canAssign = await hasPermission(userProfile, Permission.ASSIGN_USERS_TO_ROLES);
+      const canViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB);
       
       setCanCreateRole(canCreate);
       setCanEditRole(canEdit);
       setCanDeleteRole(canDelete);
       setCanAssignUsers(canAssign);
+      setCanViewAccountsTab(canViewAccounts);
       
       // User is read-only if they can't create, edit, or delete roles
       setIsReadOnly(!canCreate && !canEdit && !canDelete);
@@ -134,6 +144,21 @@ export default function RoleManagementPage() {
       const rolesApiData = await rolesResponse.json();
       
       if (!rolesResponse.ok) {
+        // Handle permission errors gracefully (403) - these are expected for users without permissions
+        if (rolesResponse.status === 403 || rolesApiData.code === 'PERMISSION_DENIED') {
+          console.log('ℹ️ PAGE: User does not have permission to view roles - this is expected');
+          // Set empty state and return early - RoleGuard should handle redirect
+          setRoles([]);
+          setDepartments([]);
+          setLoading(false);
+          // Redirect to welcome page after a brief delay to allow RoleGuard to handle it
+          setTimeout(() => {
+            router.push('/welcome');
+          }, 100);
+          return;
+        }
+        
+        // Log other errors as actual errors
         console.error('❌ PAGE: Roles API error:', {
           status: rolesResponse.status,
           statusText: rolesResponse.statusText,
@@ -144,6 +169,18 @@ export default function RoleManagementPage() {
       
       // Check if response contains an error
       if (rolesApiData.error) {
+        // Handle permission errors gracefully
+        if (rolesApiData.code === 'PERMISSION_DENIED') {
+          console.log('ℹ️ PAGE: User does not have permission to view roles - this is expected');
+          setRoles([]);
+          setDepartments([]);
+          setLoading(false);
+          setTimeout(() => {
+            router.push('/welcome');
+          }, 100);
+          return;
+        }
+        
         console.error('❌ PAGE: API returned error:', rolesApiData);
         throw new Error(rolesApiData.error || 'Failed to load roles');
       }
@@ -188,6 +225,25 @@ export default function RoleManagementPage() {
       
       console.log('✅ PAGE: loadData() completed successfully');
     } catch (error: any) {
+      // Check if this is a permission error (expected for users without permissions)
+      const isPermissionError = error?.message?.includes('permission') || 
+                                error?.message?.includes('Permission denied') ||
+                                error?.message?.includes('You don\'t have permission');
+      
+      if (isPermissionError) {
+        // Handle permission errors gracefully - don't log as error or show toast
+        console.log('ℹ️ PAGE: Permission denied - this is expected for users without VIEW_ROLES permission');
+        setRoles([]);
+        setDepartments([]);
+        setLoading(false);
+        // RoleGuard should handle redirect, but add a fallback
+        setTimeout(() => {
+          router.push('/welcome');
+        }, 100);
+        return;
+      }
+      
+      // Log other errors as actual errors
       console.error('❌ PAGE: Error loading data:', error);
       const errorMessage = error?.message || 'Failed to load data';
       toast.error(errorMessage);
@@ -415,10 +471,12 @@ export default function RoleManagementPage() {
             <Building2 className="h-4 w-4" />
             Department View
           </TabsTrigger>
-          <TabsTrigger value="accounts" className="flex items-center gap-2">
-            <Briefcase className="h-4 w-4" />
-            Accounts View
-          </TabsTrigger>
+          {canViewAccountsTab && (
+            <TabsTrigger value="accounts" className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              Accounts View
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="hierarchy" className="space-y-6 mt-6">
@@ -467,11 +525,14 @@ export default function RoleManagementPage() {
           />
         </TabsContent>
 
-        <TabsContent value="accounts" className="space-y-6 mt-6">
-          <AccountView
-            isReadOnly={isReadOnly}
-          />
-        </TabsContent>
+        {canViewAccountsTab && (
+          <TabsContent value="accounts" className="space-y-6 mt-6">
+            <AccountView
+              isReadOnly={isReadOnly}
+              userProfile={userProfile}
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Dialogs */}

@@ -339,7 +339,11 @@ export async function checkPermissionHybrid(
       [Permission.EDIT_PROJECT]: [Permission.EDIT_ALL_PROJECTS],
       [Permission.DELETE_PROJECT]: [Permission.DELETE_ALL_PROJECTS],
       [Permission.VIEW_DEPARTMENTS]: [Permission.VIEW_ALL_DEPARTMENTS],
+      [Permission.EDIT_DEPARTMENT]: [Permission.VIEW_ALL_DEPARTMENTS], // VIEW_ALL_DEPARTMENTS allows editing any department
+      [Permission.DELETE_DEPARTMENT]: [Permission.VIEW_ALL_DEPARTMENTS], // VIEW_ALL_DEPARTMENTS allows deleting any department
       [Permission.VIEW_ACCOUNTS]: [Permission.VIEW_ALL_ACCOUNTS],
+      [Permission.EDIT_ACCOUNT]: [Permission.VIEW_ALL_ACCOUNTS], // VIEW_ALL_ACCOUNTS allows editing any account
+      [Permission.DELETE_ACCOUNT]: [Permission.VIEW_ALL_ACCOUNTS], // VIEW_ALL_ACCOUNTS allows deleting any account
       [Permission.VIEW_ANALYTICS]: [Permission.VIEW_ALL_ANALYTICS],
     } as any;
 
@@ -360,7 +364,21 @@ export async function checkPermissionHybrid(
     }
 
     // 7. Check context-specific access
-    if (context.projectId) {
+    // For account-level permissions (EDIT_ACCOUNT, DELETE_ACCOUNT), base permission means you can edit/delete ANY account
+    // For department-level permissions (EDIT_DEPARTMENT, DELETE_DEPARTMENT), base permission means you can edit/delete ANY department
+    // Context.accountId/departmentId is only used for filtering VIEW_ACCOUNTS/VIEW_DEPARTMENTS when user doesn't have override
+    const isAccountEditPermission = permission === Permission.EDIT_ACCOUNT || permission === Permission.DELETE_ACCOUNT;
+    const isDepartmentEditPermission = permission === Permission.EDIT_DEPARTMENT || permission === Permission.DELETE_DEPARTMENT;
+    
+    if (isAccountEditPermission && context?.accountId) {
+      // If user has base EDIT_ACCOUNT or DELETE_ACCOUNT permission, they can edit/delete any account
+      // No need to check account access - base permission is sufficient
+      hasAccess = true;
+    } else if (isDepartmentEditPermission && context?.departmentId) {
+      // If user has base EDIT_DEPARTMENT or DELETE_DEPARTMENT permission, they can edit/delete any department
+      // No need to check department assignment - base permission is sufficient
+      hasAccess = true;
+    } else if (context.projectId) {
       // Check if user is assigned to this project
       // If they're assigned, they can view it (base permission already checked above)
       hasAccess = await isAssignedToProject(userProfile.id, context.projectId);
@@ -386,13 +404,16 @@ export async function checkPermissionHybrid(
       }
     }
 
-    if (context.accountId && !context.projectId) {
+    if (context.accountId && !context.projectId && !isAccountEditPermission) {
       // Check if user has access to any project in this account
+      // Only applies to VIEW_ACCOUNTS and other non-edit permissions
       hasAccess = await hasAccountAccess(userProfile.id, context.accountId);
     }
 
-    if (context.departmentId) {
+    if (context.departmentId && !isDepartmentEditPermission) {
       // Check if user has a role in this department
+      // Only applies to VIEW_DEPARTMENTS and other non-edit permissions
+      // If user has VIEW_ALL_DEPARTMENTS override, this check is bypassed above
       hasAccess = await managesDepartment(userProfile, context.departmentId);
     }
 
@@ -509,3 +530,6 @@ export function clearPermissionCache(userId?: string) {
     permissionCache.clear();
   }
 }
+
+// Export hasPermission as an alias for checkPermissionHybrid for backward compatibility
+export const hasPermission = checkPermissionHybrid;

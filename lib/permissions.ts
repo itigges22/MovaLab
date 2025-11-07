@@ -16,14 +16,10 @@ export enum Permission {
   VIEW_ROLES = 'view_roles',
   ASSIGN_USERS_TO_ROLES = 'assign_users_to_roles',
   REMOVE_USERS_FROM_ROLES = 'remove_users_from_roles',
-  
-  // ========================================
-  // USER MANAGEMENT PERMISSIONS
-  // ========================================
+  VIEW_ACCOUNTS_TAB = 'view_accounts_tab',
+  ASSIGN_ACCOUNT_USERS = 'assign_account_users',
+  REMOVE_ACCOUNT_USERS = 'remove_account_users',
   MANAGE_USERS = 'manage_users',
-  VIEW_USERS = 'view_users',
-  EDIT_USERS = 'edit_users',
-  DELETE_USERS = 'delete_users',
   
   // ========================================
   // DEPARTMENT PERMISSIONS
@@ -122,7 +118,19 @@ export enum Permission {
   // ========================================
   VIEW_OWN_PROFILE = 'view_own_profile',
   EDIT_OWN_PROFILE = 'edit_own_profile',
-  MODIFY_WORKING_HOURS = 'modify_working_hours', // For future implementation
+  
+  // ========================================
+  // CAPACITY & TIME TRACKING PERMISSIONS
+  // ========================================
+  EDIT_OWN_AVAILABILITY = 'edit_own_availability', // Set personal weekly availability
+  VIEW_OWN_CAPACITY = 'view_own_capacity', // View personal capacity metrics
+  VIEW_TEAM_CAPACITY = 'view_team_capacity', // View team/department capacity
+  VIEW_ALL_CAPACITY = 'view_all_capacity', // View org-wide capacity (override)
+  LOG_TIME = 'log_time', // Log time entries on tasks
+  EDIT_OWN_TIME_ENTRIES = 'edit_own_time_entries', // Edit/delete own time entries
+  VIEW_TEAM_TIME_ENTRIES = 'view_team_time_entries', // View team time entries
+  ALLOCATE_TASK_WEEKS = 'allocate_task_weeks', // Allocate tasks to specific weeks
+  VIEW_CAPACITY_ANALYTICS = 'view_capacity_analytics', // View capacity analytics dashboard
 }
 
 // Human-readable permission definitions
@@ -160,29 +168,25 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     description: 'Remove users from their assigned roles',
     category: 'Roles'
   },
-  
-  // ========================================
-  // USER MANAGEMENT PERMISSIONS
-  // ========================================
+  [Permission.VIEW_ACCOUNTS_TAB]: {
+    name: 'View Accounts Tab',
+    description: 'View the Accounts tab in Role Management page',
+    category: 'Roles'
+  },
+  [Permission.ASSIGN_ACCOUNT_USERS]: {
+    name: 'Assign Users to Accounts',
+    description: 'Add users to accounts from the Accounts tab in Role Management',
+    category: 'Roles'
+  },
+  [Permission.REMOVE_ACCOUNT_USERS]: {
+    name: 'Remove Users from Accounts',
+    description: 'Remove users from accounts from the Accounts tab in Role Management',
+    category: 'Roles'
+  },
   [Permission.MANAGE_USERS]: {
     name: 'Manage Users',
-    description: 'Full user management capabilities',
-    category: 'Users'
-  },
-  [Permission.VIEW_USERS]: {
-    name: 'View Users',
-    description: 'View user profiles and information',
-    category: 'Users'
-  },
-  [Permission.EDIT_USERS]: {
-    name: 'Edit Users',
-    description: 'Edit user profiles and settings',
-    category: 'Users'
-  },
-  [Permission.DELETE_USERS]: {
-    name: 'Delete Users',
-    description: 'Remove users from the system',
-    category: 'Users'
+    description: 'Full user management capabilities - view, edit, and delete users',
+    category: 'Roles'
   },
   
   // ========================================
@@ -505,17 +509,61 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     description: 'Edit own user profile',
     category: 'Profile'
   },
-  [Permission.MODIFY_WORKING_HOURS]: {
-    name: 'Modify Working Hours',
-    description: 'Modify working hours for capacity planning (future implementation)',
-    category: 'Profile'
+  
+  // ========================================
+  // CAPACITY & TIME TRACKING PERMISSIONS
+  // ========================================
+  [Permission.EDIT_OWN_AVAILABILITY]: {
+    name: 'Edit Own Availability',
+    description: 'Set and manage personal weekly work availability',
+    category: 'Capacity'
+  },
+  [Permission.VIEW_OWN_CAPACITY]: {
+    name: 'View Own Capacity',
+    description: 'View personal capacity metrics and utilization',
+    category: 'Capacity'
+  },
+  [Permission.VIEW_TEAM_CAPACITY]: {
+    name: 'View Team Capacity',
+    description: 'View capacity metrics for team/department members',
+    category: 'Capacity'
+  },
+  [Permission.VIEW_ALL_CAPACITY]: {
+    name: 'View All Capacity',
+    description: 'View organization-wide capacity metrics (override)',
+    category: 'Capacity',
+    isOverride: true
+  },
+  [Permission.LOG_TIME]: {
+    name: 'Log Time',
+    description: 'Log time entries on assigned tasks',
+    category: 'Time Tracking'
+  },
+  [Permission.EDIT_OWN_TIME_ENTRIES]: {
+    name: 'Edit Own Time Entries',
+    description: 'Edit and delete own time entries',
+    category: 'Time Tracking'
+  },
+  [Permission.VIEW_TEAM_TIME_ENTRIES]: {
+    name: 'View Team Time Entries',
+    description: 'View time entries logged by team members',
+    category: 'Time Tracking'
+  },
+  [Permission.ALLOCATE_TASK_WEEKS]: {
+    name: 'Allocate Task Weeks',
+    description: 'Allocate tasks to specific weeks for capacity planning',
+    category: 'Capacity'
+  },
+  [Permission.VIEW_CAPACITY_ANALYTICS]: {
+    name: 'View Capacity Analytics',
+    description: 'Access capacity analytics dashboard and reports',
+    category: 'Capacity'
   },
 };
 
 // Permission categories for UI grouping
 export const PermissionCategories = {
   Roles: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Roles'),
-  Users: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Users'),
   Departments: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Departments'),
   Accounts: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Accounts'),
   Projects: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Projects'),
@@ -528,6 +576,8 @@ export const PermissionCategories = {
   Newsletters: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Newsletters'),
   Analytics: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Analytics'),
   Profile: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Profile'),
+  Capacity: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Capacity'),
+  'Time Tracking': Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Time Tracking'),
 };
 
 // Get override permissions

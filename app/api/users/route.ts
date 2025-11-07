@@ -7,7 +7,7 @@ import { logger } from '@/lib/debug-logger';
 export async function GET(request: NextRequest) {
   try {
     // Check authentication and permission
-    await requireAuthAndPermission(Permission.VIEW_USERS, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USERS, {}, request);
 
     const supabase = await createServerSupabase();
     if (!supabase) {

@@ -68,11 +68,68 @@ export function DepartmentList({
     filterDepartments();
   }, [departments, userProfile]);
 
+  // State for real-time capacity metrics
+  const [capacityMetrics, setCapacityMetrics] = useState<Map<string, number>>(new Map());
+  const [loadingCapacity, setLoadingCapacity] = useState(false);
+
+  // Fetch real capacity metrics for all departments
+  useEffect(() => {
+    async function fetchCapacityMetrics() {
+      if (!userProfile || filteredDepartments.length === 0) return;
+      
+      setLoadingCapacity(true);
+      try {
+        // Get Monday of current week
+        const getWeekStart = () => {
+          const d = new Date();
+          const day = d.getDay();
+          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+          return new Date(d.setDate(diff)).toISOString().split('T')[0];
+        };
+        
+        const weekStart = getWeekStart();
+        
+        // Fetch capacity for each department
+        const metricsPromises = filteredDepartments.map(async dept => {
+          try {
+            const response = await fetch(
+              `/api/capacity?type=department&id=${dept.id}&weekStartDate=${weekStart}`
+            );
+            const data = await response.json();
+            return {
+              departmentId: dept.id,
+              utilization: data.metrics?.departmentUtilizationPercentage || 0
+            };
+          } catch (error) {
+            console.error(`Error fetching capacity for ${dept.name}:`, error);
+            return { departmentId: dept.id, utilization: 0 };
+          }
+        });
+        
+        const results = await Promise.all(metricsPromises);
+        const newMetrics = new Map<string, number>();
+        results.forEach(result => {
+          newMetrics.set(result.departmentId, result.utilization);
+        });
+        setCapacityMetrics(newMetrics);
+      } catch (error) {
+        console.error('Error fetching department capacity metrics:', error);
+      } finally {
+        setLoadingCapacity(false);
+      }
+    }
+    
+    fetchCapacityMetrics();
+  }, [userProfile, filteredDepartments.length]);
+
   // Use server-side metrics if available, otherwise fall back to deterministic mock data
   const getMetrics = (departmentId: string): DepartmentMetrics => {
     if (initialDepartmentMetrics?.has(departmentId)) {
       return initialDepartmentMetrics.get(departmentId)!;
     }
+    
+    // Use real capacity metrics if available, otherwise fall back to mock
+    const realCapacity = capacityMetrics.get(departmentId);
     
     // Fallback to deterministic mock metrics (based on department ID hash)
     // This ensures server and client render the same values
@@ -84,7 +141,7 @@ export function DepartmentList({
       description: departments.find(d => d.id === departmentId)?.description || null,
       activeProjects: (hash % 10) + 1,
       teamSize: (hash % 15) + 3,
-      capacityUtilization: (hash % 40) + 60,
+      capacityUtilization: realCapacity !== undefined ? Math.round(realCapacity) : (hash % 40) + 60, // Use real data if available
       projectHealth: {
         healthy: (hash % 5) + 1,
         atRisk: (hash % 3),

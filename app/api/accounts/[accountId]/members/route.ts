@@ -190,8 +190,8 @@ export async function POST(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     
-    // Require permission to assign users to accounts (use ASSIGN_USERS_TO_ROLES as similar permission)
-    await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    // Require permission to assign users to accounts
+    await requireAuthAndPermission(Permission.ASSIGN_ACCOUNT_USERS, {}, request);
     
     const supabase = await createServerSupabase();
     if (!supabase) {

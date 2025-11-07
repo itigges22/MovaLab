@@ -16,6 +16,7 @@ export interface Task {
   start_date: string | null;
   due_date: string | null;
   estimated_hours: number | null;
+  remaining_hours: number | null;
   actual_hours: number;
   created_by: string;
   assigned_to: string | null;
@@ -140,6 +141,19 @@ class TaskServiceDB {
     try {
       const supabase = this.getSupabase();
       
+      // Verify user session
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Auth check failed in createTask:', {
+          authError,
+          hasUser: !!user
+        });
+        throw new Error('User not authenticated');
+      }
+      
+      console.log('Creating task with user:', user.id);
+      console.log('Task creation data input:', data);
+      
       const taskData: TaskInsert = {
         name: data.name,
         description: data.description || null,
@@ -148,11 +162,14 @@ class TaskServiceDB {
         priority: data.priority || 'medium',
         start_date: data.start_date || null,
         due_date: data.due_date || null,
-        estimated_hours: data.estimated_hours || null,
+        estimated_hours: data.estimated_hours !== undefined ? data.estimated_hours : null,
+        remaining_hours: data.estimated_hours !== undefined ? data.estimated_hours : null, // Initialize remaining_hours to estimated_hours
         actual_hours: 0,
         created_by: data.created_by,
         assigned_to: data.assigned_to || null,
       };
+
+      console.log('Task data being inserted:', taskData);
 
       const { data: newTask, error } = await supabase
         .from('tasks')
@@ -166,13 +183,30 @@ class TaskServiceDB {
         .single();
 
       if (error) {
-        console.error('Error creating task:', error);
+        console.error('Error creating task:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          full: error
+        });
         throw error;
       }
 
-      return newTask ? this.mapTaskRowToTask(newTask) : null;
-    } catch (error) {
-      console.error('Error in createTask:', error);
+      console.log('New task from database:', newTask);
+      const mappedTask = newTask ? this.mapTaskRowToTask(newTask) : null;
+      console.log('Mapped new task:', mappedTask);
+      
+      return mappedTask;
+    } catch (error: any) {
+      console.error('Error in createTask:', {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+        name: error?.name,
+        stack: error?.stack
+      });
       return null;
     }
   }
@@ -222,6 +256,65 @@ class TaskServiceDB {
   }
 
   /**
+   * Update remaining hours for a task
+   * Automatically sets status to 'done' if remaining_hours is 0
+   */
+  async updateRemainingHours(taskId: string, remainingHours: number, estimatedHours: number | null): Promise<Task | null> {
+    try {
+      const supabase = this.getSupabase();
+      
+      console.log('updateRemainingHours called with:', {
+        taskId,
+        remainingHours,
+        estimatedHours
+      });
+      
+      // Validate remaining hours doesn't exceed estimated hours
+      if (estimatedHours !== null && remainingHours > estimatedHours) {
+        throw new Error(`Remaining hours (${remainingHours}) cannot exceed estimated hours (${estimatedHours})`);
+      }
+      
+      // Prepare update data
+      const updateData: TaskUpdate = {
+        remaining_hours: remainingHours,
+      };
+      
+      // If remaining hours is 0, automatically set status to 'done'
+      if (remainingHours === 0) {
+        updateData.status = 'done';
+      }
+      
+      console.log('Updating task with data:', updateData);
+      
+      const { data: updatedTask, error } = await supabase
+        .from('tasks')
+        .update(updateData)
+        .eq('id', taskId)
+        .select(`
+          *,
+          created_by_user:user_profiles!created_by(id, name, email),
+          assigned_to_user:user_profiles!assigned_to(id, name, email),
+          project:projects(id, name)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error updating remaining hours:', error);
+        throw error;
+      }
+
+      console.log('Updated task from database:', updatedTask);
+      const mappedTask = updatedTask ? this.mapTaskRowToTask(updatedTask) : null;
+      console.log('Mapped task result:', mappedTask);
+      
+      return mappedTask;
+    } catch (error: any) {
+      console.error('Error in updateRemainingHours:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete a task
    */
   async deleteTask(taskId: string): Promise<boolean> {
@@ -259,6 +352,7 @@ class TaskServiceDB {
       start_date: row.start_date,
       due_date: row.due_date,
       estimated_hours: row.estimated_hours,
+      remaining_hours: row.remaining_hours,
       actual_hours: row.actual_hours,
       created_by: row.created_by,
       assigned_to: row.assigned_to || null,

@@ -35,6 +35,7 @@ interface ProjectWithDetails {
   end_date: string | null;
   estimated_hours: number | null;
   actual_hours: number;
+  remaining_hours?: number | null; // Added for capacity tracking
   created_by: string;
   assigned_user_id: string | null;
   created_at: string;
@@ -123,6 +124,31 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
         departments: [] // For now, we'll leave departments empty since we're not using project_departments
       }))
 
+      // Fetch remaining hours for each project from tasks
+      if (projectsWithDetails.length > 0) {
+        const projectIds = projectsWithDetails.map(p => p.id)
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('project_id, remaining_hours, estimated_hours')
+          .in('project_id', projectIds)
+
+        // Calculate remaining hours per project
+        const projectRemainingHours: Record<string, number> = {}
+        if (tasksData) {
+          tasksData.forEach((task: any) => {
+            if (!projectRemainingHours[task.project_id]) {
+              projectRemainingHours[task.project_id] = 0
+            }
+            projectRemainingHours[task.project_id] += (task.remaining_hours || task.estimated_hours || 0)
+          })
+        }
+
+        // Add remaining hours to projects
+        projectsWithDetails.forEach(project => {
+          project.remaining_hours = projectRemainingHours[project.id] || null
+        })
+      }
+
       setAssignedProjects(projectsWithDetails)
     } catch (error) {
       console.error('Error loading assigned projects:', error)
@@ -131,7 +157,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     }
   }
 
-  // Filter projects based on permissions
+  // Filter projects based on permissions - OPTIMIZED: Batch permission checks
   useEffect(() => {
     if (!userProfile || assignedProjects.length === 0) {
       setVisibleProjects([])
@@ -139,26 +165,33 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     }
 
     async function filterProjects() {
-      const filtered: ProjectWithDetails[] = []
-      const hasViewAllProjects = await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS)
-      const hasViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS)
+      // Batch all permission checks upfront instead of checking per project
+      const [hasViewAllProjects, hasViewProjects] = await Promise.all([
+        hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS),
+        hasPermission(userProfile, Permission.VIEW_PROJECTS)
+      ])
       
-      for (const project of assignedProjects) {
-        // If user has VIEW_ALL_PROJECTS, they can see all projects
-        if (hasViewAllProjects) {
-          filtered.push(project)
-          continue
-        }
-        
-        // If user has VIEW_PROJECTS, check if they can view this specific project
-        if (hasViewProjects) {
-          const canView = await canViewProject(userProfile, project.id)
-          if (canView) {
-            filtered.push(project)
-          }
-        }
+      // If user has VIEW_ALL_PROJECTS, they can see all projects - no need to check individual projects
+      if (hasViewAllProjects) {
+        setVisibleProjects(assignedProjects)
+        return
       }
       
+      // If user doesn't have VIEW_PROJECTS, they can't see any projects
+      if (!hasViewProjects) {
+        setVisibleProjects([])
+        return
+      }
+      
+      // Batch check all project permissions in parallel instead of sequentially
+      const projectPermissionChecks = await Promise.all(
+        assignedProjects.map(project => 
+          canViewProject(userProfile, project.id).catch(() => false)
+        )
+      )
+      
+      // Filter projects based on permission results
+      const filtered = assignedProjects.filter((_, index) => projectPermissionChecks[index])
       setVisibleProjects(filtered)
     }
 
@@ -336,6 +369,8 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Est Hours</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Remaining</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                 </tr>
@@ -365,6 +400,27 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">{project.account?.name || 'Unknown'}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-900">
+                          {project.estimated_hours ? `${project.estimated_hours}h` : '-'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-semibold text-blue-600">
+                          {project.remaining_hours !== null && project.remaining_hours !== undefined ? `${project.remaining_hours.toFixed(1)}h` : '-'}
+                        </span>
+                        {project.estimated_hours && project.remaining_hours !== null && project.remaining_hours !== undefined && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({Math.round((1 - project.remaining_hours / project.estimated_hours) * 100)}%)
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       {project.end_date ? (

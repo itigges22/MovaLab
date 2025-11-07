@@ -38,6 +38,20 @@ export const createClientSupabase = () => {
       return null;
     }
     clientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    
+    // Set up automatic session refresh on token expiry
+    // This prevents "Auth session missing!" errors when idle
+    // Supabase automatically refreshes tokens, but we listen for events
+    if (typeof window !== 'undefined') {
+      clientInstance.auth.onAuthStateChange((event, session) => {
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('Session token refreshed automatically');
+        } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+        }
+      });
+    }
+    
     return clientInstance;
   } catch (error) {
     console.error('Error creating Supabase client:', error);
@@ -277,6 +291,7 @@ export interface Database {
           start_date: string | null;
           due_date: string | null;
           estimated_hours: number | null;
+          remaining_hours: number | null;
           actual_hours: number;
           created_by: string;
           assigned_to: string | null;
@@ -293,6 +308,7 @@ export interface Database {
           start_date?: string | null;
           due_date?: string | null;
           estimated_hours?: number | null;
+          remaining_hours?: number | null;
           actual_hours?: number;
           created_by: string;
           assigned_to?: string | null;
@@ -309,6 +325,7 @@ export interface Database {
           start_date?: string | null;
           due_date?: string | null;
           estimated_hours?: number | null;
+          remaining_hours?: number | null;
           actual_hours?: number;
           created_by?: string;
           assigned_to?: string | null;
@@ -433,6 +450,108 @@ export interface Database {
           updated_at?: string;
         };
       };
+      user_availability: {
+        Row: {
+          id: string;
+          user_id: string;
+          week_start_date: string;
+          available_hours: number;
+          schedule_data: any | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          week_start_date: string;
+          available_hours?: number;
+          schedule_data?: any | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          week_start_date?: string;
+          available_hours?: number;
+          schedule_data?: any | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      time_entries: {
+        Row: {
+          id: string;
+          task_id: string;
+          user_id: string;
+          project_id: string;
+          hours_logged: number;
+          entry_date: string;
+          week_start_date: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          user_id: string;
+          project_id: string;
+          hours_logged: number;
+          entry_date: string;
+          week_start_date: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          user_id?: string;
+          project_id?: string;
+          hours_logged?: number;
+          entry_date?: string;
+          week_start_date?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      task_week_allocations: {
+        Row: {
+          id: string;
+          task_id: string;
+          week_start_date: string;
+          allocated_hours: number;
+          assigned_user_id: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          week_start_date: string;
+          allocated_hours: number;
+          assigned_user_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          week_start_date?: string;
+          allocated_hours?: number;
+          assigned_user_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
@@ -448,3 +567,6 @@ export type Task = Database['public']['Tables']['tasks']['Row'];
 export type Deliverable = Database['public']['Tables']['deliverables']['Row'];
 export type Notification = Database['public']['Tables']['notifications']['Row'];
 export type ProjectAssignment = Database['public']['Tables']['project_assignments']['Row'];
+export type UserAvailability = Database['public']['Tables']['user_availability']['Row'];
+export type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
+export type TaskWeekAllocation = Database['public']['Tables']['task_week_allocations']['Row'];

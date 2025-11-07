@@ -43,9 +43,18 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
       const data = await response.json()
       setUpdates(data || [])
     } catch (err) {
+      // Handle network errors gracefully (server not running, CORS, etc.)
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        // Network error - likely server not running or connection issue
+        console.log('Network error - server may not be running, showing empty state')
+        setUpdates([])
+        setError(null) // Don't show error for network issues
+        return
+      }
+      
       console.error('Error loading project updates:', err)
       // Don't show error for auth failures - just show empty state
-      if (err instanceof Error && err.message.includes('401')) {
+      if (err instanceof Error && (err.message.includes('401') || err.message.includes('403'))) {
         setUpdates([])
       } else {
         setError('Failed to load project updates')

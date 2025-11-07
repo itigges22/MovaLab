@@ -14,8 +14,8 @@ export async function DELETE(
   try {
     const { accountId, userId } = await params;
     
-    // Require permission to remove users (use ASSIGN_USERS_TO_ROLES as similar permission)
-    await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    // Require permission to remove users from accounts
+    await requireAuthAndPermission(Permission.REMOVE_ACCOUNT_USERS, {}, request);
     
     const supabase = await createServerSupabase();
     if (!supabase) {

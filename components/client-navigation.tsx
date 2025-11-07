@@ -28,14 +28,16 @@ import {
   ChevronDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { isSuperadmin, isUnassigned } from '@/lib/rbac'
+import { isSuperadmin, isUnassigned, hasPermission } from '@/lib/rbac'
+import { Permission } from '@/lib/permissions'
 
 interface NavigationItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  roles?: string[]
-  departments?: string[]
+  permission?: Permission
+  anyPermission?: Permission[]
+  allowUnassigned?: boolean
 }
 
 const navigationItems: NavigationItem[] = [
@@ -43,23 +45,28 @@ const navigationItems: NavigationItem[] = [
     name: 'Welcome',
     href: '/welcome',
     icon: User,
+    allowUnassigned: true,
   },
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+    anyPermission: [Permission.VIEW_PROJECTS, Permission.VIEW_ACCOUNTS, Permission.VIEW_DEPARTMENTS],
+    allowUnassigned: false,
   },
   {
     name: 'Department',
     href: '/departments',
     icon: Building2,
-    // All users with roles can access departments
+    anyPermission: [Permission.VIEW_DEPARTMENTS, Permission.VIEW_ALL_DEPARTMENTS],
+    allowUnassigned: false,
   },
   {
     name: 'Accounts',
     href: '/accounts',
     icon: Users,
-    // All users can access accounts, but will only see accounts they're assigned to
+    anyPermission: [Permission.VIEW_ACCOUNTS, Permission.VIEW_ALL_ACCOUNTS],
+    allowUnassigned: false,
   },
   // Profile removed from main nav - accessible via dropdown menu
 ]
@@ -67,6 +74,10 @@ const navigationItems: NavigationItem[] = [
 export function ClientNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [visibleItems, setVisibleItems] = useState<NavigationItem[]>(
+    navigationItems.filter(item => item.allowUnassigned === true)
+  )
+  const [permissionsChecked, setPermissionsChecked] = useState(false)
   const { userProfile, signOut, loading } = useAuth()
   const pathname = usePathname()
 
@@ -113,70 +124,104 @@ export function ClientNavigation() {
     }
   }
 
-  const canAccessItem = (item: NavigationItem) => {
-    // During SSR or while loading, show a minimal set of items to prevent hydration mismatch
-    if (!isMounted || loading) {
-      return item.href === '/welcome'
+  // Check permissions for navigation items
+  useEffect(() => {
+    if (!isMounted || loading || !userProfile) {
+      setVisibleItems(navigationItems.filter(item => item.allowUnassigned === true))
+      setPermissionsChecked(false)
+      return
     }
-    
-    // Safety check: if userProfile is being cleared (during logout), only show welcome
-    if (!userProfile) {
-      return item.href === '/welcome'
-    }
-    
-    // IMPORTANT: Check if user is unassigned FIRST
-    // Add try-catch to prevent errors during rapid state changes
-    let userIsUnassigned = false
-    try {
-      userIsUnassigned = isUnassigned(userProfile)
-    } catch (error) {
-      console.error('Error checking unassigned status:', error)
-      // On error, default to safe behavior - only show welcome
-      return item.href === '/welcome'
-    }
-    
-    // Unassigned users can ONLY see Welcome page
-    if (userIsUnassigned) {
-      return item.href === '/welcome'
-    }
-    
-    // Superadmin has access to everything
-    try {
-      if (isSuperadmin(userProfile)) {
-        return true
+
+    async function filterItems() {
+      setPermissionsChecked(false)
+      
+      const isActuallyUnassigned = isUnassigned(userProfile)
+      const userIsSuperadmin = isSuperadmin(userProfile)
+
+      console.log('🔍 ClientNavigation Debug:', {
+        userEmail: userProfile?.email,
+        userId: userProfile?.id,
+        isActuallyUnassigned,
+        userIsSuperadmin,
+      })
+
+      // Superadmin sees everything
+      if (userIsSuperadmin) {
+        setVisibleItems(navigationItems)
+        setPermissionsChecked(true)
+        return
       }
-    } catch (error) {
-      console.error('Error checking superadmin status:', error)
-      // On error, continue with normal checks
-    }
-    
-    // Check if user has any roles at all
-    const hasRoles = userProfile?.user_roles && userProfile.user_roles.length > 0
-    
-    // If user has no roles, only allow access to Welcome page
-    if (!hasRoles) {
-      return item.href === '/welcome'
-    }
-    
-    // If user has roles, check specific role restrictions
-    if (!item.roles || item.roles.length === 0) {
-      return true // No role restrictions
-    }
-    
-    if (!userProfile?.user_roles) {
-      return false
+
+      // Unassigned users ONLY see items with allowUnassigned === true
+      if (isActuallyUnassigned) {
+        const allowedItems = navigationItems.filter(item => item.allowUnassigned === true)
+        console.log('✅ ClientNavigation: Unassigned user - showing only Welcome')
+        setVisibleItems(allowedItems)
+        setPermissionsChecked(true)
+        return
+      }
+
+      // Check permissions for each item
+      const filtered: NavigationItem[] = []
+      
+      for (const item of navigationItems) {
+        // Items with no permission requirement should not be shown unless explicitly allowed
+        if (!item.permission && (!item.anyPermission || item.anyPermission.length === 0)) {
+          if (item.allowUnassigned === true) {
+            filtered.push(item)
+          }
+          continue
+        }
+
+        // Check single permission
+        if (item.permission) {
+          const hasPerm = await hasPermission(userProfile, item.permission)
+          if (hasPerm) {
+            filtered.push(item)
+            continue
+          }
+        }
+
+        // Check any of multiple permissions
+        if (item.anyPermission && item.anyPermission.length > 0) {
+          let hasAnyPerm = false
+          for (const perm of item.anyPermission) {
+            const hasPerm = await hasPermission(userProfile, perm)
+            if (hasPerm) {
+              hasAnyPerm = true
+              break
+            }
+          }
+          if (hasAnyPerm) {
+            filtered.push(item)
+          }
+        }
+      }
+
+      // Ensure Welcome is always included if no other items are visible
+      if (filtered.length === 0) {
+        const welcomeItem = navigationItems.find(item => item.allowUnassigned === true)
+        if (welcomeItem) {
+          filtered.push(welcomeItem)
+        }
+      }
+
+      console.log('✅ ClientNavigation filter complete:', {
+        userId: userProfile.id,
+        visibleItems: filtered.map(i => i.name),
+        filteredCount: filtered.length
+      })
+
+      setVisibleItems(filtered)
+      setPermissionsChecked(true)
     }
 
-    try {
-      const userRoles = userProfile.user_roles.map(ur => ur.roles?.name).filter(Boolean)
-      return item.roles.some(role => userRoles.includes(role))
-    } catch (error) {
-      console.error('Error checking role access:', error)
-      return false
-    }
-  }
-
-  const visibleItems = navigationItems.filter(canAccessItem)
+    filterItems().catch(err => {
+      console.error('Error filtering ClientNavigation items:', err)
+      setVisibleItems(navigationItems.filter(item => item.allowUnassigned === true))
+      setPermissionsChecked(true)
+    })
+  }, [isMounted, loading, userProfile])
 
   // Show loading state during hydration
   if (!isMounted) {
@@ -228,76 +273,93 @@ export function ClientNavigation() {
 
               {/* Desktop Navigation */}
               <div className="hidden lg:flex items-center space-x-4">
-                {visibleItems.slice(0, 6).map((item) => {
-                  const Icon = item.icon
-                  const isActive = pathname === item.href ||
-                    (item.href !== '/dashboard' && pathname.startsWith(item.href))
-
-                  // Special handling for Department dropdown
-                  if (item.name === 'Department') {
-                    const userDepartments = getUserDepartments()
+                {(!isMounted || loading || !userProfile || !permissionsChecked) ? (
+                  // Show loading state
+                  navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                    const Icon = item.icon
                     return (
-                      <DropdownMenu key={item.name}>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className={cn(
-                              'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                              isActive
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                            )}
-                          >
-                            <Icon className="w-4 h-4" />
-                            <span>{item.name}</span>
-                            <ChevronDown className="w-3 h-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56">
-                          <DropdownMenuLabel>Your Departments</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {userDepartments.length > 0 ? (
-                            userDepartments.map((dept) => (
-                              <DropdownMenuItem key={dept.id} asChild>
-                                <Link href={`/departments/${dept.id}`} className="flex items-center">
-                                  <Building2 className="mr-2 h-4 w-4" />
-                                  <span>{dept.name}</span>
-                                </Link>
-                              </DropdownMenuItem>
-                            ))
-                          ) : (
-                            <DropdownMenuItem disabled>
-                              <span className="text-gray-500">No departments assigned</span>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href="/departments" className="flex items-center">
-                              <Building2 className="mr-2 h-4 w-4" />
-                              <span>View All Departments</span>
-                            </Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600"
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.name}</span>
+                      </Link>
                     )
-                  }
+                  })
+                ) : (
+                  visibleItems.slice(0, 6).map((item) => {
+                    const Icon = item.icon
+                    const isActive = pathname === item.href ||
+                      (item.href !== '/dashboard' && pathname.startsWith(item.href))
 
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={cn(
-                        'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.name}</span>
-                    </Link>
-                  )
-                })}
+                    // Special handling for Department dropdown
+                    if (item.name === 'Department') {
+                      const userDepartments = getUserDepartments()
+                      return (
+                        <DropdownMenu key={item.name}>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className={cn(
+                                'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                                isActive
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                              )}
+                            >
+                              <Icon className="w-4 h-4" />
+                              <span>{item.name}</span>
+                              <ChevronDown className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuLabel>Your Departments</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {userDepartments.length > 0 ? (
+                              userDepartments.map((dept) => (
+                                <DropdownMenuItem key={dept.id} asChild>
+                                  <Link href={`/departments/${dept.id}`} className="flex items-center">
+                                    <Building2 className="mr-2 h-4 w-4" />
+                                    <span>{dept.name}</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                              ))
+                            ) : (
+                              <DropdownMenuItem disabled>
+                                <span className="text-gray-500">No departments assigned</span>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
+                              <Link href="/departments" className="flex items-center">
+                                <Building2 className="mr-2 h-4 w-4" />
+                                <span>View All Departments</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )
+                    }
+
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={cn(
+                          'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.name}</span>
+                      </Link>
+                    )
+                  })
+                )}
                 
                 {/* Admin dropdown for superadmin - removed for now due to redirect issues */}
                 {/* {isSuperadmin(userProfile) && (
@@ -334,27 +396,44 @@ export function ClientNavigation() {
 
               {/* Medium screen navigation (shows fewer items) */}
               <div className="hidden md:flex lg:hidden items-center space-x-3">
-                {visibleItems.slice(0, 4).map((item) => {
-                  const Icon = item.icon
-                  const isActive = pathname === item.href ||
-                    (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                {(!isMounted || loading || !userProfile || !permissionsChecked) ? (
+                  // Show loading state
+                  navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="flex items-center space-x-1 px-2 py-2 rounded-md text-sm font-medium text-gray-600"
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{item.name}</span>
+                      </Link>
+                    )
+                  })
+                ) : (
+                  visibleItems.slice(0, 4).map((item) => {
+                    const Icon = item.icon
+                    const isActive = pathname === item.href ||
+                      (item.href !== '/dashboard' && pathname.startsWith(item.href))
 
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={cn(
-                        'flex items-center space-x-1 px-2 py-2 rounded-md text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="hidden sm:inline">{item.name}</span>
-                    </Link>
-                  )
-                })}
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={cn(
+                          'flex items-center space-x-1 px-2 py-2 rounded-md text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{item.name}</span>
+                      </Link>
+                    )
+                  })
+                )}
                 
                 {/* More items dropdown for medium screens - only show if there are items */}
                 {visibleItems.length > 4 && (
@@ -445,10 +524,27 @@ export function ClientNavigation() {
               <div className="md:hidden">
                 <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t">
                   <div className="grid grid-cols-2 gap-2">
-                    {visibleItems.slice(0, 6).map((item) => {
-                      const Icon = item.icon
-                      const isActive = pathname === item.href ||
-                        (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                    {(!isMounted || loading || !userProfile || !permissionsChecked) ? (
+                      // Show loading state
+                      navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                        const Icon = item.icon
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        )
+                      })
+                    ) : (
+                      visibleItems.slice(0, 6).map((item) => {
+                        const Icon = item.icon
+                        const isActive = pathname === item.href ||
+                          (item.href !== '/dashboard' && pathname.startsWith(item.href))
 
                       // Special handling for Department dropdown in mobile
                       if (item.name === 'Department') {
@@ -503,11 +599,12 @@ export function ClientNavigation() {
                           <span>{item.name}</span>
                         </Link>
                       )
-                    })}
+                      })
+                    )}
                   </div>
                   
                   {/* Additional items for mobile */}
-                  {visibleItems.length > 6 && (
+                  {permissionsChecked && visibleItems.length > 6 && (
                     <div className="pt-2 border-t">
                       <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">More</p>
                       {visibleItems.slice(6).map((item) => {

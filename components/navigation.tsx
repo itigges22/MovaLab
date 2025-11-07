@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -91,10 +91,20 @@ const navigationItems: NavigationItem[] = [
     href: '/admin',
     icon: Settings,
     anyPermission: [
+      // Role management permissions
+      Permission.VIEW_ROLES,
       Permission.CREATE_ROLE,
+      Permission.EDIT_ROLE,
+      Permission.DELETE_ROLE,
+      Permission.ASSIGN_USERS_TO_ROLES,
+      Permission.REMOVE_USERS_FROM_ROLES,
+      Permission.VIEW_ACCOUNTS_TAB,
+      // Other admin permissions
       Permission.MANAGE_USERS,
       Permission.CREATE_DEPARTMENT,
-      Permission.CREATE_ACCOUNT
+      Permission.CREATE_ACCOUNT,
+      // Analytics permission that grants admin access
+      Permission.VIEW_ALL_ANALYTICS,
     ],
     allowUnassigned: false, // Explicitly disallow for unassigned users
   },
@@ -124,9 +134,15 @@ const navigationItems: NavigationItem[] = [
 export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [visibleItems, setVisibleItems] = useState<NavigationItem[]>([]);
+  // Initialize with Welcome only to prevent showing unauthorized items
+  const [visibleItems, setVisibleItems] = useState<NavigationItem[]>(
+    navigationItems.filter(item => item.allowUnassigned === true)
+  );
+  const [permissionsChecked, setPermissionsChecked] = useState(false);
   const { userProfile, signOut, loading } = useAuth();
   const pathname = usePathname();
+  // Use ref to track cancellation and prevent race conditions
+  const filterOperationRef = useRef<{ cancelled: boolean; userId?: string }>({ cancelled: false });
 
   // Handle hydration
   useEffect(() => {
@@ -135,13 +151,32 @@ export function Navigation() {
 
   // Check permissions for each navigation item
   useEffect(() => {
+    console.log('🎯 Navigation useEffect triggered:', {
+      isMounted,
+      loading,
+      hasUserProfile: !!userProfile,
+      userId: userProfile?.id
+    });
+
     if (!isMounted || loading || !userProfile) {
       // Show minimal items during loading
+      console.log('⏸️ Navigation: Showing loading state (minimal items)');
       setVisibleItems(navigationItems.filter(item => item.allowUnassigned));
+      setPermissionsChecked(false);
+      // Cancel any pending operations
+      filterOperationRef.current.cancelled = true;
       return;
     }
 
+    // Cancel previous operation and start new one
+    const currentUserId = userProfile.id;
+    filterOperationRef.current.cancelled = true;
+    filterOperationRef.current = { cancelled: false, userId: currentUserId };
+
     async function filterItems() {
+      const operationId = currentUserId;
+      setPermissionsChecked(false);
+      
       // IMPORTANT: Always check isUnassigned FIRST before any other checks
       const isActuallyUnassigned = isUnassigned(userProfile);
       const userIsSuperadmin = isSuperadmin(userProfile);
@@ -149,6 +184,7 @@ export function Navigation() {
       // Debug logging
       console.log('🔍 Navigation Debug:', {
         userEmail: userProfile?.email,
+        userId: userProfile?.id,
         userRoles: userProfile?.user_roles?.map(ur => ({
           name: ur.roles?.name,
           isSystem: ur.roles?.is_system_role,
@@ -159,22 +195,28 @@ export function Navigation() {
         userRolesLength: userProfile?.user_roles?.length || 0
       });
 
+      // Check if this operation was cancelled
+      if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
+        console.log('⚠️ Navigation filter cancelled - newer operation in progress');
+        return;
+      }
+
       // Superadmin sees everything
       if (userIsSuperadmin) {
+        if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
         setVisibleItems(navigationItems);
+        setPermissionsChecked(true);
         return;
       }
 
       // Unassigned users ONLY see items with allowUnassigned === true
       if (isActuallyUnassigned) {
+        if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
         const allowedItems = navigationItems.filter(item => item.allowUnassigned === true);
         console.log('✅ Unassigned user detected - filtering navigation');
         console.log('   Allowed items:', allowedItems.map(i => i.name));
-        console.log('   All navigation items:', navigationItems.map(i => ({ 
-          name: i.name, 
-          allowUnassigned: i.allowUnassigned 
-        })));
         setVisibleItems(allowedItems);
+        setPermissionsChecked(true);
         return;
       }
 
@@ -182,18 +224,16 @@ export function Navigation() {
       const filtered: NavigationItem[] = [];
       
       for (const item of navigationItems) {
-        // Skip items that are explicitly disallowed for unassigned users
-        // This is a safety check even though we already filtered unassigned users above
-        if (item.allowUnassigned === false) {
-          continue; // Explicitly disallowed
+        // Check if cancelled before each permission check
+        if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
+          console.log('⚠️ Navigation filter cancelled during permission checks');
+          return;
         }
-        
-        // Items with no permission requirement are visible to all with roles
-        // BUT only if they don't explicitly disallow unassigned users
+
+        // Items with no permission requirement should not be shown unless explicitly allowed
         if (!item.permission && (!item.anyPermission || item.anyPermission.length === 0)) {
-          // Only show if allowUnassigned is true or undefined (not explicitly false)
-          const isAllowed = item.allowUnassigned === true || item.allowUnassigned === undefined;
-          if (isAllowed) {
+          // Only Welcome page has no permission requirement and allowUnassigned=true
+          if (item.allowUnassigned === true) {
             filtered.push(item);
           }
           continue;
@@ -201,7 +241,13 @@ export function Navigation() {
 
         // Check single permission
         if (item.permission) {
-          if (await hasPermission(userProfile, item.permission)) {
+          const hasPerm = await hasPermission(userProfile, item.permission);
+          // Check cancellation after async operation
+          if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
+            console.log('⚠️ Navigation filter cancelled after permission check');
+            return;
+          }
+          if (hasPerm) {
             filtered.push(item);
             continue;
           }
@@ -211,7 +257,13 @@ export function Navigation() {
         if (item.anyPermission && item.anyPermission.length > 0) {
           let hasAnyPerm = false;
           for (const perm of item.anyPermission) {
-            if (await hasPermission(userProfile, perm)) {
+            const hasPerm = await hasPermission(userProfile, perm);
+            // Check cancellation after each async operation
+            if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
+              console.log('⚠️ Navigation filter cancelled during permission checks');
+              return;
+            }
+            if (hasPerm) {
               hasAnyPerm = true;
               break;
             }
@@ -222,11 +274,41 @@ export function Navigation() {
         }
       }
 
+      // Final cancellation check before updating state
+      if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
+        console.log('⚠️ Navigation filter cancelled before state update');
+        return;
+      }
+
+      // Ensure Welcome is always included if no other items are visible
+      if (filtered.length === 0) {
+        const welcomeItem = navigationItems.find(item => item.allowUnassigned === true);
+        if (welcomeItem) {
+          filtered.push(welcomeItem);
+        }
+      }
+
+      console.log('✅ Navigation filter complete:', {
+        userId: operationId,
+        visibleItems: filtered.map(i => i.name),
+        totalItems: navigationItems.length,
+        filteredCount: filtered.length
+      });
+
       setVisibleItems(filtered);
+      setPermissionsChecked(true);
     }
 
+    // Ensure filterItems runs
+    console.log('🚀 Starting navigation filterItems for user:', currentUserId);
     filterItems().catch(err => {
-      console.error('Error filtering navigation items:', err);
+      // Only update state if this operation wasn't cancelled
+      if (!filterOperationRef.current.cancelled && filterOperationRef.current.userId === currentUserId) {
+        console.error('Error filtering navigation items:', err);
+        // On error, show only Welcome to be safe
+        setVisibleItems(navigationItems.filter(item => item.allowUnassigned === true));
+        setPermissionsChecked(true);
+      }
     });
   }, [isMounted, loading, userProfile]);
 
@@ -289,10 +371,27 @@ export function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {visibleItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || 
-                (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            {/* Only render items after permissions are checked (for assigned users) */}
+            {(!isMounted || loading || (!permissionsChecked && userProfile && !isUnassigned(userProfile))) ? (
+              // Show minimal loading state
+              navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-normal text-gray-600"
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })
+            ) : (
+              visibleItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || 
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href));
               
               // Special handling for Department dropdown
               if (item.name === 'Department') {
@@ -358,7 +457,8 @@ export function Navigation() {
                   <span>{item.name}</span>
                 </Link>
               );
-            })}
+              })
+            )}
           </div>
 
           {/* User Menu */}
@@ -429,7 +529,24 @@ export function Navigation() {
       {isMobileMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {visibleItems.map((item) => {
+            {(!isMounted || loading || (!permissionsChecked && userProfile && !isUnassigned(userProfile))) ? (
+              // Show minimal loading state
+              navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-600"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })
+            ) : (
+              visibleItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href ||
                 (item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -450,7 +567,8 @@ export function Navigation() {
                   <span>{item.name}</span>
                 </Link>
               );
-            })}
+              })
+            )}
           </div>
         </div>
       )}

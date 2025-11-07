@@ -46,7 +46,7 @@ export function RoleGuard({
         return;
       }
 
-      // Wait for profile to load
+      // Wait for profile to load before making permission decisions
       if (!userProfile) {
         return;
       }

@@ -50,10 +50,26 @@ export default async function AccountPage({ params }: AccountPageProps) {
   }
 
   // Check if user has FULL access (can edit) or READ-ONLY access (project stakeholder only)
-  const canEditAccount = await hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId });
-  const hasFullAccessViaService = await accountService.hasFullAccountAccess(userProfile.id, accountId, supabase);
+  // Full access is granted if:
+  // 1. User has EDIT_ACCOUNT permission for this account, OR
+  // 2. User has VIEW_ALL_ACCOUNTS + EDIT_ACCOUNT permissions (override), OR
+  // 3. User is account manager, OR
+  // 4. User has EDIT_ALL_PROJECTS permission (can edit all projects = full account access)
+  const [canEditAccount, hasViewAllAccounts, hasEditAllProjects, hasFullAccessViaService] = await Promise.all([
+    hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId }),
+    hasPermission(userProfile, Permission.VIEW_ALL_ACCOUNTS),
+    hasPermission(userProfile, Permission.EDIT_ALL_PROJECTS),
+    accountService.hasFullAccountAccess(userProfile.id, accountId, supabase)
+  ]);
   
-  const hasFullAccess = canEditAccount || hasFullAccessViaService;
+  // If user has VIEW_ALL_ACCOUNTS, also check if they have base EDIT_ACCOUNT permission
+  const hasBaseEditAccount = hasViewAllAccounts ? await hasPermission(userProfile, Permission.EDIT_ACCOUNT) : false;
+  
+  // Full access if user can edit this account OR has override permissions OR is account manager
+  const hasFullAccess = canEditAccount || 
+                       (hasViewAllAccounts && hasBaseEditAccount) ||
+                       hasEditAllProjects ||
+                       hasFullAccessViaService;
 
   // Fetch account data - pass supabase client for proper auth
   // Don't pass userMap - let the service query the database for ALL assigned users
