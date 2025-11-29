@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
@@ -9,14 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
-  // Await params (Next.js 15 requirement)
-  const { projectId } = await params
+    // Await params (Next.js 15 requirement)
+    const { projectId } = await params
 
     // Check authentication and permission
     await requireAuthAndPermission(Permission.VIEW_PROJECTS, { projectId }, request)
 
-    // Use server Supabase client
-    const supabase = await createServerSupabase()
+    // Use API Supabase client (not createServerSupabase which crashes in API routes)
+    const supabase = createApiSupabaseClient(request)
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }

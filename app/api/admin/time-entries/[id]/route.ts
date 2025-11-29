@@ -31,7 +31,7 @@ export async function PATCH(
       );
     }
 
-    const canEdit = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES);
+    const canEdit = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
@@ -117,7 +117,7 @@ export async function DELETE(
       );
     }
 
-    const canDelete = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES);
+    const canDelete = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
     if (!canDelete) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },

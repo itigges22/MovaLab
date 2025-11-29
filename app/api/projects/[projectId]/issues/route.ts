@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 
@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { projectId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -46,7 +46,7 @@ export async function GET(
     }
 
     // Check VIEW_ISSUES permission
-    const canViewIssues = await hasPermission(userProfile, Permission.VIEW_ISSUES);
+    const canViewIssues = await hasPermission(userProfile, Permission.VIEW_ISSUES, undefined, supabase);
     if (!canViewIssues) {
       return NextResponse.json({ error: 'Insufficient permissions to view issues' }, { status: 403 });
     }
@@ -84,7 +84,7 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -117,7 +117,7 @@ export async function POST(
     }
 
     // Check CREATE_ISSUE permission
-    const canCreateIssue = await hasPermission(userProfile, Permission.CREATE_ISSUE);
+    const canCreateIssue = await hasPermission(userProfile, Permission.CREATE_ISSUE, undefined, supabase);
     if (!canCreateIssue) {
       return NextResponse.json({ error: 'Insufficient permissions to create issues' }, { status: 403 });
     }

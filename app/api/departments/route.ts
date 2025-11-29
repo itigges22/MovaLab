@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndAnyPermission, requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       Permission.VIEW_ALL_DEPARTMENTS
     ], undefined, request);
 
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Check authentication and permission
     await requireAuthAndPermission(Permission.CREATE_DEPARTMENT, {}, request);
 
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }

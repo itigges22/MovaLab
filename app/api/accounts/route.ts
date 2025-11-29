@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { createAccountSchema, validateRequestBody } from '@/lib/validation-schemas'
@@ -7,11 +7,71 @@ import { logger } from '@/lib/debug-logger'
 import { config } from '@/lib/config'
 
 /**
+ * GET /api/accounts - List all accounts user has access to
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createApiSupabaseClient(request)
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get user profile with roles
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        user_roles!user_roles_user_id_fkey (
+          roles (
+            id,
+            name,
+            permissions,
+            department_id
+          )
+        )
+      `)
+      .eq('id', user.id)
+      .single()
+
+    if (!userProfile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+    }
+
+    // Check if user can view accounts
+    const canViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB, undefined, supabase)
+    if (!canViewAccounts) {
+      return NextResponse.json({ error: 'Insufficient permissions to view accounts' }, { status: 403 })
+    }
+
+    // Fetch all accounts
+    const { data: accounts, error } = await supabase
+      .from('accounts')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      logger.error('Failed to fetch accounts', { action: 'list_accounts' }, error as Error)
+      return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, accounts }, { status: 200 })
+  } catch (error) {
+    logger.error('Error in GET /api/accounts', { action: 'list_accounts' }, error as Error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
  * POST /api/accounts - Create a new account
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabase()
+    const supabase = createApiSupabaseClient(request)
     if (!supabase) {
       logger.error('Failed to create Supabase client', { action: 'create_account' })
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
@@ -47,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check CREATE_ACCOUNT permission
-    const canCreateAccount = await hasPermission(userProfile, Permission.CREATE_ACCOUNT)
+    const canCreateAccount = await hasPermission(userProfile, Permission.CREATE_ACCOUNT, undefined, supabase)
     if (!canCreateAccount) {
       logger.warn('Insufficient permissions to create account', {
         action: 'create_account',

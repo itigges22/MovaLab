@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
         // Permission check
         const isOwnData = userId === userProfile.id;
         if (!isOwnData) {
-          const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY);
-          const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY);
+          const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
+          const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
           
           if (!canViewTeam && !canViewAll) {
             return NextResponse.json(
@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Permission check
-        const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY);
-        const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY);
+        const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
+        const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
 
         if (!canViewTeam && !canViewAll) {
           return NextResponse.json(
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Check if user can view this project
-        const canView = await hasPermission(userProfile, Permission.VIEW_PROJECTS, { projectId: id });
+        const canView = await hasPermission(userProfile, Permission.VIEW_PROJECTS, { projectId: id }, supabase);
         if (!canView) {
           return NextResponse.json(
             { error: 'Insufficient permissions to view project capacity' },
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
 
       case 'org': {
         // Permission check: VIEW_ALL_CAPACITY required
-        const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY);
+        const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
         if (!canViewAll) {
           return NextResponse.json(
             { error: 'Insufficient permissions to view organization capacity' },

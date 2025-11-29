@@ -82,7 +82,6 @@ function isAuthEndpoint(pathname: string): boolean {
 export async function applyRateLimit(request: NextRequest): Promise<NextResponse | null> {
   // Skip rate limiting if disabled
   if (!config.rateLimit.enabled) {
-    logger.debug('Rate limiting is disabled', { action: 'rate_limit' });
     return null;
   }
 

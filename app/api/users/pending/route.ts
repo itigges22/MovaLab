@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { userApprovalService } from '@/lib/user-approval-service';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     // Check authentication and permission (approving users is part of assigning users to roles)
     await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       logger.error('Supabase not configured', { action: 'getPendingUsers' });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });

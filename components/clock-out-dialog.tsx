@@ -10,9 +10,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Plus, Trash2, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClientSupabase } from '@/lib/supabase'
-import { hasPermission } from '@/lib/permission-checker'
-import { Permission } from '@/lib/permissions'
-import { useAuth } from '@/lib/hooks/useAuth'
 
 interface ClockSession {
   id: string
@@ -57,7 +54,6 @@ export function ClockOutDialog({
   elapsedSeconds,
   onComplete
 }: ClockOutDialogProps) {
-  const { userProfile } = useAuth()
   const [allocations, setAllocations] = useState<TimeAllocation[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -101,14 +97,20 @@ export function ClockOutDialog({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Get projects user is assigned to
+      const projectMap = new Map<string, { id: string; name: string }>()
+      const now = new Date()
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000) // 1 hour grace period
+
+      // 1. Get projects user is currently assigned to (active assignments)
       const { data: assignments, error: assignmentsError } = await supabase
         .from('project_assignments')
         .select(`
           project_id,
           projects (
             id,
-            name
+            name,
+            status,
+            completed_at
           )
         `)
         .eq('user_id', user.id)
@@ -118,12 +120,10 @@ export function ClockOutDialog({
         console.error('Error fetching project assignments:', assignmentsError)
       }
 
-      const projectList: { id: string; name: string }[] = []
-
       if (assignments && assignments.length > 0) {
         assignments.forEach((a: any) => {
-          if (a.projects) {
-            projectList.push({
+          if (a.projects && a.projects.status !== 'complete') {
+            projectMap.set(a.projects.id, {
               id: a.projects.id,
               name: a.projects.name
             })
@@ -131,40 +131,73 @@ export function ClockOutDialog({
         })
       }
 
+      // 2. Get projects user has contributed to (for historical time logging)
+      // This includes completed projects within the 1-hour grace period
+      const { data: contributions, error: contributionsError } = await supabase
+        .from('project_contributors')
+        .select(`
+          project_id,
+          projects (
+            id,
+            name,
+            status,
+            completed_at
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (contributionsError) {
+        console.error('Error fetching project contributions:', contributionsError)
+      }
+
+      if (contributions && contributions.length > 0) {
+        contributions.forEach((c: any) => {
+          if (c.projects) {
+            // Include active projects the user has contributed to
+            if (c.projects.status !== 'complete') {
+              projectMap.set(c.projects.id, {
+                id: c.projects.id,
+                name: c.projects.name
+              })
+            }
+            // Include completed projects within 1-hour grace period
+            else if (c.projects.completed_at) {
+              const completedAt = new Date(c.projects.completed_at)
+              if (completedAt > oneHourAgo) {
+                projectMap.set(c.projects.id, {
+                  id: c.projects.id,
+                  name: `${c.projects.name} (Completed - grace period)`
+                })
+              }
+            }
+          }
+        })
+      }
+
+      const projectList = Array.from(projectMap.values())
+
       // Add "Other" option for unassigned work
       projectList.push({ id: 'other', name: 'Other (Unassigned)' })
       setProjects(projectList)
 
-      // Check if user can log time to all project tasks
-      const canLogAllTasks = userProfile ? await hasPermission(userProfile, Permission.LOG_TIME_ALL_PROJECT_TASKS) : false
+      // Get ALL tasks from projects the user can log time to
+      const projectIds = projectList
+        .filter(p => p.id !== 'other')
+        .map(p => p.id)
 
-      if (canLogAllTasks) {
-        // Get ALL tasks from assigned projects
-        const projectIds = projectList
-          .filter(p => p.id !== 'other')
-          .map(p => p.id)
-
-        if (projectIds.length > 0) {
-          const { data: projectTasks } = await supabase
-            .from('tasks')
-            .select('id, name, project_id')
-            .in('project_id', projectIds)
-            .order('name')
-
-          if (projectTasks) {
-            setTasks(projectTasks)
-          }
-        }
-      } else {
-        // Get only tasks assigned to the user
-        const { data: userTasks } = await supabase
+      if (projectIds.length > 0) {
+        const { data: projectTasks, error: tasksError } = await supabase
           .from('tasks')
           .select('id, name, project_id')
-          .eq('assigned_to', user.id)
+          .in('project_id', projectIds)
           .order('name')
 
-        if (userTasks) {
-          setTasks(userTasks)
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError)
+        }
+
+        if (projectTasks) {
+          setTasks(projectTasks)
         }
       }
     } catch (error) {

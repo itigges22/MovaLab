@@ -1,26 +1,26 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
+import {
+  ReactFlow,
+  type Node,
+  type Edge,
   addEdge,
-  Connection,
+  type Connection,
   useNodesState,
   useEdgesState,
   Controls,
   Background,
   MiniMap,
+  type ReactFlowInstance,
+  type NodeTypes,
+  type EdgeTypes,
+  type OnNodesChange,
+  type OnEdgesChange,
+  type OnConnect,
   ReactFlowProvider,
-  ReactFlowInstance,
-  NodeTypes,
-  EdgeTypes,
-  OnNodesChange,
-  OnEdgesChange,
-  OnConnect,
-  NodeDragHandler,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { RoleHierarchyNode } from '@/lib/role-management-service';
 import { OrganizationStructure } from '@/lib/organization-service';
 import { OrgChartNode } from './org-chart-node';
@@ -42,11 +42,13 @@ interface OrgChartCanvasProps {
 }
 
 // Move nodeTypes and edgeTypes outside component to prevent recreation
-const nodeTypes: NodeTypes = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const nodeTypes: any = {
   roleNode: OrgChartNode,
 };
 
-const edgeTypes: EdgeTypes = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const edgeTypes: any = {
   roleEdge: OrgChartEdge,
 };
 
@@ -61,8 +63,8 @@ export function OrgChartCanvas({
   isFullscreen = false,
   onToggleFullscreen,
 }: OrgChartCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
@@ -323,7 +325,7 @@ export function OrgChartCanvas({
   }, []);
 
   // Handle node drag (for user assignment)
-  const onNodeDrag: NodeDragHandler = useCallback((event, node, nodes) => {
+  const onNodeDrag = useCallback((event: React.MouseEvent, node: Node, nodes: Node[]) => {
     if (isReadOnly) return;
     
     // Check if this is a user being dragged to a role
@@ -336,8 +338,11 @@ export function OrgChartCanvas({
         Math.abs(n.position.y - node.position.y) < 100
       );
 
-      if (targetNode && onUserAssign) {
-        onUserAssign(node.data.userId, targetNode.data.role.id);
+      if (targetNode && onUserAssign && typeof node.data.userId === 'string') {
+        const roleId = (targetNode.data as any)?.role?.id;
+        if (typeof roleId === 'string') {
+          onUserAssign(node.data.userId, roleId);
+        }
       }
     }
   }, [isReadOnly, onUserAssign]);
@@ -454,10 +459,12 @@ export function OrgChartCanvas({
           position="bottom-left"
           className="!bottom-2 !left-2"
         />
-        <MiniMap 
+        <MiniMap
           nodeColor={(node) => {
-            if (node.data.type === 'department') return '#3b82f6';
-            if (node.data.role?.is_system_role) return '#ef4444';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const data = node.data as any;
+            if (data?.type === 'department') return '#3b82f6';
+            if (data?.role?.is_system_role) return '#ef4444';
             return '#6b7280';
           }}
           nodeStrokeWidth={3}

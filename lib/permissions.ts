@@ -73,28 +73,16 @@ export enum Permission {
   DELETE_ISSUE = 'delete_issue',
   
   // ========================================
-  // TASK PERMISSIONS
+  // TASK PERMISSIONS (DEPRECATED - Now inherited from project access)
+  // Tasks are managed within project pages. If user has project access, they can manage tasks.
+  // These are kept for backwards compatibility but are no longer used.
   // ========================================
-  VIEW_TASKS = 'view_tasks',
-  CREATE_TASK = 'create_task',
-  EDIT_TASK = 'edit_task',
-  DELETE_TASK = 'delete_task',
-  ASSIGN_TASK = 'assign_task', // Includes reassigning tasks
 
   // ========================================
-  // KANBAN PERMISSIONS
+  // TABLE VIEW PERMISSIONS (for project table view in accounts)
   // ========================================
-  VIEW_KANBAN = 'view_kanban',
-  EDIT_KANBAN_LAYOUT = 'edit_kanban_layout',
-  MOVE_ALL_KANBAN_ITEMS = 'move_all_kanban_items', // If false, can only move assigned items
-  
-  // ========================================
-  // GANTT & TABLE VIEW PERMISSIONS
-  // ========================================
-  VIEW_GANTT = 'view_gantt',
-  EDIT_GANTT = 'edit_gantt', // Allows moving tasks, adding milestones, etc.
-  VIEW_TABLE = 'view_table', // Renamed from VIEW_TIMELINE
-  EDIT_TABLE = 'edit_table', // Renamed from EDIT_TIMELINE - allows deleting projects, assigning users, etc.
+  VIEW_TABLE = 'view_table',
+  EDIT_TABLE = 'edit_table', // Allows deleting projects, assigning users, etc. in table view
   
   // ========================================
   // NEWSLETTER PERMISSIONS
@@ -131,6 +119,30 @@ export enum Permission {
   EDIT_TEAM_TIME_ENTRIES = 'edit_team_time_entries', // Edit/delete team time entries
   ALLOCATE_TASK_WEEKS = 'allocate_task_weeks', // Allocate tasks to specific weeks
   VIEW_CAPACITY_ANALYTICS = 'view_capacity_analytics', // View capacity analytics dashboard
+
+  // ========================================
+  // WORKFLOW MANAGEMENT PERMISSIONS
+  // ========================================
+  MANAGE_WORKFLOWS = 'manage_workflows', // Create/edit workflow templates
+  VIEW_WORKFLOWS = 'view_workflows', // See workflow templates and instances
+  EXECUTE_WORKFLOWS = 'execute_workflows', // Hand off work in workflows
+  SKIP_WORKFLOW_NODES = 'skip_workflow_nodes', // Hand off out-of-order (innovation tracking)
+
+  // ========================================
+  // FORM MANAGEMENT PERMISSIONS
+  // ========================================
+  MANAGE_FORMS = 'manage_forms', // Create/edit form templates
+  VIEW_FORMS = 'view_forms', // See form templates and responses
+  SUBMIT_FORMS = 'submit_forms', // Fill out forms during workflow handoffs
+
+  // ========================================
+  // CLIENT PORTAL PERMISSIONS
+  // ========================================
+  CLIENT_VIEW_PROJECTS = 'client_view_projects', // Client: view their account's projects
+  CLIENT_APPROVE_PROJECTS = 'client_approve_projects', // Client: approve/reject at workflow nodes
+  CLIENT_PROVIDE_FEEDBACK = 'client_provide_feedback', // Client: submit feedback
+  VIEW_CLIENT_FEEDBACK = 'view_client_feedback', // Admin/AM: see client feedback (private)
+  SEND_CLIENT_INVITES = 'send_client_invites', // Account managers: invite clients
 }
 
 // Human-readable permission definitions
@@ -371,69 +383,11 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
   },
   
   // ========================================
-  // TASK PERMISSIONS
+  // TABLE VIEW PERMISSIONS (for project table view in accounts)
   // ========================================
-  [Permission.VIEW_TASKS]: {
-    name: 'View Tasks',
-    description: 'View tasks within assigned projects',
-    category: 'Tasks'
-  },
-  [Permission.CREATE_TASK]: {
-    name: 'Create Tasks',
-    description: 'Create new tasks',
-    category: 'Tasks'
-  },
-  [Permission.EDIT_TASK]: {
-    name: 'Edit Tasks',
-    description: 'Modify task details and status',
-    category: 'Tasks'
-  },
-  [Permission.DELETE_TASK]: {
-    name: 'Delete Tasks',
-    description: 'Remove tasks',
-    category: 'Tasks'
-  },
-  [Permission.ASSIGN_TASK]: {
-    name: 'Assign Tasks',
-    description: 'Assign and reassign tasks to team members. Assigned users get access to the project and account.',
-    category: 'Tasks'
-  },
-  
-  // ========================================
-  // KANBAN PERMISSIONS
-  // ========================================
-  [Permission.VIEW_KANBAN]: {
-    name: 'View Kanban',
-    description: 'View Kanban boards',
-    category: 'Kanban'
-  },
-  [Permission.EDIT_KANBAN_LAYOUT]: {
-    name: 'Edit Kanban Layout',
-    description: 'Modify Kanban board layout and columns',
-    category: 'Kanban'
-  },
-  [Permission.MOVE_ALL_KANBAN_ITEMS]: {
-    name: 'Move All Kanban Items',
-    description: 'Can move all projects on the Kan Ban board',
-    category: 'Kanban'
-  },
-  
-  // ========================================
-  // GANTT & TABLE VIEW PERMISSIONS
-  // ========================================
-  [Permission.VIEW_GANTT]: {
-    name: 'View Gantt',
-    description: 'View Gantt charts',
-    category: 'Gantt'
-  },
-  [Permission.EDIT_GANTT]: {
-    name: 'Edit Gantt',
-    description: 'Move tasks on Gantt chart, add milestones, modify dates',
-    category: 'Gantt'
-  },
   [Permission.VIEW_TABLE]: {
     name: 'View Table',
-    description: 'View project table view',
+    description: 'View project table view in accounts',
     category: 'Table View'
   },
   [Permission.EDIT_TABLE]: {
@@ -559,30 +513,103 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     description: 'Access capacity analytics dashboard and reports',
     category: 'Capacity'
   },
+
+  // ========================================
+  // WORKFLOW MANAGEMENT PERMISSIONS
+  // ========================================
+  [Permission.MANAGE_WORKFLOWS]: {
+    name: 'Manage Workflows',
+    description: 'Create, edit, and delete workflow templates',
+    category: 'Workflows'
+  },
+  [Permission.VIEW_WORKFLOWS]: {
+    name: 'View Workflows',
+    description: 'View workflow templates and active workflow instances',
+    category: 'Workflows'
+  },
+  [Permission.EXECUTE_WORKFLOWS]: {
+    name: 'Execute Workflows',
+    description: 'Hand off work to next nodes in workflows',
+    category: 'Workflows'
+  },
+  [Permission.SKIP_WORKFLOW_NODES]: {
+    name: 'Skip Workflow Nodes',
+    description: 'Hand off work out-of-order for innovation tracking',
+    category: 'Workflows'
+  },
+
+  // ========================================
+  // FORM MANAGEMENT PERMISSIONS
+  // ========================================
+  [Permission.MANAGE_FORMS]: {
+    name: 'Manage Forms',
+    description: 'Create, edit, and delete dynamic form templates',
+    category: 'Forms'
+  },
+  [Permission.VIEW_FORMS]: {
+    name: 'View Forms',
+    description: 'View form templates and submitted form responses',
+    category: 'Forms'
+  },
+  [Permission.SUBMIT_FORMS]: {
+    name: 'Submit Forms',
+    description: 'Fill out and submit forms during workflow handoffs',
+    category: 'Forms'
+  },
+
+  // ========================================
+  // CLIENT PORTAL PERMISSIONS
+  // ========================================
+  [Permission.CLIENT_VIEW_PROJECTS]: {
+    name: 'Client: View Projects',
+    description: 'View projects for client\'s account (client-only permission)',
+    category: 'Client Portal'
+  },
+  [Permission.CLIENT_APPROVE_PROJECTS]: {
+    name: 'Client: Approve Projects',
+    description: 'Approve or reject projects at workflow approval nodes (client-only permission)',
+    category: 'Client Portal'
+  },
+  [Permission.CLIENT_PROVIDE_FEEDBACK]: {
+    name: 'Client: Provide Feedback',
+    description: 'Submit satisfaction scores and feedback on projects (client-only permission)',
+    category: 'Client Portal'
+  },
+  [Permission.VIEW_CLIENT_FEEDBACK]: {
+    name: 'View Client Feedback',
+    description: 'View client satisfaction scores and feedback (admin/account manager only)',
+    category: 'Client Portal'
+  },
+  [Permission.SEND_CLIENT_INVITES]: {
+    name: 'Send Client Invitations',
+    description: 'Invite clients to access their account portal',
+    category: 'Client Portal'
+  },
 };
 
 // Permission categories for UI grouping
+// NOTE: Tasks, Kanban, and Gantt categories removed - these permissions are now inherited from project access
 export const PermissionCategories = {
-  Roles: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Roles'),
-  Departments: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Departments'),
-  Accounts: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Accounts'),
-  Projects: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Projects'),
-  Updates: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Updates'),
-  Issues: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Issues'),
-  Tasks: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Tasks'),
-  Kanban: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Kanban'),
-  Gantt: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Gantt'),
-  'Table View': Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Table View'),
-  Newsletters: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Newsletters'),
-  Analytics: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Analytics'),
-  Profile: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Profile'),
-  Capacity: Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Capacity'),
-  'Time Tracking': Object.values(Permission).filter(p => PermissionDefinitions[p].category === 'Time Tracking'),
+  Roles: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Roles'),
+  Departments: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Departments'),
+  Accounts: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Accounts'),
+  Projects: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Projects'),
+  Updates: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Updates'),
+  Issues: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Issues'),
+  'Table View': Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Table View'),
+  Newsletters: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Newsletters'),
+  Analytics: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Analytics'),
+  Profile: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Profile'),
+  Capacity: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Capacity'),
+  'Time Tracking': Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Time Tracking'),
+  Workflows: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Workflows'),
+  Forms: Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Forms'),
+  'Client Portal': Object.values(Permission).filter(p => PermissionDefinitions[p]?.category === 'Client Portal'),
 };
 
 // Get override permissions
 export const OverridePermissions = Object.values(Permission).filter(
-  p => PermissionDefinitions[p].isOverride === true
+  p => PermissionDefinitions[p]?.isOverride === true
 );
 
 // Context for permission checks (enhanced for hybrid approach)

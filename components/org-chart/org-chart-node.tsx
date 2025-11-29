@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,9 +26,12 @@ interface OrgChartNodeData {
   onUserAssign?: (userId: string, roleId: string) => void;
   onRoleUpdate?: (roleId: string) => void;
   isReadOnly?: boolean;
+  [key: string]: unknown;
 }
 
-function OrgChartNodeComponent({ data }: NodeProps<OrgChartNodeData>) {
+function OrgChartNodeComponent({ data }: NodeProps) {
+  // Cast data to our expected type
+  const nodeData = data as OrgChartNodeData;
   const {
     type = 'role',
     role,
@@ -42,7 +45,7 @@ function OrgChartNodeComponent({ data }: NodeProps<OrgChartNodeData>) {
     onUserAssign,
     onRoleUpdate,
     isReadOnly = false,
-  } = data;
+  } = nodeData;
 
   const handleClick = () => {
     onSelect?.();

@@ -9,6 +9,7 @@ import { ChunkErrorHandler } from "@/components/chunk-error-handler";
 import { ClockWidget } from "@/components/clock-widget";
 import { AuthProviderWrapper } from "@/components/auth-provider-wrapper";
 import { SWRProvider } from "@/lib/swr-config";
+import { ResourceHints } from "@/components/resource-hints";
 
 const raleway = Raleway({
   variable: "--font-raleway",
@@ -31,6 +32,7 @@ export default function RootLayout({
           <body
             className={`${raleway.variable} font-sans antialiased`}
           >
+            <ResourceHints />
             <AuthProviderWrapper>
               <SWRProvider>
                 <ChunkErrorHandler />

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 
@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { projectId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -56,10 +56,11 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    // IMPORTANT: Pass the authenticated Supabase client to ensure proper RLS context
     const canViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS, {
       projectId,
       accountId: project.account_id
-    });
+    }, supabase);
 
     if (!canViewProjects) {
       return NextResponse.json({ error: 'Insufficient permissions to view project updates' }, { status: 403 });
@@ -97,7 +98,7 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -130,7 +131,7 @@ export async function POST(
     }
 
     // Check CREATE_UPDATE permission
-    const canCreateUpdate = await hasPermission(userProfile, Permission.CREATE_UPDATE);
+    const canCreateUpdate = await hasPermission(userProfile, Permission.CREATE_UPDATE, undefined, supabase);
     if (!canCreateUpdate) {
       return NextResponse.json({ error: 'Insufficient permissions to create updates' }, { status: 403 });
     }

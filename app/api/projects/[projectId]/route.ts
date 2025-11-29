@@ -1,7 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { hasPermission, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
+
+/**
+ * GET /api/projects/[projectId]
+ * Get a single project's details
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectId: string }> }
+) {
+  try {
+    const { projectId } = await params;
+    const supabase = createApiSupabaseClient(request);
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user profile with roles
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        user_roles!user_roles_user_id_fkey (
+          roles (
+            id,
+            name,
+            permissions,
+            department_id
+          )
+        )
+      `)
+      .eq('id', user.id)
+      .single();
+
+    if (!userProfile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
+    // Get the project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    // Check if user can view this project
+    // Superadmins can view all projects
+    if (!isSuperadmin(userProfile)) {
+      // Check VIEW_PROJECTS permission
+      const canView = await hasPermission(userProfile, Permission.VIEW_PROJECTS, {
+        projectId,
+        accountId: project.account_id
+      }, supabase);
+
+      if (!canView) {
+        // Also check if user is assigned to the project
+        const { data: assignment } = await supabase
+          .from('project_assignments')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('project_id', projectId)
+          .is('removed_at', null)
+          .single();
+
+        if (!assignment && project.created_by !== user.id && project.assigned_user_id !== user.id) {
+          return NextResponse.json({ error: 'Insufficient permissions to view project' }, { status: 403 });
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, project });
+  } catch (error) {
+    console.error('Error in GET /api/projects/[projectId]:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
 /**
  * PUT /api/projects/[projectId]
@@ -13,7 +98,7 @@ export async function PUT(
 ) {
   try {
     const { projectId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -60,7 +145,7 @@ export async function PUT(
     const canEditProject = await hasPermission(userProfile, Permission.EDIT_PROJECT, {
       projectId,
       accountId: project.account_id
-    });
+    }, supabase);
 
     if (!canEditProject) {
       return NextResponse.json({ error: 'Insufficient permissions to edit project' }, { status: 403 });
@@ -68,16 +153,8 @@ export async function PUT(
 
     const body = await request.json();
 
-    // If moving on Kanban (changing status) and user is not assigned to project,
-    // check MOVE_ALL_KANBAN_ITEMS permission
-    if (body.status !== undefined && project.assigned_user_id !== user.id) {
-      const canMoveAllKanbanItems = await hasPermission(userProfile, Permission.MOVE_ALL_KANBAN_ITEMS);
-      if (!canMoveAllKanbanItems) {
-        return NextResponse.json({
-          error: 'You can only move projects assigned to you. You need MOVE_ALL_KANBAN_ITEMS permission to move other projects.'
-        }, { status: 403 });
-      }
-    }
+    // NOTE: MOVE_ALL_KANBAN_ITEMS permission is deprecated (workflows replace project kanban)
+    // Status changes are now controlled by EDIT_PROJECT permission which was already checked above
 
     // Build update object with only provided fields
     const updates: any = {};
@@ -88,6 +165,7 @@ export async function PUT(
     if (body.end_date !== undefined) updates.end_date = body.end_date;
     if (body.budget !== undefined) updates.budget = body.budget;
     if (body.assigned_user_id !== undefined) updates.assigned_user_id = body.assigned_user_id;
+    if (body.notes !== undefined) updates.notes = body.notes;
 
     // Update the project
     const { data: updatedProject, error: updateError } = await supabase
@@ -110,6 +188,18 @@ export async function PUT(
 }
 
 /**
+ * PATCH /api/projects/[projectId]
+ * Partial update for a project (e.g., notes)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectId: string }> }
+) {
+  // PATCH uses the same logic as PUT for partial updates
+  return PUT(request, { params });
+}
+
+/**
  * DELETE /api/projects/[projectId]
  * Delete a project
  */
@@ -119,7 +209,7 @@ export async function DELETE(
 ) {
   try {
     const { projectId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -166,7 +256,7 @@ export async function DELETE(
     const canDeleteProject = await hasPermission(userProfile, Permission.DELETE_PROJECT, {
       projectId,
       accountId: project.account_id
-    });
+    }, supabase);
 
     if (!canDeleteProject) {
       return NextResponse.json({ error: 'Insufficient permissions to delete project' }, { status: 403 });

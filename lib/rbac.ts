@@ -18,14 +18,15 @@
 import { UserProfile, Role, Department } from './supabase';
 import { Permission } from './permissions';
 import { UserWithRoles, PermissionContext } from './rbac-types';
-import { 
-  checkPermissionHybrid, 
-  isSuperadmin as checkIsSuperadmin, 
+import {
+  checkPermissionHybrid,
+  isSuperadmin as checkIsSuperadmin,
   getUserPermissions,
   checkAnyPermission,
   checkAllPermissions
 } from './permission-checker';
 import { logger } from './debug-logger';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Re-export UserWithRoles for backwards compatibility
 export type { UserWithRoles };
@@ -111,10 +112,11 @@ export function getUserDepartmentIds(userProfile: UserWithRoles | null): string[
 /**
  * Get all permissions for a user
  * @param userProfile - User profile with roles
+ * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<Array of permissions>
  */
-export async function getAllUserPermissions(userProfile: UserWithRoles | null): Promise<Permission[]> {
-  return getUserPermissions(userProfile);
+export async function getAllUserPermissions(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<Permission[]> {
+  return getUserPermissions(userProfile, supabaseClient);
 }
 
 // ================================================================================
@@ -126,14 +128,16 @@ export async function getAllUserPermissions(userProfile: UserWithRoles | null): 
  * @param userProfile - User profile with roles
  * @param permission - Permission to check
  * @param context - Optional context (projectId, accountId, departmentId)
+ * @param supabaseClient - Optional authenticated Supabase client (REQUIRED for server-side, optional for client-side)
  * @returns Promise<boolean>
  */
 export async function hasPermission(
   userProfile: UserWithRoles | null,
   permission: Permission,
-  context?: PermissionContext
+  context?: PermissionContext,
+  supabaseClient?: SupabaseClient
 ): Promise<boolean> {
-  return checkPermissionHybrid(userProfile, permission, context);
+  return checkPermissionHybrid(userProfile, permission, context, supabaseClient);
 }
 
 /**
@@ -141,14 +145,16 @@ export async function hasPermission(
  * @param userProfile - User profile with roles
  * @param permissions - Array of permissions to check
  * @param context - Optional context
+ * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<boolean>
  */
 export async function hasAnyPermission(
   userProfile: UserWithRoles | null,
   permissions: Permission[],
-  context?: PermissionContext
+  context?: PermissionContext,
+  supabaseClient?: SupabaseClient
 ): Promise<boolean> {
-  return checkAnyPermission(userProfile, permissions, context);
+  return checkAnyPermission(userProfile, permissions, context, supabaseClient);
 }
 
 /**
@@ -156,14 +162,16 @@ export async function hasAnyPermission(
  * @param userProfile - User profile with roles
  * @param permissions - Array of permissions to check
  * @param context - Optional context
+ * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<boolean>
  */
 export async function hasAllPermissions(
   userProfile: UserWithRoles | null,
   permissions: Permission[],
-  context?: PermissionContext
+  context?: PermissionContext,
+  supabaseClient?: SupabaseClient
 ): Promise<boolean> {
-  return checkAllPermissions(userProfile, permissions, context);
+  return checkAllPermissions(userProfile, permissions, context, supabaseClient);
 }
 
 // ================================================================================
@@ -173,55 +181,55 @@ export async function hasAllPermissions(
 /**
  * @deprecated Use hasPermission with Permission.CREATE_ROLE instead
  */
-export async function canManageRoles(userProfile: UserWithRoles | null): Promise<boolean> {
+export async function canManageRoles(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
   return hasAnyPermission(userProfile, [
     Permission.CREATE_ROLE,
     Permission.EDIT_ROLE,
     Permission.DELETE_ROLE,
-  ]);
+  ], undefined, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with appropriate department permission + context
  */
-export async function canManageDepartment(userProfile: UserWithRoles | null, departmentId: string): Promise<boolean> {
-  return hasPermission(userProfile, Permission.EDIT_DEPARTMENT, { departmentId });
+export async function canManageDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return hasPermission(userProfile, Permission.EDIT_DEPARTMENT, { departmentId }, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with Permission.VIEW_DEPARTMENTS + context
  */
-export async function canViewDepartment(userProfile: UserWithRoles | null, departmentId: string): Promise<boolean> {
-  return hasPermission(userProfile, Permission.VIEW_DEPARTMENTS, { departmentId });
+export async function canViewDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return hasPermission(userProfile, Permission.VIEW_DEPARTMENTS, { departmentId }, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with Permission.EDIT_ACCOUNT instead
  */
-export async function hasAccountManagementPrivileges(userProfile: UserWithRoles | null): Promise<boolean> {
-  return hasPermission(userProfile, Permission.EDIT_ACCOUNT);
+export async function hasAccountManagementPrivileges(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return hasPermission(userProfile, Permission.EDIT_ACCOUNT, undefined, supabaseClient);
 }
 
 /**
  * Check if user can manage accounts
  * @deprecated Use hasPermission with Permission.EDIT_ACCOUNT
  */
-export async function canManageAccounts(userProfile: UserWithRoles | null): Promise<boolean> {
-  return hasAccountManagementPrivileges(userProfile);
+export async function canManageAccounts(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return hasAccountManagementPrivileges(userProfile, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with Permission.EDIT_PROJECT + context
  */
-export async function canEditProject(userProfile: UserWithRoles | null, projectId: string): Promise<boolean> {
-  return hasPermission(userProfile, Permission.EDIT_PROJECT, { projectId });
+export async function canEditProject(userProfile: UserWithRoles | null, projectId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return hasPermission(userProfile, Permission.EDIT_PROJECT, { projectId }, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with Permission.VIEW_PROJECTS + context
  */
-export async function canViewProject(userProfile: UserWithRoles | null, projectId: string): Promise<boolean> {
-  return hasPermission(userProfile, Permission.VIEW_PROJECTS, { projectId });
+export async function canViewProject(userProfile: UserWithRoles | null, projectId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return hasPermission(userProfile, Permission.VIEW_PROJECTS, { projectId }, supabaseClient);
 }
 
 /**
@@ -281,27 +289,29 @@ export function hasRoleInDepartment(
 /**
  * Check if user has admin-level access (can access admin dashboard)
  * @param userProfile - User profile with roles
+ * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<boolean>
  */
-export async function isAdminLevel(userProfile: UserWithRoles | null): Promise<boolean> {
+export async function isAdminLevel(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
   if (isSuperadmin(userProfile)) return true;
-  
+
   // Admin level = can manage users, roles, departments, or accounts
   return hasAnyPermission(userProfile, [
     Permission.MANAGE_USERS,
     Permission.CREATE_ROLE,
     Permission.CREATE_DEPARTMENT,
     Permission.CREATE_ACCOUNT,
-  ]);
+  ], undefined, supabaseClient);
 }
 
 /**
  * Check if user can access admin dashboard
  * @param userProfile - User profile with roles
+ * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<boolean>
  */
-export async function canAccessAdminDashboard(userProfile: UserWithRoles | null): Promise<boolean> {
-  return isAdminLevel(userProfile);
+export async function canAccessAdminDashboard(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
+  return isAdminLevel(userProfile, supabaseClient);
 }
 
 // ================================================================================

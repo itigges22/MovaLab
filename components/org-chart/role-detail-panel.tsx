@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Node } from 'reactflow';
+import { Node } from '@xyflow/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,21 @@ interface RoleDetailPanelProps {
   isReadOnly?: boolean;
 }
 
+// Define the expected node data structure
+interface NodeData {
+  type?: 'department' | 'role' | 'user';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  role?: any;
+  name?: string;
+  description?: string;
+  userCount?: number;
+  user?: {
+    name?: string;
+    email?: string;
+    image?: string | null;
+  };
+}
+
 export function RoleDetailPanel({
   node,
   onClose,
@@ -44,9 +59,11 @@ export function RoleDetailPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isDepartment = node.data.type === 'department';
-  const isUser = node.data.type === 'user';
-  const role = node.data.role;
+  // Cast node.data to our expected type
+  const nodeData = node.data as NodeData;
+  const isDepartment = nodeData.type === 'department';
+  const isUser = nodeData.type === 'user';
+  const role = nodeData.role;
 
   useEffect(() => {
     if (role?.id) {
@@ -146,15 +163,15 @@ export function RoleDetailPanel({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-blue-500" />
-                {node.data.name}
+                {nodeData.name}
               </CardTitle>
-              <CardDescription>{node.data.description}</CardDescription>
+              <CardDescription>{nodeData.description}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{node.data.userCount} users</span>
+                  <span className="text-sm font-medium">{nodeData.userCount} users</span>
                 </div>
               </div>
             </CardContent>
@@ -181,14 +198,14 @@ export function RoleDetailPanel({
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={node.data.user?.image || undefined} />
+                    <AvatarImage src={nodeData.user?.image || undefined} />
                     <AvatarFallback>
-                      {node.data.user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                      {nodeData.user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle className="text-base">{node.data.user?.name}</CardTitle>
-                    <CardDescription>{node.data.user?.email}</CardDescription>
+                    <CardTitle className="text-base">{nodeData.user?.name}</CardTitle>
+                    <CardDescription>{nodeData.user?.email}</CardDescription>
                   </div>
                 </div>
               </CardHeader>

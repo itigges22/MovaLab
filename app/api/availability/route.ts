@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     // Permission check: can view own or has VIEW_TEAM_CAPACITY/VIEW_ALL_CAPACITY
     const isOwnData = userId === userProfile.id;
     if (!isOwnData) {
-      const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY);
-      const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY);
+      const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
+      const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
       
       if (!canViewTeam && !canViewAll) {
         return NextResponse.json(
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check EDIT_OWN_AVAILABILITY permission
-    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_AVAILABILITY);
+    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_AVAILABILITY, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { error: 'Insufficient permissions to edit availability' },

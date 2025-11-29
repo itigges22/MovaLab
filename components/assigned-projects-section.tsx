@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { hasPermission, canViewProject } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { useProjects } from '@/lib/hooks/use-data'
+import { createClientSupabase } from '@/lib/supabase'
 
 interface ProjectWithDetails {
   id: string;
@@ -46,6 +47,8 @@ interface ProjectWithDetails {
     name: string;
   } | null;
   departments: any[];
+  workflow_step?: string | null;
+  daysUntilDeadline?: number | null;
 }
 
 interface AssignedProjectsSectionProps {
@@ -56,10 +59,10 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
   // Use SWR hook for automatic caching and deduplication
   const { projects: assignedProjects, isLoading: projectsLoading, error: projectsError } = useProjects(userProfile?.id, 10)
   const [visibleProjects, setVisibleProjects] = useState<ProjectWithDetails[]>([])
-  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'priority' | 'deadline'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({})
   const router = useRouter()
 
   // Stabilize project IDs to prevent infinite loops from SWR array reference changes
@@ -119,22 +122,43 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     }
   }, [projectIds, userProfile])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'review':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'complete':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'on_hold':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
+  // Fetch workflow steps for visible projects
+  useEffect(() => {
+    if (visibleProjects.length === 0) {
+      setWorkflowSteps({})
+      return
     }
-  }
+
+    async function fetchWorkflowSteps() {
+      const supabase = createClientSupabase()
+      if (!supabase) return
+
+      const projectIds = visibleProjects.map(p => p.id)
+      const { data: workflowData, error } = await supabase
+        .from('workflow_instances')
+        .select(`
+          project_id,
+          current_node_id,
+          workflow_nodes!workflow_instances_current_node_id_fkey (
+            label
+          )
+        `)
+        .in('project_id', projectIds)
+        .eq('status', 'active')
+
+      if (!error && workflowData) {
+        const steps: { [key: string]: string | null } = {}
+        workflowData.forEach((instance: any) => {
+          if (instance.project_id && instance.workflow_nodes?.label) {
+            steps[instance.project_id] = instance.workflow_nodes.label
+          }
+        })
+        setWorkflowSteps(steps)
+      }
+    }
+
+    fetchWorkflowSteps()
+  }, [visibleProjects])
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -163,21 +187,16 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
   // Filter and sort projects (use visibleProjects which are already permission-filtered)
   const filteredAndSortedProjects = visibleProjects
     .filter(project => {
-      if (statusFilter !== 'all' && project.status !== statusFilter) return false
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false
       return true
     })
     .sort((a, b) => {
       let aValue: any, bValue: any
-      
+
       switch (sortBy) {
         case 'name':
           aValue = a.name.toLowerCase()
           bValue = b.name.toLowerCase()
-          break
-        case 'status':
-          aValue = a.status
-          bValue = b.status
           break
         case 'priority':
           const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
@@ -191,16 +210,17 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
         default:
           return 0
       }
-      
+
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
       return 0
     })
     .map(project => ({
       ...project,
-      daysUntilDeadline: project.end_date 
+      daysUntilDeadline: project.end_date
         ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        : null
+        : null,
+      workflow_step: workflowSteps[project.id] || null
     }))
 
   return (
@@ -216,20 +236,6 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full min-w-0">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="review">Review</SelectItem>
-                  <SelectItem value="complete">Complete</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
-                </SelectContent>
-              </Select>
-              
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-full min-w-0">
                   <SelectValue placeholder="Priority" />
@@ -243,13 +249,12 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
                 </SelectContent>
               </Select>
 
-              <Select value={sortBy} onValueChange={(value: 'name' | 'status' | 'priority' | 'deadline') => setSortBy(value)}>
+              <Select value={sortBy} onValueChange={(value: 'name' | 'priority' | 'deadline') => setSortBy(value)}>
                 <SelectTrigger className="w-full min-w-0">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="status">Status</SelectItem>
                   <SelectItem value="priority">Priority</SelectItem>
                   <SelectItem value="deadline">Deadline</SelectItem>
                 </SelectContent>
@@ -295,7 +300,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Hours</th>
@@ -317,9 +322,13 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="outline" className={`${getStatusColor(project.status)} text-xs whitespace-nowrap`}>
-                        {project.status.replace('_', ' ')}
-                      </Badge>
+                      {project.workflow_step ? (
+                        <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
+                          {project.workflow_step}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-gray-400">No workflow</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant="outline" className={`${getPriorityColor(project.priority)} text-xs whitespace-nowrap`}>

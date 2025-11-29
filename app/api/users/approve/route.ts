@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { userApprovalService } from '@/lib/user-approval-service';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       logger.error('Supabase not configured', { action: 'approveUser' });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     // Check authentication and permission first
     await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       logger.error('Supabase not configured', { action: 'getApprovalStats' });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });

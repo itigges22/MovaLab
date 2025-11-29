@@ -16,8 +16,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { taskServiceDB, Task, CreateTaskData, UpdateTaskData } from '@/lib/task-service-db';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
 
 interface TaskCreateEditDialogProps {
   open: boolean;
@@ -36,11 +34,8 @@ export default function TaskCreateEditDialog({
 }: TaskCreateEditDialogProps) {
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; roles: string[] }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [canAssignTask, setCanAssignTask] = useState(false);
-  const [canCreateTask, setCanCreateTask] = useState(false);
-  const [canEditTask, setCanEditTask] = useState(false);
   const [project, setProject] = useState<{ start_date: string | null; end_date: string | null } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -55,12 +50,12 @@ export default function TaskCreateEditDialog({
 
   const isEditMode = !!task;
 
-  // Load users, project details, and check permissions
+  // Load users and project details
+  // Task permissions are now inherited from project access - if user can view the project page, they can manage tasks
   useEffect(() => {
     if (open && userProfile) {
       loadUsers();
       loadProject();
-      checkPermissions();
     }
   }, [open, userProfile, projectId]);
 
@@ -95,25 +90,62 @@ export default function TaskCreateEditDialog({
   async function loadUsers() {
     try {
       setLoadingUsers(true);
-      const response = await fetch('/api/users');
-      if (!response.ok) throw new Error('Failed to load users');
-      const data = await response.json();
-      const allUsers = data.users || [];
-
-      // Filter to only include users with roles
+      // Load users directly from Supabase - task assignment doesn't require MANAGE_USERS permission
+      // Only load users who have roles assigned (team members)
       const { createClientSupabase } = await import('@/lib/supabase');
       const supabase = createClientSupabase();
-      const { data: userRolesData } = await supabase
+
+      // Get users with roles through user_roles table
+      const { data: userRolesData, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id');
+        .select(`
+          user_id,
+          roles!user_roles_role_id_fkey (
+            id,
+            name
+          ),
+          user_profiles!user_roles_user_id_fkey (
+            id,
+            name,
+            email
+          )
+        `);
+
+      if (rolesError) {
+        console.error('Error loading user roles:', rolesError);
+        setUsers([]);
+        return;
+      }
 
       if (userRolesData) {
-        const userIdsWithRoles = new Set(userRolesData.map((ur: any) => ur.user_id));
-        const usersWithRoles = allUsers.filter((user: any) => userIdsWithRoles.has(user.id));
-        console.log(`Task assignment: ${usersWithRoles.length} users with roles out of ${allUsers.length} total users`);
+        // Aggregate all roles per user
+        const uniqueUsersMap = new Map<string, { id: string; name: string; roles: string[] }>();
+        userRolesData.forEach((ur: any) => {
+          if (ur.user_profiles && ur.user_profiles.id) {
+            const userId = ur.user_profiles.id;
+            const roleName = ur.roles?.name || 'No Role';
+
+            if (uniqueUsersMap.has(userId)) {
+              // Add role to existing user if not already present
+              const existingUser = uniqueUsersMap.get(userId)!;
+              if (!existingUser.roles.includes(roleName)) {
+                existingUser.roles.push(roleName);
+              }
+            } else {
+              // Create new user entry
+              uniqueUsersMap.set(userId, {
+                id: userId,
+                name: ur.user_profiles.name || 'Unknown',
+                roles: [roleName]
+              });
+            }
+          }
+        });
+        const usersWithRoles = Array.from(uniqueUsersMap.values());
+        console.log(`Task assignment: ${usersWithRoles.length} users with roles available`);
         setUsers(usersWithRoles);
       } else {
-        setUsers(allUsers);
+        setUsers([]);
       }
     } catch (error) {
       console.error('Error loading users:', error);
@@ -136,18 +168,6 @@ export default function TaskCreateEditDialog({
       console.error('Error loading project:', error);
       setProject(null);
     }
-  }
-
-  async function checkPermissions() {
-    if (!userProfile) return;
-    const [canAssign, canCreate, canEdit] = await Promise.all([
-      hasPermission(userProfile, Permission.ASSIGN_TASK),
-      hasPermission(userProfile, Permission.CREATE_TASK),
-      hasPermission(userProfile, Permission.EDIT_TASK)
-    ]);
-    setCanAssignTask(canAssign);
-    setCanCreateTask(canCreate);
-    setCanEditTask(canEdit);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,25 +219,8 @@ export default function TaskCreateEditDialog({
       }
     }
 
-    // Check permissions before proceeding
-    if (isEditMode && !canEditTask) {
-      alert('You do not have permission to edit tasks');
-      return;
-    }
-
-    if (!isEditMode && !canCreateTask) {
-      alert('You do not have permission to create tasks');
-      return;
-    }
-
-    // Check ASSIGN_TASK permission if assigning to someone
-    if (formData.assigned_to && formData.assigned_to !== 'unassigned' && formData.assigned_to !== userProfile.id) {
-      if (!canAssignTask) {
-        alert('You do not have permission to assign tasks to other users');
-        return;
-      }
-    }
-
+    // Task permissions are now inherited from project access
+    // The API will validate project access before allowing task operations
     setLoading(true);
 
     try {
@@ -410,10 +413,9 @@ export default function TaskCreateEditDialog({
             />
           </div>
 
-          {/* Assigned To */}
-          {canAssignTask && (
-            <div className="space-y-2">
-              <Label htmlFor="assigned_to">Assign To</Label>
+          {/* Assigned To - Task assignment permissions are inherited from project access */}
+          <div className="space-y-2">
+            <Label htmlFor="assigned_to">Assign To</Label>
               <Select
                 value={formData.assigned_to}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}
@@ -428,16 +430,15 @@ export default function TaskCreateEditDialog({
                     .filter((user) => user && user.id && typeof user.id === 'string' && user.id.trim() !== '')
                     .map((user) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name || 'Unknown'} ({user.email || 'No email'})
+                        {user.roles.join(', ')} - {user.name || 'Unknown'}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Assigned users will get access to this project and its account
-              </p>
-            </div>
-          )}
+            <p className="text-xs text-muted-foreground">
+              Assigned users will get access to this project and its account
+            </p>
+          </div>
 
           <DialogFooter>
             <Button

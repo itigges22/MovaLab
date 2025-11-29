@@ -2,6 +2,7 @@
 
 // Account edit dialog - requires EDIT_ACCOUNT permission
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ interface AccountEditDialogProps {
 }
 
 export function AccountEditDialog({ account, userProfile, onAccountUpdated, children }: AccountEditDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [canEditAccount, setCanEditAccount] = useState(false);
@@ -92,8 +94,8 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
 
       setOpen(false);
       onAccountUpdated?.();
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Refresh server data without full page reload
+      router.refresh();
     } catch (error) {
       console.error('Error updating account:', error);
       alert('Failed to update account. Please try again.');

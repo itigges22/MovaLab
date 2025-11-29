@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 
@@ -17,7 +17,7 @@ export async function DELETE(
     // Require permission to remove users from accounts
     await requireAuthAndPermission(Permission.REMOVE_ACCOUNT_USERS, {}, request);
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }

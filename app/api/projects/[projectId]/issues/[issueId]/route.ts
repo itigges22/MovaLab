@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 
@@ -13,7 +13,7 @@ export async function PUT(
 ) {
   try {
     const { projectId, issueId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -46,7 +46,7 @@ export async function PUT(
     }
 
     // Check EDIT_ISSUE permission
-    const canEditIssue = await hasPermission(userProfile, Permission.EDIT_ISSUE);
+    const canEditIssue = await hasPermission(userProfile, Permission.EDIT_ISSUE, undefined, supabase);
     if (!canEditIssue) {
       return NextResponse.json({ error: 'Insufficient permissions to edit issues' }, { status: 403 });
     }
@@ -117,7 +117,7 @@ export async function DELETE(
 ) {
   try {
     const { projectId, issueId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
@@ -150,7 +150,7 @@ export async function DELETE(
     }
 
     // Check DELETE_ISSUE permission
-    const canDeleteIssue = await hasPermission(userProfile, Permission.DELETE_ISSUE);
+    const canDeleteIssue = await hasPermission(userProfile, Permission.DELETE_ISSUE, undefined, supabase);
     if (!canDeleteIssue) {
       return NextResponse.json({ error: 'Insufficient permissions to delete issues' }, { status: 403 });
     }

@@ -542,12 +542,50 @@ class RoleManagementService {
     }
   }
 
+  // Helper function to check if a role is the "No Assigned Role" / "Unassigned" role
+  private isUnassignedRole(roleName: string | undefined | null): boolean {
+    if (!roleName) return false;
+    const nameLower = roleName.toLowerCase();
+    return nameLower === 'no assigned role' ||
+           nameLower === 'unassigned' ||
+           nameLower.includes('unassigned');
+  }
+
   // User-role operations
   async assignUserToRole(userId: string, roleId: string, assignedBy: string): Promise<boolean> {
     try {
       const supabase = await this.getSupabase();
       if (!supabase) return false;
 
+      // First, check user's current roles to see if they have the "unassigned" role
+      const { data: currentRoles, error: currentRolesError } = await supabase
+        .from('user_roles')
+        .select(`
+          role_id,
+          roles!inner(name)
+        `)
+        .eq('user_id', userId);
+
+      if (currentRolesError) {
+        console.error('Error fetching current roles:', currentRolesError);
+        // Continue anyway - this is not a critical error
+      }
+
+      // Find the "No Assigned Role" if user has it
+      const noAssignedRole = currentRoles?.find((cr: any) => this.isUnassignedRole(cr.roles?.name));
+      const hasOtherRoles = currentRoles?.some((cr: any) => !this.isUnassignedRole(cr.roles?.name));
+
+      // If user has "No Assigned Role" + other roles, remove "No Assigned Role" first
+      if (noAssignedRole && hasOtherRoles) {
+        console.log(`🔄 User has "No Assigned Role" + other roles, removing from "No Assigned Role"`);
+        await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('role_id', noAssignedRole.role_id);
+      }
+
+      // Insert the new role assignment
       const { error } = await supabase
         .from('user_roles')
         .insert({
@@ -560,6 +598,21 @@ class RoleManagementService {
       if (error) {
         console.error('Error assigning user to role:', error);
         return false;
+      }
+
+      // If user was ONLY in "No Assigned Role", remove it now (after adding new role)
+      if (noAssignedRole && !hasOtherRoles) {
+        console.log(`🔄 User was only in "No Assigned Role", now removing it`);
+        const { error: deleteError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('role_id', noAssignedRole.role_id);
+
+        if (deleteError) {
+          console.error('Error removing user from "No Assigned Role" after assignment:', deleteError);
+          // Don't fail the request - user is already assigned to new role
+        }
       }
 
       return true;

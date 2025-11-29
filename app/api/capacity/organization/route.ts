@@ -19,6 +19,10 @@ interface CapacityDataPoint {
   utilization: number;
 }
 
+// Enable route caching with stale-while-revalidate
+export const dynamic = 'force-dynamic';
+export const revalidate = 30; // Revalidate every 30 seconds
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = createApiSupabaseClient(request);
@@ -225,11 +229,16 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: dataPoints,
       period,
     });
+
+    // Add aggressive caching headers (30 second cache, 5 minute stale-while-revalidate)
+    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=300');
+
+    return response;
   } catch (error: any) {
     console.error('Error in GET /api/capacity/organization:', error);
     return NextResponse.json(

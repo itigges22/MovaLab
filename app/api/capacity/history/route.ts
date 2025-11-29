@@ -34,6 +34,10 @@ interface CapacityDataPoint {
   utilization: number; // Percentage (actual/available * 100)
 }
 
+// Enable aggressive caching with stale-while-revalidate
+export const dynamic = 'force-dynamic';
+export const revalidate = 30;
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = createApiSupabaseClient(request);

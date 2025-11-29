@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       
       // Permission check for viewing other users' time entries
       if (targetUserId !== userProfile.id) {
-        const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES);
+        const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
         if (!canViewTeam) {
           return NextResponse.json(
             { error: 'Insufficient permissions to view other users\' time entries' },
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: LOG_TIME
-    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME);
+    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME, undefined, supabase);
     if (!canLogTime) {
       return NextResponse.json(
         { error: 'Insufficient permissions to log time' },
@@ -208,7 +208,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Permission check: EDIT_OWN_TIME_ENTRIES
-    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_TIME_ENTRIES);
+    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_TIME_ENTRIES, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { error: 'Insufficient permissions to edit time entries' },
@@ -232,7 +232,7 @@ export async function PATCH(request: NextRequest) {
 
     // Check ownership or team permission
     if (existingEntry.user_id !== userProfile.id) {
-      const canEditTeam = await hasPermission(userProfile, Permission.EDIT_TEAM_TIME_ENTRIES);
+      const canEditTeam = await hasPermission(userProfile, Permission.EDIT_TEAM_TIME_ENTRIES, undefined, supabase);
       if (!canEditTeam) {
         return NextResponse.json(
           { error: 'Can only edit your own time entries' },
@@ -316,7 +316,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Permission check: EDIT_OWN_TIME_ENTRIES
-    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_TIME_ENTRIES);
+    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_TIME_ENTRIES, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { error: 'Insufficient permissions to delete time entries' },
@@ -340,7 +340,7 @@ export async function DELETE(request: NextRequest) {
 
     // Check ownership or team permission
     if (existingEntry.user_id !== userProfile.id) {
-      const canEditTeam = await hasPermission(userProfile, Permission.EDIT_TEAM_TIME_ENTRIES);
+      const canEditTeam = await hasPermission(userProfile, Permission.EDIT_TEAM_TIME_ENTRIES, undefined, supabase);
       if (!canEditTeam) {
         return NextResponse.json(
           { error: 'Can only delete your own time entries' },

@@ -262,6 +262,136 @@ export function validateQueryParams<T>(schema: z.ZodSchema<T>, params: Record<st
   }
 }
 
+// ============================================================================
+// WORKFLOW SCHEMAS (Phase 1)
+// ============================================================================
+
+export const createWorkflowTemplateSchema = z.object({
+  name: z.string().min(1, 'Workflow name is required').max(200, 'Workflow name too long'),
+  description: z.string().max(1000, 'Description too long').optional().nullable(),
+});
+
+export const updateWorkflowTemplateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  is_active: z.boolean().optional(),
+});
+
+export const createWorkflowNodeSchema = z.object({
+  workflow_template_id: uuidSchema,
+  node_type: z.enum(['department', 'role', 'client', 'conditional']),
+  entity_id: uuidSchema.optional().nullable(),
+  position_x: z.number(),
+  position_y: z.number(),
+  label: z.string().min(1, 'Node label is required').max(100, 'Node label too long'),
+  requires_form: z.boolean().optional(),
+  form_template_id: uuidSchema.optional().nullable(),
+  settings: z.record(z.string(), z.any()).optional(),
+});
+
+export const updateWorkflowNodeSchema = z.object({
+  node_type: z.enum(['department', 'role', 'client', 'conditional']).optional(),
+  entity_id: uuidSchema.optional().nullable(),
+  position_x: z.number().optional(),
+  position_y: z.number().optional(),
+  label: z.string().min(1).max(100).optional(),
+  requires_form: z.boolean().optional(),
+  form_template_id: uuidSchema.optional().nullable(),
+  settings: z.record(z.string(), z.any()).optional(),
+});
+
+export const createWorkflowConnectionSchema = z.object({
+  workflow_template_id: uuidSchema,
+  from_node_id: uuidSchema,
+  to_node_id: uuidSchema,
+  condition: z.record(z.string(), z.any()).optional().nullable(),
+});
+
+export const startWorkflowInstanceSchema = z.object({
+  workflow_template_id: uuidSchema,
+  project_id: uuidSchema.optional().nullable(),
+  task_id: uuidSchema.optional().nullable(),
+  start_node_id: uuidSchema,
+}).refine(
+  (data) => (data.project_id && !data.task_id) || (!data.project_id && data.task_id),
+  { message: 'Must provide either project_id or task_id, but not both' }
+);
+
+export const workflowHandoffSchema = z.object({
+  to_node_id: uuidSchema,
+  handed_off_to: uuidSchema.optional().nullable(),
+  form_response_id: uuidSchema.optional().nullable(),
+  notes: z.string().max(2000, 'Notes too long').optional().nullable(),
+  out_of_order: z.boolean().optional(),
+});
+
+// ============================================================================
+// FORM SCHEMAS (Phase 1)
+// ============================================================================
+
+export const formFieldSchema = z.object({
+  id: z.string().min(1, 'Field ID is required'),
+  type: z.enum(['text', 'number', 'date', 'dropdown', 'multiselect', 'file', 'textarea', 'email', 'checkbox']),
+  label: z.string().min(1, 'Field label is required'),
+  required: z.boolean(),
+  placeholder: z.string().optional(),
+  options: z.array(z.string()).optional(),
+  defaultValue: z.any().optional(),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    pattern: z.string().optional(),
+    message: z.string().optional(),
+  }).optional(),
+  conditional: z.object({
+    show_if: z.string(),
+    equals: z.any(),
+  }).optional(),
+});
+
+export const createFormTemplateSchema = z.object({
+  name: z.string().min(1, 'Form name is required').max(200, 'Form name too long'),
+  description: z.string().max(1000, 'Description too long').optional().nullable(),
+  fields: z.array(formFieldSchema).min(1, 'Form must have at least one field'),
+});
+
+export const updateFormTemplateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  fields: z.array(formFieldSchema).optional(),
+  is_active: z.boolean().optional(),
+});
+
+export const submitFormResponseSchema = z.object({
+  form_template_id: uuidSchema,
+  response_data: z.record(z.string(), z.any()),
+  workflow_history_id: uuidSchema.optional().nullable(),
+});
+
+// ============================================================================
+// CLIENT PORTAL SCHEMAS (Phase 1)
+// ============================================================================
+
+export const sendClientInvitationSchema = z.object({
+  account_id: uuidSchema,
+  email: emailSchema,
+  expires_in_days: z.number().int().min(1).max(30).optional(),
+});
+
+export const acceptClientInvitationSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  company_position: z.string().max(100, 'Position too long').optional(),
+});
+
+export const submitClientFeedbackSchema = z.object({
+  project_id: uuidSchema,
+  satisfaction_score: z.number().int().min(1).max(10).optional().nullable(),
+  what_went_well: z.string().max(2000, 'Text too long').optional().nullable(),
+  what_needs_improvement: z.string().max(2000, 'Text too long').optional().nullable(),
+  performance_metrics: z.record(z.string(), z.any()).optional().nullable(),
+  workflow_history_id: uuidSchema.optional().nullable(),
+});
+
 // Export type inference helpers
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
@@ -275,3 +405,19 @@ export type CreateRoleInput = z.infer<typeof createRoleSchema>;
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 export type CreateProjectUpdateInput = z.infer<typeof createProjectUpdateSchema>;
 export type CreateIssueInput = z.infer<typeof createIssueSchema>;
+
+// Phase 1 type exports
+export type CreateWorkflowTemplateInput = z.infer<typeof createWorkflowTemplateSchema>;
+export type UpdateWorkflowTemplateInput = z.infer<typeof updateWorkflowTemplateSchema>;
+export type CreateWorkflowNodeInput = z.infer<typeof createWorkflowNodeSchema>;
+export type UpdateWorkflowNodeInput = z.infer<typeof updateWorkflowNodeSchema>;
+export type CreateWorkflowConnectionInput = z.infer<typeof createWorkflowConnectionSchema>;
+export type StartWorkflowInstanceInput = z.infer<typeof startWorkflowInstanceSchema>;
+export type WorkflowHandoffInput = z.infer<typeof workflowHandoffSchema>;
+export type FormFieldInput = z.infer<typeof formFieldSchema>;
+export type CreateFormTemplateInput = z.infer<typeof createFormTemplateSchema>;
+export type UpdateFormTemplateInput = z.infer<typeof updateFormTemplateSchema>;
+export type SubmitFormResponseInput = z.infer<typeof submitFormResponseSchema>;
+export type SendClientInvitationInput = z.infer<typeof sendClientInvitationSchema>;
+export type AcceptClientInvitationInput = z.infer<typeof acceptClientInvitationSchema>;
+export type SubmitClientFeedbackInput = z.infer<typeof submitClientFeedbackSchema>;

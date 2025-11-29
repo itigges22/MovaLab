@@ -1,10 +1,11 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClientSupabase } from '../supabase'
 import { getCurrentUserProfile, signOut } from '../auth'
 import { UserWithRoles } from '../rbac'
+import { clearPermissionCache } from '../permission-checker'
 
 interface AuthContextType {
   user: User | null
@@ -186,6 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = async () => {
     try {
       setLoading(true)
+      // Clear permission cache when refreshing profile to get fresh permissions
+      clearPermissionCache()
       const profile = await getCurrentUserProfile()
       setUserProfile(profile)
     } catch (error) {
@@ -195,6 +198,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     }
   }
+
+  // Periodic background refresh to catch permission changes (every 60 seconds)
+  useEffect(() => {
+    if (!user) return
+
+    const intervalId = setInterval(async () => {
+      try {
+        // Silent refresh - don't set loading state to avoid UI flickering
+        clearPermissionCache()
+        const profile = await getCurrentUserProfile()
+        if (profile) {
+          setUserProfile(profile)
+        }
+      } catch (error) {
+        // Silent fail - don't disrupt user experience
+        console.error('Background profile refresh failed:', error)
+      }
+    }, 60000) // Refresh every 60 seconds
+
+    return () => clearInterval(intervalId)
+  }, [user])
 
   const value = {
     user,

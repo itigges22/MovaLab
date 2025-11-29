@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { AllProjectUpdate } from '@/lib/all-project-updates-service'
 import { formatDistanceToNow } from 'date-fns'
 import { Activity, Clock, User } from 'lucide-react'
+import { createClientSupabase } from '@/lib/supabase'
 
 interface ProjectUpdatesCardProps {
   className?: string;
@@ -18,10 +19,52 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
   const [updates, setUpdates] = useState<AllProjectUpdate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({})
 
   useEffect(() => {
     loadUpdates()
   }, [])
+
+  // Fetch workflow steps when updates change
+  useEffect(() => {
+    if (updates.length === 0) {
+      setWorkflowSteps({})
+      return
+    }
+
+    async function fetchWorkflowSteps() {
+      const supabase = createClientSupabase()
+      if (!supabase) return
+
+      // Get unique project IDs from updates
+      const projectIds = [...new Set(updates.map(u => u.project_id).filter(Boolean))]
+      if (projectIds.length === 0) return
+
+      const { data: workflowData, error } = await supabase
+        .from('workflow_instances')
+        .select(`
+          project_id,
+          current_node_id,
+          workflow_nodes!workflow_instances_current_node_id_fkey (
+            label
+          )
+        `)
+        .in('project_id', projectIds)
+        .eq('status', 'active')
+
+      if (!error && workflowData) {
+        const steps: { [key: string]: string | null } = {}
+        workflowData.forEach((instance: any) => {
+          if (instance.project_id && instance.workflow_nodes?.label) {
+            steps[instance.project_id] = instance.workflow_nodes.label
+          }
+        })
+        setWorkflowSteps(steps)
+      }
+    }
+
+    fetchWorkflowSteps()
+  }, [updates])
 
   const loadUpdates = async () => {
     try {
@@ -61,17 +104,6 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
       }
     } finally {
       setLoading(false)
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'complete': return 'bg-green-100 text-green-800 border-green-200'
-      case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'review': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'planning': return 'bg-gray-100 text-gray-800 border-gray-200'
-      case 'on_hold': return 'bg-red-100 text-red-800 border-red-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
@@ -183,9 +215,13 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
                         <span className="hidden sm:inline">•</span>
                         <span className="break-all sm:break-normal">{update.projects?.accounts?.name || 'Unknown Account'}</span>
                         <span className="hidden sm:inline">•</span>
-                        <Badge variant="outline" className={`${getStatusColor(update.projects?.status || '')} text-xs whitespace-nowrap`}>
-                          {update.projects?.status?.replace('_', ' ') || 'Unknown'}
-                        </Badge>
+                        {workflowSteps[update.project_id] ? (
+                          <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
+                            {workflowSteps[update.project_id]}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-gray-400">No workflow</span>
+                        )}
                         <Badge variant="outline" className={`${getPriorityColor(update.projects?.priority || '')} text-xs whitespace-nowrap`}>
                           {update.projects?.priority || 'Unknown'}
                         </Badge>

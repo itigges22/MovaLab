@@ -124,7 +124,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
     let currentPath = ''
     pathSegments.forEach((segment, index) => {
       currentPath += `/${segment}`
-      
+
       // Skip if it's the dashboard segment (already added)
       if (segment === 'dashboard') return
 
@@ -135,8 +135,9 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       if (isUUID(segment) && departmentNames.has(segment)) {
         label = departmentNames.get(segment)!
       } else if (isUUID(segment)) {
-        // If it's a UUID but we don't have the name yet, show loading or generic label
-        label = 'Loading...'
+        // If it's a UUID but we don't have the name yet, skip this breadcrumb entirely
+        // It will appear once the data is fetched
+        return
       } else {
         label = segment
           .split('-')

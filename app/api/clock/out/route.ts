@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: LOG_TIME
-    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME);
+    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME, undefined, supabase);
     if (!canLogTime) {
       return NextResponse.json(
         { error: 'Insufficient permissions to log time' },

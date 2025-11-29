@@ -6,14 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RoleGuard } from '@/components/role-guard'
 import { createClientSupabase } from '@/lib/supabase'
 import { Database } from '@/lib/supabase'
-import { FolderOpen, Calendar, Clock, User, Building2, SortAsc, SortDesc, ExternalLink, Trash2 } from 'lucide-react'
+import { FolderOpen, Calendar, Clock, User, Building2, SortAsc, SortDesc, ExternalLink, Trash2, CheckCircle2, Loader2, Plus } from 'lucide-react'
+import ProjectCreationDialog from '@/components/project-creation-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { hasPermission, canViewProject } from '@/lib/rbac'
+import { hasPermission, canViewProject, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 
 type Project = Database['public']['Tables']['projects']['Row']
@@ -23,6 +25,29 @@ type Department = Database['public']['Tables']['departments']['Row']
 interface ProjectWithDetails extends Project {
   account: Account
   departments: Department[]
+  workflow_step?: string | null  // Current workflow step name
+}
+
+interface ApprovalRequest {
+  id: string;
+  workflow_instance_id: string;
+  current_node_id: string;
+  project_id: string;
+  projects?: {
+    id: string;
+    name: string;
+    description: string | null;
+    priority: string;
+    account?: {
+      id: string;
+      name: string;
+    };
+  };
+  workflow_nodes?: {
+    id: string;
+    label: string;
+    node_type: string;
+  };
 }
 
 export default function ProjectsPage() {
@@ -31,15 +56,46 @@ export default function ProjectsPage() {
   const [visibleProjects, setVisibleProjects] = useState<ProjectWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  // Status filter removed - projects now use workflow steps instead of static status
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'priority' | 'deadline'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [allDepartments, setAllDepartments] = useState<Department[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<ProjectWithDetails | null>(null)
   const [deletingProject, setDeletingProject] = useState(false)
+  const [activeTab, setActiveTab] = useState('all-projects')
+  const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([])
+  const [approvalsLoading, setApprovalsLoading] = useState(true)
+  const [canCreateProject, setCanCreateProject] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Check create project permission
+  useEffect(() => {
+    if (!userProfile) return;
+    hasPermission(userProfile, Permission.CREATE_PROJECT).then(setCanCreateProject);
+  }, [userProfile]);
+
+  // Load pending approvals
+  useEffect(() => {
+    const loadApprovals = async () => {
+      try {
+        setApprovalsLoading(true);
+        const response = await fetch('/api/workflows/my-approvals');
+        const data = await response.json();
+        if (data.success) {
+          setPendingApprovals(data.approvals || []);
+        }
+      } catch (error) {
+        console.error('Error loading approvals:', error);
+      } finally {
+        setApprovalsLoading(false);
+      }
+    };
+
+    loadApprovals();
+  }, []);
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -52,12 +108,60 @@ export default function ProjectsPage() {
           throw new Error('Failed to create Supabase client')
         }
 
-        // Get user's departments
-        const userDepartments = userProfile.user_roles
-          ?.map(ur => ur.roles.departments?.id)
-          .filter((id): id is string => id !== undefined && id !== null) || []
+        // Get projects where user has access:
+        // 1. Superadmins see all projects
+        // 2. Projects they created
+        // 3. Projects they're directly assigned to (assigned_user_id)
+        // 4. Projects they're in via project_assignments
+        // 5. Projects where they have tasks assigned
 
-        // Query projects based on user's department access
+        // Check if user is superadmin (bypasses all permission checks)
+        const userIsSuperadmin = isSuperadmin(userProfile)
+
+        // Check if user has VIEW_ALL_PROJECTS permission using proper permission check
+        const hasViewAllProjects = userIsSuperadmin || await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS)
+
+        // First, get projects the user created or is directly assigned to
+        let projectIds: string[] = []
+
+        // Only need to gather project IDs if user doesn't have VIEW_ALL_PROJECTS
+        if (!hasViewAllProjects) {
+          // Get projects created by user or assigned to user
+          const { data: directProjects } = await supabase
+            .from('projects')
+            .select('id')
+            .or(`created_by.eq.${userProfile.id},assigned_user_id.eq.${userProfile.id}`)
+
+          if (directProjects) {
+            projectIds.push(...directProjects.map((p: { id: string }) => p.id))
+          }
+
+          // Get projects via project_assignments
+          const { data: assignedProjects } = await supabase
+            .from('project_assignments')
+            .select('project_id')
+            .eq('user_id', userProfile.id)
+            .is('removed_at', null)
+
+          if (assignedProjects) {
+            projectIds.push(...assignedProjects.map((p: { project_id: string }) => p.project_id))
+          }
+
+          // Get projects where user has tasks
+          const { data: taskProjects } = await supabase
+            .from('tasks')
+            .select('project_id')
+            .eq('assigned_to', userProfile.id)
+
+          if (taskProjects) {
+            projectIds.push(...taskProjects.map((t: { project_id: string }) => t.project_id))
+          }
+
+          // Remove duplicates
+          projectIds = Array.from(new Set(projectIds))
+        }
+
+        // Build query
         let query = supabase
           .from('projects')
           .select(`
@@ -65,52 +169,16 @@ export default function ProjectsPage() {
             account:accounts(*)
           `)
 
-        // If user is not admin level, filter by their departments
-        const isAdminLevel = userProfile.user_roles?.some(ur =>
-          ['Executive', 'Director', 'Superadmin'].includes(ur.roles.name)
-        )
-
-        if (!isAdminLevel && userDepartments.length > 0) {
-          // Get roles for user's departments
-          const { data: deptRoles } = await supabase
-            .from('roles')
-            .select('id')
-            .in('department_id', userDepartments)
-
-          const roleIds = deptRoles?.map((r: any) => r.id) || []
-
-          if (roleIds.length > 0) {
-            // Get users who have these roles
-            const { data: deptUsers } = await supabase
-              .from('user_roles')
-              .select('user_id')
-              .in('role_id', roleIds)
-
-            const userIds = Array.from(new Set(deptUsers?.map((ur: any) => ur.user_id) || []))
-
-            if (userIds.length > 0) {
-              // Get projects assigned to these users
-              const { data: projectAssignments } = await supabase
-                .from('project_assignments')
-                .select('project_id')
-                .in('user_id', userIds)
-                .is('removed_at', null)
-
-              const projectIds = Array.from(new Set(projectAssignments?.map((pa: any) => pa.project_id) || []))
-
-              if (projectIds.length > 0) {
-                query = query.in('id', projectIds)
-              } else {
-                // No accessible projects - filter to empty result set
-                query = query.eq('id', '00000000-0000-0000-0000-000000000000')
-              }
-            } else {
-              query = query.eq('id', '00000000-0000-0000-0000-000000000000')
-            }
-          } else {
-            query = query.eq('id', '00000000-0000-0000-0000-000000000000')
-          }
+        // Filter by accessible projects unless user has VIEW_ALL_PROJECTS or is superadmin
+        if (!hasViewAllProjects && projectIds.length > 0) {
+          query = query.in('id', projectIds)
+        } else if (!hasViewAllProjects && projectIds.length === 0) {
+          // No accessible projects
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000')
         }
+
+        // Exclude completed projects - they go to "Finished Projects" on account page
+        query = query.neq('status', 'complete')
 
         const { data, error: queryError } = await query
 
@@ -119,15 +187,15 @@ export default function ProjectsPage() {
         }
 
         // Get departments for each project via project_assignments
-        const projectIds = (data || []).map((p: any) => p.id)
+        const fetchedProjectIds = (data || []).map((p: any) => p.id)
         const departmentsByProject: { [key: string]: any[] } = {}
 
-        if (projectIds.length > 0) {
+        if (fetchedProjectIds.length > 0) {
           // First, get all project assignments to get user_ids
           const { data: assignments } = await supabase
             .from('project_assignments')
             .select('project_id, user_id')
-            .in('project_id', projectIds)
+            .in('project_id', fetchedProjectIds)
             .is('removed_at', null)
 
           if (assignments && assignments.length > 0) {
@@ -187,10 +255,35 @@ export default function ProjectsPage() {
           }
         }
 
-        // Transform the data to include departments
+        // Get workflow step info for each project
+        const workflowSteps: { [key: string]: string | null } = {}
+        if (fetchedProjectIds.length > 0) {
+          const { data: workflowData } = await supabase
+            .from('workflow_instances')
+            .select(`
+              project_id,
+              current_node_id,
+              workflow_nodes!workflow_instances_current_node_id_fkey (
+                label
+              )
+            `)
+            .in('project_id', fetchedProjectIds)
+            .eq('status', 'active')
+
+          if (workflowData) {
+            workflowData.forEach((wi: any) => {
+              if (wi.project_id) {
+                workflowSteps[wi.project_id] = wi.workflow_nodes?.label || null
+              }
+            })
+          }
+        }
+
+        // Transform the data to include departments and workflow step
         const projectsWithDetails: ProjectWithDetails[] = (data || []).map((project: any) => ({
           ...project,
-          departments: departmentsByProject[project.id] || []
+          departments: departmentsByProject[project.id] || [],
+          workflow_step: workflowSteps[project.id] || null
         }))
 
         setProjects(projectsWithDetails)
@@ -214,7 +307,7 @@ export default function ProjectsPage() {
     }
 
     loadProjects()
-  }, [userProfile])
+  }, [userProfile, refreshKey])
 
   // Filter projects based on permissions
   useEffect(() => {
@@ -250,22 +343,7 @@ export default function ProjectsPage() {
     filterProjects()
   }, [projects, userProfile])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' }
-      case 'in_progress':
-        return { backgroundColor: '#fef3c7', color: '#d97706', borderColor: '#fbbf24' }
-      case 'review':
-        return { backgroundColor: '#e9d5ff', color: '#7c3aed', borderColor: '#c4b5fd' }
-      case 'complete':
-        return { backgroundColor: '#d1fae5', color: '#059669', borderColor: '#6ee7b7' }
-      case 'on_hold':
-        return { backgroundColor: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5' }
-      default:
-        return { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' }
-    }
-  }
+  // Status colors removed - projects now use workflow steps
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -357,22 +435,18 @@ export default function ProjectsPage() {
   // Filter and sort projects (use visibleProjects which are already permission-filtered)
   const filteredAndSortedProjects = visibleProjects
     .filter(project => {
-      if (statusFilter !== 'all' && project.status !== statusFilter) return false
+      // Status filter removed - projects now use workflow steps
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false
       if (departmentFilter !== 'all' && !project.departments.some(dept => dept.id === departmentFilter)) return false
       return true
     })
     .sort((a, b) => {
       let aValue: any, bValue: any
-      
+
       switch (sortBy) {
         case 'name':
           aValue = a.name.toLowerCase()
           bValue = b.name.toLowerCase()
-          break
-        case 'status':
-          aValue = a.status
-          bValue = b.status
           break
         case 'priority':
           const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
@@ -386,7 +460,7 @@ export default function ProjectsPage() {
         default:
           return 0
       }
-      
+
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
       return 0
@@ -427,41 +501,68 @@ export default function ProjectsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
             <p className="text-gray-600 mt-1">
-              View and manage all projects you have access to
+              View and manage all projects and workflow approvals
             </p>
           </div>
+          {canCreateProject && (
+            <ProjectCreationDialog
+              onProjectCreated={() => setRefreshKey(prev => prev + 1)}
+            >
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Project
+              </Button>
+            </ProjectCreationDialog>
+          )}
         </div>
 
-        {visibleProjects.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Projects Found</h3>
-              <p className="text-gray-600">
-                You don't have access to any projects yet, or no projects have been created.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <div className="space-y-4">
-                <CardTitle>Your Assigned Projects</CardTitle>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="w-5 h-5" />
+              Project Management
+            </CardTitle>
+            <CardDescription>
+              All projects you have access to and pending approvals
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="all-projects" className="flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4" />
+                  All Projects
+                  {visibleProjects.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {visibleProjects.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="approvals" className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Pending Approvals
+                  {pendingApprovals.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {pendingApprovals.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* All Projects Tab */}
+              <TabsContent value="all-projects" className="space-y-4 mt-4">
+                {visibleProjects.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <FolderOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Projects Found</h3>
+                    <p className="text-sm">You don't have access to any projects yet, or no projects have been created.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Filters and Sorting */}
                 <div className="flex flex-wrap gap-2">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="planning">Planning</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="review">Review</SelectItem>
-                      <SelectItem value="complete">Complete</SelectItem>
-                      <SelectItem value="on_hold">On Hold</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
+                  {/* Status filter removed - projects now use workflow steps */}
+
                   <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                     <SelectTrigger className="w-[140px]">
                       <SelectValue placeholder="Priority" />
@@ -489,13 +590,12 @@ export default function ProjectsPage() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={sortBy} onValueChange={(value: 'name' | 'status' | 'priority' | 'deadline') => setSortBy(value)}>
+                  <Select value={sortBy} onValueChange={(value: 'name' | 'priority' | 'deadline') => setSortBy(value)}>
                     <SelectTrigger className="w-[140px]">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="name">Name</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
                       <SelectItem value="priority">Priority</SelectItem>
                       <SelectItem value="deadline">Deadline</SelectItem>
                     </SelectContent>
@@ -510,15 +610,14 @@ export default function ProjectsPage() {
                     {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
                   </Button>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
+
+                {/* Projects Table */}
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Departments</th>
@@ -540,12 +639,15 @@ export default function ProjectsPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <Badge 
-                            className="text-xs whitespace-nowrap border"
-                            style={getStatusColor(project.status)}
-                          >
-                            {project.status.replace('_', ' ')}
-                          </Badge>
+                          {project.workflow_step ? (
+                            <Badge
+                              className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300"
+                            >
+                              {project.workflow_step}
+                            </Badge>
+                          ) : (
+                            <span className="text-sm text-gray-400">No workflow</span>
+                          )}
                         </td>
                         <td className="py-3 px-4">
                           <Badge 
@@ -632,9 +734,82 @@ export default function ProjectsPage() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
-        )}
+                  </>
+                )}
+              </TabsContent>
+
+              {/* Pending Approvals Tab */}
+              <TabsContent value="approvals" className="space-y-4 mt-4">
+                {approvalsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                  </div>
+                ) : pendingApprovals.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No pending approval requests</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingApprovals.map((approval: any) => (
+                      <Card key={approval.id} className="border-l-4 border-l-yellow-400 hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Link
+                                  href={`/projects/${approval.project_id}`}
+                                  className="font-semibold text-lg hover:text-blue-600 transition-colors"
+                                >
+                                  {approval.projects?.name || 'Unnamed Project'}
+                                </Link>
+                                <Badge className="bg-yellow-100 text-yellow-800">
+                                  Awaiting Approval
+                                </Badge>
+                                {approval.projects?.priority && (
+                                  <Badge
+                                    className="text-xs whitespace-nowrap border"
+                                    style={getPriorityColor(approval.projects.priority)}
+                                  >
+                                    {approval.projects.priority}
+                                  </Badge>
+                                )}
+                              </div>
+                              {approval.projects?.description && (
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                  {approval.projects.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                                {approval.workflow_nodes?.label && (
+                                  <span className="flex items-center gap-1">
+                                    <span className="font-medium">Step:</span>
+                                    {approval.workflow_nodes.label}
+                                  </span>
+                                )}
+                                {approval.projects?.account && (
+                                  <span className="flex items-center gap-1">
+                                    <span className="font-medium">Account:</span>
+                                    {approval.projects.account.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Button size="sm" asChild>
+                              <Link href={`/projects/${approval.project_id}`}>
+                                Review & Approve
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Delete Confirmation Dialog */}

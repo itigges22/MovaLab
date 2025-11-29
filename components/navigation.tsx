@@ -26,7 +26,10 @@ import {
   Settings,
   BarChart3,
   ChevronDown,
-  UserPlus
+  UserPlus,
+  Workflow,
+  FileText,
+  UserCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Permission } from '@/lib/permissions';
@@ -112,6 +115,20 @@ const navigationItems: NavigationItem[] = [
     icon: UserPlus,
     permission: Permission.MANAGE_USERS,
     allowUnassigned: false, // Explicitly disallow for unassigned users
+  },
+  {
+    name: 'Workflows',
+    href: '/admin/workflows',
+    icon: Workflow,
+    anyPermission: [Permission.MANAGE_WORKFLOWS, Permission.VIEW_WORKFLOWS],
+    allowUnassigned: false,
+  },
+  {
+    name: 'Forms',
+    href: '/admin/forms',
+    icon: FileText,
+    anyPermission: [Permission.MANAGE_FORMS, Permission.VIEW_FORMS],
+    allowUnassigned: false,
   },
 ];
 

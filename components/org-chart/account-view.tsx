@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -84,6 +85,7 @@ function AccountCard({
   isReadOnly = false,
   userProfile,
 }: AccountCardProps) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [allUsers, setAllUsers] = useState<Array<{ 
     id: string; 
@@ -205,8 +207,8 @@ function AccountCard({
 
       toast.success('User assigned to account successfully');
       onUserAssign?.(userId, account.id);
-      // Reload the page data would be handled by parent component
-      window.location.reload(); // Simple reload for now
+      // Refresh server data without full page reload
+      router.refresh();
     } catch (error: any) {
       console.error('Error assigning user:', error);
       toast.error(error.message || 'Failed to assign user to account');
@@ -234,7 +236,7 @@ function AccountCard({
       }
 
       toast.success('User removed from account successfully');
-      window.location.reload(); // Simple reload for now
+      router.refresh();
     } catch (error: any) {
       console.error('Error removing user:', error);
       toast.error(error.message || 'Failed to remove user from account');
@@ -263,7 +265,7 @@ function AccountCard({
       }
 
       toast.success('Account manager updated successfully');
-      window.location.reload();
+      router.refresh();
     } catch (error: any) {
       console.error('Error updating account manager:', error);
       toast.error(error.message || 'Failed to update account manager');
@@ -326,11 +328,14 @@ function AccountCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Account Manager</SelectItem>
-                  {allUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({user.email})
-                    </SelectItem>
-                  ))}
+                  {allUsers.map((user) => {
+                    const roles = user.user_roles?.map(ur => ur.roles?.name).filter(Boolean).join(', ') || 'No Role';
+                    return (
+                      <SelectItem key={user.id} value={user.id}>
+                        {roles} - {user.name}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               {account.account_manager && (

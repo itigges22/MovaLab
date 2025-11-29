@@ -2,6 +2,7 @@
 
 // Account overview component - updated to fix module resolution
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,7 +95,9 @@ const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
 
 export function AccountOverview({ account, metrics, urgentItems, userProfile, hasFullAccess = true }: AccountOverviewProps) {
   // Account overview component
-  const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'table'>('kanban');
+  // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), only table view remains
+  const router = useRouter();
+  const [viewMode, setViewMode] = useState<'table'>('table');
   const [projects, setProjects] = useState(account.projects);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>(DEFAULT_KANBAN_COLUMNS);
@@ -144,22 +147,31 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   const [activeIssues, setActiveIssues] = useState<(ProjectIssue & { project?: { id: string; name: string } })[]>([]);
   const [loadingActiveIssues, setLoadingActiveIssues] = useState(true);
 
+  // Finished Projects State
+  const [finishedProjects, setFinishedProjects] = useState<ProjectWithDetails[]>([]);
+  const [loadingFinishedProjects, setLoadingFinishedProjects] = useState(true);
+
   // Delete Confirmation Dialog State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Permission states
+  // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), but visual display still works
+  // View permissions are now derived from project permissions
   const [canCreateProject, setCanCreateProject] = useState(false);
   const [canEditProject, setCanEditProject] = useState(false);
   const [canDeleteProject, setCanDeleteProject] = useState(false);
-  const [canViewKanban, setCanViewKanban] = useState(false);
-  const [canViewGantt, setCanViewGantt] = useState(false);
+  const [canViewProjects, setCanViewProjects] = useState(false);
   const [canViewTable, setCanViewTable] = useState(false);
   const [canEditTable, setCanEditTable] = useState(false);
-  const [canEditKanban, setCanEditKanban] = useState(false);
-  const [canEditGantt, setCanEditGantt] = useState(false);
-  const [canMoveAllKanbanItems, setCanMoveAllKanbanItems] = useState(false);
   const [canEditAccount, setCanEditAccount] = useState(false);
+
+  // Derived view permissions (kanban/gantt views inherit from project view)
+  const canViewKanban = canViewProjects;
+  const canViewGantt = canViewProjects;
+  const canEditKanban = canEditProject;
+  const canEditGantt = canEditProject;
+  const canMoveAllKanbanItems = canEditProject;
 
   // Load account members
   useEffect(() => {
@@ -266,61 +278,31 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   }, [account.id]); // Re-fetch when account changes
 
   // Check permissions
+  // NOTE: Kanban/Gantt permissions are deprecated - view permissions now derive from project permissions
   useEffect(() => {
     if (!userProfile) return;
-    
+
     async function checkPermissions() {
       const create = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId: account.id });
       const edit = await hasPermission(userProfile, Permission.EDIT_PROJECT, { accountId: account.id });
       const del = await hasPermission(userProfile, Permission.DELETE_PROJECT, { accountId: account.id });
-      const viewKanban = await hasPermission(userProfile, Permission.VIEW_KANBAN);
-      const viewGantt = await hasPermission(userProfile, Permission.VIEW_GANTT);
+      const viewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS, { accountId: account.id });
       const viewTable = await hasPermission(userProfile, Permission.VIEW_TABLE);
       const editTable = await hasPermission(userProfile, Permission.EDIT_TABLE);
-      const editKanban = await hasPermission(userProfile, Permission.EDIT_KANBAN_LAYOUT);
-      const moveAllKanban = await hasPermission(userProfile, Permission.MOVE_ALL_KANBAN_ITEMS);
-      const editGantt = await hasPermission(userProfile, Permission.EDIT_GANTT);
       const editAccount = await hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId: account.id });
-      
+
       setCanCreateProject(create);
       setCanEditProject(edit);
       setCanDeleteProject(del);
-      setCanViewKanban(viewKanban);
-      setCanViewGantt(viewGantt);
+      setCanViewProjects(viewProjects);
       setCanViewTable(viewTable);
       setCanEditTable(editTable);
-      setCanEditKanban(editKanban);
-      setCanMoveAllKanbanItems(moveAllKanban);
-      setCanEditGantt(editGantt);
       setCanEditAccount(editAccount);
-      
-      // If user doesn't have permission for current view mode, switch to an allowed view
-      if (viewMode === 'kanban' && !viewKanban) {
-        // Try table if available, otherwise gantt
-        if (viewTable) {
-          setViewMode('table');
-        } else if (viewGantt) {
-          setViewMode('gantt');
-        }
-      }
-      if (viewMode === 'gantt' && !viewGantt) {
-        // Try table if available, otherwise kanban
-        if (viewTable) {
-          setViewMode('table');
-        } else if (viewKanban) {
-          setViewMode('kanban');
-        }
-      }
-      if (viewMode === 'table' && !viewTable) {
-        // Try kanban or gantt if available
-        if (viewKanban) {
-          setViewMode('kanban');
-        } else if (viewGantt) {
-          setViewMode('gantt');
-        }
-      }
+
+      // NOTE: Kanban/Gantt views for projects are deprecated (workflows replace them)
+      // Only table view is now available - no view mode switching needed
     }
-    
+
     checkPermissions();
   }, [userProfile, account.id, viewMode]);
 
@@ -355,6 +337,47 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     };
 
     loadActiveIssues();
+  }, [account.id]);
+
+  // Load finished projects for this account
+  useEffect(() => {
+    const loadFinishedProjects = async () => {
+      setLoadingFinishedProjects(true);
+      try {
+        const supabase = createClientSupabase();
+        if (!supabase) return;
+
+        const { data, error } = await supabase
+          .from('projects')
+          .select(`
+            *,
+            account:accounts(id, name)
+          `)
+          .eq('account_id', account.id)
+          .eq('status', 'complete')
+          .order('completed_at', { ascending: false });
+
+        if (error) {
+          console.error('Failed to load finished projects:', error);
+          return;
+        }
+
+        // Map to ProjectWithDetails format
+        const finished = (data || []).map((p: any) => ({
+          ...p,
+          departments: [],
+          daysUntilDeadline: null
+        }));
+
+        setFinishedProjects(finished);
+      } catch (error) {
+        console.error('Failed to load finished projects:', error);
+      } finally {
+        setLoadingFinishedProjects(false);
+      }
+    };
+
+    loadFinishedProjects();
   }, [account.id]);
 
   // Handle issue status update
@@ -423,9 +446,9 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   };
 
   const handleTaskCreated = (newProject: any, assignedUser?: any) => {
-    // Reload the page to fetch complete project data including departments and stakeholders
-    // This ensures all data is fresh and accurate from the database
-    window.location.reload();
+    // Refresh server data to fetch complete project data including departments and stakeholders
+    // This ensures all data is fresh and accurate from the database without full page reload
+    router.refresh();
   };
 
   // Helper functions to get status info
@@ -793,9 +816,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     }
   };
 
-  // Filter and sort projects
+  // Filter and sort projects (exclude completed - they show in Finished Projects section)
   const filteredAndSortedProjects = projects
     .filter(project => {
+      // Exclude completed projects - they go to the Finished Projects section
+      if (project.status === 'complete') return false;
       if (statusFilter !== 'all' && project.status !== statusFilter) return false;
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false;
       return true;
@@ -967,10 +992,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     setProjectDialogOpen(false);
   };
 
-  // Filter projects for Gantt chart - read-only users only see their assigned projects
-  const filteredProjectsForGantt = hasFullAccess 
-    ? projects 
-    : projects.filter(canUserModifyProject);
+  // Filter projects for Gantt chart - exclude completed, read-only users only see their assigned projects
+  const activeProjectsOnly = projects.filter(p => p.status !== 'complete');
+  const filteredProjectsForGantt = hasFullAccess
+    ? activeProjectsOnly
+    : activeProjectsOnly.filter(canUserModifyProject);
   
   const ganttFeatures: GanttFeature[] = filteredProjectsForGantt.map(convertProjectToGanttFeature);
   
@@ -994,19 +1020,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     }, 100);
   }, []);
 
-  // Scroll to today when view mode changes or on initial load
-  useEffect(() => {
-    if (viewMode === 'gantt' && ganttFeatures.length > 0) {
-      scrollToToday();
-    }
-  }, [viewMode, ganttFeatures.length, scrollToToday]);
-
-  // Scroll to today whenever zoom or range changes
-  useEffect(() => {
-    if (viewMode === 'gantt' && ganttFeatures.length > 0) {
-      scrollToToday();
-    }
-  }, [ganttZoom, ganttRange, viewMode, ganttFeatures.length, scrollToToday]);
+  // NOTE: Gantt view is deprecated - these scroll effects are no longer needed
+  // but keeping the variables to avoid breaking other code that references them
 
   const handleZoomIn = () => {
     setGanttZoom(prev => Math.min(prev + 50, 500));
@@ -1162,11 +1177,6 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                     </Button>
                   </AccountEditDialog>
                 )}
-                {!hasFullAccess && (
-                  <Badge variant="secondary" className="text-xs px-3 py-1">
-                    Read-Only Access
-                  </Badge>
-                )}
               </div>
             </div>
           </div>
@@ -1174,155 +1184,207 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       </div>
 
       <div className="space-y-6 sm:space-y-8">
-        {/* Account Info & Health Score */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Account Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Primary Contact</label>
-                  <p className="text-sm">{account.primary_contact_name || 'Not specified'}</p>
-                  <p className="text-sm text-muted-foreground">{account.primary_contact_email || 'No email'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Created</label>
-                  <p className="text-sm">{format(new Date(account.created_at), 'MMM dd, yyyy')}</p>
-                </div>
-              </div>
-              
-              {/* Account Members Section */}
-              {accountMembers.length > 0 && (
-                <div className="mt-6 pt-4 border-t">
-                  <label className="text-sm font-medium text-muted-foreground mb-3 block">Account Members</label>
-                  <div className="space-y-3">
-                    {accountMembers.map((member) => (
-                      member.user && (
-                        <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded border">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Avatar className="h-8 w-8 shrink-0">
-                              <AvatarImage src={member.user.image || undefined} />
-                              <AvatarFallback>
-                                {member.user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{member.user.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{member.user.email}</p>
-                              {/* Show user roles */}
-                              {member.user.roles && member.user.roles.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {member.user.roles.map((role) => (
-                                    <Badge 
-                                      key={role.id} 
-                                      variant="secondary" 
-                                      className="text-xs"
-                                    >
-                                      {role.name}
-                                      {role.department && (
-                                        <span className="text-muted-foreground ml-1">
-                                          ({role.department.name})
-                                        </span>
-                                      )}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Health Score
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full ${getHealthScoreBg(metrics.healthScore)} mb-4`}>
-                  <span className={`text-2xl font-bold ${getHealthScoreColor(metrics.healthScore)}`}>
-                    {metrics.healthScore}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">Overall Health</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Key Metrics Card */}
+        {/* 1. Projects Card */}
         <Card>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  <BarChart3 className="w-8 h-8 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
-                  <p className="text-2xl font-bold text-foreground">{metrics.activeProjects}</p>
-                  <p className="text-xs text-muted-foreground">of {metrics.totalProjects} total</p>
-                </div>
+          <CardHeader className="pb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-lg sm:text-xl">Projects</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage and track your account projects
+                </p>
               </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  <Calendar className="w-8 h-8 text-green-600" />
+              <div className="space-y-4">
+                {/* New Project Button */}
+                <div className="flex items-center justify-end">
+                  {canCreateProject && (
+                    <TaskCreationDialog
+                      onTaskCreated={handleTaskCreated}
+                      accountId={account.id}
+                      account={account}
+                      userProfile={userProfile}
+                      initialStartDate={projectDialogStartDate}
+                    >
+                      <Button className="flex items-center gap-2" size="sm">
+                        <PlusIcon className="h-4 w-4" />
+                        <span className="hidden sm:inline">New Project</span>
+                        <span className="sm:hidden">New</span>
+                      </Button>
+                    </TaskCreationDialog>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Upcoming Deadlines</p>
-                  <p className="text-2xl font-bold text-foreground">{metrics.upcomingDeadlines}</p>
-                  <p className="text-xs text-muted-foreground">Due within 7 days</p>
-                </div>
+
+                {/* Filter and Sort Controls */}
+                <div className="flex flex-wrap gap-2">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="review">Review</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Priority</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={sortBy} onValueChange={(value: 'name' | 'status' | 'priority' | 'deadline') => setSortBy(value)}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                        <SelectItem value="priority">Priority</SelectItem>
+                        <SelectItem value="deadline">Deadline</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className="px-3"
+                    >
+                      {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+                    </Button>
+                  </div>
               </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  <AlertTriangle className="w-8 h-8 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Overdue Projects</p>
-                  <p className="text-2xl font-bold text-red-600">{metrics.overdueProjects}</p>
-                  <p className="text-xs text-muted-foreground">Require attention</p>
-                </div>
               </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  <Clock className="w-8 h-8 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
-                  <p className="text-2xl font-bold text-foreground">{metrics.pendingApprovals}</p>
-                  <p className="text-xs text-muted-foreground">Awaiting review</p>
-                </div>
-              </div>
+          </CardHeader>
+          <CardContent>
+            {/* Projects Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Est Hours</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAndSortedProjects.map((project) => (
+                    <tr key={project.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{project.name}</p>
+                          {project.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                              {project.description}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        {project.workflow_step ? (
+                          <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
+                            {project.workflow_step}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-gray-400">No workflow</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          className="text-xs whitespace-nowrap border"
+                          style={getPriorityColor(project.priority)}
+                        >
+                          {project.priority}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-sm text-gray-600">{account.name}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-semibold text-blue-600">
+                            {project.estimated_hours ? `${project.estimated_hours}h` : '-'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        {project.end_date ? (
+                          <div>
+                            <p className="text-sm text-gray-900">
+                              {format(new Date(project.end_date), 'MMM dd, yyyy')}
+                            </p>
+                            {(() => {
+                              const endDate = new Date(project.end_date);
+                              const now = new Date();
+                              const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                              return (
+                                <p className={`text-xs ${
+                                  daysUntilDeadline < 0
+                                    ? 'text-red-600'
+                                    : daysUntilDeadline <= 7
+                                      ? 'text-yellow-600'
+                                      : 'text-gray-600'
+                                }`}>
+                                  {daysUntilDeadline < 0
+                                    ? `${Math.abs(daysUntilDeadline)} days overdue`
+                                    : `${daysUntilDeadline} days left`
+                                  }
+                                </p>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">No deadline</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="h-8 w-8 p-0"
+                          >
+                            <Link href={`/projects/${project.id}`}>
+                              <ExternalLink className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          {canDeleteProject && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteProject(project.id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
 
-        {/* Account Capacity Trends */}
-        <CapacityDashboard
-          userProfile={userProfile}
-          mode="account"
-          accountId={account.id}
-        />
-
-        {/* Active Issues & Roadblocks Card - Account Wide */}
+        {/* 2. Active Issues & Roadblocks Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1347,11 +1409,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
             ) : (
               <div className="space-y-3">
                 {activeIssues.map((issue) => (
-                  <div 
-                    key={issue.id} 
+                  <div
+                    key={issue.id}
                     className={`p-4 border rounded-lg ${
-                      issue.status === 'in_progress' 
-                        ? 'bg-yellow-50 border-yellow-200' 
+                      issue.status === 'in_progress'
+                        ? 'bg-yellow-50 border-yellow-200'
                         : 'bg-orange-50 border-orange-200'
                     }`}
                   >
@@ -1363,13 +1425,13 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                             {issue.project.name}
                           </Badge>
                         )}
-                        
+
                         {/* Issue Content */}
                         <p className="text-sm text-gray-900 break-words">
                           {issue.content}
                         </p>
                       </div>
-                      
+
                       {/* Issue Metadata and Status Selector */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -1382,7 +1444,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                             {formatDistance(new Date(issue.created_at), new Date(), { addSuffix: true })}
                           </span>
                         </div>
-                        
+
                         {/* Status Selector */}
                         <div className="flex-shrink-0">
                           <Select
@@ -1423,7 +1485,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
           </CardContent>
         </Card>
 
-        {/* Urgent Items Card - Moved Above Projects */}
+        {/* 3. Urgent Items Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1458,752 +1520,200 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
           </CardContent>
         </Card>
 
-        {/* Main Content Area - Projects Only */}
+        {/* 4. Key Metrics Card - Health Scores */}
         <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-lg sm:text-xl">Projects</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Manage and track your account projects
-                </p>
-              </div>
-              <div className="space-y-4">
-                {/* View Mode Buttons and New Project Button */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {canViewKanban && (
-                    <Button
-                      variant={viewMode === 'kanban' ? 'default' : 'outline'}
-                      onClick={() => setViewMode('kanban')}
-                      className="flex items-center gap-2"
-                      size="sm"
-                    >
-                      <Grid3X3 className="h-4 w-4" />
-                      <span className="hidden sm:inline">Kanban</span>
-                    </Button>
-                    )}
-                    {canViewGantt && (
-                    <Button
-                      variant={viewMode === 'gantt' ? 'default' : 'outline'}
-                      onClick={() => setViewMode('gantt')}
-                      className="flex items-center gap-2"
-                      size="sm"
-                    >
-                      <GanttChart className="h-4 w-4" />
-                      <span className="hidden sm:inline">Gantt</span>
-                    </Button>
-                    )}
-                    {canViewTable && (
-                    <Button
-                      variant={viewMode === 'table' ? 'default' : 'outline'}
-                      onClick={() => setViewMode('table')}
-                      className="flex items-center gap-2"
-                      size="sm"
-                    >
-                      <List className="h-4 w-4" />
-                      <span className="hidden sm:inline">Table</span>
-                    </Button>
-                    )}
+          <CardContent className="p-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+              {/* Health Score */}
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full ${getHealthScoreBg(metrics.healthScore)}`}>
+                    <span className={`text-lg font-bold ${getHealthScoreColor(metrics.healthScore)}`}>
+                      {metrics.healthScore}
+                    </span>
                   </div>
-                  
-                  {canCreateProject && (
-                    <TaskCreationDialog 
-                      onTaskCreated={handleTaskCreated}
-                      accountId={account.id}
-                      account={account}
-                      userProfile={userProfile}
-                      statusOptions={kanbanColumns.map((col, index) => ({
-                        value: `${accountKanbanConfigService.getStatusForKanbanColumn(col.id, kanbanColumns)}_${index}`,
-                        label: col.name,
-                        color: col.color,
-                        originalValue: accountKanbanConfigService.getStatusForKanbanColumn(col.id, kanbanColumns)
-                      }))}
-                      initialStartDate={projectDialogStartDate}
-                    >
-                      <Button className="flex items-center gap-2" size="sm">
-                        <PlusIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">New Project</span>
-                        <span className="sm:hidden">New</span>
-                      </Button>
-                    </TaskCreationDialog>
-                  )}
                 </div>
-                
-                {/* Filter and Sort Controls - Only show for table view */}
-                {viewMode === 'table' && (
-                  <div className="flex flex-wrap gap-2">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="planning">Planning</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="review">Review</SelectItem>
-                        <SelectItem value="complete">Complete</SelectItem>
-                        <SelectItem value="on_hold">On Hold</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priority</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={sortBy} onValueChange={(value: 'name' | 'status' | 'priority' | 'deadline') => setSortBy(value)}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="name">Name</SelectItem>
-                        <SelectItem value="status">Status</SelectItem>
-                        <SelectItem value="priority">Priority</SelectItem>
-                        <SelectItem value="deadline">Deadline</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                      className="px-3"
-                    >
-                      {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Health Score</p>
+                  <p className="text-xs text-muted-foreground">Overall Health</p>
+                </div>
               </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <BarChart3 className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.activeProjects}</p>
+                  <p className="text-xs text-muted-foreground">of {metrics.totalProjects} total</p>
+                </div>
               </div>
-          </CardHeader>
-          <CardContent>
-            {viewMode === 'kanban' && canViewKanban && (
-              <div className="space-y-4">
-                {/* Configure Button - Only visible on Kanban tab if user has EDIT_KANBAN_LAYOUT permission */}
-                {canEditKanban && (
-                  <div className="flex justify-end">
-                    <KanbanConfigDialog
-                      accountId={account.id}
-                      currentColumns={kanbanColumns}
-                      onColumnsUpdated={handleKanbanColumnsUpdated}
+
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <Calendar className="w-8 h-8 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Upcoming Deadlines</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.upcomingDeadlines}</p>
+                  <p className="text-xs text-muted-foreground">Due within 7 days</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Overdue Projects</p>
+                  <p className="text-2xl font-bold text-red-600">{metrics.overdueProjects}</p>
+                  <p className="text-xs text-muted-foreground">Require attention</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <Clock className="w-8 h-8 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.pendingApprovals}</p>
+                  <p className="text-xs text-muted-foreground">Awaiting review</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. Account Capacity Trends */}
+        <CapacityDashboard
+          userProfile={userProfile}
+          mode="account"
+          accountId={account.id}
+        />
+
+        {/* 6. Finished Projects Card */}
+        {finishedProjects.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Finished Projects
+              </CardTitle>
+              <CardDescription>
+                {finishedProjects.length} completed {finishedProjects.length === 1 ? 'project' : 'projects'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingFinishedProjects ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {finishedProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors"
                     >
-                      <Button variant="outline" className="flex items-center gap-2" size="sm">
-                        <Settings className="h-4 w-4" />
-                        <span className="hidden sm:inline">Configure</span>
-                      </Button>
-                    </KanbanConfigDialog>
-                  </div>
-                )}
-                
-                <div className="h-[500px] sm:h-[600px] lg:h-[700px] overflow-hidden">
-                  {loadingKanbanConfig ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-muted-foreground">Loading Kanban board...</div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Desktop Kanban View */}
-                      <div className="hidden lg:block h-full overflow-x-auto">
-                        <KanbanProvider
-                          columns={kanbanColumns}
-                          data={kanbanData}
-                          onDataChange={canEditKanban ? handleDataChange : undefined}
-                          className="h-full overflow-x-auto"
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
                         >
-                          {(column) => (
-                            <KanbanBoard id={column.id} key={column.id} className="min-w-[320px]">
-                              <KanbanHeader className="p-4">
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className="h-2 w-2 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: column.color }}
-                                  />
-                                  <span className="font-medium text-base truncate">{column.name}</span>
-                                  <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                                    {kanbanData.filter(item => item.column === column.id).length}
-                                  </span>
-                                </div>
-                              </KanbanHeader>
-                              <KanbanCards id={column.id} className="p-3 space-y-2">
-                                {(item: any) => {
-                                  const project = projects.find(p => p.id === item.id);
-                                  // If user can move all items, only check edit permission
-                                  // Otherwise, check if user is assigned to the project
-                                  const isAssignedToProject = project ? canUserModifyProject(project) : false;
-                                  const canMoveThisItem = canMoveAllKanbanItems || isAssignedToProject;
-                                  const isDisabled = !canEditKanban || !canMoveThisItem;
-                                  // Check if user can view this project page
-                                  const canViewProject = project ? canUserViewProject(project) : false;
-                                  // Check if we've checked permissions yet (to avoid graying out before check completes)
-                                  const hasCheckedPermissions = project ? (canViewProjectCache[project.id] !== undefined) : false;
-                                  
-                                  // Only gray out if permissions have been checked AND user cannot view the project page
-                                  // Cards are visible in Kanban (since user has account access), but grayed out if they can't view project page
-                                  const shouldGrayOut = hasCheckedPermissions && !canViewProject;
-                                  
-                                  return (
-                                  <KanbanCard
-                                    column={column.id}
-                                    id={item.id}
-                                    key={item.id}
-                                    name={item.name}
-                                    className={`p-4 touch-manipulation select-none ${
-                                      shouldGrayOut ? 'opacity-50 grayscale' : ''
-                                    }`}
-                                    disabled={isDisabled}
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex flex-col gap-2 flex-1 min-w-0">
-                                        <p className="m-0 font-medium text-base line-clamp-2">
-                                          {item.name}
-                                        </p>
-                                        {item.description && (
-                                          <p className="m-0 text-xs text-muted-foreground line-clamp-2">
-                                            {item.description}
-                                          </p>
-                                        )}
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span
-                                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                              item.priority === 'high'
-                                                ? 'bg-red-100 text-red-800'
-                                                : item.priority === 'medium'
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : 'bg-green-100 text-green-800'
-                                            }`}
-                                          >
-                                            {item.priority}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {item.owner && (
-                                        <Avatar className="h-8 w-8 shrink-0">
-                                          <AvatarImage src={item.owner.image} />
-                                          <AvatarFallback className="text-xs">
-                                            {item.owner.name?.slice(0, 2)}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                      )}
-                                    </div>
-                                    <p className="m-0 text-muted-foreground text-xs mt-2">
-                                      {format(item.startAt, 'MMM dd')} - {format(item.endAt, 'MMM dd, yyyy')}
-                                    </p>
-                                    {/* Estimated & Remaining Hours */}
-                                    {project && (project.estimated_hours || project.remaining_hours) && (
-                                      <div className="flex items-center gap-3 mt-2 text-xs">
-                                        {project.estimated_hours && (
-                                          <div className="flex items-center gap-1 text-gray-600">
-                                            <Clock className="w-3 h-3" />
-                                            <span>{project.estimated_hours}h est</span>
-                                          </div>
-                                        )}
-                                        {project.remaining_hours !== null && project.remaining_hours !== undefined && (
-                                          <div className="flex items-center gap-1 text-blue-600 font-semibold">
-                                            <Clock className="w-3 h-3" />
-                                            <span>{project.remaining_hours.toFixed(1)}h left</span>
-                                            {project.estimated_hours && (
-                                              <span className="text-gray-500 font-normal">
-                                                ({Math.round((1 - project.remaining_hours / project.estimated_hours) * 100)}%)
-                                              </span>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    <div 
-                                      className="flex items-center justify-between mt-2"
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      onTouchStart={(e) => e.stopPropagation()}
-                                    >
-                                      <div className="flex items-center gap-1">
-                                        {canViewProject && (
-                                          <Link href={`/projects/${item.id}`} passHref>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-6 w-6 p-0"
-                                              title="View project details"
-                                              onMouseDown={(e) => e.stopPropagation()}
-                                              onTouchStart={(e) => e.stopPropagation()}
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <ExternalLink className="h-3 w-3" />
-                                            </Button>
-                                          </Link>
-                                        )}
-                                        {(() => {
-                                          const project = projects.find(p => p.id === item.id);
-                                          return project && canUserModifyProject(project) && (
-                                            <>
-                                              {canEditProject && (
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  handleMoveProject(project);
-                                                }}
-                                                onMouseDown={(e) => e.stopPropagation()}
-                                                onTouchStart={(e) => e.stopPropagation()}
-                                                className="text-green-600 hover:text-green-700 hover:bg-green-50 h-6 w-6 p-0"
-                                                title="Move project"
-                                              >
-                                                <Move className="h-3 w-3" />
-                                              </Button>
-                                              )}
-                                              {canDeleteProject && (
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  handleDeleteProject(item.id);
-                                                }}
-                                                onMouseDown={(e) => e.stopPropagation()}
-                                                onTouchStart={(e) => e.stopPropagation()}
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
-                                                title="Delete project"
-                                              >
-                                                <Trash2 className="h-3 w-3" />
-                                              </Button>
-                                              )}
-                                            </>
-                                          );
-                                        })()}
-                                      </div>
-                                    </div>
-                                  </KanbanCard>
-                                  );
-                                }}
-                              </KanbanCards>
-                            </KanbanBoard>
+                          {project.name}
+                        </Link>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          {project.completed_at && (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              Completed {format(new Date(project.completed_at), 'MMM d, yyyy')}
+                            </span>
                           )}
-                        </KanbanProvider>
-                      </div>
-
-                      {/* Mobile Kanban View - Vertical Stack */}
-                      <div className="lg:hidden h-full overflow-y-auto">
-                        <div className="space-y-4 p-4">
-                          {kanbanColumns.map((column) => {
-                            const columnItems = kanbanData.filter(item => item.column === column.id);
-                            return (
-                              <div key={column.id} className="bg-gray-50 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div
-                                    className="h-2 w-2 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: column.color }}
-                                  />
-                                  <span className="font-medium text-sm">{column.name}</span>
-                                  <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                                    {columnItems.length}
-                                  </span>
-                                </div>
-                                <div className="space-y-2">
-                                  {columnItems.map((item: any) => {
-                                    const project = projects.find(p => p.id === item.id);
-                                    const isDisabled = project ? !canUserModifyProject(project) : false;
-                                    const canViewProject = project ? canUserViewProject(project) : false;
-                                    // Check if we've checked permissions yet (to avoid graying out before check completes)
-                                    const hasCheckedPermissions = project ? (canViewProjectCache[project.id] !== undefined) : false;
-                                    
-                                    // Only gray out if permissions have been checked AND user cannot view the project page
-                                    // Cards are visible in Kanban (since user has account access), but grayed out if they can't view project page
-                                    const shouldGrayOut = hasCheckedPermissions && !canViewProject;
-                                    
-                                    return (
-                                      <div
-                                        key={item.id}
-                                        className={`bg-white rounded-lg p-3 border ${
-                                          shouldGrayOut ? 'opacity-50 grayscale' : ''
-                                        }`}
-                                      >
-                                        <div className="flex items-start justify-between gap-2">
-                                          <div className="flex flex-col gap-2 flex-1 min-w-0">
-                                            <p className="m-0 font-medium text-sm line-clamp-2">
-                                              {item.name}
-                                            </p>
-                                            {item.description && (
-                                              <p className="m-0 text-xs text-muted-foreground line-clamp-2">
-                                                {item.description}
-                                              </p>
-                                            )}
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <span
-                                                className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                                  item.priority === 'high'
-                                                    ? 'bg-red-100 text-red-800'
-                                                    : item.priority === 'medium'
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-green-100 text-green-800'
-                                                }`}
-                                              >
-                                                {item.priority}
-                                              </span>
-                                            </div>
-                                          </div>
-                                          {item.owner && (
-                                            <Avatar className="h-6 w-6 shrink-0">
-                                              <AvatarImage src={item.owner.image} />
-                                              <AvatarFallback className="text-xs">
-                                                {item.owner.name?.slice(0, 2)}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                          )}
-                                        </div>
-                                        <p className="m-0 text-muted-foreground text-xs mt-2">
-                                          {format(item.startAt, 'MMM dd')} - {format(item.endAt, 'MMM dd')}
-                                        </p>
-                                        <div className="flex items-center justify-between mt-2">
-                                          <div className="flex items-center gap-1">
-                                            {canViewProject && (
-                                              <Link href={`/projects/${item.id}`} passHref>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-6 w-6 p-0"
-                                                  title="View project details"
-                                                >
-                                                  <ExternalLink className="h-3 w-3" />
-                                                </Button>
-                                              </Link>
-                                            )}
-                                            {(() => {
-                                              const project = projects.find(p => p.id === item.id);
-                                              return project && canUserModifyProject(project) && canEditKanban && (
-                                                <>
-                                                  {canEditProject && (
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      handleMoveProject(project);
-                                                    }}
-                                                    className="text-green-600 hover:text-green-700 hover:bg-green-50 h-6 w-6 p-0"
-                                                    title="Move project"
-                                                  >
-                                                    <Move className="h-3 w-3" />
-                                                  </Button>
-                                                  )}
-                                                  {canDeleteProject && (
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      handleDeleteProject(item.id);
-                                                    }}
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
-                                                    title="Delete project"
-                                                  >
-                                                    <Trash2 className="h-3 w-3" />
-                                                  </Button>
-                                                  )}
-                                                </>
-                                              );
-                                            })()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {(project.actual_hours ?? 0) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {project.actual_hours}h logged
+                            </span>
+                          )}
                         </div>
                       </div>
-                    </>
-                  )}
+                      <div className="flex items-center gap-2 ml-4">
+                        <Badge className="bg-green-100 text-green-800 text-xs">
+                          Complete
+                        </Badge>
+                        <Link href={`/projects/${project.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 7. Account Information Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Account Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Account Details Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b">
+              <div>
+                <p className="text-sm text-muted-foreground">Primary Contact</p>
+                <p className="text-sm font-medium">{account.primary_contact_name || 'Not specified'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="text-sm font-medium">{account.primary_contact_email || 'No email'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Created</p>
+                <p className="text-sm font-medium">{format(new Date(account.created_at), 'MMM dd, yyyy')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Team Size</p>
+                <p className="text-sm font-medium">{accountMembers.length} member{accountMembers.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+
+            {/* Account Members Section */}
+            {accountMembers.length > 0 && (
+              <div className="pt-6">
+                <p className="text-sm font-medium mb-4">Team Members</p>
+                <div className="flex flex-wrap gap-4">
+                  {accountMembers.map((member) => (
+                    member.user && (
+                      <div key={member.id} className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={member.user.image || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {member.user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{member.user.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {member.user.roles && member.user.roles.length > 0
+                              ? member.user.roles.map(r => r.name).join(', ')
+                              : 'No role assigned'}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  ))}
                 </div>
               </div>
             )}
-
-                {viewMode === 'gantt' && canViewGantt && (
-                  <div className="h-[500px] sm:h-[600px] lg:h-[700px] flex flex-col">
-                    {/* Gantt Chart Header with Controls */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border-b bg-muted/30 flex-shrink-0">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <div>
-                          <h3 className="text-lg font-semibold">Project Gantt Chart</h3>
-                          <p className="text-xs text-muted-foreground">Click on timeline to add projects, hover to add milestones</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSidebarToggle}
-                            className="h-8 w-8 p-0"
-                            title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-                          >
-                            {sidebarExpanded ? '←' : '→'}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleZoomOut}
-                            className="h-8 w-8 p-0"
-                          >
-                            <ZoomOut className="h-4 w-4" />
-                          </Button>
-                          <span className="text-sm text-muted-foreground min-w-[3rem] text-center">
-                            {ganttZoom}%
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleZoomIn}
-                            className="h-8 w-8 p-0"
-                          >
-                            <ZoomIn className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant={ganttRange === 'daily' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleRangeChange('daily')}
-                          className="h-8"
-                        >
-                          <CalendarDays className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Daily</span>
-                        </Button>
-                        <Button
-                          variant={ganttRange === 'quarterly' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleRangeChange('quarterly')}
-                          className="h-8"
-                        >
-                          <CalendarRange className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Quarterly</span>
-                        </Button>
-                        <Button
-                          variant={ganttRange === 'monthly' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleRangeChange('monthly')}
-                          className="h-8"
-                        >
-                          <Calendar className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Monthly</span>
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Gantt Chart */}
-                    <div className="flex-1" style={{ minHeight: 0 }}>
-                      {ganttFeatures.length > 0 ? (
-                        <GanttProvider 
-                          range={ganttRange} 
-                          zoom={ganttZoom} 
-                          className="h-full border rounded-lg"
-                          onAddItem={canEditGantt && canCreateProject ? handleAddProject : undefined}
-                        >
-                          <GanttSidebar className={`${sidebarExpanded ? 'min-w-[200px] sm:min-w-[250px] lg:min-w-[300px] max-w-[400px]' : 'min-w-[60px] max-w-[60px]'} transition-all duration-300`}>
-                            <GanttSidebarGroup name="Projects">
-                              {ganttFeatures.map((feature) => (
-                                <GanttSidebarItem key={feature.id} feature={feature} />
-                              ))}
-                            </GanttSidebarGroup>
-                          </GanttSidebar>
-                          <GanttTimeline className="bg-background">
-                            <GanttHeader className="bg-muted/50 border-b" />
-                            <GanttFeatureList className="bg-background">
-                              <GanttFeatureListGroup>
-                                {ganttFeatures.map((feature) => (
-                                  <GanttFeatureItem
-                                    key={feature.id}
-                                    {...feature}
-                                    onMove={canEditGantt ? handleProjectMove : undefined}
-                                  >
-                                    <p className="flex-1 truncate text-xs">
-                                      {feature.name}
-                                    </p>
-                                  </GanttFeatureItem>
-                                ))}
-                              </GanttFeatureListGroup>
-                            </GanttFeatureList>
-                            {(() => {
-                              console.log('AccountOverview: Rendering milestones in Gantt chart:', milestones);
-                              return milestones.map((milestone) => {
-                                const milestoneColor = milestone.color || '#3b82f6';
-                                console.log('AccountOverview: Rendering milestone:', { 
-                                  id: milestone.id, 
-                                  name: milestone.name, 
-                                  date: milestone.date,
-                                  parsedDate: new Date(milestone.date),
-                                  color: milestoneColor 
-                                });
-                                
-                                // Determine Tailwind class based on color
-                                let colorClass = 'bg-blue-500 text-blue-900';
-                                if (milestoneColor.includes('10b981')) colorClass = 'bg-green-500 text-green-900';
-                                else if (milestoneColor.includes('f59e0b')) colorClass = 'bg-yellow-500 text-yellow-900';
-                                else if (milestoneColor.includes('ef4444')) colorClass = 'bg-red-500 text-red-900';
-                                else if (milestoneColor.includes('a855f7')) colorClass = 'bg-purple-500 text-purple-900';
-                                else if (milestoneColor.includes('ec4899')) colorClass = 'bg-pink-500 text-pink-900';
-                                else if (milestoneColor.includes('6366f1')) colorClass = 'bg-indigo-500 text-indigo-900';
-                                else if (milestoneColor.includes('14b8a6')) colorClass = 'bg-teal-500 text-teal-900';
-                                
-                                return (
-                                  <GanttMarker
-                                    key={milestone.id}
-                                    id={milestone.id}
-                                    date={new Date(milestone.date)}
-                                    label={milestone.name}
-                                    className={`text-xs ${colorClass}`}
-                                    onRemove={canEditGantt ? handleRemoveMilestone : undefined}
-                                  />
-                                );
-                              });
-                            })()}
-                            <GanttToday className="bg-green-100 text-green-700 border-green-200" />
-                            {canEditGantt && (
-                              <GanttCreateMarkerTrigger onCreateMarker={handleCreateMilestone} />
-                            )}
-                          </GanttTimeline>
-                        </GanttProvider>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-muted-foreground">
-                          <div className="text-center">
-                            <GanttChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p className="text-lg font-medium mb-2">No projects to display</p>
-                            <p className="text-sm">Create a project to see it in the Gantt chart</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {viewMode === 'table' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Est Hours</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Remaining</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredAndSortedProjects.map((project) => (
-                          <tr key={project.id} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <div>
-                                <p className="font-medium text-gray-900">{project.name}</p>
-                                {project.description && (
-                                  <p className="text-sm text-gray-600 line-clamp-2">
-                                    {project.description}
-                                  </p>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge 
-                                className="text-xs whitespace-nowrap border"
-                                style={getStatusColor(project.status)}
-                              >
-                                {project.status.replace('_', ' ')}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge 
-                                className="text-xs whitespace-nowrap border"
-                                style={getPriorityColor(project.priority)}
-                              >
-                                {project.priority}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="text-sm text-gray-600">{account.name}</span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-4 h-4 text-blue-500" />
-                                <span className="text-sm font-semibold text-blue-600">
-                                  {project.estimated_hours ? `${project.estimated_hours}h` : '-'}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              {project.end_date ? (
-                                <div>
-                                  <p className="text-sm text-gray-900">
-                                    {format(new Date(project.end_date), 'MMM dd, yyyy')}
-                                  </p>
-                                  {(() => {
-                                    const endDate = new Date(project.end_date);
-                                    const now = new Date();
-                                    const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                    return (
-                                      <p className={`text-xs ${
-                                        daysUntilDeadline < 0 
-                                          ? 'text-red-600' 
-                                          : daysUntilDeadline <= 7 
-                                            ? 'text-yellow-600' 
-                                            : 'text-gray-600'
-                                      }`}>
-                                        {daysUntilDeadline < 0 
-                                          ? `${Math.abs(daysUntilDeadline)} days overdue`
-                                          : `${daysUntilDeadline} days left`
-                                        }
-                                      </p>
-                                    );
-                                  })()}
-                                </div>
-                              ) : (
-                                <span className="text-sm text-gray-400">No deadline</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  asChild
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Link href={`/projects/${project.id}`}>
-                                    <ExternalLink className="h-4 w-4" />
-                                  </Link>
-                                </Button>
-                                {canEditTable && (canDeleteProject || (hasFullAccess && canDeleteProject)) && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteProject(project.id)}
-                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
           </CardContent>
         </Card>
       </div>
@@ -2257,19 +1767,13 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       </Dialog>
 
       {/* Project Creation Dialog - No trigger button, opened via Gantt chart clicks */}
-      <TaskCreationDialog 
+      <TaskCreationDialog
         open={projectDialogOpen}
         onOpenChange={setProjectDialogOpen}
         onTaskCreated={handleProjectCreated}
         accountId={account.id}
         account={account}
         userProfile={userProfile}
-        statusOptions={kanbanColumns.map((col, index) => ({
-          value: `${accountKanbanConfigService.getStatusForKanbanColumn(col.id, kanbanColumns)}_${index}`,
-          label: col.name,
-          color: col.color,
-          originalValue: accountKanbanConfigService.getStatusForKanbanColumn(col.id, kanbanColumns)
-        }))}
         initialStartDate={projectDialogStartDate}
       >
         {null}

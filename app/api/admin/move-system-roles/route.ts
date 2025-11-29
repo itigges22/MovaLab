@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { isSuperadmin } from '@/lib/rbac';
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Superadmin access required' }, { status: 403 });
     }
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }

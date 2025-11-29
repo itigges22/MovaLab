@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
-import { requireAuthentication, requirePermission, requireAuthAndPermission, PermissionError } from '@/lib/server-guards';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { requireAuthentication, requireAuthAndPermission, PermissionError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { accountService } from '@/lib/account-service';
+import { isSuperadmin, hasPermission } from '@/lib/rbac';
 
 /**
  * GET /api/accounts/[accountId]/members
@@ -15,34 +17,65 @@ export async function GET(
     const { accountId } = await params;
     console.log(`[GET /api/accounts/${accountId}/members] Starting request`);
     
-    // Require VIEW_ACCOUNTS or VIEW_ALL_ACCOUNTS permission
-    // Check VIEW_ALL_ACCOUNTS first (without context), then VIEW_ACCOUNTS (with context)
+    // Check authentication and access to this account
+    // Uses same access logic as account detail page for consistency
     try {
       const user = await requireAuthentication(request);
-      
-      // First check VIEW_ALL_ACCOUNTS (override permission, no context needed)
+      console.log(`[GET /api/accounts/${accountId}/members] User authenticated: ${user.id}`);
+
+      // Create API Supabase client for checking access
+      const supabase = createApiSupabaseClient(request);
+      if (!supabase) {
+        console.error('[GET /api/accounts/[accountId]/members] Supabase client not available');
+        return NextResponse.json({
+          error: 'Database connection failed',
+          details: 'Supabase client not available'
+        }, { status: 500 });
+      }
+
+      // Check if user is superadmin (bypasses all permission checks)
+      const userIsSuperadmin = isSuperadmin(user);
+      console.log(`[GET /api/accounts/${accountId}/members] Superadmin check: ${userIsSuperadmin}`);
+
       let hasAccess = false;
-      try {
-        await requirePermission(user, Permission.VIEW_ALL_ACCOUNTS);
+
+      if (userIsSuperadmin) {
         hasAccess = true;
-        console.log(`[GET /api/accounts/${accountId}/members] User has VIEW_ALL_ACCOUNTS permission`);
-      } catch (error) {
-        // User doesn't have VIEW_ALL_ACCOUNTS, check VIEW_ACCOUNTS with context
-        try {
-          await requirePermission(user, Permission.VIEW_ACCOUNTS, { accountId });
+        console.log(`[GET /api/accounts/${accountId}/members] User is superadmin - access granted`);
+      } else {
+        // Check if user has permission-based access using proper hasPermission function
+        const hasViewAllAccounts = await hasPermission(user, Permission.VIEW_ALL_ACCOUNTS, undefined, supabase);
+        const hasViewAccounts = await hasPermission(user, Permission.VIEW_ACCOUNTS, { accountId }, supabase);
+
+        console.log(`[GET /api/accounts/${accountId}/members] User permissions check: view_all_accounts=${hasViewAllAccounts}, view_accounts=${hasViewAccounts}`);
+
+        if (hasViewAllAccounts) {
           hasAccess = true;
-          console.log(`[GET /api/accounts/${accountId}/members] User has VIEW_ACCOUNTS permission for account ${accountId}`);
-        } catch (contextError) {
-          // User doesn't have either permission
-          hasAccess = false;
+          console.log(`[GET /api/accounts/${accountId}/members] User has VIEW_ALL_ACCOUNTS permission`);
+        } else if (hasViewAccounts) {
+          hasAccess = true;
+          console.log(`[GET /api/accounts/${accountId}/members] User has VIEW_ACCOUNTS permission`);
         }
       }
-      
+
+      // If no permission-based access, check service-level access
+      // This uses the same logic as the account detail page
       if (!hasAccess) {
+        const hasServiceAccess = await accountService.canUserAccessAccount(user.id, accountId, supabase);
+        console.log(`[GET /api/accounts/${accountId}/members] Service-level access check: ${hasServiceAccess}`);
+
+        if (hasServiceAccess) {
+          hasAccess = true;
+          console.log(`[GET /api/accounts/${accountId}/members] User has service-level access (manager, member, or project access)`);
+        }
+      }
+
+      if (!hasAccess) {
+        console.log(`[GET /api/accounts/${accountId}/members] User has no account access after all checks`);
         throw new PermissionError('You don\'t have permission to view account members');
       }
-      
-      console.log(`[GET /api/accounts/${accountId}/members] Authentication successful`);
+
+      console.log(`[GET /api/accounts/${accountId}/members] Access granted`);
     } catch (authError: any) {
       console.error('[GET /api/accounts/[accountId]/members] Authentication/permission error:', {
         error: authError.message,
@@ -52,7 +85,7 @@ export async function GET(
       });
       // Return proper JSON error response
       const status = authError.status || (authError.name === 'AuthenticationError' ? 401 : 403);
-      const errorResponse = { 
+      const errorResponse = {
         error: authError.message || 'Authentication failed',
         details: authError.message || 'No details available',
         status: status
@@ -61,15 +94,15 @@ export async function GET(
       return NextResponse.json(errorResponse, { status });
     }
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       console.error('Supabase client not available');
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Supabase client not available',
         details: 'Database connection failed'
       }, { status: 500 });
     }
-    
+
     // Get account members with user details and roles
     // Split into multiple queries to avoid nested PostgREST issues
     const { data: accountMembers, error: membersError } = await supabase
@@ -233,8 +266,8 @@ export async function POST(
     
     // Require permission to assign users to accounts
     await requireAuthAndPermission(Permission.ASSIGN_ACCOUNT_USERS, {}, request);
-    
-    const supabase = await createServerSupabase();
+
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }

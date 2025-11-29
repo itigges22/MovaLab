@@ -43,6 +43,12 @@ interface Account {
   name: string;
 }
 
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 export default function ProjectCreationDialog({ 
   children, 
   onProjectCreated,
@@ -57,6 +63,7 @@ export default function ProjectCreationDialog({
   const setOpen = controlledOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([]);
   const { userProfile } = useAuth();
   const [canCreateProject, setCanCreateProject] = useState(false);
 
@@ -77,14 +84,14 @@ export default function ProjectCreationDialog({
     name: '',
     description: '',
     accountId: propAccountId || '',
-    startDate: initialStartDate 
+    workflowTemplateId: null as string | null,
+    startDate: initialStartDate
       ? initialStartDate.toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0],
     endDate: initialStartDate
       ? addDays(initialStartDate, 30).toISOString().split('T')[0]
       : addDays(new Date(), 30).toISOString().split('T')[0],
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
-    status: 'planning' as 'planning' | 'in_progress' | 'review' | 'complete' | 'on_hold',
     estimatedHours: '',
   });
 
@@ -105,30 +112,44 @@ export default function ProjectCreationDialog({
     }
   }, [initialStartDate]);
 
-  // Load accounts when dialog opens
+  // Load accounts and workflows when dialog opens
   useEffect(() => {
-    const loadAccounts = async () => {
+    const loadData = async () => {
       try {
         const supabase = createClientSupabase();
         if (!supabase) return;
 
-        const { data, error } = await supabase
+        // Load accounts
+        const { data: accountsData, error: accountsError } = await supabase
           .from('accounts')
           .select('id, name')
           .order('name');
 
-        if (error) {
-          console.error('Error loading accounts:', error);
+        if (accountsError) {
+          console.error('Error loading accounts:', accountsError);
         } else {
-          setAccounts(data || []);
+          setAccounts(accountsData || []);
+        }
+
+        // Load workflows
+        const { data: workflowsData, error: workflowsError } = await supabase
+          .from('workflow_templates')
+          .select('id, name, description')
+          .eq('is_active', true)
+          .order('name');
+
+        if (workflowsError) {
+          console.error('Error loading workflows:', workflowsError);
+        } else {
+          setWorkflows(workflowsData || []);
         }
       } catch (error) {
-        console.error('Error loading accounts:', error);
+        console.error('Error loading data:', error);
       }
     };
 
     if (open) {
-      loadAccounts();
+      loadData();
     }
   }, [open]);
 
@@ -170,14 +191,14 @@ export default function ProjectCreationDialog({
         return;
       }
 
-      // Create the project
+      // Create the project (status will be determined by workflow stage)
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .insert({
           name: formData.name,
           description: formData.description || null,
           account_id: formData.accountId,
-          status: formData.status,
+          status: 'planning', // Default status, will be updated by workflow
           priority: formData.priority,
           start_date: formData.startDate,
           end_date: formData.endDate,
@@ -197,16 +218,37 @@ export default function ProjectCreationDialog({
       // Department membership is now automatically derived from user assignments
       // No manual department linking needed
 
+      // Start workflow if one was selected
+      if (formData.workflowTemplateId && project) {
+        try {
+          const workflowResponse = await fetch('/api/workflows/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId: project.id,
+              workflowTemplateId: formData.workflowTemplateId,
+            }),
+          });
+
+          if (!workflowResponse.ok) {
+            console.error('Failed to start workflow, but project was created');
+          }
+        } catch (error) {
+          console.error('Error starting workflow:', error);
+          // Don't fail the whole operation if workflow start fails
+        }
+      }
+
       onProjectCreated?.(project);
       setOpen(false);
       setFormData({
         name: '',
         description: '',
         accountId: '',
+        workflowTemplateId: null,
         startDate: new Date().toISOString().split('T')[0],
         endDate: addDays(new Date(), 30).toISOString().split('T')[0],
         priority: 'medium',
-        status: 'planning',
         estimatedHours: '',
       });
     } catch (error) {
@@ -217,7 +259,7 @@ export default function ProjectCreationDialog({
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -281,26 +323,55 @@ export default function ProjectCreationDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="account">Account *</Label>
-            <Select
-              value={formData.accountId}
-              onValueChange={(value) => handleInputChange('accountId', value)}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select an account" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts
-                  .filter((account) => account && account.id && account.id !== '')
-                  .map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="account">Account *</Label>
+              <Select
+                value={formData.accountId}
+                onValueChange={(value) => handleInputChange('accountId', value)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts
+                    .filter((account) => account && account.id && account.id !== '')
+                    .map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="workflow">Workflow (Optional)</Label>
+              <Select
+                value={formData.workflowTemplateId || ''}
+                onValueChange={(value) => handleInputChange('workflowTemplateId', value || null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a workflow" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workflows.length === 0 ? (
+                    <SelectItem value="none" disabled>No workflows available</SelectItem>
+                  ) : (
+                    workflows.map((workflow) => (
+                      <SelectItem key={workflow.id} value={workflow.id}>
+                        {workflow.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {formData.workflowTemplateId && workflows.find(w => w.id === formData.workflowTemplateId)?.description && (
+                <p className="text-xs text-gray-500">
+                  {workflows.find(w => w.id === formData.workflowTemplateId)?.description}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -326,37 +397,17 @@ export default function ProjectCreationDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => handleInputChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="review">Review</SelectItem>
-                  <SelectItem value="complete">Complete</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estimatedHours">Estimated Hours *</Label>
-              <Input
-                id="estimatedHours"
-                type="number"
-                value={formData.estimatedHours}
-                onChange={(e) => handleInputChange('estimatedHours', e.target.value)}
-                placeholder="Enter estimated hours"
-                min="1"
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="estimatedHours">Estimated Hours *</Label>
+            <Input
+              id="estimatedHours"
+              type="number"
+              value={formData.estimatedHours}
+              onChange={(e) => handleInputChange('estimatedHours', e.target.value)}
+              placeholder="Enter estimated hours"
+              min="1"
+              required
+            />
           </div>
 
           <DialogFooter>

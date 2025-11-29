@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has permission to run RBAC diagnostic tests
-    const canManageUsers = await hasPermission(userProfile, Permission.MANAGE_USERS);
+    const canManageUsers = await hasPermission(userProfile, Permission.MANAGE_USERS, undefined, supabase);
     if (!canManageUsers && !isSuperadmin(userProfile)) {
       return NextResponse.json(
         { error: 'Forbidden: Insufficient permissions to run RBAC diagnostic tests' },

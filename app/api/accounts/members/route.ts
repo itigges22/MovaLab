@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     // Require VIEW_ALL_ACCOUNTS permission
     await requireAuthAndPermission(Permission.VIEW_ALL_ACCOUNTS, {}, request);
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }

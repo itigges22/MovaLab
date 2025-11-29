@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 
@@ -13,7 +13,7 @@ export async function POST(
     // Check authentication and permission
     const userProfile = await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
@@ -81,9 +81,18 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to check current roles' }, { status: 500 });
     }
 
+    // Helper function to check if a role is the "No Assigned Role" / "Unassigned" role
+    const isUnassignedRole = (roleName: string | undefined | null): boolean => {
+      if (!roleName) return false;
+      const nameLower = roleName.toLowerCase();
+      return nameLower === 'no assigned role' ||
+             nameLower === 'unassigned' ||
+             nameLower.includes('unassigned');
+    };
+
     // Check if user is only in "No Assigned Role" (needs special handling due to P0001 constraint)
-    const noAssignedRole = currentRoles?.find((cr: any) => cr.roles.name === 'No Assigned Role');
-    const hasOtherRoles = currentRoles?.some((cr: any) => cr.roles.name !== 'No Assigned Role');
+    const noAssignedRole = currentRoles?.find((cr: any) => isUnassignedRole(cr.roles?.name));
+    const hasOtherRoles = currentRoles?.some((cr: any) => !isUnassignedRole(cr.roles?.name));
     
     if (noAssignedRole && !hasOtherRoles) {
       console.log(`🔄 User is only in "No Assigned Role", will replace with new role`);

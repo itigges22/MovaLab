@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthentication, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { checkPermissionHybrid } from '@/lib/permission-checker';
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
     
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       logger.error('Supabase not configured', { action: 'getProjectUpdates' });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });

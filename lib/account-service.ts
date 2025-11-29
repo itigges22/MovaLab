@@ -49,6 +49,7 @@ export interface ProjectWithDetails {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  completed_at?: string | null;
   assigned_user_id?: string | null;
   departments: {
     id: string;
@@ -75,6 +76,7 @@ export interface ProjectWithDetails {
     name: string;
     color: string;
   };
+  workflow_step?: string | null;  // Current workflow step name from workflow_instances
 }
 
 export interface AccountMetrics {
@@ -180,6 +182,37 @@ class AccountService {
         return false;
       }
 
+      // First, check if user has EDIT_ALL_PROJECTS permission (override)
+      // Get user's roles and permissions
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select(`
+          role_id,
+          roles(id, name, permissions, is_system_role)
+        `)
+        .eq('user_id', userId);
+
+      if (!rolesError && userRoles) {
+        for (const ur of userRoles) {
+          const role = ur.roles as any;
+          if (!role?.permissions) continue;
+
+          // Check for superadmin/executive role
+          const roleName = role.name?.toLowerCase() || '';
+          if (roleName === 'superadmin' || roleName === 'executive' || role.is_system_role) {
+            // Check if it's actually a superadmin role with all permissions
+            if (role.permissions.edit_all_projects === true) {
+              return true;
+            }
+          }
+
+          // Check for EDIT_ALL_PROJECTS permission (override - can edit any project)
+          if (role.permissions.edit_all_projects === true) {
+            return true;
+          }
+        }
+      }
+
       // Get project details
       const { data: project, error: projectError } = await supabase
         .from('projects')
@@ -215,8 +248,27 @@ class AccountService {
         return true;
       }
 
+      // Check if user has EDIT_PROJECT permission AND is assigned to this project
+      if (userRoles) {
+        for (const ur of userRoles) {
+          const role = ur.roles as any;
+          if (role?.permissions?.edit_project === true) {
+            // Check if user is assigned to this project via project_assignments
+            const { data: assignment } = await supabase
+              .from('project_assignments')
+              .select('id')
+              .eq('project_id', projectId)
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (assignment) {
+              return true;
+            }
+          }
+        }
+      }
+
       // Stakeholders have read-only access, not edit access
-      // Only project creators, assigned users, and account managers can edit
       return false;
     } catch (error) {
       console.error('Error in canUserEditProject:', error);
@@ -247,6 +299,23 @@ class AccountService {
       }
 
       if (managedAccount) {
+        return true;
+      }
+
+      // Check if user is a member of this account (via account_members table)
+      const { data: accountMember, error: memberError } = await supabase
+        .from('account_members')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('user_id', userId)
+        .single();
+
+      if (memberError && memberError.code !== 'PGRST116' && memberError.code !== '42P01') {
+        console.error('Error checking account membership:', memberError);
+        // Continue checking other access methods
+      }
+
+      if (accountMember) {
         return true;
       }
 
@@ -313,8 +382,24 @@ class AccountService {
         return true;
       }
 
-      // For now, only account managers have full access
-      // In the future, you could add account-level stakeholders or team members here
+      // Check if user is a member of this account (via account_members table)
+      // Account members have full access to their assigned accounts
+      const { data: accountMember, error: memberError } = await supabase
+        .from('account_members')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('user_id', userId)
+        .single();
+
+      if (memberError && memberError.code !== 'PGRST116' && memberError.code !== '42P01') {
+        console.error('Error checking account membership:', memberError);
+        // Continue - don't fail the check
+      }
+
+      if (accountMember) {
+        return true;
+      }
+
       return false;
     } catch (error) {
       console.error('Error in hasFullAccountAccess:', error);
@@ -322,7 +407,7 @@ class AccountService {
     }
   }
 
-  // Get accounts that a user has access to (through projects or as account manager)
+  // Get accounts that a user has access to (through projects, membership, or as account manager)
   async getUserAccounts(userId: string, supabaseClient?: any): Promise<Account[]> {
     try {
       const supabase = supabaseClient || createClientSupabase();
@@ -343,44 +428,85 @@ class AccountService {
         return [];
       }
 
+      // Get accounts where user is a member (via account_members table)
+      let memberAccounts: any[] = [];
+      const { data: accountMemberships, error: membershipError } = await supabase
+        .from('account_members')
+        .select('account_id')
+        .eq('user_id', userId);
+
+      if (membershipError && membershipError.code !== '42P01') {
+        console.error('Error fetching account memberships:', membershipError);
+        // Continue - don't fail the whole query
+      } else if (accountMemberships && accountMemberships.length > 0) {
+        const memberAccountIds = accountMemberships.map((am: any) => am.account_id);
+
+        // Fetch the actual account data
+        const { data: memberAccountData, error: memberAccountDataError } = await supabase
+          .from('accounts')
+          .select('*')
+          .in('id', memberAccountIds);
+
+        if (memberAccountDataError) {
+          console.error('Error fetching member account data:', memberAccountDataError);
+        } else if (memberAccountData) {
+          memberAccounts = memberAccountData;
+        }
+      }
+
       // Get accounts where user has projects assigned (as creator)
-      const { data: createdProjectAccounts, error: createdProjectError } = await supabase
+      let createdProjectAccountIds: string[] = [];
+      const { data: createdProjects, error: createdProjectError } = await supabase
         .from('projects')
-        .select(`
-          account_id,
-          accounts (*)
-        `)
+        .select('account_id')
         .eq('created_by', userId);
 
       if (createdProjectError) {
-        console.error('Error fetching created project accounts:', createdProjectError);
-        return [];
+        console.error('Error fetching created projects:', createdProjectError);
+      } else if (createdProjects) {
+        createdProjectAccountIds = createdProjects.map((p: any) => p.account_id).filter(Boolean);
       }
 
       // Get accounts where user is assigned to projects (as assignee)
-      const { data: assignedProjectAccounts, error: assignedProjectError } = await supabase
+      let assignedProjectAccountIds: string[] = [];
+      const { data: assignedProjects, error: assignedProjectError } = await supabase
         .from('projects')
-        .select(`
-          account_id,
-          accounts (*)
-        `)
+        .select('account_id')
         .eq('assigned_user_id', userId);
 
       if (assignedProjectError) {
-        console.error('Error fetching assigned project accounts:', assignedProjectError);
-        return [];
+        console.error('Error fetching assigned projects:', assignedProjectError);
+      } else if (assignedProjects) {
+        assignedProjectAccountIds = assignedProjects.map((p: any) => p.account_id).filter(Boolean);
       }
 
-      // Combine and deduplicate accounts
-      const allAccounts = [
-        ...(managedAccounts || []),
-        ...(createdProjectAccounts?.map((pa: any) => pa.accounts).filter(Boolean) || []),
-        ...(assignedProjectAccounts?.map((pa: any) => pa.accounts).filter(Boolean) || [])
+      // Combine all account IDs and deduplicate
+      const allAccountIds = [
+        ...(managedAccounts?.map((a: any) => a.id) || []),
+        ...(memberAccounts?.map((a: any) => a.id) || []),
+        ...createdProjectAccountIds,
+        ...assignedProjectAccountIds
       ];
 
+      // Remove duplicates
+      const uniqueAccountIds = Array.from(new Set(allAccountIds));
+
+      // Fetch all accounts in one query
+      const { data: allAccounts, error: allAccountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .in('id', uniqueAccountIds);
+
+      if (allAccountsError) {
+        console.error('Error fetching all accounts:', allAccountsError);
+        // Return the managed accounts as fallback
+        return managedAccounts || [];
+      }
+
       // Remove duplicates based on account ID
-      const uniqueAccounts = allAccounts.filter((account, index, self) => 
-        index === self.findIndex(a => a.id === account.id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const uniqueAccounts = (allAccounts || []).filter((account: any, index: number, self: any[]) =>
+        index === self.findIndex((a: any) => a.id === account.id)
       );
 
       return uniqueAccounts;
@@ -503,6 +629,30 @@ class AccountService {
       const projectIds = (data || []).map((p: any) => p.id);
       const departmentsByProject: { [key: string]: any[] } = {};
 
+      // Fetch workflow steps for projects
+      const workflowSteps: { [key: string]: string | null } = {};
+      if (projectIds.length > 0) {
+        const { data: workflowData, error: workflowError } = await supabase
+          .from('workflow_instances')
+          .select(`
+            project_id,
+            current_node_id,
+            workflow_nodes!workflow_instances_current_node_id_fkey (
+              label
+            )
+          `)
+          .in('project_id', projectIds)
+          .eq('status', 'active');
+
+        if (!workflowError && workflowData) {
+          workflowData.forEach((instance: any) => {
+            if (instance.project_id && instance.workflow_nodes?.label) {
+              workflowSteps[instance.project_id] = instance.workflow_nodes.label;
+            }
+          });
+        }
+      }
+
       if (projectIds.length > 0) {
         const { data: assignments, error: assignmentsError } = await supabase
           .from('project_assignments')
@@ -574,6 +724,7 @@ class AccountService {
             name: getStatusDisplayName(project.status),
             color: getStatusColor(project.status)
           },
+          workflow_step: workflowSteps[project.id] || null,
         };
       });
       
@@ -610,9 +761,30 @@ class AccountService {
         return endDate < now && p.status_info.name !== 'Complete';
       }).length;
 
-      // For now, we'll simulate pending approvals
-      // In a real implementation, this would query a deliverables table
-      const pendingApprovals = Math.floor(Math.random() * 5);
+      // Count actual pending approvals from workflow instances for this account's projects
+      let pendingApprovals = 0;
+      if (supabaseClient && projects.length > 0) {
+        const projectIds = projects.map(p => p.id);
+
+        // Query workflow instances for account's projects that are waiting on approval/form nodes
+        const { data: workflowInstances, error: workflowError } = await supabaseClient
+          .from('workflow_instances')
+          .select(`
+            id,
+            project_id,
+            workflow_nodes!workflow_instances_current_node_id_fkey(node_type)
+          `)
+          .in('project_id', projectIds)
+          .eq('status', 'active');
+
+        if (!workflowError && workflowInstances) {
+          // Count instances where current node is an approval or form type
+          pendingApprovals = workflowInstances.filter((instance: any) => {
+            const nodeType = instance.workflow_nodes?.node_type;
+            return nodeType === 'approval' || nodeType === 'form';
+          }).length;
+        }
+      }
 
       // Calculate health score based on various factors
       let healthScore = 100;

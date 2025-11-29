@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for admin permission
-    const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES);
+    const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
     if (!canViewTeam) {
       return NextResponse.json(
         { error: 'Insufficient permissions to view team time entries' },

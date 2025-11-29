@@ -42,6 +42,7 @@ function clearExpiredCache() {
   }
 }
 
+
 /**
  * Generate cache key for permission check
  */
@@ -233,7 +234,10 @@ export async function hasAccountAccess(userId: string, accountId: string, supaba
 }
 
 /**
- * Check if user has a base permission in any of their roles
+ * Check if user has a base permission in any of their roles (OR logic)
+ * Returns TRUE if ANY role has the permission set to TRUE
+ * Returns FALSE only if NO roles have the permission set to TRUE
+ *
  * @param userProfile - User profile with roles
  * @param permission - Permission to check
  * @param supabaseClient - Optional authenticated Supabase client
@@ -244,27 +248,39 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
     return false;
   }
 
+  // IMPORTANT: Use OR logic across ALL roles
+  // If ANY role has permission=true, the user has that permission
+  // A permission=false in one role should NOT override permission=true in another role
+
+  let foundPermissionTrue = false;
+
   // First, check permissions from already-loaded roles in userProfile
   // This is more efficient and ensures we're checking the actual permissions
   for (const userRole of userProfile.user_roles) {
     const role = userRole.roles;
     if (!role) continue;
-    
+
     // Check if permissions are already loaded in the role object
     if (role.permissions) {
       const permissions = role.permissions as Record<string, boolean> || {};
+      // Only check if permission is explicitly true - ignore false and undefined
       if (permissions[permission] === true) {
-        logger.debug('Permission found in loaded role', { 
-          userId: userProfile.id, 
-          permission, 
-          roleName: role.name 
+        logger.debug('Permission found in loaded role (OR logic)', {
+          userId: userProfile.id,
+          permission,
+          roleName: role.name
         });
-        return true;
+        foundPermissionTrue = true;
+        break; // Found true in at least one role, no need to check more
       }
     }
   }
 
-  // If permissions weren't loaded, fetch from database as fallback
+  if (foundPermissionTrue) {
+    return true;
+  }
+
+  // If permissions weren't loaded in any role, fetch from database as fallback
   const roleIds = userProfile.user_roles.map(ur => ur.role_id).filter(Boolean);
   if (roleIds.length === 0) {
     logger.debug('No valid role IDs found', { userId: userProfile.id, permission });
@@ -279,7 +295,7 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
 
   const { data: roles, error } = await supabase
     .from('roles')
-    .select('permissions')
+    .select('id, name, permissions')
     .in('id', roleIds);
 
   if (error) {
@@ -287,17 +303,28 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
     return false;
   }
 
-  // Check if any role has the permission
-  const hasPermission = roles?.some((role: { permissions: Record<string, boolean> | null }) => {
+  // Check if ANY role has the permission set to true (OR logic)
+  const hasPermission = roles?.some((role: { id: string; name: string; permissions: Record<string, boolean> | null }) => {
     const permissions = role.permissions as Record<string, boolean> || {};
-    return permissions[permission] === true;
+    const permValue = permissions[permission];
+    if (permValue === true) {
+      logger.debug('Permission found in database role (OR logic)', {
+        userId: userProfile.id,
+        permission,
+        roleName: role.name,
+        roleId: role.id
+      });
+      return true;
+    }
+    return false;
   }) || false;
 
-  logger.debug('Permission check result from database', { 
-    userId: userProfile.id, 
-    permission, 
+  logger.debug('Permission check result from database', {
+    userId: userProfile.id,
+    permission,
     hasPermission,
-    roleCount: roles?.length || 0
+    roleCount: roles?.length || 0,
+    roleNames: roles?.map((r: { name: string }) => r.name).join(', ')
   });
 
   return hasPermission;

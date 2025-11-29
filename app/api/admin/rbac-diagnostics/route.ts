@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has permission to view RBAC diagnostics
-    const canManageUsers = await hasPermission(userProfile, Permission.MANAGE_USERS);
+    const canManageUsers = await hasPermission(userProfile, Permission.MANAGE_USERS, undefined, supabase);
     if (!canManageUsers && !isSuperadmin(userProfile)) {
       return NextResponse.json(
         { error: 'Forbidden: Insufficient permissions to access RBAC diagnostics' },

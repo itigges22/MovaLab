@@ -2,14 +2,15 @@
 
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, notFound } from 'next/navigation'
+import { useParams, notFound, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RoleGuard } from '@/components/role-guard'
 import { createClientSupabase } from '@/lib/supabase'
 import { Database } from '@/lib/supabase'
-import { ArrowLeft, Calendar, Clock, User, Building2, FolderOpen, Users, AlertCircle, FileText, AlertTriangle, Edit, Plus as PlusIcon, XCircle, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, User, Building2, FolderOpen, Users, AlertCircle, FileText, AlertTriangle, Edit, Plus as PlusIcon, XCircle, CheckCircle2, List, LayoutGrid, GanttChart, RotateCcw, UserPlus, Trash2, Loader2, StickyNote, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import TaskCreationDialog from '@/components/task-creation-dialog'
 import TaskCreateEditDialog from '@/components/task-create-edit-dialog'
@@ -24,6 +25,8 @@ import { taskServiceDB, Task } from '@/lib/task-service-db'
 import { Permission } from '@/lib/permissions'
 import { hasPermission } from '@/lib/rbac'
 import { toast } from 'sonner'
+import { WorkflowProgressButton } from '@/components/workflow-progress-button'
+import { WorkflowTimeline } from '@/components/workflow-timeline'
 
 type Project = Database['public']['Tables']['projects']['Row']
 type Account = Database['public']['Tables']['accounts']['Row']
@@ -49,6 +52,10 @@ interface ProjectWithDetails extends Project {
   stakeholders: Stakeholder[]
   updates?: string | null
   issues_roadblocks?: string | null
+  workflow_instance_id?: string | null
+  completed_at?: string | null
+  reopened_at?: string | null
+  notes?: string | null
 }
 
 // Task item component - shows task details and progress
@@ -176,6 +183,7 @@ function TaskItem({
 export default function ProjectDetailPage() {
   const { userProfile } = useAuth()
   const params = useParams()
+  const router = useRouter()
   const projectId = params.projectId as string
   const [project, setProject] = useState<ProjectWithDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -197,6 +205,11 @@ export default function ProjectDetailPage() {
   const [newIssueContent, setNewIssueContent] = useState('')
   const [submittingIssue, setSubmittingIssue] = useState(false)
 
+  // Project Notes State
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesContent, setNotesContent] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+
   // Task State
   const [tasks, setTasks] = useState<Task[]>([])
   const tasksRef = useRef<Task[]>([])
@@ -216,43 +229,122 @@ export default function ProjectDetailPage() {
   const [canEditTasks, setCanEditTasks] = useState(false)
   const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'gantt'>('list')
+  const [kanbanDialogOpen, setKanbanDialogOpen] = useState(false)
+  const [ganttDialogOpen, setGanttDialogOpen] = useState(false)
+  const [ganttViewMode, setGanttViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('weekly')
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [calculatedEstimatedHours, setCalculatedEstimatedHours] = useState<number | null>(null)
   const [calculatedRemainingHours, setCalculatedRemainingHours] = useState<number | null>(null)
+  const [projectLevelHours, setProjectLevelHours] = useState<number>(0) // Hours logged directly to project (no task)
 
   // Project estimated hours state
   const [projectEstimatedHours, setProjectEstimatedHours] = useState<string>('')
   const [savingProjectHours, setSavingProjectHours] = useState(false)
 
-  // Default status options matching the database schema
-  const statusOptions = [
-    { value: 'planning', label: 'Planning', color: '#6B7280', originalValue: 'planning' },
-    { value: 'in_progress', label: 'In Progress', color: '#3B82F6', originalValue: 'in_progress' },
-    { value: 'review', label: 'Review', color: '#F59E0B', originalValue: 'review' },
-    { value: 'complete', label: 'Complete', color: '#10B981', originalValue: 'complete' },
-    { value: 'on_hold', label: 'On Hold', color: '#EF4444', originalValue: 'on_hold' },
-  ]
+  // Workflow refresh key - increment to force reload of workflow components
+  const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0)
 
-  // Check task permissions
+  // Workflow step name to display as status
+  const [workflowStepName, setWorkflowStepName] = useState<string | null>(null)
+
+  // Update and Issue permissions (separate from canEditProject)
+  const [canCreateUpdate, setCanCreateUpdate] = useState(false)
+  const [canCreateIssue, setCanCreateIssue] = useState(false)
+  const [canEditIssue, setCanEditIssue] = useState(false)
+
+  // Reopen project state
+  const [reopeningProject, setReopeningProject] = useState(false)
+
+  // Complete project state (for non-workflow projects)
+  const [completingProject, setCompletingProject] = useState(false)
+
+  // Team Members management state
+  const [teamMembers, setTeamMembers] = useState<Array<{
+    id: string
+    user_id: string
+    role_in_project: string | null
+    user_profiles: { id: string; name: string; email: string; image: string | null } | null
+  }>>([])
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false)
+  const [addingMember, setAddingMember] = useState(false)
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
+  const [showAddMemberDropdown, setShowAddMemberDropdown] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false)
+
+  // Status options removed - status is now managed by workflows
+
+  // Task permissions are now inherited from project access
+  // If user can access this project page, they can manage tasks within it
   useEffect(() => {
     if (!userProfile) return
-    
-    async function checkPermissions() {
-      const viewTasks = await hasPermission(userProfile, Permission.VIEW_TASKS, { projectId })
-      const createTasks = await hasPermission(userProfile, Permission.CREATE_TASK, { projectId })
-      const editTasks = await hasPermission(userProfile, Permission.EDIT_TASK, { projectId })
-      
-      setCanViewTasks(viewTasks)
-      setCanCreateTasks(createTasks)
-      setCanEditTasks(editTasks)
-      
-      // Load tasks if user can view them
-      if (viewTasks) {
-        loadTasks()
-      }
-    }
-    
-    checkPermissions()
+
+    // Since user has access to view this project page, they can manage tasks
+    // Task permissions are inherited from project access
+    setCanViewTasks(true)
+    setCanCreateTasks(true)
+    setCanEditTasks(true)
+    loadTasks()
   }, [userProfile, projectId])
+
+  // Auto-refresh tasks every 30 seconds for live progress bar updates
+  useEffect(() => {
+    if (!projectId || !userProfile) return
+
+    const intervalId = setInterval(async () => {
+      try {
+        // Silently refresh tasks without showing loading state
+        const projectTasks = await taskServiceDB.getTasksByProject(projectId)
+        updateTasks(projectTasks)
+        const calculatedHours = calculateEstimatedHours(projectTasks, project)
+        const remainingHours = calculateRemainingHours(projectTasks)
+        setCalculatedEstimatedHours(calculatedHours)
+        setCalculatedRemainingHours(remainingHours)
+
+        // Also refresh project-level time entries
+        const supabase = createClientSupabase()
+        if (supabase) {
+          const { data: projectTimeEntries } = await supabase
+            .from('time_entries')
+            .select('hours_logged')
+            .eq('project_id', projectId)
+            .is('task_id', null)
+
+          const projectHours = projectTimeEntries?.reduce((sum: number, entry: { hours_logged: number | null }) => sum + (entry.hours_logged || 0), 0) || 0
+          setProjectLevelHours(projectHours)
+        }
+      } catch (err) {
+        console.error('Error auto-refreshing tasks:', err)
+      }
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(intervalId)
+  }, [projectId, userProfile, project])
+
+  // Check update and issue permissions (separate from edit project permission)
+  useEffect(() => {
+    if (!userProfile) return
+
+    // Check if user has create_update permission in any of their roles
+    const hasCreateUpdatePerm = userProfile.user_roles?.some((ur: any) =>
+      ur.roles?.permissions?.create_update === true
+    ) || false
+
+    // Check if user has create_issue permission in any of their roles
+    const hasCreateIssuePerm = userProfile.user_roles?.some((ur: any) =>
+      ur.roles?.permissions?.create_issue === true
+    ) || false
+
+    // Check if user has edit_issue permission in any of their roles
+    const hasEditIssuePerm = userProfile.user_roles?.some((ur: any) =>
+      ur.roles?.permissions?.edit_issue === true
+    ) || false
+
+    setCanCreateUpdate(hasCreateUpdatePerm)
+    setCanCreateIssue(hasCreateIssuePerm)
+    setCanEditIssue(hasEditIssuePerm)
+  }, [userProfile])
 
   // Calculate estimated hours based on tasks
   const calculateEstimatedHours = (projectTasks: Task[], projectData?: ProjectWithDetails | null) => {
@@ -280,21 +372,34 @@ export default function ProjectDetailPage() {
     return total
   }
 
-  // Load tasks
+  // Load tasks and project-level time entries
   const loadTasks = async () => {
     if (!projectId) return
-    
+
     setLoadingTasks(true)
     try {
       // Get tasks for this specific project
       const projectTasks = await taskServiceDB.getTasksByProject(projectId)
       updateTasks(projectTasks)
-      
+
       // Calculate estimated and remaining hours based on tasks
       const calculatedHours = calculateEstimatedHours(projectTasks, project)
       const remainingHours = calculateRemainingHours(projectTasks)
       setCalculatedEstimatedHours(calculatedHours)
       setCalculatedRemainingHours(remainingHours)
+
+      // Also fetch project-level time entries (logged to project without a specific task)
+      const supabase = createClientSupabase()
+      if (supabase) {
+        const { data: projectTimeEntries } = await supabase
+          .from('time_entries')
+          .select('hours_logged')
+          .eq('project_id', projectId)
+          .is('task_id', null)
+
+        const projectHours = projectTimeEntries?.reduce((sum: number, entry: { hours_logged: number | null }) => sum + (entry.hours_logged || 0), 0) || 0
+        setProjectLevelHours(projectHours)
+      }
     } catch (error) {
       console.error('Error loading tasks:', error)
     } finally {
@@ -377,12 +482,20 @@ export default function ProjectDetailPage() {
           }
         })) || []
 
-        // Get departments for this project via project_assignments
+        // Get departments for this project via project_assignments (stakeholders)
         const { data: assignments } = await supabase
           .from('project_assignments')
-          .select(`
-            user_id,
-            user_roles!user_roles_user_id_fkey (
+          .select('user_id')
+          .eq('project_id', projectId)
+          .is('removed_at', null)
+
+        const departments: any[] = []
+
+        // Add departments from assigned_user's roles (if they have an assigned user)
+        if (data.assigned_user_id) {
+          const { data: assignedUserRoles } = await supabase
+            .from('user_roles')
+            .select(`
               role_id,
               roles!user_roles_role_id_fkey (
                 department_id,
@@ -391,16 +504,11 @@ export default function ProjectDetailPage() {
                   name
                 )
               )
-            )
-          `)
-          .eq('project_id', projectId)
-          .is('removed_at', null)
+            `)
+            .eq('user_id', data.assigned_user_id)
 
-        const departments: any[] = []
-        if (assignments) {
-          assignments.forEach((assignment: any) => {
-            const userRoles = assignment.user_roles || []
-            userRoles.forEach((userRole: any) => {
+          if (assignedUserRoles) {
+            assignedUserRoles.forEach((userRole: any) => {
               const role = userRole.roles
               if (role && role.departments) {
                 const dept = role.departments
@@ -410,12 +518,94 @@ export default function ProjectDetailPage() {
                 }
               }
             })
+          }
+        }
+
+        // Add departments from stakeholders (project_assignments)
+        if (assignments && assignments.length > 0) {
+          // Get unique user IDs from stakeholders
+          const stakeholderUserIds = assignments.map((a: any) => a.user_id).filter(Boolean)
+
+          if (stakeholderUserIds.length > 0) {
+            // Fetch user roles for all stakeholders
+            const { data: stakeholderRoles } = await supabase
+              .from('user_roles')
+              .select(`
+                user_id,
+                role_id,
+                roles!user_roles_role_id_fkey (
+                  department_id,
+                  departments!roles_department_id_fkey (
+                    id,
+                    name
+                  )
+                )
+              `)
+              .in('user_id', stakeholderUserIds)
+
+            if (stakeholderRoles) {
+              stakeholderRoles.forEach((userRole: any) => {
+                const role = userRole.roles
+                if (role && role.departments) {
+                  const dept = role.departments
+                  const exists = departments.some((d: any) => d.id === dept.id)
+                  if (!exists) {
+                    departments.push(dept)
+                  }
+                }
+              })
+            }
+          }
+        }
+
+        // Fallback: If workflow_instance_id is null, check workflow_instances table
+        let workflowInstanceId = data.workflow_instance_id
+        if (!workflowInstanceId) {
+          const { data: workflowInstances, error: wiError } = await supabase
+            .from('workflow_instances')
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('status', 'active')
+            .order('started_at', { ascending: false })
+            .limit(1)
+
+          console.log('Workflow fallback query:', {
+            projectId,
+            found: workflowInstances?.length || 0,
+            error: wiError?.message
           })
+
+          if (workflowInstances && workflowInstances.length > 0) {
+            workflowInstanceId = workflowInstances[0].id
+            console.log('Found workflow instance via fallback query:', workflowInstanceId)
+          }
+        }
+
+        // Fetch current workflow step name if workflow exists
+        if (workflowInstanceId) {
+          const { data: workflowData, error: wfError } = await supabase
+            .from('workflow_instances')
+            .select(`
+              current_node_id,
+              workflow_nodes!workflow_instances_current_node_id_fkey (
+                label,
+                node_type
+              )
+            `)
+            .eq('id', workflowInstanceId)
+            .single()
+
+          if (!wfError && workflowData?.workflow_nodes) {
+            const nodeData = workflowData.workflow_nodes as any
+            setWorkflowStepName(nodeData.label || null)
+            console.log('Workflow step:', nodeData.label)
+          }
         }
 
         // Transform the data to include all details
         const projectWithDetails: ProjectWithDetails = {
           ...data,
+          workflow_instance_id: workflowInstanceId,
           departments: departments,
           assigned_user: assignedUser,
           stakeholders: stakeholdersData || []
@@ -431,10 +621,14 @@ export default function ProjectDetailPage() {
           stakeholders_count: projectWithDetails.stakeholders.length,
           departments_count: projectWithDetails.departments.length,
           updates: projectWithDetails.updates,
-          issues_roadblocks: projectWithDetails.issues_roadblocks
+          issues_roadblocks: projectWithDetails.issues_roadblocks,
+          workflow_instance_id: projectWithDetails.workflow_instance_id
         })
 
         setProject(projectWithDetails)
+
+        // Initialize notes content
+        setNotesContent(projectWithDetails.notes || '')
 
         // Check if user can edit this project
         if (userProfile?.id) {
@@ -491,6 +685,222 @@ export default function ProjectDetailPage() {
     await loadTasks()
   }
 
+  // Handle task status update (for Kanban drag-drop)
+  const handleTaskStatusUpdate = useCallback(async (taskId: string, newStatus: string) => {
+    // Optimistically update local state first
+    setTasks(prev => prev.map(task =>
+      task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
+    ))
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        // Try to parse error, but handle non-JSON responses
+        let errorMessage = 'Failed to update task status'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = `Server error: ${response.status}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      toast.success('Task status updated')
+    } catch (error) {
+      console.error('Error updating task status:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update task status')
+      // Reload tasks to restore correct state on error
+      await loadTasks()
+    }
+  }, [loadTasks])
+
+  // Kanban drag handlers
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent, newStatus: string) => {
+    e.preventDefault()
+    if (draggedTaskId) {
+      handleTaskStatusUpdate(draggedTaskId, newStatus)
+      setDraggedTaskId(null)
+    }
+  }, [draggedTaskId, handleTaskStatusUpdate])
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedTaskId(null)
+  }, [])
+
+  // Handle workflow progress - refresh workflow components, step name, AND project data
+  const handleWorkflowProgress = useCallback(async () => {
+    // Increment the refresh key to force WorkflowTimeline to remount and refetch data
+    setWorkflowRefreshKey(prev => prev + 1)
+
+    try {
+      const supabase = createClientSupabase()
+      if (!supabase) return
+
+      // Refresh workflow step name AND check if workflow is completed
+      if (project?.workflow_instance_id) {
+        const { data: workflowData, error } = await supabase
+          .from('workflow_instances')
+          .select(`
+            current_node_id,
+            status,
+            workflow_nodes!workflow_instances_current_node_id_fkey (
+              label,
+              node_type
+            )
+          `)
+          .eq('id', project.workflow_instance_id)
+          .single()
+
+        if (!error && workflowData) {
+          const nodeData = workflowData.workflow_nodes as any
+          setWorkflowStepName(nodeData?.label || null)
+
+          // If workflow is completed, refresh project data to update UI
+          if (workflowData.status === 'completed') {
+            console.log('Workflow completed, refreshing project data...')
+          }
+        }
+      }
+
+      // Always refresh project data to catch status changes (including completion)
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('status, completed_at, workflow_instance_id')
+        .eq('id', projectId)
+        .single()
+
+      if (!projectError && projectData) {
+        // Update project state with fresh data
+        setProject(prev => prev ? {
+          ...prev,
+          status: projectData.status,
+          completed_at: projectData.completed_at,
+          workflow_instance_id: projectData.workflow_instance_id
+        } : null)
+
+        console.log('Project data refreshed:', {
+          status: projectData.status,
+          completed_at: projectData.completed_at
+        })
+      }
+    } catch (err) {
+      console.error('Error refreshing workflow/project data:', err)
+    }
+  }, [project?.workflow_instance_id, projectId])
+
+  // Reopen a completed project
+  const handleReopenProject = async () => {
+    if (!projectId || project?.status !== 'complete') return
+
+    setReopeningProject(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/reopen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to reopen project')
+        return
+      }
+
+      toast.success('Project reopened! It now operates without a workflow.')
+
+      // Refresh project data to update UI
+      const supabase = createClientSupabase()
+      if (supabase) {
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('status, completed_at, workflow_instance_id')
+          .eq('id', projectId)
+          .single()
+
+        if (projectData) {
+          setProject(prev => prev ? {
+            ...prev,
+            status: projectData.status,
+            completed_at: projectData.completed_at,
+            workflow_instance_id: projectData.workflow_instance_id
+          } : null)
+        }
+      }
+    } catch (error) {
+      console.error('Error reopening project:', error)
+      toast.error('Failed to reopen project')
+    } finally {
+      setReopeningProject(false)
+    }
+  }
+
+  // Manually complete a non-workflow project
+  const handleCompleteProject = async () => {
+    if (!projectId || project?.status === 'complete') return
+
+    // Confirm with user
+    if (!confirm('Are you sure you want to complete this project? This will mark the project as finished and remove all team assignments.')) {
+      return
+    }
+
+    setCompletingProject(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to complete project')
+        return
+      }
+
+      toast.success('Project completed successfully!')
+
+      // Refresh project data to update UI
+      const supabase = createClientSupabase()
+      if (supabase) {
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('status, completed_at, workflow_instance_id')
+          .eq('id', projectId)
+          .single()
+
+        if (projectData) {
+          setProject(prev => prev ? {
+            ...prev,
+            status: projectData.status,
+            completed_at: projectData.completed_at,
+            workflow_instance_id: projectData.workflow_instance_id
+          } : null)
+        }
+      }
+    } catch (error) {
+      console.error('Error completing project:', error)
+      toast.error('Failed to complete project')
+    } finally {
+      setCompletingProject(false)
+    }
+  }
+
   // Save project estimated hours
   const handleSaveProjectEstimatedHours = async () => {
     if (!projectId || !projectEstimatedHours) return
@@ -539,6 +949,131 @@ export default function ProjectDetailPage() {
       setSavingProjectHours(false)
     }
   }
+
+  // Load team members (project assignments)
+  const loadTeamMembers = useCallback(async () => {
+    if (!projectId) return
+
+    setLoadingTeamMembers(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/assignments`)
+      const data = await response.json()
+
+      if (response.ok) {
+        setTeamMembers(data.assignments || [])
+      } else {
+        console.error('Error loading team members:', data.error)
+      }
+    } catch (error) {
+      console.error('Error loading team members:', error)
+    } finally {
+      setLoadingTeamMembers(false)
+    }
+  }, [projectId])
+
+  // Load available users for adding
+  const loadAvailableUsers = useCallback(async () => {
+    if (!projectId) return
+
+    setLoadingAvailableUsers(true)
+    try {
+      const supabase = createClientSupabase()
+      if (!supabase) return
+
+      // Get all users (excluding already assigned ones)
+      const { data: users, error } = await supabase
+        .from('user_profiles')
+        .select('id, name, email')
+        .order('name')
+
+      if (error) {
+        console.error('Error loading users:', error)
+        return
+      }
+
+      // Filter out users who are already team members
+      const assignedUserIds = new Set(teamMembers.map(m => m.user_id))
+      const available = (users || []).filter((u: any) => !assignedUserIds.has(u.id))
+      setAvailableUsers(available)
+    } catch (error) {
+      console.error('Error loading available users:', error)
+    } finally {
+      setLoadingAvailableUsers(false)
+    }
+  }, [projectId, teamMembers])
+
+  // Add a team member
+  const handleAddTeamMember = async (userId: string) => {
+    if (!projectId || addingMember) return
+
+    setAddingMember(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, roleInProject: 'member' })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Team member added successfully')
+        setShowAddMemberDropdown(false)
+        await loadTeamMembers()
+      } else {
+        toast.error(data.error || 'Failed to add team member')
+      }
+    } catch (error) {
+      console.error('Error adding team member:', error)
+      toast.error('Failed to add team member')
+    } finally {
+      setAddingMember(false)
+    }
+  }
+
+  // Remove a team member
+  const handleRemoveTeamMember = async (userId: string) => {
+    if (!projectId || removingMemberId) return
+
+    if (!confirm('Are you sure you want to remove this team member from the project?')) {
+      return
+    }
+
+    setRemovingMemberId(userId)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/assignments?userId=${userId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Team member removed')
+        await loadTeamMembers()
+      } else {
+        toast.error(data.error || 'Failed to remove team member')
+      }
+    } catch (error) {
+      console.error('Error removing team member:', error)
+      toast.error('Failed to remove team member')
+    } finally {
+      setRemovingMemberId(null)
+    }
+  }
+
+  // Load team members when project loads
+  useEffect(() => {
+    if (projectId) {
+      loadTeamMembers()
+    }
+  }, [projectId, loadTeamMembers])
+
+  // Load available users when dropdown opens
+  useEffect(() => {
+    if (showAddMemberDropdown) {
+      loadAvailableUsers()
+    }
+  }, [showAddMemberDropdown, loadAvailableUsers])
 
   const handleProjectUpdated = async () => {
     setEditDialogOpen(false)
@@ -611,12 +1146,20 @@ export default function ProjectDetailPage() {
           assignedUser = userData
         }
 
-        // Get departments for this project via project_assignments
+        // Get departments for this project via project_assignments (stakeholders)
         const { data: reloadAssignments } = await supabase
           .from('project_assignments')
-          .select(`
-            user_id,
-            user_roles!user_roles_user_id_fkey (
+          .select('user_id')
+          .eq('project_id', projectId)
+          .is('removed_at', null)
+
+        const reloadDepartments: any[] = []
+
+        // Add departments from assigned_user's roles (if they have an assigned user)
+        if (data.assigned_user_id) {
+          const { data: reloadAssignedUserRoles } = await supabase
+            .from('user_roles')
+            .select(`
               role_id,
               roles!user_roles_role_id_fkey (
                 department_id,
@@ -625,16 +1168,11 @@ export default function ProjectDetailPage() {
                   name
                 )
               )
-            )
-          `)
-          .eq('project_id', projectId)
-          .is('removed_at', null)
+            `)
+            .eq('user_id', data.assigned_user_id)
 
-        const reloadDepartments: any[] = []
-        if (reloadAssignments) {
-          reloadAssignments.forEach((assignment: any) => {
-            const userRoles = assignment.user_roles || []
-            userRoles.forEach((userRole: any) => {
+          if (reloadAssignedUserRoles) {
+            reloadAssignedUserRoles.forEach((userRole: any) => {
               const role = userRole.roles
               if (role && role.departments) {
                 const dept = role.departments
@@ -644,7 +1182,44 @@ export default function ProjectDetailPage() {
                 }
               }
             })
-          })
+          }
+        }
+
+        // Add departments from stakeholders (project_assignments)
+        if (reloadAssignments && reloadAssignments.length > 0) {
+          // Get unique user IDs from stakeholders
+          const reloadStakeholderUserIds = reloadAssignments.map((a: any) => a.user_id).filter(Boolean)
+
+          if (reloadStakeholderUserIds.length > 0) {
+            // Fetch user roles for all stakeholders
+            const { data: reloadStakeholderRoles } = await supabase
+              .from('user_roles')
+              .select(`
+                user_id,
+                role_id,
+                roles!user_roles_role_id_fkey (
+                  department_id,
+                  departments!roles_department_id_fkey (
+                    id,
+                    name
+                  )
+                )
+              `)
+              .in('user_id', reloadStakeholderUserIds)
+
+            if (reloadStakeholderRoles) {
+              reloadStakeholderRoles.forEach((userRole: any) => {
+                const role = userRole.roles
+                if (role && role.departments) {
+                  const dept = role.departments
+                  const exists = reloadDepartments.some((d: any) => d.id === dept.id)
+                  if (!exists) {
+                    reloadDepartments.push(dept)
+                  }
+                }
+              })
+            }
+          }
         }
 
         // Transform the data to include all details
@@ -821,22 +1396,33 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800'
-      case 'review':
-        return 'bg-purple-100 text-purple-800'
-      case 'complete':
-        return 'bg-green-100 text-green-800'
-      case 'on_hold':
-        return 'bg-gray-100 text-gray-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+  // Save project notes
+  const handleSaveNotes = async () => {
+    setSavingNotes(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notesContent })
+      })
+
+      if (response.ok) {
+        setProject(prev => prev ? { ...prev, notes: notesContent } : null)
+        setEditingNotes(false)
+        toast.success('Notes saved')
+      } else {
+        const result = await response.json()
+        toast.error(result.error || 'Failed to save notes')
+      }
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      toast.error('Failed to save notes')
+    } finally {
+      setSavingNotes(false)
     }
   }
+
+  // Project status colors removed - projects now use workflow steps instead of static status
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -886,32 +1472,107 @@ export default function ProjectDetailPage() {
           </Button>
         </div>
 
+        {/* Completed Project Banner */}
+        {project.status === 'complete' && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <div>
+                <p className="font-semibold text-green-800">This project has been completed</p>
+                <p className="text-sm text-green-600">
+                  {project.completed_at
+                    ? `Completed on ${formatDate(project.completed_at)}`
+                    : 'This is a read-only view of the finished project.'}
+                </p>
+              </div>
+            </div>
+            {canEditProject && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReopenProject}
+                disabled={reopeningProject}
+                className="bg-white hover:bg-gray-50"
+              >
+                {reopeningProject ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2" />
+                    Reopening...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reopen Project
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="flex items-start justify-between mb-2">
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
-              {!canEditProject && (
-                <span className="px-3 py-1 text-sm font-medium text-orange-800 bg-orange-100 rounded-full">
-                  Read Only
-                </span>
+              {project.reopened_at && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                  Re-opened
+                </Badge>
               )}
             </div>
-            <p className="text-gray-600 mt-1">
-              {canEditProject ? 'Project Details' : 'Project Details (Read Only)'}
-            </p>
+            <p className="text-gray-600 mt-1">Project Details</p>
           </div>
         </div>
 
-        {/* Edit Project Button - Only show if user can edit */}
-        {canEditProject && (
-          <div className="mb-4">
-            <Button onClick={() => setEditDialogOpen(true)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Project
-            </Button>
+        {/* Action Buttons - Hidden for completed projects */}
+        {project.status !== 'complete' && (
+          <div className="mb-4 flex items-center gap-3">
+            {/* Edit Project Button - Only show if user can edit */}
+            {canEditProject && (
+              <Button onClick={() => setEditDialogOpen(true)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Project
+              </Button>
+            )}
+
+            {/* Workflow Progress Button - Show if project has active workflow */}
+            <WorkflowProgressButton
+              key={`workflow-button-${workflowRefreshKey}`}
+              projectId={projectId}
+              workflowInstanceId={project.workflow_instance_id || null}
+              onProgress={handleWorkflowProgress}
+            />
+
+            {/* Complete Project Button - Show for non-workflow projects only */}
+            {canEditProject && !project.workflow_instance_id && (
+              <Button
+                variant="outline"
+                onClick={handleCompleteProject}
+                disabled={completingProject}
+                className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+              >
+                {completingProject ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2" />
+                    Completing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Complete Project
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
+
+        {/* Workflow Timeline - Show workflow progress if project has active workflow */}
+        <WorkflowTimeline
+          key={`workflow-timeline-${workflowRefreshKey}`}
+          workflowInstanceId={project.workflow_instance_id || null}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Main Content */}
@@ -928,23 +1589,51 @@ export default function ProjectDetailPage() {
                       </CardTitle>
                       <CardDescription>Manage project tasks and assignments</CardDescription>
                     </div>
-                    {canCreateTasks ? (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedTask(null)
-                          setEditTaskDialogOpen(true)
-                        }}
-                      >
-                        <PlusIcon className="w-4 h-4 mr-2" />
-                        New Task
-                      </Button>
-                    ) : (
-                      <span className="text-sm text-gray-500 italic">
-                        Read-only access - cannot create tasks
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* View Mode Toggle */}
+                      <div className="flex items-center border rounded-md">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-r-none"
+                          title="List View (default)"
+                          disabled
+                        >
+                          <List className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-none border-x"
+                          onClick={() => setKanbanDialogOpen(true)}
+                          title="Open Kanban View"
+                        >
+                          <LayoutGrid className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-l-none"
+                          onClick={() => setGanttDialogOpen(true)}
+                          title="Open Gantt View"
+                        >
+                          <GanttChart className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {canCreateTasks && project.status !== 'complete' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedTask(null)
+                            setEditTaskDialogOpen(true)
+                          }}
+                        >
+                          <PlusIcon className="w-4 h-4 mr-2" />
+                          New Task
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -955,7 +1644,7 @@ export default function ProjectDetailPage() {
                     </div>
                   ) : tasks.length > 0 ? (
                     <div className="space-y-3">
-                      {tasks.slice(0, 10).map((task) => (
+                      {tasks.map((task) => (
                         <TaskItem
                           key={task.id}
                           task={task}
@@ -975,6 +1664,74 @@ export default function ProjectDetailPage() {
               </Card>
             )}
 
+            {/* Project Notes - Collaborative notes section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                      Project Notes
+                    </CardTitle>
+                    <CardDescription>Shared notes and context for the team</CardDescription>
+                  </div>
+                  {canEditProject && project.status !== 'complete' && !editingNotes && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingNotes(true)}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {editingNotes ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      value={notesContent}
+                      onChange={(e) => setNotesContent(e.target.value)}
+                      placeholder="Add project context, important information, or notes for the team..."
+                      rows={6}
+                      className="resize-none"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingNotes(false)
+                          setNotesContent(project.notes || '')
+                        }}
+                        disabled={savingNotes}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveNotes}
+                        disabled={savingNotes}
+                      >
+                        {savingNotes ? 'Saving...' : 'Save Notes'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    {project.notes ? (
+                      <p className="text-gray-700 whitespace-pre-wrap">{project.notes}</p>
+                    ) : (
+                      <p className="text-gray-400 italic">
+                        No notes yet. {canEditProject && project.status !== 'complete' && 'Click "Edit" to add project context.'}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Project Updates - Journal Style */}
             <Card>
               <CardHeader>
@@ -986,9 +1743,9 @@ export default function ProjectDetailPage() {
                     </CardTitle>
                     <CardDescription>Track progress and milestones</CardDescription>
                   </div>
-                  {canEditProject ? (
-                    <Button 
-                      size="sm" 
+                  {canCreateUpdate && project.status !== 'complete' && (
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => setShowNewUpdateForm(!showNewUpdateForm)}
                       disabled={submittingUpdate}
@@ -996,17 +1753,13 @@ export default function ProjectDetailPage() {
                       <PlusIcon className="w-4 h-4 mr-2" />
                       New Update
                     </Button>
-                  ) : (
-                    <span className="text-sm text-gray-500 italic">
-                      Read-only access - cannot add updates
-                    </span>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* New Update Form - Only show if user can edit */}
-                  {showNewUpdateForm && canEditProject && (
+                  {/* New Update Form - Only show if user has create_update permission and project is not complete */}
+                  {showNewUpdateForm && canCreateUpdate && project.status !== 'complete' && (
                     <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
                       <div className="space-y-3">
                         <div>
@@ -1109,9 +1862,9 @@ export default function ProjectDetailPage() {
                     </CardTitle>
                     <CardDescription>Track and resolve project blockers</CardDescription>
                   </div>
-                  {canEditProject ? (
-                    <Button 
-                      size="sm" 
+                  {canCreateIssue && project.status !== 'complete' && (
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => setShowNewIssueForm(!showNewIssueForm)}
                       disabled={submittingIssue}
@@ -1119,17 +1872,13 @@ export default function ProjectDetailPage() {
                       <PlusIcon className="w-4 h-4 mr-2" />
                       Report Issue
                     </Button>
-                  ) : (
-                    <span className="text-sm text-gray-500 italic">
-                      Read-only access - cannot report issues
-                    </span>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* New Issue Form - Only show if user can edit */}
-                  {showNewIssueForm && canEditProject && (
+                  {/* New Issue Form - Only show if user has create_issue permission and project is not complete */}
+                  {showNewIssueForm && canCreateIssue && project.status !== 'complete' && (
                     <div className="border-2 border-orange-200 rounded-lg p-4 bg-orange-50">
                       <div className="space-y-3">
                         <div>
@@ -1222,8 +1971,8 @@ export default function ProjectDetailPage() {
                               </div>
                             </div>
 
-                            {/* Status Selector - Only show if user can edit */}
-                            {canEditProject ? (
+                            {/* Status Selector - Only show if user can edit issues and project is not complete */}
+                            {canEditIssue && project.status !== 'complete' ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-medium text-gray-500">Status:</span>
                                 <Select
@@ -1289,20 +2038,19 @@ export default function ProjectDetailPage() {
                     <CardTitle className="text-lg">Project Information</CardTitle>
                     <CardDescription>Key details and timeline</CardDescription>
                   </div>
-                  {!canEditProject && (
-                    <span className="px-2 py-1 text-xs font-medium text-orange-700 bg-orange-100 rounded">
-                      Read Only
-                    </span>
-                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500 uppercase">Status</p>
-                    <Badge className={`${getStatusColor(project.status)} text-xs whitespace-nowrap`}>
-                      {project.status.replace('_', ' ').toUpperCase()}
-                    </Badge>
+                    <p className="text-xs font-medium text-gray-500 uppercase">Workflow Step</p>
+                    {workflowStepName ? (
+                      <Badge className="bg-indigo-100 text-indigo-800 text-xs whitespace-nowrap">
+                        {workflowStepName}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm text-gray-400">No active workflow</span>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-gray-500 uppercase">Priority</p>
@@ -1381,44 +2129,39 @@ export default function ProjectDetailPage() {
                       })()}
                     </div>
                   </div>
-                  {/* Progress - Calculated from task remaining hours */}
+                  {/* Progress - Calculated from actual time logged vs estimated */}
                   {(() => {
-                    // Only show progress if there are tasks
-                    if (tasks.length === 0) return null
-
+                    // Show progress if there are tasks with estimates OR project-level hours logged
                     const taskEstimatedSum = tasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0)
+                    // Use actual_hours from tasks + project-level hours (logged without a task)
+                    const taskActualHours = tasks.reduce((sum, task) => sum + (task.actual_hours || 0), 0)
+                    const totalActualHours = taskActualHours + projectLevelHours
+                    const remainingHours = Math.max(0, taskEstimatedSum - totalActualHours)
+                    const progressPercent = taskEstimatedSum > 0 ? Math.round((totalActualHours / taskEstimatedSum) * 100) : 0
 
-                    // Calculate remaining from task remaining_hours
-                    // If task has remaining_hours set, use it; otherwise use estimated_hours
-                    const taskRemainingSum = tasks.reduce((sum, task) => {
-                      const remaining = task.remaining_hours !== null && task.remaining_hours !== undefined
-                        ? task.remaining_hours
-                        : (task.estimated_hours || 0)
-                      return sum + remaining
-                    }, 0)
-
-                    const hoursWorked = Math.max(0, taskEstimatedSum - taskRemainingSum)
-                    const remainingHours = taskRemainingSum
-                    const progressPercent = taskEstimatedSum > 0 ? Math.round((hoursWorked / taskEstimatedSum) * 100) : 0
-
-                    if (taskEstimatedSum > 0) {
+                    if (taskEstimatedSum > 0 || totalActualHours > 0) {
                       return (
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-blue-500" />
                           <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-500">Progress</p>
+                            <p className="text-xs font-medium text-gray-500">Time Progress</p>
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-semibold text-blue-600">
-                                {remainingHours.toFixed(1)}h remaining
+                                {totalActualHours.toFixed(1)}h logged
                               </p>
                               <span className="text-xs text-gray-500">
-                                ({hoursWorked.toFixed(1)}h / {taskEstimatedSum.toFixed(1)}h worked)
+                                / {taskEstimatedSum.toFixed(1)}h estimated
                               </span>
+                              {remainingHours > 0 && (
+                                <span className="text-xs text-orange-600">
+                                  ({remainingHours.toFixed(1)}h remaining)
+                                </span>
+                              )}
                             </div>
                             {/* Progress bar */}
                             <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
                               <div
-                                className={`h-2 rounded-full ${
+                                className={`h-2 rounded-full transition-all duration-500 ${
                                   progressPercent >= 100 ? 'bg-green-500' :
                                   progressPercent >= 75 ? 'bg-blue-500' :
                                   progressPercent >= 50 ? 'bg-yellow-500' : 'bg-gray-400'
@@ -1426,7 +2169,14 @@ export default function ProjectDetailPage() {
                                 style={{ width: `${Math.min(progressPercent, 100)}%` }}
                               />
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">{progressPercent}% complete</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {Math.min(progressPercent, 100)}% complete
+                              {projectLevelHours > 0 && (
+                                <span className="ml-2 text-purple-600">
+                                  (incl. {projectLevelHours.toFixed(1)}h project-level)
+                                </span>
+                              )}
+                            </p>
                           </div>
                         </div>
                       )
@@ -1448,70 +2198,144 @@ export default function ProjectDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Team Members (Merged: Assigned To + Stakeholders) */}
+            {/* Team Members (with Add/Remove functionality) */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Users className="w-5 h-5" />
-                  Team Members
-                </CardTitle>
-                <CardDescription>
-                  {project.assigned_user || project.stakeholders.length > 0
-                    ? `${1 + project.stakeholders.length} ${1 + project.stakeholders.length === 1 ? 'person' : 'people'} on this project`
-                    : 'No team members assigned yet'
-                  }
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Users className="w-5 h-5" />
+                      Team Members
+                    </CardTitle>
+                    <CardDescription>
+                      {teamMembers.length > 0
+                        ? `${teamMembers.length} ${teamMembers.length === 1 ? 'person' : 'people'} on this project`
+                        : 'No team members assigned yet'
+                      }
+                    </CardDescription>
+                  </div>
+                  {/* Add Member Button - Only show for non-complete projects with edit permission */}
+                  {canEditProject && project.status !== 'complete' && (
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddMemberDropdown(!showAddMemberDropdown)}
+                        disabled={addingMember}
+                        className="flex items-center gap-1"
+                      >
+                        {addingMember ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <UserPlus className="w-4 h-4" />
+                        )}
+                        <span className="hidden sm:inline">Add</span>
+                      </Button>
+
+                      {/* Add Member Dropdown */}
+                      {showAddMemberDropdown && (
+                        <div className="absolute right-0 top-full mt-1 w-64 bg-white border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                          <div className="p-2 border-b">
+                            <p className="text-xs font-medium text-gray-500">Select user to add</p>
+                          </div>
+                          {loadingAvailableUsers ? (
+                            <div className="p-4 text-center">
+                              <Loader2 className="w-5 h-5 animate-spin mx-auto text-gray-400" />
+                              <p className="text-xs text-gray-500 mt-1">Loading users...</p>
+                            </div>
+                          ) : availableUsers.length > 0 ? (
+                            <div className="py-1">
+                              {availableUsers.map((user) => (
+                                <button
+                                  key={user.id}
+                                  onClick={() => handleAddTeamMember(user.id)}
+                                  className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                                  disabled={addingMember}
+                                >
+                                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-white font-semibold text-xs">
+                                      {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-4 text-center">
+                              <p className="text-xs text-gray-500">No more users available</p>
+                            </div>
+                          )}
+                          <div className="border-t p-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowAddMemberDropdown(false)}
+                              className="w-full text-xs"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {/* Assigned User (Primary) */}
-                  {project.assigned_user ? (
-                    <div className="flex items-center gap-3 p-3 rounded-md bg-blue-50 border border-blue-100">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-semibold text-sm">
-                          {project.assigned_user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{project.assigned_user?.name || 'Unknown User'}</p>
-                        <p className="text-xs text-blue-600 font-medium">Primary Owner</p>
-                      </div>
+                  {loadingTeamMembers ? (
+                    <div className="text-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                      <p className="text-xs text-gray-500 mt-1">Loading team members...</p>
+                    </div>
+                  ) : teamMembers.length > 0 ? (
+                    <div className="space-y-2">
+                      {teamMembers.map((member) => (
+                        <div key={member.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 transition-colors group">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-semibold text-xs">
+                              {member.user_profiles?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{member.user_profiles?.name || 'Unknown User'}</p>
+                            {member.role_in_project && (
+                              <p className="text-xs text-gray-500 capitalize">
+                                {member.role_in_project.replace('_', ' ')}
+                              </p>
+                            )}
+                          </div>
+                          {/* Remove Button - Only show for non-complete projects with edit permission */}
+                          {canEditProject && project.status !== 'complete' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveTeamMember(member.user_id)}
+                              disabled={removingMemberId === member.user_id}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              {removingMemberId === member.user_id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-gray-400 italic py-2 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      <p>No primary owner assigned</p>
+                    <div className="text-center py-4">
+                      <AlertCircle className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                      <p className="text-sm text-gray-500">No team members assigned</p>
+                      {canEditProject && project.status !== 'complete' && (
+                        <p className="text-xs text-gray-400 mt-1">Click "Add" to assign team members</p>
+                      )}
                     </div>
-                  )}
-
-                  {/* Stakeholders */}
-                  {project.stakeholders.length > 0 ? (
-                    <>
-                      <div className="border-t pt-3">
-                        <p className="text-xs font-medium text-gray-500 uppercase mb-2">Stakeholders</p>
-                        <div className="space-y-2">
-                          {project.stakeholders.map((stakeholder) => (
-                            <div key={stakeholder.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 transition-colors">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                <span className="text-white font-semibold text-xs">
-                                  {stakeholder.user_profiles?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
-                                </span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">{stakeholder.user_profiles?.name || 'Unknown User'}</p>
-                                {stakeholder.role && (
-                                  <p className="text-xs text-gray-500 capitalize">
-                                    {stakeholder.role.replace('_', ' ')}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  ) : project.assigned_user && (
-                    <p className="text-xs text-gray-500 italic text-center pt-2">No additional stakeholders</p>
                   )}
                 </div>
               </CardContent>
@@ -1557,7 +2381,7 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Edit Project Dialog */}
+        {/* Edit Project Dialog - Status is managed by workflows */}
         <TaskCreationDialog
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
@@ -1565,7 +2389,6 @@ export default function ProjectDetailPage() {
           accountId={project.account_id}
           account={project.account}
           userProfile={userProfile}
-          statusOptions={statusOptions}
           editMode={true}
           existingProject={project}
         />
@@ -1580,6 +2403,485 @@ export default function ProjectDetailPage() {
             onTaskSaved={handleTaskUpdated}
           />
         )}
+
+        {/* Fullscreen Kanban Dialog */}
+        <Dialog open={kanbanDialogOpen} onOpenChange={setKanbanDialogOpen}>
+          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[90vh] h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle className="flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5" />
+                Task Kanban Board - {project.name}
+              </DialogTitle>
+              <p className="text-sm text-gray-500">Drag and drop tasks between columns to update their status</p>
+            </DialogHeader>
+            <div className="flex-1 overflow-x-auto overflow-y-auto pb-4">
+              <div className="flex gap-4 min-w-max h-full">
+                {['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked'].map((status) => {
+                  const statusTasks = tasks.filter(t => t.status === status)
+                  const statusLabels: Record<string, { label: string; color: string; dropColor: string }> = {
+                    backlog: { label: 'Backlog', color: 'bg-gray-100', dropColor: 'bg-gray-200' },
+                    todo: { label: 'To Do', color: 'bg-blue-100', dropColor: 'bg-blue-200' },
+                    in_progress: { label: 'In Progress', color: 'bg-yellow-100', dropColor: 'bg-yellow-200' },
+                    review: { label: 'Review', color: 'bg-purple-100', dropColor: 'bg-purple-200' },
+                    done: { label: 'Done', color: 'bg-green-100', dropColor: 'bg-green-200' },
+                    blocked: { label: 'Blocked', color: 'bg-red-100', dropColor: 'bg-red-200' }
+                  }
+                  const statusInfo = statusLabels[status] || { label: status, color: 'bg-gray-100', dropColor: 'bg-gray-200' }
+
+                  return (
+                    <div key={status} className="flex-shrink-0 w-80 flex flex-col">
+                      <div className={`rounded-t-lg p-3 ${statusInfo.color}`}>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-sm">{statusInfo.label}</h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {statusTasks.length}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div
+                        className={`rounded-b-lg p-2 flex-1 overflow-y-auto space-y-2 min-h-[200px] transition-colors ${
+                          draggedTaskId ? 'border-2 border-dashed border-gray-300' : ''
+                        } ${draggedTaskId && tasks.find(t => t.id === draggedTaskId)?.status !== status ? statusInfo.dropColor : 'bg-gray-50'}`}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, status)}
+                      >
+                        {statusTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, task.id)}
+                            onDragEnd={handleDragEnd}
+                            className={`bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-all group ${
+                              draggedTaskId === task.id ? 'opacity-50 scale-95 cursor-grabbing' : 'cursor-grab'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">{task.name}</h4>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Badge className={`text-xs ${
+                                  task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                  task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {task.priority}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setKanbanDialogOpen(false)
+                                    handleEditTask(task)
+                                  }}
+                                  title="Edit task"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            {task.description && (
+                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+                            )}
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center gap-2 text-xs text-gray-400">
+                                {task.due_date && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(task.due_date).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {task.estimated_hours && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {task.estimated_hours}h
+                                  </span>
+                                )}
+                              </div>
+                              {task.assigned_to_user && (
+                                <span className="text-xs text-gray-500 truncate max-w-[80px]" title={task.assigned_to_user.name}>
+                                  {task.assigned_to_user.name?.split(' ')[0]}
+                                </span>
+                              )}
+                            </div>
+                            {/* Quick Actions */}
+                            <div className="flex items-center gap-1 mt-2 pt-2 border-t opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setKanbanDialogOpen(false)
+                                  handleEditTask(task)
+                                }}
+                              >
+                                Edit Details
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        {statusTasks.length === 0 && (
+                          <div className={`text-center py-8 text-gray-400 ${draggedTaskId ? 'border-2 border-dashed border-gray-300 rounded-lg' : ''}`}>
+                            <p className="text-xs">{draggedTaskId ? 'Drop here' : 'No tasks'}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Fullscreen Gantt Dialog */}
+        <Dialog open={ganttDialogOpen} onOpenChange={setGanttDialogOpen}>
+          <DialogContent className="max-w-[98vw] w-[98vw] max-h-[95vh] h-[95vh] overflow-hidden flex flex-col p-0">
+            {/* Header */}
+            <div className="flex-shrink-0 px-6 py-4 border-b bg-white">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="flex items-center gap-2">
+                  <GanttChart className="w-5 h-5" />
+                  Task Gantt Chart - {project.name}
+                </DialogTitle>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">View:</span>
+                    <div className="flex border rounded-md">
+                      {(['daily', 'weekly', 'monthly', 'quarterly'] as const).map((mode) => (
+                        <Button
+                          key={mode}
+                          size="sm"
+                          variant={ganttViewMode === mode ? 'secondary' : 'ghost'}
+                          className={`text-xs px-3 ${mode === 'daily' ? 'rounded-r-none' : mode === 'quarterly' ? 'rounded-l-none' : 'rounded-none'}`}
+                          onClick={() => setGanttViewMode(mode)}
+                        >
+                          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-100 border border-red-300 rounded"></span> Weekend</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500 rounded"></span> Today</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-gray-500 mt-2">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-gray-400 rounded"></span> Backlog</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-400 rounded"></span> To Do</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded"></span> In Progress</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-400 rounded"></span> Review</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-green-400 rounded"></span> Done</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded"></span> Blocked</span>
+              </div>
+            </div>
+
+            {/* Gantt Content - Full Height */}
+            <div className="flex-1 flex overflow-hidden">
+              {(() => {
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+
+                // Calculate date range centered on today
+                let minDate: Date, maxDate: Date
+                const daysToShow = ganttViewMode === 'daily' ? 60 : ganttViewMode === 'weekly' ? 84 : ganttViewMode === 'monthly' ? 180 : 365
+
+                // Center on today
+                minDate = new Date(today)
+                minDate.setDate(minDate.getDate() - Math.floor(daysToShow / 2))
+                maxDate = new Date(today)
+                maxDate.setDate(maxDate.getDate() + Math.floor(daysToShow / 2))
+
+                // Extend to include all tasks
+                const tasksWithDates = tasks.filter(t => t.start_date && t.due_date)
+                if (tasksWithDates.length > 0) {
+                  const dates = tasksWithDates.flatMap(t => [new Date(t.start_date!), new Date(t.due_date!)])
+                  const taskMin = new Date(Math.min(...dates.map(d => d.getTime())))
+                  const taskMax = new Date(Math.max(...dates.map(d => d.getTime())))
+                  if (taskMin < minDate) minDate = new Date(taskMin.getTime() - 7 * 24 * 60 * 60 * 1000)
+                  if (taskMax > maxDate) maxDate = new Date(taskMax.getTime() + 7 * 24 * 60 * 60 * 1000)
+                }
+
+                // Generate all days in range
+                const allDays: Date[] = []
+                const d = new Date(minDate)
+                while (d <= maxDate) {
+                  allDays.push(new Date(d))
+                  d.setDate(d.getDate() + 1)
+                }
+
+                // Column width based on view mode
+                const dayWidth = ganttViewMode === 'daily' ? 40 : ganttViewMode === 'weekly' ? 24 : ganttViewMode === 'monthly' ? 10 : 4
+                const totalDays = allDays.length
+                const timelineWidth = totalDays * dayWidth
+                const taskListWidth = 250
+
+                // Calculate today's position for centering
+                const todayIndex = allDays.findIndex(d => d.toDateString() === today.toDateString())
+                const todayPosition = todayIndex * dayWidth
+
+                // Calculate row height to fill viewport - but cap at a reasonable max
+                const headerHeight = 60 // Two rows for month + day headers
+                const availableHeight = typeof window !== 'undefined' ? window.innerHeight * 0.95 - 160 - headerHeight : 500
+                const minRowHeight = 48
+                const maxRowHeight = 80
+                const calculatedRowHeight = tasks.length > 0 ? Math.floor(availableHeight / Math.max(tasks.length, 5)) : minRowHeight
+                const rowHeight = Math.max(minRowHeight, Math.min(maxRowHeight, calculatedRowHeight))
+                const totalRowsHeight = tasks.length * rowHeight
+
+                const statusColors: Record<string, string> = {
+                  backlog: 'bg-gray-400',
+                  todo: 'bg-blue-400',
+                  in_progress: 'bg-yellow-500',
+                  review: 'bg-purple-500',
+                  done: 'bg-green-500',
+                  blocked: 'bg-red-500'
+                }
+
+                // Group days by month for header
+                const months: { month: string; startIndex: number; count: number }[] = []
+                let currentMonth = ''
+                allDays.forEach((day, i) => {
+                  const monthKey = day.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                  if (monthKey !== currentMonth) {
+                    months.push({ month: monthKey, startIndex: i, count: 1 })
+                    currentMonth = monthKey
+                  } else {
+                    months[months.length - 1].count++
+                  }
+                })
+
+                // Get task position in pixels
+                const getTaskPixelPosition = (task: Task) => {
+                  if (!task.start_date || !task.due_date) return null
+                  const start = new Date(task.start_date)
+                  const end = new Date(task.due_date)
+                  start.setHours(0, 0, 0, 0)
+                  end.setHours(0, 0, 0, 0)
+
+                  const startIndex = allDays.findIndex(d => d.toDateString() === start.toDateString())
+                  const endIndex = allDays.findIndex(d => d.toDateString() === end.toDateString())
+
+                  if (startIndex === -1 || endIndex === -1) {
+                    // Task is outside visible range, calculate relative position
+                    const minTime = minDate.getTime()
+                    const startDays = Math.floor((start.getTime() - minTime) / (24 * 60 * 60 * 1000))
+                    const endDays = Math.floor((end.getTime() - minTime) / (24 * 60 * 60 * 1000))
+                    return {
+                      left: startDays * dayWidth,
+                      width: Math.max(dayWidth, (endDays - startDays + 1) * dayWidth)
+                    }
+                  }
+
+                  return {
+                    left: startIndex * dayWidth,
+                    width: Math.max(dayWidth, (endIndex - startIndex + 1) * dayWidth)
+                  }
+                }
+
+                // Refs for synchronized scrolling
+                let taskListRef: HTMLDivElement | null = null
+                let timelineRef: HTMLDivElement | null = null
+                let isSyncing = false
+
+                const handleTaskListScroll = () => {
+                  if (!taskListRef || !timelineRef || isSyncing) return
+                  isSyncing = true
+                  timelineRef.scrollTop = taskListRef.scrollTop
+                  requestAnimationFrame(() => { isSyncing = false })
+                }
+
+                const handleTimelineScroll = () => {
+                  if (!taskListRef || !timelineRef || isSyncing) return
+                  isSyncing = true
+                  taskListRef.scrollTop = timelineRef.scrollTop
+                  requestAnimationFrame(() => { isSyncing = false })
+                }
+
+                return (
+                  <div className="flex flex-1 overflow-hidden">
+                    {/* Task List - Fixed Width, Scrolls Vertically */}
+                    <div className="flex-shrink-0 border-r bg-white z-20 flex flex-col" style={{ width: `${taskListWidth}px` }}>
+                      {/* Task List Header */}
+                      <div className="border-b bg-gray-50 flex-shrink-0" style={{ height: `${headerHeight}px` }}>
+                        <div className="flex items-center justify-center h-full font-semibold text-sm text-gray-700">
+                          Tasks ({tasks.length})
+                        </div>
+                      </div>
+                      {/* Task List Body - Synced scroll with timeline */}
+                      <div
+                        className="flex-1 overflow-y-auto overflow-x-hidden"
+                        ref={(el) => { taskListRef = el }}
+                        onScroll={handleTaskListScroll}
+                      >
+                        <div style={{ minHeight: tasks.length > 0 ? `${totalRowsHeight}px` : '200px' }}>
+                          {tasks.map((task, i) => (
+                            <div
+                              key={task.id}
+                              className="border-b border-gray-200 px-3 flex items-center cursor-pointer hover:bg-blue-50 transition-colors"
+                              style={{ height: `${rowHeight}px` }}
+                              onClick={() => {
+                                setGanttDialogOpen(false)
+                                handleEditTask(task)
+                              }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm truncate text-gray-900">{task.name}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`w-2.5 h-2.5 rounded-full ${statusColors[task.status]}`}></span>
+                                  <span className="text-xs text-gray-500 truncate">
+                                    {task.start_date && task.due_date
+                                      ? `${new Date(task.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                      : 'No dates set'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {tasks.length === 0 && (
+                            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+                              No tasks to display
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timeline - Scrollable Both Ways */}
+                    <div
+                      className="flex-1 overflow-auto"
+                      ref={(el) => {
+                        timelineRef = el
+                        // Auto-scroll to center on today when dialog opens
+                        if (el && todayPosition > 0) {
+                          const scrollLeft = todayPosition - el.clientWidth / 2
+                          el.scrollLeft = Math.max(0, scrollLeft)
+                        }
+                      }}
+                      onScroll={handleTimelineScroll}
+                    >
+                      <div style={{ width: `${timelineWidth}px`, minHeight: '100%' }}>
+                        {/* Timeline Header - Sticky */}
+                        <div className="sticky top-0 bg-white z-10 border-b" style={{ height: `${headerHeight}px` }}>
+                          {/* Month Row */}
+                          <div className="flex border-b" style={{ height: '30px' }}>
+                            {months.map((m, i) => (
+                              <div
+                                key={i}
+                                className="border-r border-gray-300 text-xs font-semibold text-gray-700 flex items-center justify-center bg-gray-100"
+                                style={{ width: `${m.count * dayWidth}px` }}
+                              >
+                                {m.month}
+                              </div>
+                            ))}
+                          </div>
+                          {/* Day Row */}
+                          <div className="flex" style={{ height: '30px' }}>
+                            {allDays.map((day, i) => {
+                              const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                              const isToday = day.toDateString() === today.toDateString()
+                              const isFirstOfMonth = day.getDate() === 1
+                              const showLabel = ganttViewMode === 'daily' ||
+                                (ganttViewMode === 'weekly' && (day.getDay() === 1 || isFirstOfMonth)) ||
+                                (ganttViewMode === 'monthly' && (day.getDate() === 1 || day.getDate() === 15)) ||
+                                (ganttViewMode === 'quarterly' && day.getDate() === 1)
+
+                              return (
+                                <div
+                                  key={i}
+                                  className={`border-r text-xs flex items-center justify-center ${
+                                    isWeekend ? 'bg-red-100 border-red-200' : 'bg-gray-50'
+                                  } ${isToday ? 'bg-blue-200 font-bold border-blue-400' : ''} ${
+                                    isFirstOfMonth ? 'border-l-2 border-l-gray-400' : 'border-gray-200'
+                                  }`}
+                                  style={{ width: `${dayWidth}px` }}
+                                >
+                                  {showLabel && (
+                                    <span className={`${isToday ? 'text-blue-700' : isWeekend ? 'text-red-600' : 'text-gray-600'}`}>
+                                      {day.getDate()}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Timeline Body with Gridlines */}
+                        <div className="relative" style={{ minHeight: tasks.length > 0 ? `${totalRowsHeight}px` : '200px' }}>
+                          {/* Vertical Gridlines - Full Height */}
+                          <div className="absolute inset-0 flex pointer-events-none" style={{ height: `${Math.max(totalRowsHeight, 200)}px` }}>
+                            {allDays.map((day, i) => {
+                              const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                              const isToday = day.toDateString() === today.toDateString()
+                              const isFirstOfMonth = day.getDate() === 1
+
+                              return (
+                                <div
+                                  key={i}
+                                  className={`relative ${
+                                    isWeekend ? 'bg-red-50' : 'bg-white'
+                                  } ${isFirstOfMonth ? 'border-l-2 border-l-gray-300' : 'border-r border-gray-100'}`}
+                                  style={{ width: `${dayWidth}px`, height: '100%' }}
+                                >
+                                  {isToday && (
+                                    <div
+                                      className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 bg-blue-500 z-10"
+                                      style={{ height: '100%' }}
+                                    />
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {/* Horizontal Row Lines */}
+                          {tasks.map((_, i) => (
+                            <div
+                              key={`row-line-${i}`}
+                              className="absolute w-full border-b border-gray-200"
+                              style={{ top: `${(i + 1) * rowHeight}px` }}
+                            />
+                          ))}
+
+                          {/* Task Bars */}
+                          {tasks.map((task, i) => {
+                            const position = getTaskPixelPosition(task)
+                            if (!position) return null
+
+                            return (
+                              <div
+                                key={task.id}
+                                className={`absolute rounded-md shadow-md cursor-pointer hover:shadow-lg transition-all ${statusColors[task.status]} text-white text-xs font-medium flex items-center px-2 overflow-hidden hover:scale-[1.02]`}
+                                style={{
+                                  left: `${position.left}px`,
+                                  top: `${i * rowHeight + 6}px`,
+                                  width: `${position.width}px`,
+                                  height: `${rowHeight - 12}px`,
+                                  zIndex: 5
+                                }}
+                                title={`${task.name}\n${task.start_date ? new Date(task.start_date).toLocaleDateString() : 'No start'} - ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No end'}\nStatus: ${task.status.replace('_', ' ')}`}
+                                onClick={() => {
+                                  setGanttDialogOpen(false)
+                                  handleEditTask(task)
+                                }}
+                              >
+                                <span className="truncate drop-shadow-sm">{task.name}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGuard>
   )

@@ -108,16 +108,20 @@ export function ClientNavigation() {
   const getUserDepartments = () => {
     if (!userProfile?.user_roles) return []
     try {
-      return userProfile.user_roles
-        .map(ur => {
-          const dept = ur.roles?.departments;
-          if (!dept) return null;
-          return {
+      // Use a Map to deduplicate departments by ID
+      const deptMap = new Map<string, { id: string; name: string }>();
+
+      userProfile.user_roles.forEach(ur => {
+        const dept = ur.roles?.departments;
+        if (dept && dept.id && !deptMap.has(dept.id)) {
+          deptMap.set(dept.id, {
             id: dept.id,
             name: dept.name
-          };
-        })
-        .filter((dept): dept is { id: string; name: string } => dept !== null);
+          });
+        }
+      });
+
+      return Array.from(deptMap.values());
     } catch (error) {
       console.error('Error getting user departments:', error)
       return []
@@ -229,13 +233,19 @@ export function ClientNavigation() {
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
+            {/* Logo - use same as mounted state */}
             <div className="flex items-center">
               <Link href="/welcome" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">P</span>
+                <div className="w-8 h-8 relative">
+                  <Image
+                    src="/prism-logo.png"
+                    alt="PRISM PSA Logo"
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                    priority
+                  />
                 </div>
-                <span className="text-xl font-semibold text-gray-900">PRISM PSA</span>
               </Link>
             </div>
             {/* Loading placeholder */}

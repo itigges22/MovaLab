@@ -55,10 +55,10 @@ export function DepartmentOverview({
   canManageDepartments,
   userProfile
 }: DepartmentOverviewProps) {
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'priority' | 'deadline'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({});
 
   // Projects with task data
   const [projectsWithTaskData, setProjectsWithTaskData] = useState<(DepartmentProject & { task_hours_sum?: number })[]>(projects);
@@ -118,22 +118,60 @@ export function DepartmentOverview({
     loadActiveIssues();
   }, [department.id]);
 
-  // Sort and filter projects
-  const filteredAndSortedProjects = projectsWithTaskData
+  // Fetch workflow steps for projects
+  useEffect(() => {
+    if (!projects || projects.length === 0) {
+      setWorkflowSteps({});
+      return;
+    }
+
+    async function fetchWorkflowSteps() {
+      const supabase = createClientSupabase();
+      if (!supabase) return;
+
+      const projectIds = projects.map(p => p.id);
+      const { data: workflowData, error } = await supabase
+        .from('workflow_instances')
+        .select(`
+          project_id,
+          current_node_id,
+          workflow_nodes!workflow_instances_current_node_id_fkey (
+            label
+          )
+        `)
+        .in('project_id', projectIds)
+        .eq('status', 'active');
+
+      if (!error && workflowData) {
+        const steps: { [key: string]: string | null } = {};
+        workflowData.forEach((instance: any) => {
+          if (instance.project_id && instance.workflow_nodes?.label) {
+            steps[instance.project_id] = instance.workflow_nodes.label;
+          }
+        });
+        setWorkflowSteps(steps);
+      }
+    }
+
+    fetchWorkflowSteps();
+  }, [projects]);
+
+  // Split projects into active and finished
+  const activeProjects = projectsWithTaskData.filter(p => p.status !== 'complete');
+  const finishedProjects = projectsWithTaskData.filter(p => p.status === 'complete');
+
+  // Sort and filter active projects only
+  const filteredAndSortedProjects = activeProjects
     .filter(project => {
-      if (statusFilter !== 'all' && project.status !== statusFilter) return false;
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false;
       return true;
     })
     .sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case 'name':
           comparison = a.name.localeCompare(b.name);
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
           break;
         case 'priority':
           const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -146,9 +184,13 @@ export function DepartmentOverview({
           else comparison = new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
           break;
       }
-      
+
       return sortOrder === 'asc' ? comparison : -comparison;
-    });
+    })
+    .map(project => ({
+      ...project,
+      workflow_step: workflowSteps[project.id] || null
+    }));
 
   // Chart data for workload distribution
   const workloadChartData = metrics.workloadDistribution.map(member => ({
@@ -165,17 +207,6 @@ export function DepartmentOverview({
       case 'high': return 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200 hover:text-orange-900';
       case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 hover:text-yellow-900';
       case 'low': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 hover:text-green-900';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200 hover:text-gray-900';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning': return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 hover:text-blue-900';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 hover:text-yellow-900';
-      case 'review': return 'bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200 hover:text-purple-900';
-      case 'complete': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 hover:text-green-900';
-      case 'on_hold': return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200 hover:text-gray-900';
       default: return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200 hover:text-gray-900';
     }
   };
@@ -475,27 +506,13 @@ export function DepartmentOverview({
         </CardContent>
       </Card>
 
-      {/* Projects Table */}
+      {/* Active Projects Table */}
       <Card>
         <CardHeader>
           <div className="flex flex-col space-y-4">
-            <CardTitle>Department Projects</CardTitle>
+            <CardTitle>Active Projects</CardTitle>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full min-w-0">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="planning">Planning</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="complete">Complete</SelectItem>
-                    <SelectItem value="on_hold">On Hold</SelectItem>
-                  </SelectContent>
-                </Select>
-                
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                   <SelectTrigger className="w-full min-w-0">
                     <SelectValue placeholder="Priority" />
@@ -509,13 +526,12 @@ export function DepartmentOverview({
                   </SelectContent>
                 </Select>
 
-                <Select value={sortBy} onValueChange={(value: 'name' | 'status' | 'priority' | 'deadline') => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={(value: 'name' | 'priority' | 'deadline') => setSortBy(value)}>
                   <SelectTrigger className="w-full min-w-0">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="name">Name</SelectItem>
-                    <SelectItem value="status">Status</SelectItem>
                     <SelectItem value="priority">Priority</SelectItem>
                     <SelectItem value="deadline">Deadline</SelectItem>
                   </SelectContent>
@@ -539,7 +555,7 @@ export function DepartmentOverview({
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Est Hours</th>
@@ -561,9 +577,13 @@ export function DepartmentOverview({
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="outline" className={`${getStatusColor(project.status)} text-xs whitespace-nowrap`}>
-                        {project.status.replace('_', ' ')}
-                      </Badge>
+                      {project.workflow_step ? (
+                        <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
+                          {project.workflow_step}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-gray-400">No workflow</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant="outline" className={`${getPriorityColor(project.priority)} text-xs whitespace-nowrap`}>
@@ -625,6 +645,65 @@ export function DepartmentOverview({
           </div>
         </CardContent>
       </Card>
+
+      {/* Finished Projects Section */}
+      {finishedProjects.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Finished Projects
+            </CardTitle>
+            <CardDescription>
+              {finishedProjects.length} completed {finishedProjects.length === 1 ? 'project' : 'projects'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {finishedProjects.map((project) => (
+                <div
+                  key={project.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="font-medium text-gray-900 hover:text-blue-600"
+                    >
+                      {project.name}
+                    </Link>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Complete
+                      </span>
+                      {project.accountName && (
+                        <span>{project.accountName}</span>
+                      )}
+                      {(project.actualHours ?? 0) > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {project.actualHours}h logged
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-8 w-8 p-0"
+                  >
+                    <Link href={`/projects/${project.id}`}>
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { EdgeProps, getBezierPath, EdgeLabelRenderer, BaseEdge } from 'reactflow';
+import { EdgeProps, getBezierPath, EdgeLabelRenderer, BaseEdge } from '@xyflow/react';
 import { ArrowRight, Users } from 'lucide-react';
 
 interface OrgChartEdgeData {
@@ -19,7 +19,9 @@ function OrgChartEdgeComponent({
   style = {},
   data,
   markerEnd,
-}: EdgeProps<OrgChartEdgeData>) {
+}: EdgeProps) {
+  // Cast data to our expected type
+  const edgeData = data as OrgChartEdgeData | undefined;
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -30,7 +32,7 @@ function OrgChartEdgeComponent({
   });
 
   const getEdgeColor = () => {
-    switch (data?.relationship) {
+    switch (edgeData?.relationship) {
       case 'reports_to':
         return '#6b7280'; // Gray for reporting relationships
       case 'contains':
@@ -51,7 +53,7 @@ function OrgChartEdgeComponent({
   };
 
   const getLabelIcon = () => {
-    switch (data?.relationship) {
+    switch (edgeData?.relationship) {
       case 'reports_to':
         return <ArrowRight className="h-3 w-3" />;
       case 'contains':
@@ -64,7 +66,7 @@ function OrgChartEdgeComponent({
   };
 
   const getLabelText = () => {
-    switch (data?.relationship) {
+    switch (edgeData?.relationship) {
       case 'reports_to':
         return 'Reports to';
       case 'contains':

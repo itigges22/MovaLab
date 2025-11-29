@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { KanbanColumn } from '@/lib/account-kanban-config';
@@ -7,6 +7,7 @@ import { KanbanColumn } from '@/lib/account-kanban-config';
 /**
  * GET /api/accounts/[accountId]/kanban-config
  * Get Kanban configuration for an account
+ * NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), but visual display still works
  */
 export async function GET(
   request: NextRequest,
@@ -15,10 +16,10 @@ export async function GET(
   try {
     const { accountId } = await params;
 
-    // Require VIEW_KANBAN permission
-    await requireAuthAndPermission(Permission.VIEW_KANBAN, {}, request);
+    // Require VIEW_PROJECTS permission (kanban view permissions are deprecated)
+    await requireAuthAndPermission(Permission.VIEW_PROJECTS, { accountId }, request);
 
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }
@@ -65,10 +66,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Columns array is required' }, { status: 400 });
     }
 
-    // Require EDIT_KANBAN_LAYOUT permission
-    await requireAuthAndPermission(Permission.EDIT_KANBAN_LAYOUT, {}, request);
+    // Require EDIT_PROJECT permission (kanban layout permissions are deprecated)
+    await requireAuthAndPermission(Permission.EDIT_PROJECT, { accountId }, request);
 
-    const supabase = await createServerSupabase();
+    const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }

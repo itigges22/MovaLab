@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase-server'
-import { hasPermission } from '@/lib/rbac'
+import { createApiSupabaseClient } from '@/lib/supabase-server'
+import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { createProjectSchema, validateRequestBody } from '@/lib/validation-schemas'
 import { logger } from '@/lib/debug-logger'
@@ -11,7 +11,7 @@ import { config } from '@/lib/config'
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabase()
+    const supabase = createApiSupabaseClient(request)
     if (!supabase) {
       logger.error('Failed to create Supabase client', { action: 'create_project' })
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
     const { accountId } = validation.data
 
     // Check CREATE_PROJECT permission with account context
-    const canCreateProject = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId })
+    // CRITICAL: Pass authenticated supabase client for proper RLS context in permission checks
+    const canCreateProject = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId }, supabase)
     if (!canCreateProject) {
       logger.warn('Insufficient permissions to create project', {
         action: 'create_project',
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
         end_date: validation.data.end_date,
         budget: validation.data.budget,
         assigned_user_id: validation.data.assigned_user_id || user.id,
+        created_by: user.id,
         created_at: new Date().toISOString()
       })
       .select()
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabase()
+    const supabase = createApiSupabaseClient(request)
     if (!supabase) {
       logger.error('Failed to create Supabase client', { action: 'get_projects' })
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
@@ -164,17 +166,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
-    // Check VIEW_PROJECTS permission
-    const canViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS)
-    if (!canViewProjects) {
-      return NextResponse.json({ error: 'Insufficient permissions to view projects' }, { status: 403 })
+    // Check if user is superadmin (bypasses all permission checks)
+    const userIsSuperadmin = isSuperadmin(userProfile)
+
+    // Check VIEW_PROJECTS permission (superadmins bypass this)
+    // CRITICAL: Pass authenticated supabase client for proper RLS context
+    if (!userIsSuperadmin) {
+      const canViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS, undefined, supabase)
+      if (!canViewProjects) {
+        return NextResponse.json({ error: 'Insufficient permissions to view projects' }, { status: 403 })
+      }
     }
 
-    const isSuperadmin = userProfile?.user_roles?.some((ur: any) =>
-      ur.roles.name === 'Superadmin' ||
-      ur.roles.name === 'superadmin' ||
-      ur.roles.name.toLowerCase() === 'superadmin'
-    )
+    // Check if user has VIEW_ALL_PROJECTS permission (superadmins get this by default)
+    const hasViewAllProjects = userIsSuperadmin || await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS, undefined, supabase)
 
     // Build projects query
     let query = supabase
@@ -185,10 +190,42 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false })
 
-    if (!isSuperadmin) {
-      // For non-superadmin users, only show projects they are assigned to
-      query = query.eq('assigned_user_id', userId).limit(limit)
+    if (!hasViewAllProjects) {
+      // For users without VIEW_ALL_PROJECTS, get projects they have access to
+      // 1. Projects they created
+      // 2. Projects they're assigned to
+      // 3. Projects via project_assignments
+      // 4. Projects where they have tasks assigned
+
+      // Get project IDs from project_assignments
+      const { data: assignedProjects } = await supabase
+        .from('project_assignments')
+        .select('project_id')
+        .eq('user_id', userId)
+        .is('removed_at', null)
+
+      // Get project IDs from tasks
+      const { data: taskProjects } = await supabase
+        .from('tasks')
+        .select('project_id')
+        .eq('assigned_to', userId)
+
+      // Combine all project IDs
+      const assignedProjectIds = assignedProjects?.map((p: any) => p.project_id) || []
+      const taskProjectIds = taskProjects?.map((t: any) => t.project_id) || []
+      const allProjectIds = [...new Set([...assignedProjectIds, ...taskProjectIds])]
+
+      // Filter projects by: created by user, assigned to user, or in the combined list
+      if (allProjectIds.length > 0) {
+        query = query.or(`created_by.eq.${userId},assigned_user_id.eq.${userId},id.in.(${allProjectIds.join(',')})`)
+      } else {
+        query = query.or(`created_by.eq.${userId},assigned_user_id.eq.${userId}`)
+      }
+      query = query.limit(limit)
     }
+
+    // Exclude completed projects - they go to "Finished Projects" on account page
+    query = query.neq('status', 'complete')
 
     const { data: projects, error: queryError } = await query
 

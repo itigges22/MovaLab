@@ -2,34 +2,104 @@
 
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo, Suspense } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RoleGuard } from "@/components/role-guard"
 import { hasPermission } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
-import dynamic from 'next/dynamic'
-import CapacityDashboard from '@/components/capacity-dashboard'
-import DragAvailabilityCalendar from '@/components/drag-availability-calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Skeleton } from "@/components/ui/skeleton"
+import dynamic from 'next/dynamic'
 
-// Dynamically import AssignedProjectsSection to reduce initial bundle size
-const AssignedProjectsSection = dynamic(
-  () => import('@/components/assigned-projects-section').then(mod => ({ default: mod.AssignedProjectsSection })),
-  { 
-    loading: () => (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-sm text-gray-600">Loading projects...</p>
-          </div>
-        </CardContent>
-      </Card>
-    ),
-    ssr: false
-  }
+// Loading skeleton for components - must be defined before dynamic imports
+const ComponentSkeleton = () => (
+  <div className="space-y-3">
+    <Skeleton className="h-8 w-full" />
+    <Skeleton className="h-32 w-full" />
+    <Skeleton className="h-8 w-full" />
+  </div>
 )
+
+// Code Splitting: Use Next.js dynamic() instead of React lazy() for better stability
+const CapacityDashboard = dynamic(() => import('@/components/capacity-dashboard'), {
+  loading: () => <ComponentSkeleton />,
+  ssr: false
+})
+const DragAvailabilityCalendar = dynamic(() => import('@/components/drag-availability-calendar'), {
+  loading: () => <ComponentSkeleton />,
+  ssr: false
+})
+const UnifiedProjectsSection = dynamic(
+  () => import('@/components/unified-projects-section').then(mod => mod.UnifiedProjectsSection),
+  { loading: () => <ComponentSkeleton />, ssr: false }
+)
+
+// Memoized Profile Card to prevent unnecessary re-renders
+const ProfileCard = memo(({ userProfile }: { userProfile: any }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Profile Information</CardTitle>
+      <CardDescription>Your account details</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-2">
+        <p><strong>Name:</strong> {userProfile?.name || 'N/A'}</p>
+        <p><strong>Email:</strong> {userProfile?.email || 'N/A'}</p>
+        <p><strong>Roles:</strong> {userProfile?.user_roles?.map((ur: any) => ur.roles.name).join(', ') || 'None assigned'}</p>
+        <p><strong>Departments:</strong> {userProfile?.user_roles?.map((ur: any) => ur.roles.departments?.name).filter((name: any): name is string => Boolean(name)).join(', ') || 'None assigned'}</p>
+      </div>
+    </CardContent>
+  </Card>
+))
+ProfileCard.displayName = 'ProfileCard'
+
+// Memoized Quick Actions Card to prevent unnecessary re-renders
+const QuickActionsCard = memo(({
+  canViewAccounts,
+  canViewDepartments,
+  canAccessAdmin,
+  canAccessAnalytics,
+  onNavigate
+}: {
+  canViewAccounts: boolean
+  canViewDepartments: boolean
+  canAccessAdmin: boolean
+  canAccessAnalytics: boolean
+  onNavigate: (path: string) => void
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Quick Actions</CardTitle>
+      <CardDescription>Common tasks</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-2">
+        {canViewAccounts && (
+          <Button className="w-full" variant="outline" onClick={() => onNavigate('/accounts')}>
+            View My Accounts
+          </Button>
+        )}
+        {canViewDepartments && (
+          <Button className="w-full" variant="outline" onClick={() => onNavigate('/departments')}>
+            View My Departments
+          </Button>
+        )}
+        {canAccessAdmin && (
+          <Button className="w-full" variant="outline" onClick={() => onNavigate('/admin')}>
+            View Admin Page
+          </Button>
+        )}
+        {canAccessAnalytics && (
+          <Button className="w-full" variant="outline" onClick={() => onNavigate('/analytics')}>
+            View Org Analytics
+          </Button>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+))
+QuickActionsCard.displayName = 'QuickActionsCard'
 
 export default function DashboardPage() {
   const { userProfile, loading } = useAuth()
@@ -123,23 +193,29 @@ export default function DashboardPage() {
             <p className="text-gray-600">Welcome to your PRISM PSA dashboard</p>
           </div>
 
-        {/* Assigned Projects Section */}
-        <AssignedProjectsSection userProfile={userProfile} />
+        {/* Unified Projects Section - combines workflow inbox and assigned projects */}
+        <div className="mb-8">
+          <Suspense fallback={<ComponentSkeleton />}>
+            <UnifiedProjectsSection userProfile={userProfile} />
+          </Suspense>
+        </div>
 
         {/* Capacity Dashboard - Current Week Utilization */}
         {userProfile && (
           <div className="mb-8 mt-8">
-            <CapacityDashboard
-              key={capacityRefreshKey}
-              userProfile={userProfile}
-              onOpenAvailability={() => setShowAvailabilityDialog(true)}
-            />
+            <Suspense fallback={<ComponentSkeleton />}>
+              <CapacityDashboard
+                key={capacityRefreshKey}
+                userProfile={userProfile}
+                onOpenAvailability={() => setShowAvailabilityDialog(true)}
+              />
+            </Suspense>
           </div>
         )}
 
-        {/* Work Availability Dialog */}
+        {/* Work Availability Dialog - Lazy loaded only when opened */}
         <Dialog open={showAvailabilityDialog} onOpenChange={setShowAvailabilityDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Set Work Availability</DialogTitle>
               <DialogDescription>
@@ -147,64 +223,29 @@ export default function DashboardPage() {
               </DialogDescription>
             </DialogHeader>
             {userProfile && (
-              <DragAvailabilityCalendar
-                userProfile={userProfile}
-                onSave={() => {
-                  // Refresh the capacity chart after saving
-                  setCapacityRefreshKey(prev => prev + 1)
-                }}
-              />
+              <Suspense fallback={<ComponentSkeleton />}>
+                <DragAvailabilityCalendar
+                  userProfile={userProfile}
+                  onSave={() => {
+                    // Refresh the capacity chart after saving
+                    setCapacityRefreshKey(prev => prev + 1)
+                  }}
+                />
+              </Suspense>
             )}
           </DialogContent>
         </Dialog>
 
-        {/* User Info and Quick Actions */}
+        {/* User Info and Quick Actions - Memoized to prevent unnecessary re-renders */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Your account details</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p><strong>Name:</strong> {userProfile?.name || 'N/A'}</p>
-                <p><strong>Email:</strong> {userProfile?.email || 'N/A'}</p>
-                <p><strong>Roles:</strong> {userProfile?.user_roles?.map(ur => ur.roles.name).join(', ') || 'None assigned'}</p>
-                <p><strong>Departments:</strong> {userProfile?.user_roles?.map(ur => ur.roles.departments?.name).filter((name): name is string => Boolean(name)).join(', ') || 'None assigned'}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Common tasks</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {canViewAccounts && (
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/accounts')}>
-                    View My Accounts
-                  </Button>
-                )}
-                {canViewDepartments && (
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/departments')}>
-                    View My Departments
-                  </Button>
-                )}
-                {canAccessAdmin && (
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/admin')}>
-                    View Admin Page
-                  </Button>
-                )}
-                {canAccessAnalytics && (
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/analytics')}>
-                    View Org Analytics
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {userProfile && <ProfileCard userProfile={userProfile} />}
+          <QuickActionsCard
+            canViewAccounts={canViewAccounts}
+            canViewDepartments={canViewDepartments}
+            canAccessAdmin={canAccessAdmin}
+            canAccessAnalytics={canAccessAnalytics}
+            onNavigate={(path) => router.push(path)}
+          />
         </div>
 
       </div>

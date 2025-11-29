@@ -6,7 +6,38 @@ const nextConfig: NextConfig = {
 
   // Configure on-demand revalidation for chunk loading
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-icons',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-label',
+      '@radix-ui/react-slot',
+      '@xyflow/react',
+      'recharts',
+      'date-fns',
+    ],
+    optimizeCss: true,
+    optimizeServerReact: true,
+  },
+
+  // Production optimizations
+  reactStrictMode: true,
+
+  // Performance optimizations
+  poweredByHeader: false,
+  compress: true,
+
+  // Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60,
   },
 
   compiler: {

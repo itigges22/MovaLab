@@ -78,8 +78,9 @@ export function useClockStatus() {
   })
 
   return {
-    clockedIn: data?.clockedIn ?? false,
-    currentSession: data?.currentSession,
+    // API returns isClockedIn and session, map to clockedIn and currentSession
+    clockedIn: data?.isClockedIn ?? false,
+    currentSession: data?.session ?? null,
     error,
     isLoading,
     mutate
