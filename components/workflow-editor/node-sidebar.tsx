@@ -1,6 +1,6 @@
 'use client';
 
-import { GitBranch, Users, UserCheck, Play, Flag, FileText, GitMerge } from 'lucide-react';
+import { GitBranch, Users, UserCheck, Play, Flag, FileText } from 'lucide-react';
 import { WorkflowNodeType } from './workflow-node';
 
 interface NodeTypeConfig {
@@ -52,14 +52,6 @@ const nodeTypes: NodeTypeConfig[] = [
     description: 'Collect structured data via form. User fills out fields before continuing.',
     bgColor: 'bg-cyan-50',
     borderColor: 'border-cyan-500',
-  },
-  {
-    type: 'conditional',
-    label: 'Conditional',
-    icon: GitMerge,
-    description: 'Smart routing: Different paths based on previous decision (e.g., if approved → delivery, if rejected → revisions).',
-    bgColor: 'bg-pink-50',
-    borderColor: 'border-pink-500',
   },
   {
     type: 'end',
@@ -120,7 +112,7 @@ export function NodeSidebar() {
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-xs font-semibold text-amber-900 mb-2">Common Patterns</p>
           <ul className="text-xs text-amber-800 space-y-1">
-            <li><strong>Review Loop:</strong> Role → Approval → Conditional (if rejected, back to Role)</li>
+            <li><strong>Review Loop:</strong> Role → Approval (approved → End, rejected → Role)</li>
             <li><strong>Sequential Steps:</strong> Role → Role → Role → End</li>
             <li><strong>Quality Gate:</strong> Role → Approval → End</li>
           </ul>
@@ -132,8 +124,8 @@ export function NodeSidebar() {
             <li>✓ Every workflow needs Start + End</li>
             <li>✓ All nodes must be connected</li>
             <li>✓ Configure nodes after adding them</li>
-            <li>✓ Use Conditional after Approval for smart routing</li>
-            <li>✗ Avoid circular loops (infinite cycles)</li>
+            <li>✓ Approval nodes can have multiple paths (approved/rejected)</li>
+            <li>✗ Avoid circular loops without exit paths</li>
           </ul>
         </div>
 

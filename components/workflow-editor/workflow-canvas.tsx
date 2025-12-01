@@ -91,14 +91,14 @@ function WorkflowCanvasInner({
 
   const onConnect = useCallback(
     (params: Connection) => {
-      // Check if source node is conditional
+      // Check if source node is approval - these can have multiple decision-based paths
       const sourceNode = nodes.find((n) => n.id === params.source);
-      if (sourceNode?.data.type === 'conditional') {
-        // Open edge config dialog for conditional nodes
+      if (sourceNode?.data.type === 'approval') {
+        // Open edge config dialog for approval nodes to set decision (approved/rejected)
         setPendingConnection(params);
         setEdgeConfigDialogOpen(true);
       } else {
-        // Add edge normally
+        // Add edge normally for all other node types
         setEdges((eds) => addEdge(params, eds));
       }
     },
@@ -235,9 +235,8 @@ function WorkflowCanvasInner({
         } else if (!node.data.config?.formFields || node.data.config.formFields.length === 0) {
           unconfiguredNodes.push({ node, reason: 'At least one form field is required' });
         }
-      } else if (node.data.type === 'conditional' && !node.data.config?.conditionType) {
-        unconfiguredNodes.push({ node, reason: 'Condition type not selected' });
       }
+      // Note: conditional nodes are deprecated - branching is now handled by approval nodes directly
     });
 
     if (unconfiguredNodes.length > 0) {
@@ -272,17 +271,18 @@ function WorkflowCanvasInner({
         const outgoingEdges = edges.filter((e) => e.source === currentId);
 
         for (const edge of outgoingEdges) {
-          // For conditional nodes, follow all paths for validation
+          // For approval nodes (and legacy conditional nodes), follow decision-based paths
           // Rejection loops are valid as long as an approval path to End exists
-          if (currentNode?.data.type === 'conditional') {
+          if (currentNode?.data.type === 'approval' || currentNode?.data.type === 'conditional') {
             const edgeData = edge.data as any;
             // Follow approved path OR any path without a decision label (default path)
-            // Skip rejected/needs_changes paths as they create valid revision loops
-            if (edgeData?.decision === 'approved' || edgeData?.decision === undefined || edgeData?.decision === null) {
+            // Skip rejected paths as they create valid revision loops
+            if (edgeData?.decision === 'approved' || edgeData?.conditionValue === 'approved' ||
+                edgeData?.decision === undefined || edgeData?.decision === null) {
               queue.push(edge.target);
             }
           } else {
-            // For non-conditional nodes, follow all outgoing edges
+            // For other nodes, follow all outgoing edges
             queue.push(edge.target);
           }
         }
@@ -400,14 +400,10 @@ function WorkflowCanvasInner({
           onOpenChange={setEdgeConfigDialogOpen}
           sourceNodeType={
             pendingConnection?.source
-              ? nodes.find((n) => n.id === pendingConnection.source)?.data.type || 'conditional'
-              : 'conditional'
+              ? nodes.find((n) => n.id === pendingConnection.source)?.data.type || 'approval'
+              : 'approval'
           }
-          conditionType={
-            pendingConnection?.source
-              ? nodes.find((n) => n.id === pendingConnection.source)?.data.config?.conditionType
-              : 'approval_decision'
-          }
+          conditionType="approval_decision"
           onSave={handleEdgeConfigSave}
         />
 

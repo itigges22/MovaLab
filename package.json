@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "rm -rf .next && next dev",
+    "dev:fresh": "lsof -ti:3000 | xargs kill -9 2>/dev/null; rm -rf .next && next dev",
+    "clean": "rm -rf .next node_modules/.cache",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

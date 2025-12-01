@@ -21,8 +21,10 @@ interface ClockSession {
 
 export function ClockWidget() {
   const { userProfile, loading: authLoading } = useAuth()
+  // Only fetch clock status when authenticated (prevents 404 on login pages)
+  const isAuthenticated = !authLoading && !!userProfile
   // Use SWR hook for automatic caching and revalidation
-  const { clockedIn, currentSession, isLoading, mutate } = useClockStatus()
+  const { clockedIn, currentSession, isLoading, mutate } = useClockStatus(isAuthenticated)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [clockingIn, setClockingIn] = useState(false)
   const [showClockOutDialog, setShowClockOutDialog] = useState(false)

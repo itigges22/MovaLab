@@ -56,6 +56,8 @@ export function EdgeConfigDialog({
       label: label || conditionValue,
       conditionValue,
       conditionType,
+      // Also store decision for workflow execution service compatibility
+      decision: conditionType === 'approval_decision' ? conditionValue : undefined,
     };
     onSave(data);
     onOpenChange(false);
@@ -66,7 +68,6 @@ export function EdgeConfigDialog({
       return [
         { value: 'approved', label: 'Approved' },
         { value: 'rejected', label: 'Rejected' },
-        { value: 'needs_changes', label: 'Needs Changes' },
       ];
     }
     return [];
@@ -78,9 +79,9 @@ export function EdgeConfigDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Configure Connection Path</DialogTitle>
+          <DialogTitle>Configure Decision Path</DialogTitle>
           <DialogDescription>
-            Define when this path should be taken from the {sourceNodeType} node. The conditional node evaluates the output from a previous node (e.g., approval decision) and routes to different paths.
+            Define when this path should be taken from the {sourceNodeType} node. Approval nodes can route to different paths based on the decision (approved or rejected).
           </DialogDescription>
         </DialogHeader>
 

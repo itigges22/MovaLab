@@ -361,12 +361,13 @@ export async function PUT(
         to_node_id: idMapping[edge.target] || edge.target,
       };
 
-      // If edge has data (for conditional routing), save it
+      // If edge has data (for decision-based routing), save it
       if (edge.data) {
         connection.condition = {
           label: edge.data.label,
           conditionValue: edge.data.conditionValue,
           conditionType: edge.data.conditionType,
+          decision: edge.data.decision,  // For approval node routing
         };
       }
 

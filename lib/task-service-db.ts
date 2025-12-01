@@ -79,6 +79,12 @@ class TaskServiceDB {
    * Calculates actual_hours from time_entries instead of using stored value
    */
   async getTasksByProject(projectId: string): Promise<Task[]> {
+    // Guard against invalid projectId
+    if (!projectId || typeof projectId !== 'string') {
+      console.warn('getTasksByProject called with invalid projectId:', projectId);
+      return [];
+    }
+
     try {
       const supabase = this.getSupabase();
 
@@ -94,7 +100,13 @@ class TaskServiceDB {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching tasks:', error);
+        console.error('Error fetching tasks:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          projectId
+        });
         throw error;
       }
 
@@ -112,7 +124,13 @@ class TaskServiceDB {
         .in('task_id', taskIds);
 
       if (timeError) {
-        console.error('Error fetching time entries:', timeError);
+        console.error('Error fetching time entries:', {
+          message: timeError.message,
+          code: timeError.code,
+          details: timeError.details,
+          hint: timeError.hint,
+          taskCount: taskIds.length
+        });
         // Continue without time entries - use stored actual_hours
         return data.map(this.mapTaskRowToTask);
       }
@@ -135,8 +153,13 @@ class TaskServiceDB {
         task.actual_hours = hoursPerTask.get(task.id) || 0;
         return task;
       });
-    } catch (error) {
-      console.error('Error in getTasksByProject:', error);
+    } catch (error: any) {
+      console.error('Error in getTasksByProject:', {
+        message: error?.message || 'Unknown error',
+        code: error?.code,
+        projectId,
+        stack: error?.stack?.slice(0, 500)
+      });
       return [];
     }
   }

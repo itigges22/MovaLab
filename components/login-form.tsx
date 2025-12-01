@@ -18,7 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { signInWithEmail, signUpWithEmail, resetPassword } from "@/lib/auth"
+import { signInWithEmail, signUpWithEmail } from "@/lib/auth"
 
 interface LoginFormProps extends React.ComponentProps<"div"> {
   mode?: 'login' | 'signup'
@@ -33,7 +33,6 @@ export function LoginForm({
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isResetting, setIsResetting] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [isSignUp, setIsSignUp] = useState(mode === 'signup')
@@ -50,9 +49,16 @@ export function LoginForm({
 
     try {
       if (isSignUp) {
-        const { user } = await signUpWithEmail(email, password, name)
-        if (user) {
-          setMessage('Account created successfully! Please check your email to verify your account.')
+        const result = await signUpWithEmail(email, password, name)
+        if (result.user) {
+          if (result.needsEmailConfirmation) {
+            setMessage('Account created successfully! Please check your email to verify your account before logging in.')
+          } else {
+            setMessage('Account created successfully! Redirecting...')
+            setTimeout(() => {
+              window.location.href = redirectTo
+            }, 1500)
+          }
         }
       } else {
         const { user } = await signInWithEmail(email, password)
@@ -95,27 +101,6 @@ export function LoginForm({
       setError(errorMessage)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email address first.')
-      return
-    }
-
-    setIsResetting(true)
-    setError('')
-    setMessage('')
-
-    try {
-      await resetPassword(email)
-      setMessage('Password reset email sent! Check your inbox.')
-    } catch (error: any) {
-      console.error('Password reset error:', error)
-      setError(error.message || 'Failed to send password reset email.')
-    } finally {
-      setIsResetting(false)
     }
   }
 
@@ -168,22 +153,20 @@ export function LoginForm({
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
                   {!isSignUp && (
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
+                    <a
+                      href="/forgot-password"
                       className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                      disabled={isLoading || isResetting}
                     >
-                      {isResetting ? 'Sending...' : 'Forgot your password?'}
-                    </button>
+                      Forgot your password?
+                    </a>
                   )}
                 </div>
-                <Input 
-                  id="password" 
-                  type="password" 
+                <Input
+                  id="password"
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required 
+                  required
                   disabled={isLoading}
                 />
               </Field>

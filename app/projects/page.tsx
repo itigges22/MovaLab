@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/lib/hooks/useAuth'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -70,6 +70,24 @@ export default function ProjectsPage() {
   const [approvalsLoading, setApprovalsLoading] = useState(true)
   const [canCreateProject, setCanCreateProject] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+
+  // Handle project creation - simple optimistic update
+  const handleProjectCreated = useCallback((newProject: any) => {
+    if (newProject) {
+      const projectWithDetails: ProjectWithDetails = {
+        ...newProject,
+        account: newProject.account || { id: newProject.account_id, name: 'Loading...' },
+        departments: [],
+        workflow_step: null,
+      }
+      // Add directly to visibleProjects for immediate visibility
+      setVisibleProjects(prev => [projectWithDetails, ...prev])
+    }
+    // Trigger background refresh after 500ms to get complete data
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1)
+    }, 500)
+  }, [])
 
   // Check create project permission
   useEffect(() => {
@@ -309,9 +327,12 @@ export default function ProjectsPage() {
     loadProjects()
   }, [userProfile, refreshKey])
 
-  // Filter projects based on permissions
+  // Filter projects based on permissions - ONLY runs on login or explicit refresh
+  // This prevents race conditions with optimistic updates
   useEffect(() => {
-    if (!userProfile || projects.length === 0) {
+    if (!userProfile || loading) return
+
+    if (projects.length === 0) {
       setVisibleProjects([])
       return
     }
@@ -320,15 +341,13 @@ export default function ProjectsPage() {
       const filtered: ProjectWithDetails[] = []
       const hasViewAllProjects = await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS)
       const hasViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS)
-      
+
       for (const project of projects) {
-        // If user has VIEW_ALL_PROJECTS, they can see all projects
         if (hasViewAllProjects) {
           filtered.push(project)
           continue
         }
-        
-        // If user has VIEW_PROJECTS, check if they can view this specific project
+
         if (hasViewProjects) {
           const canView = await canViewProject(userProfile, project.id)
           if (canView) {
@@ -336,12 +355,12 @@ export default function ProjectsPage() {
           }
         }
       }
-      
+
       setVisibleProjects(filtered)
     }
 
     filterProjects()
-  }, [projects, userProfile])
+  }, [userProfile, refreshKey, loading])  // NOT [projects] - prevents race conditions
 
   // Status colors removed - projects now use workflow steps
 
@@ -506,7 +525,7 @@ export default function ProjectsPage() {
           </div>
           {canCreateProject && (
             <ProjectCreationDialog
-              onProjectCreated={() => setRefreshKey(prev => prev + 1)}
+              onProjectCreated={handleProjectCreated}
             >
               <Button>
                 <Plus className="w-4 h-4 mr-2" />

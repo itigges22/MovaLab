@@ -71,18 +71,22 @@ export function useAccountCapacity(accountId: string | undefined, period: TimePe
 }
 
 // Clock status hook
-export function useClockStatus() {
-  const { data, error, isLoading, mutate } = useSWR('/api/clock', {
-    // Refresh every 30 seconds
-    refreshInterval: 30000
-  })
+// Pass enabled=false to disable fetching (e.g., when not authenticated)
+export function useClockStatus(enabled: boolean = true) {
+  const { data, error, isLoading, mutate } = useSWR(
+    enabled ? '/api/clock' : null,
+    {
+      // Refresh every 30 seconds
+      refreshInterval: 30000
+    }
+  )
 
   return {
     // API returns isClockedIn and session, map to clockedIn and currentSession
     clockedIn: data?.isClockedIn ?? false,
     currentSession: data?.session ?? null,
     error,
-    isLoading,
+    isLoading: enabled ? isLoading : false,
     mutate
   }
 }

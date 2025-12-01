@@ -119,15 +119,17 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
     // Find start node
     const startNode = nodes.find(n => n.node_type === 'start');
     if (!startNode) {
-      // Fallback: sort by position_y
-      return nodes.sort((a, b) => a.position_y - b.position_y);
+      // Fallback: sort by position_y, excluding conditional nodes
+      return nodes
+        .filter(n => n.node_type !== 'conditional')
+        .sort((a, b) => a.position_y - b.position_y);
     }
 
     const ordered: WorkflowNode[] = [startNode];
     const visited = new Set<string>([startNode.id]);
 
     let currentNode = startNode;
-    let maxIterations = nodes.length; // Prevent infinite loops
+    let maxIterations = nodes.length * 2; // Allow extra iterations for skipping conditionals
     let iterations = 0;
 
     while (iterations < maxIterations) {
@@ -140,8 +142,16 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
       const nextNode = nodes.find(n => n.id === connection.to_node_id);
       if (!nextNode || visited.has(nextNode.id)) break;
 
-      ordered.push(nextNode);
       visited.add(nextNode.id);
+
+      // Skip conditional nodes - they're just routing logic, not visible steps
+      if (nextNode.node_type === 'conditional') {
+        // Follow through to the next node without adding conditional to the list
+        currentNode = nextNode;
+        continue;
+      }
+
+      ordered.push(nextNode);
       currentNode = nextNode;
 
       // Stop at end node

@@ -6,22 +6,23 @@ const nextConfig: NextConfig = {
 
   // Configure on-demand revalidation for chunk loading
   experimental: {
-    optimizePackageImports: [
-      'lucide-react',
-      '@radix-ui/react-icons',
-      '@radix-ui/react-dialog',
-      '@radix-ui/react-select',
-      '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-tooltip',
-      '@radix-ui/react-popover',
-      '@radix-ui/react-tabs',
-      '@radix-ui/react-label',
-      '@radix-ui/react-slot',
-      '@xyflow/react',
-      'recharts',
-      'date-fns',
-    ],
-    optimizeCss: true,
+    // optimizePackageImports disabled - causes vendor-chunks MODULE_NOT_FOUND in Next.js 15 dev mode
+    // optimizePackageImports: [
+    //   'lucide-react',
+    //   '@radix-ui/react-icons',
+    //   '@radix-ui/react-dialog',
+    //   '@radix-ui/react-select',
+    //   '@radix-ui/react-dropdown-menu',
+    //   '@radix-ui/react-tooltip',
+    //   '@radix-ui/react-popover',
+    //   '@radix-ui/react-tabs',
+    //   '@radix-ui/react-label',
+    //   '@radix-ui/react-slot',
+    //   '@xyflow/react',
+    //   'recharts',
+    //   'date-fns',
+    // ],
+    // optimizeCss: true, // Disabled - causes CSS MIME type issues in Next.js 15 dev mode
     optimizeServerReact: true,
   },
 

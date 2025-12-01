@@ -155,12 +155,13 @@ export default function WorkflowEditorPage() {
             type: conn.condition ? 'labeled' : 'smoothstep',
           };
 
-          // Add condition data if present (for conditional routing)
+          // Add condition data if present (for decision-based routing)
           if (conn.condition) {
             edge.data = {
               label: conn.condition.label,
               conditionValue: conn.condition.conditionValue,
               conditionType: conn.condition.conditionType,
+              decision: conn.condition.decision,  // For approval node routing
             };
           }
 

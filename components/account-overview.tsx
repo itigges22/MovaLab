@@ -2,8 +2,8 @@
 
 // Account overview component - updated to fix module resolution
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -96,7 +96,6 @@ const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
 export function AccountOverview({ account, metrics, urgentItems, userProfile, hasFullAccess = true }: AccountOverviewProps) {
   // Account overview component
   // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), only table view remains
-  const router = useRouter();
   const [viewMode, setViewMode] = useState<'table'>('table');
   const [projects, setProjects] = useState(account.projects);
   const [projectsLoading, setProjectsLoading] = useState(false);
@@ -381,16 +380,38 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   }, [account.id]);
 
   // Handle issue status update
-  const handleUpdateIssueStatus = async (issueId: string, newStatus: 'open' | 'in_progress' | 'resolved') => {
+  const handleUpdateIssueStatus = async (issueId: string, projectId: string, newStatus: 'open' | 'in_progress' | 'resolved') => {
+    // Optimistic update for immediate feedback
+    const previousIssues = [...activeIssues];
+    setActiveIssues(prev => prev.map(issue =>
+      issue.id === issueId ? { ...issue, status: newStatus } : issue
+    ));
+
     try {
-      await projectIssuesService.updateIssueStatus(issueId, newStatus);
-      
-      // Reload active issues (will automatically filter out resolved ones)
-      const issues = await projectIssuesService.getAccountActiveIssues(account.id);
-      setActiveIssues(issues);
-    } catch (error) {
+      // Use API route for proper permission checking
+      const response = await fetch(`/api/projects/${projectId}/issues/${issueId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Reload active issues (will automatically filter out resolved ones)
+        const issues = await projectIssuesService.getAccountActiveIssues(account.id);
+        setActiveIssues(issues);
+        toast.success(`Issue ${newStatus === 'resolved' ? 'resolved' : 'status updated'}`);
+      } else {
+        // Revert on error
+        setActiveIssues(previousIssues);
+        toast.error(result.error || 'Failed to update issue status');
+      }
+    } catch (error: any) {
+      // Revert on error
+      setActiveIssues(previousIssues);
       console.error('Error updating issue status:', error);
-      alert('Failed to update issue status. Please try again.');
+      toast.error(error.message || 'Failed to update issue status. Please try again.');
     }
   };
 
@@ -446,9 +467,18 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   };
 
   const handleTaskCreated = (newProject: any, assignedUser?: any) => {
-    // Refresh server data to fetch complete project data including departments and stakeholders
-    // This ensures all data is fresh and accurate from the database without full page reload
-    router.refresh();
+    if (newProject) {
+      // Add the new project to local state immediately (optimistic update)
+      // Don't use router.refresh() - it can cause CSS MIME type issues in Next.js dev mode
+      const projectWithDetails: ProjectWithDetails = {
+        ...newProject,
+        departments: [],
+        assigned_users: assignedUser ? [assignedUser] : [],
+        status_info: { id: newProject.status || 'planning', name: 'Planning', color: '#6B7280' },
+        workflow_step: null,
+      };
+      setProjects(prev => [projectWithDetails, ...prev]);
+    }
   };
 
   // Helper functions to get status info
@@ -986,9 +1016,17 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
 
   // Handle project creation
   const handleProjectCreated = (newProject: any) => {
-    console.log('New project created:', newProject);
-    // Refresh projects list
-    setProjects(prevProjects => [...prevProjects, newProject]);
+    if (newProject) {
+      // Add the new project to local state immediately (optimistic update)
+      const projectWithDetails: ProjectWithDetails = {
+        ...newProject,
+        departments: [],
+        assigned_users: [],
+        status_info: { id: newProject.status || 'planning', name: 'Planning', color: '#6B7280' },
+        workflow_step: null,
+      };
+      setProjects(prev => [projectWithDetails, ...prev]);
+    }
     setProjectDialogOpen(false);
   };
 
@@ -1449,7 +1487,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                         <div className="flex-shrink-0">
                           <Select
                             value={issue.status}
-                            onValueChange={(value) => handleUpdateIssueStatus(issue.id, value as 'open' | 'in_progress' | 'resolved')}
+                            onValueChange={(value) => handleUpdateIssueStatus(issue.id, issue.project_id, value as 'open' | 'in_progress' | 'resolved')}
                           >
                             <SelectTrigger className="w-[130px] h-8 text-xs">
                               <SelectValue />

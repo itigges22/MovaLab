@@ -214,6 +214,9 @@ export default function ProjectDetailPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const tasksRef = useRef<Task[]>([])
 
+  // Project ref to avoid stale closures in intervals
+  const projectRef = useRef<ProjectWithDetails | null>(null)
+
   // Helper to update tasks and ref atomically (prevents stale closure issues)
   const updateTasks = (updater: Task[] | ((prev: Task[]) => Task[])) => {
     setTasks(prev => {
@@ -288,7 +291,13 @@ export default function ProjectDetailPage() {
     loadTasks()
   }, [userProfile, projectId])
 
+  // Keep projectRef in sync with project state (for use in intervals to avoid stale closures)
+  useEffect(() => {
+    projectRef.current = project
+  }, [project])
+
   // Auto-refresh tasks every 30 seconds for live progress bar updates
+  // Note: Uses projectRef.current to avoid restarting the interval when project state changes
   useEffect(() => {
     if (!projectId || !userProfile) return
 
@@ -297,7 +306,8 @@ export default function ProjectDetailPage() {
         // Silently refresh tasks without showing loading state
         const projectTasks = await taskServiceDB.getTasksByProject(projectId)
         updateTasks(projectTasks)
-        const calculatedHours = calculateEstimatedHours(projectTasks, project)
+        // Use projectRef.current to get latest project value without adding to dependencies
+        const calculatedHours = calculateEstimatedHours(projectTasks, projectRef.current)
         const remainingHours = calculateRemainingHours(projectTasks)
         setCalculatedEstimatedHours(calculatedHours)
         setCalculatedRemainingHours(remainingHours)
@@ -320,30 +330,26 @@ export default function ProjectDetailPage() {
     }, 30000) // 30 seconds
 
     return () => clearInterval(intervalId)
-  }, [projectId, userProfile, project])
+  }, [projectId, userProfile])
 
   // Check update and issue permissions (separate from edit project permission)
+  // Uses async hasPermission() for proper superadmin bypass, caching, and permission evaluation
   useEffect(() => {
     if (!userProfile) return
 
-    // Check if user has create_update permission in any of their roles
-    const hasCreateUpdatePerm = userProfile.user_roles?.some((ur: any) =>
-      ur.roles?.permissions?.create_update === true
-    ) || false
+    const checkPermissions = async () => {
+      const [canCreateUpdate, canCreateIssue, canEditIssue] = await Promise.all([
+        hasPermission(userProfile, Permission.CREATE_UPDATE),
+        hasPermission(userProfile, Permission.CREATE_ISSUE),
+        hasPermission(userProfile, Permission.EDIT_ISSUE)
+      ])
 
-    // Check if user has create_issue permission in any of their roles
-    const hasCreateIssuePerm = userProfile.user_roles?.some((ur: any) =>
-      ur.roles?.permissions?.create_issue === true
-    ) || false
+      setCanCreateUpdate(canCreateUpdate)
+      setCanCreateIssue(canCreateIssue)
+      setCanEditIssue(canEditIssue)
+    }
 
-    // Check if user has edit_issue permission in any of their roles
-    const hasEditIssuePerm = userProfile.user_roles?.some((ur: any) =>
-      ur.roles?.permissions?.edit_issue === true
-    ) || false
-
-    setCanCreateUpdate(hasCreateUpdatePerm)
-    setCanCreateIssue(hasCreateIssuePerm)
-    setCanEditIssue(hasEditIssuePerm)
+    checkPermissions()
   }, [userProfile])
 
   // Calculate estimated hours based on tasks
@@ -743,7 +749,7 @@ export default function ProjectDetailPage() {
     setDraggedTaskId(null)
   }, [])
 
-  // Handle workflow progress - refresh workflow components, step name, AND project data
+  // Handle workflow progress - refresh workflow components, step name, project data, issues, AND updates
   const handleWorkflowProgress = useCallback(async () => {
     // Increment the refresh key to force WorkflowTimeline to remount and refetch data
     setWorkflowRefreshKey(prev => prev + 1)
@@ -799,6 +805,29 @@ export default function ProjectDetailPage() {
           completed_at: projectData.completed_at
         })
       }
+
+      // Refresh issues (in case a rejection created a new issue)
+      try {
+        const issuesResponse = await fetch(`/api/projects/${projectId}/issues`)
+        const issuesResult = await issuesResponse.json()
+        if (issuesResponse.ok) {
+          setProjectIssues(issuesResult.issues)
+        }
+      } catch (issuesErr) {
+        console.error('Error refreshing issues:', issuesErr)
+      }
+
+      // Refresh updates (in case workflow added any updates)
+      try {
+        const updatesResponse = await fetch(`/api/projects/${projectId}/updates`)
+        const updatesResult = await updatesResponse.json()
+        if (updatesResponse.ok) {
+          setProjectUpdates(updatesResult.updates)
+        }
+      } catch (updatesErr) {
+        console.error('Error refreshing updates:', updatesErr)
+      }
+
     } catch (err) {
       console.error('Error refreshing workflow/project data:', err)
     }
@@ -1271,12 +1300,12 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // Load updates when project is loaded
+  // Load updates when project is loaded (only re-run when project ID changes, not on every property update)
   useEffect(() => {
-    if (project) {
+    if (project?.id) {
       loadProjectUpdates()
     }
-  }, [project])
+  }, [project?.id])
 
   // Submit new update
   const handleSubmitUpdate = async () => {
@@ -1333,12 +1362,12 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // Load issues when project is loaded
+  // Load issues when project is loaded (only re-run when project ID changes, not on every property update)
   useEffect(() => {
-    if (project) {
+    if (project?.id) {
       loadProjectIssues()
     }
-  }, [project])
+  }, [project?.id])
 
   // Submit new issue
   const handleSubmitIssue = async () => {
@@ -1376,6 +1405,12 @@ export default function ProjectDetailPage() {
 
   // Update issue status
   const handleUpdateIssueStatus = async (issueId: string, newStatus: 'open' | 'in_progress' | 'resolved') => {
+    // Optimistically update UI immediately for better UX
+    const previousIssues = [...projectIssues]
+    setProjectIssues(prev => prev.map(issue =>
+      issue.id === issueId ? { ...issue, status: newStatus } : issue
+    ))
+
     try {
       const response = await fetch(`/api/projects/${projectId}/issues/${issueId}`, {
         method: 'PUT',
@@ -1386,13 +1421,20 @@ export default function ProjectDetailPage() {
       const result = await response.json()
 
       if (response.ok) {
+        // Refresh to get full updated data (including resolver info)
         await loadProjectIssues()
+        toast.success(`Issue ${newStatus === 'resolved' ? 'resolved' : 'status updated'}`)
       } else {
-        alert(result.error || 'Failed to update issue status. Please try again.')
+        // Revert optimistic update on error
+        setProjectIssues(previousIssues)
+        toast.error(result.error || 'Failed to update issue status')
+        console.error('Error response:', result)
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setProjectIssues(previousIssues)
       console.error('Error updating issue status:', error)
-      alert('Failed to update issue status. Please try again.')
+      toast.error('Failed to update issue status. Please try again.')
     }
   }
 

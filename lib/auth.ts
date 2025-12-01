@@ -287,7 +287,8 @@ export async function signUpWithEmail(email: string, password: string, name: str
         data: {
           name,
         },
-        emailRedirectTo: `${window.location.origin}/welcome`,
+        // Use auth callback route for proper token exchange
+        emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
       },
     });
 
@@ -318,11 +319,15 @@ export async function signUpWithEmail(email: string, password: string, name: str
       throw new Error('User already registered');
     }
 
-    // Check if this is a new user by looking at the session
-    // If there's no session, it means the user already exists and email confirmation is required
+    // Check if email confirmation is pending
+    // When email confirmation is enabled in Supabase, data.user exists but data.session is null
+    // This is a SUCCESS case - the user was created but needs to confirm their email
     if (data.user && !data.session) {
-      // This is expected behavior for existing unconfirmed users, not an error
-      throw new Error('User already registered');
+      // Return with a flag indicating email confirmation is needed
+      return {
+        ...data,
+        needsEmailConfirmation: true
+      };
     }
 
     // Note: User profile is automatically created by database trigger
@@ -454,7 +459,8 @@ export async function resetPassword(email: string) {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      // Use auth callback route for proper token exchange
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
     });
 
     if (error) {

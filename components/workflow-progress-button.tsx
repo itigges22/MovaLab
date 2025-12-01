@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowRight, CheckCircle2, XCircle, AlertCircle, Send, Loader2, FileText } from 'lucide-react';
+import { ArrowRight, CheckCircle2, XCircle, Send, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClientSupabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -106,7 +106,7 @@ export function WorkflowProgressButton({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [workflowInstance, setWorkflowInstance] = useState<WorkflowInstance | null>(null);
   const [nextNode, setNextNode] = useState<NextNodePreview | null>(null);
-  const [decision, setDecision] = useState<'approved' | 'rejected' | 'needs_changes' | undefined>();
+  const [decision, setDecision] = useState<'approved' | 'rejected' | undefined>();
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
@@ -720,7 +720,7 @@ export function WorkflowProgressButton({
               {isApprovalNode && (
                 <div className="space-y-3">
                   <Label>Decision *</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
                       variant={decision === 'approved' ? 'default' : 'outline'}
@@ -729,15 +729,6 @@ export function WorkflowProgressButton({
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       Approve
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={decision === 'needs_changes' ? 'default' : 'outline'}
-                      onClick={() => setDecision('needs_changes')}
-                      className="flex items-center gap-2"
-                    >
-                      <AlertCircle className="w-4 h-4" />
-                      Needs Changes
                     </Button>
                     <Button
                       type="button"
@@ -962,7 +953,7 @@ export function WorkflowProgressButton({
                 <>
                   <Send className="w-4 h-4 mr-2" />
                   {isApprovalNode
-                    ? `${decision === 'approved' ? 'Approve' : decision === 'rejected' ? 'Reject' : 'Request Changes'} & Send`
+                    ? `${decision === 'approved' ? 'Approve' : 'Reject'} & Send`
                     : 'Send to Next Step'}
                 </>
               )}

@@ -207,7 +207,7 @@ export async function progressWorkflow(
   supabase: SupabaseClient,
   workflowInstanceId: string,
   currentUserId: string,
-  decision?: 'approved' | 'rejected' | 'needs_changes',
+  decision?: 'approved' | 'rejected',
   feedback?: string,
   formResponseId?: string,
   assignedUserId?: string,
@@ -312,7 +312,11 @@ export async function progressWorkflow(
     // Determine next node based on node type and decision
     let nextNode;
     if (currentNode.node_type === 'conditional') {
+      // Legacy support for existing workflows with conditional nodes
       nextNode = findConditionalNextNode(currentNode, decision, connections, nodes);
+    } else if (currentNode.node_type === 'approval' && decision) {
+      // Approval nodes can have multiple outgoing paths based on decision
+      nextNode = findDecisionBasedNextNode(currentNode, decision, connections, nodes);
     } else {
       nextNode = findNextNode(currentNode.id, connections, nodes);
     }
@@ -329,7 +333,7 @@ export async function progressWorkflow(
     }
 
     // Update workflow instance
-    const isComplete = !nextNode || nextNode.node_type === 'end';
+    let isComplete = !nextNode || nextNode.node_type === 'end';
     await supabase
       .from('workflow_instances')
       .update({
@@ -338,6 +342,38 @@ export async function progressWorkflow(
         completed_at: isComplete ? new Date().toISOString() : null,
       })
       .eq('id', workflowInstanceId);
+
+    // AUTO-ADVANCE: If we landed on a conditional node, immediately route through it
+    // This makes conditional nodes invisible to users - they just see the destination
+    if (nextNode?.node_type === 'conditional' && decision) {
+      const conditionalNode = nextNode; // Save reference to conditional node
+      const finalNode = findConditionalNextNode(conditionalNode, decision, connections, nodes);
+
+      if (finalNode) {
+        // Update to final destination, skipping the conditional
+        isComplete = finalNode.node_type === 'end';
+        await supabase
+          .from('workflow_instances')
+          .update({
+            current_node_id: finalNode.id,
+            status: isComplete ? 'completed' : 'active',
+            completed_at: isComplete ? new Date().toISOString() : null,
+          })
+          .eq('id', workflowInstanceId);
+
+        // Add history entry for conditional auto-advance
+        await supabase.from('workflow_history').insert({
+          workflow_instance_id: workflowInstanceId,
+          from_node_id: conditionalNode.id,
+          to_node_id: finalNode.id,
+          handed_off_by: currentUserId,
+          notes: `Auto-routed based on decision: ${decision}`,
+        });
+
+        // Update nextNode for subsequent processing (assignments, completion)
+        nextNode = finalNode;
+      }
+    }
 
     // Add current user to project_contributors (they participated in this workflow step)
     if (instance.project_id) {
@@ -367,6 +403,45 @@ export async function progressWorkflow(
       form_response_id: formResponseId,
       notes: notesContent,
     });
+
+    // AUTO-CREATE PROJECT ISSUE ON REJECTION
+    // When a workflow step is rejected, automatically create a project issue
+    // to track the rejection reason and ensure it's visible in the project's Issues tab
+    if (decision === 'rejected' && instance.project_id) {
+      const issueContent = `**Workflow Rejected**: ${currentNode.label}\n\n` +
+        `Workflow: ${instance.workflow_templates?.name || 'Unknown'}\n` +
+        `Reason: ${feedback || 'No reason provided'}`;
+
+      await supabase.from('project_issues').insert({
+        project_id: instance.project_id,
+        content: issueContent,
+        status: 'open',
+        created_by: currentUserId,
+      });
+    }
+
+    // AUTO-CREATE PROJECT UPDATE ON ALL PROGRESSIONS
+    // Document every workflow step transition in the project's Updates tab
+    // This provides a visible timeline of project progress
+    if (instance.project_id) {
+      let updateContent = '';
+
+      if (decision === 'approved') {
+        updateContent = `**Approved**: ${currentNode.label} → ${nextNode?.label || 'Complete'}` +
+          (feedback ? `\nNotes: ${feedback}` : '');
+      } else if (decision === 'rejected') {
+        updateContent = `**Rejected**: ${currentNode.label}\n` +
+          `Reason: ${feedback || 'No reason provided'}`;
+      } else {
+        updateContent = `**Progressed**: ${currentNode.label} → ${nextNode?.label || 'Complete'}`;
+      }
+
+      await supabase.from('project_updates').insert({
+        project_id: instance.project_id,
+        content: updateContent,
+        created_by: currentUserId,
+      });
+    }
 
     // Handle workflow completion or progression
     if (isComplete && instance.project_id) {
@@ -401,7 +476,7 @@ function findNextNode(
 }
 
 /**
- * Find next node for conditional routing
+ * Find next node for conditional routing (legacy support)
  */
 function findConditionalNextNode(
   conditionalNode: any,
@@ -414,10 +489,12 @@ function findConditionalNextNode(
   }
 
   // Find connection that matches the decision
+  // Check both condition.decision AND condition.conditionValue for compatibility
+  // (database stores conditionValue, but some code may use decision)
   const matchingConnection = connections.find(
     (c) =>
       c.from_node_id === conditionalNode.id &&
-      c.condition?.decision === decision
+      (c.condition?.decision === decision || c.condition?.conditionValue === decision)
   );
 
   if (!matchingConnection) {
@@ -426,6 +503,48 @@ function findConditionalNextNode(
   }
 
   return nodes.find((n) => n.id === matchingConnection.to_node_id);
+}
+
+/**
+ * Find next node for approval nodes with decision-based routing
+ * This is the new pattern where approval nodes directly have multiple outgoing edges
+ */
+function findDecisionBasedNextNode(
+  approvalNode: any,
+  decision: string,
+  connections: any[] | null,
+  nodes: any[] | null
+): any | null {
+  if (!connections || !nodes) {
+    return null;
+  }
+
+  // Find connection from this approval node with matching decision
+  // Check both condition.decision and condition.conditionValue for compatibility
+  const matchingConnection = connections.find(
+    (c) =>
+      c.from_node_id === approvalNode.id &&
+      (c.condition?.decision === decision || c.condition?.conditionValue === decision)
+  );
+
+  if (matchingConnection) {
+    return nodes.find((n) => n.id === matchingConnection.to_node_id) || null;
+  }
+
+  // Fall back to default path (connection without decision label)
+  const defaultConnection = connections.find(
+    (c) =>
+      c.from_node_id === approvalNode.id &&
+      !c.condition?.decision &&
+      !c.condition?.conditionValue
+  );
+
+  if (defaultConnection) {
+    return nodes.find((n) => n.id === defaultConnection.to_node_id) || null;
+  }
+
+  // If no matching or default path, just follow the first connection
+  return findNextNode(approvalNode.id, connections, nodes);
 }
 
 /**
