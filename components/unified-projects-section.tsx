@@ -16,7 +16,11 @@ import {
   SortDesc,
   ExternalLink,
   AlertCircle,
-  Trash2
+  Trash2,
+  GitBranch,
+  Archive,
+  History,
+  User
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createClientSupabase } from '@/lib/supabase';
@@ -84,6 +88,49 @@ interface ProjectWithDetails {
   reopened_at?: string | null;
 }
 
+interface AssignedUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface PipelineProject {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  created_at: string;
+  account?: { id: string; name: string } | null;
+  assigned_step: {
+    nodeId: string;
+    nodeName: string;
+    nodeType: string;
+  };
+  assigned_at: string;
+  workflow_instance_id: string;
+  assigned_user?: AssignedUser;
+}
+
+interface PastProject {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  created_at: string;
+  completed_at?: string;
+  account?: { id: string; name: string } | null;
+  completion_reason: 'project_completed' | 'step_completed';
+  role_in_project?: string;
+  completed_step?: {
+    nodeId: string;
+    nodeName: string;
+    nodeType: string;
+  };
+  assigned_user?: AssignedUser;
+}
+
 interface UnifiedProjectsSectionProps {
   userProfile: any;
 }
@@ -92,6 +139,8 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
   const [loading, setLoading] = useState(true);
   const [workflowProjects, setWorkflowProjects] = useState<WorkflowProject[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
+  const [pipelineProjects, setPipelineProjects] = useState<PipelineProject[]>([]);
+  const [pastProjects, setPastProjects] = useState<PastProject[]>([]);
   const [activeTab, setActiveTab] = useState('projects');
 
   // Fetch all assigned projects using SWR hook
@@ -102,6 +151,9 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('priority');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Filter for Past Projects tab
+  const [pastProjectsFilter, setPastProjectsFilter] = useState<'all' | 'project_completed' | 'step_completed'>('all');
 
   // Workflow steps for projects
   const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({});
@@ -147,16 +199,19 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
     try {
       setLoading(true);
 
-      // OPTIMIZED: Fetch both API calls in parallel instead of sequential
-      // This reduces the critical path time by ~50% (no waterfall effect)
-      const [projectsRes, approvalsRes] = await Promise.all([
+      // OPTIMIZED: Fetch all API calls in parallel instead of sequential
+      const [projectsRes, approvalsRes, pipelineRes, pastRes] = await Promise.all([
         fetch('/api/workflows/my-projects'),
-        fetch('/api/workflows/my-approvals')
+        fetch('/api/workflows/my-approvals'),
+        fetch('/api/workflows/my-pipeline'),
+        fetch('/api/workflows/my-past-projects')
       ]);
 
-      const [projectsData, approvalsData] = await Promise.all([
+      const [projectsData, approvalsData, pipelineData, pastData] = await Promise.all([
         projectsRes.json(),
-        approvalsRes.json()
+        approvalsRes.json(),
+        pipelineRes.json(),
+        pastRes.json()
       ]);
 
       if (projectsData.success) {
@@ -165,6 +220,14 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
 
       if (approvalsData.success) {
         setPendingApprovals(approvalsData.approvals || []);
+      }
+
+      if (pipelineData.success) {
+        setPipelineProjects(pipelineData.projects || []);
+      }
+
+      if (pastData.success) {
+        setPastProjects(pastData.projects || []);
       }
     } catch (error) {
       console.error('Error loading inbox data:', error);
@@ -382,22 +445,44 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="projects" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              My Projects
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="projects" className="flex items-center gap-1 text-xs sm:text-sm">
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">My Projects</span>
+              <span className="sm:hidden">Projects</span>
               {visibleProjects.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1">
                   {visibleProjects.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              Pending Approvals
+            <TabsTrigger value="pipeline" className="flex items-center gap-1 text-xs sm:text-sm">
+              <GitBranch className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">In the Pipeline</span>
+              <span className="sm:hidden">Pipeline</span>
+              {pipelineProjects.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1">
+                  {pipelineProjects.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="approvals" className="flex items-center gap-1 text-xs sm:text-sm">
+              <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Pending Approvals</span>
+              <span className="sm:hidden">Approvals</span>
               {pendingApprovals.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1">
                   {pendingApprovals.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="past" className="flex items-center gap-1 text-xs sm:text-sm">
+              <History className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Past Projects</span>
+              <span className="sm:hidden">Past</span>
+              {pastProjects.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1">
+                  {pastProjects.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -584,8 +669,8 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingApprovals.map((approval: any) => (
-                  <Card key={approval.id} className="border-l-4 border-l-yellow-400 hover:shadow-md transition-shadow">
+                {pendingApprovals.map((approval: any, index: number) => (
+                  <Card key={approval.active_step_id || `${approval.id}-${index}`} className="border-l-4 border-l-yellow-400 hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -628,6 +713,195 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
                         <Button size="sm" asChild>
                           <Link href={`/projects/${approval.project_id}`}>
                             Review & Approve
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* In the Pipeline Tab */}
+          <TabsContent value="pipeline" className="space-y-4 mt-4">
+            {pipelineProjects.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <GitBranch className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No projects in your pipeline</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Projects will appear here when you&apos;re assigned to a future workflow step
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pipelineProjects.map((project, index) => (
+                  <Card key={`${project.id}-${project.assigned_user?.id || index}`} className="border-l-4 border-l-blue-400 hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Link
+                              href={`/projects/${project.id}`}
+                              className="font-semibold text-lg hover:text-blue-600 transition-colors"
+                            >
+                              {project.name}
+                            </Link>
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+                              {project.assigned_step.nodeName}
+                            </Badge>
+                            {project.priority && (
+                              <Badge className={getPriorityColor(project.priority)}>
+                                {project.priority}
+                              </Badge>
+                            )}
+                          </div>
+                          {project.description && (
+                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                              {project.description}
+                            </p>
+                          )}
+                          <div className="flex items-center flex-wrap gap-4 text-xs text-gray-500">
+                            {project.assigned_user && (
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                <span className="font-medium">Assigned to:</span>
+                                {project.assigned_user.name}
+                              </span>
+                            )}
+                            {project.account && (
+                              <span className="flex items-center gap-1">
+                                <span className="font-medium">Account:</span>
+                                {project.account.name}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium">Assigned:</span>
+                              {formatDistanceToNow(new Date(project.assigned_at), { addSuffix: true })}
+                            </span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/projects/${project.id}`}>
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Past Projects Tab */}
+          <TabsContent value="past" className="space-y-4 mt-4">
+            {/* Filter for past projects */}
+            <div className="flex items-center gap-2">
+              <Select value={pastProjectsFilter} onValueChange={(value: 'all' | 'project_completed' | 'step_completed') => setPastProjectsFilter(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Past Projects</SelectItem>
+                  <SelectItem value="project_completed">Completed Projects</SelectItem>
+                  <SelectItem value="step_completed">My Step Completed</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-gray-500">
+                {pastProjects.filter(p => pastProjectsFilter === 'all' || p.completion_reason === pastProjectsFilter).length} projects
+              </span>
+            </div>
+
+            {pastProjects.filter(p => pastProjectsFilter === 'all' || p.completion_reason === pastProjectsFilter).length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No past projects</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {pastProjectsFilter === 'all'
+                    ? 'Projects will appear here when your workflow step is complete or the project is finished'
+                    : pastProjectsFilter === 'project_completed'
+                      ? 'No fully completed projects yet'
+                      : 'No projects where your step has been completed'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pastProjects
+                  .filter(p => pastProjectsFilter === 'all' || p.completion_reason === pastProjectsFilter)
+                  .map((project, index) => (
+                  <Card key={`${project.id}-${project.assigned_user?.id || index}`} className={`border-l-4 hover:shadow-md transition-shadow ${project.completion_reason === 'project_completed' ? 'border-l-green-400' : 'border-l-gray-400'}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Link
+                              href={`/projects/${project.id}`}
+                              className="font-semibold text-lg hover:text-blue-600 transition-colors"
+                            >
+                              {project.name}
+                            </Link>
+                            {project.completion_reason === 'project_completed' ? (
+                              <Badge className="bg-green-100 text-green-800 border-green-300">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                Completed
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-gray-100 text-gray-800 border-gray-300">
+                                <Archive className="w-3 h-3 mr-1" />
+                                Step Done
+                              </Badge>
+                            )}
+                            {project.priority && (
+                              <Badge className={getPriorityColor(project.priority)}>
+                                {project.priority}
+                              </Badge>
+                            )}
+                          </div>
+                          {project.description && (
+                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                              {project.description}
+                            </p>
+                          )}
+                          <div className="flex items-center flex-wrap gap-4 text-xs text-gray-500">
+                            {project.assigned_user && (
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                <span className="font-medium">User:</span>
+                                {project.assigned_user.name}
+                              </span>
+                            )}
+                            {project.account && (
+                              <span className="flex items-center gap-1">
+                                <span className="font-medium">Account:</span>
+                                {project.account.name}
+                              </span>
+                            )}
+                            {project.completed_step && (
+                              <span className="flex items-center gap-1">
+                                <span className="font-medium">{project.assigned_user ? 'Step:' : 'Your Step:'}</span>
+                                {project.completed_step.nodeName}
+                              </span>
+                            )}
+                            {project.role_in_project && (
+                              <span className="flex items-center gap-1">
+                                <span className="font-medium">Role:</span>
+                                {project.role_in_project}
+                              </span>
+                            )}
+                            {project.completed_at && (
+                              <span className="flex items-center gap-1">
+                                <span className="font-medium">Completed:</span>
+                                {formatDistanceToNow(new Date(project.completed_at), { addSuffix: true })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/projects/${project.id}`}>
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View
                           </Link>
                         </Button>
                       </div>

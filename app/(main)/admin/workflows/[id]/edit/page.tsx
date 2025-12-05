@@ -89,12 +89,12 @@ export default function WorkflowEditorPage() {
       }
 
       // Load existing workflow nodes and connections
-      const workflowRes = await fetch(`/api/admin/workflows/templates/${templateId}/steps`);
+      const workflowRes = await fetch(`/api/admin/workflows/templates/${templateId}`);
       const workflowData = await workflowRes.json();
 
-      if (workflowData.success && workflowData.nodes && workflowData.nodes.length > 0) {
+      if (workflowData.success && workflowData.template?.nodes && workflowData.template.nodes.length > 0) {
         // Convert workflow_nodes to React Flow nodes
-        const nodes: Node<WorkflowNodeData>[] = workflowData.nodes.map((node: any) => {
+        const nodes: Node<WorkflowNodeData>[] = workflowData.template.nodes.map((node: any) => {
           const config: any = {};
 
           // Handle department nodes
@@ -147,7 +147,7 @@ export default function WorkflowEditorPage() {
         });
 
         // Convert workflow_connections to React Flow edges
-        const edges: Edge[] = (workflowData.connections || []).map((conn: any) => {
+        const edges: Edge[] = (workflowData.template.connections || []).map((conn: any) => {
           const edge: Edge = {
             id: `${conn.from_node_id}-${conn.to_node_id}`,
             source: conn.from_node_id,

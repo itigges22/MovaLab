@@ -89,6 +89,19 @@ export async function POST(request: NextRequest) {
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
+
+      // Check if project is completed (read-only mode)
+      const { data: project } = await supabase
+        .from('projects')
+        .select('status')
+        .eq('id', body.project_id)
+        .single()
+
+      if (project?.status === 'complete') {
+        return NextResponse.json({
+          error: 'Cannot create tasks in a completed project. The project is in read-only mode.'
+        }, { status: 400 })
+      }
     }
 
     // Create task directly using the server-side Supabase client (not the client-side taskServiceDB)

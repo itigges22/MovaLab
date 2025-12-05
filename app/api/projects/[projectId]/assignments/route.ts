@@ -5,7 +5,7 @@ import { Permission } from '@/lib/permissions'
 
 /**
  * GET /api/projects/[projectId]/assignments
- * Get all active project assignments (team members)
+ * Get all active project assignments (team members) with workflow step info
  */
 export async function GET(
   request: NextRequest,
@@ -49,7 +49,89 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 })
     }
 
-    return NextResponse.json({ assignments: assignments || [] })
+    // Get user roles for all assigned users (separate query to avoid nested relation issues)
+    const userIds = (assignments || []).map((a: any) => a.user_id).filter(Boolean)
+    let userRolesMap: Record<string, string> = {}
+
+    if (userIds.length > 0) {
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select(`
+          user_id,
+          roles (
+            name
+          )
+        `)
+        .in('user_id', userIds)
+
+      // Build a map of user_id -> primary role name
+      if (userRoles) {
+        for (const ur of userRoles) {
+          if (!userRolesMap[ur.user_id] && (ur.roles as any)?.name) {
+            userRolesMap[ur.user_id] = (ur.roles as any).name
+          }
+        }
+      }
+    }
+
+    // Get workflow instance for this project to find node assignments
+    const { data: workflowInstance } = await supabase
+      .from('workflow_instances')
+      .select('id, status, workflow_template_id')
+      .eq('project_id', projectId)
+      .in('status', ['active', 'completed'])
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    // If there's a workflow, get node assignments (supporting multiple per user)
+    let nodeAssignmentsMap: Record<string, Array<{ stepId: string; stepName: string }>> = {}
+
+    if (workflowInstance) {
+      // Get all node assignments for this workflow instance with node labels
+      const { data: nodeAssignments } = await supabase
+        .from('workflow_node_assignments')
+        .select(`
+          node_id,
+          user_id,
+          workflow_nodes!inner(label)
+        `)
+        .eq('workflow_instance_id', workflowInstance.id)
+
+      // Build a map of user_id -> array of { stepId, stepName }
+      if (nodeAssignments) {
+        for (const na of nodeAssignments) {
+          if (!nodeAssignmentsMap[na.user_id]) {
+            nodeAssignmentsMap[na.user_id] = []
+          }
+          nodeAssignmentsMap[na.user_id].push({
+            stepId: na.node_id,
+            stepName: (na.workflow_nodes as any)?.label || 'Unknown Step'
+          })
+        }
+      }
+    }
+
+    // Enrich assignments with workflow node info and primary role
+    const enrichedAssignments = (assignments || []).map((assignment: any) => {
+      const userId = assignment.user_id
+      const nodeAssignments = nodeAssignmentsMap[userId] || []
+      const primaryRole = userRolesMap[userId] || null
+
+      return {
+        ...assignment,
+        // Keep backward compatibility with workflow_step (first assignment)
+        workflow_step: nodeAssignments.length > 0 ? nodeAssignments[0] : null,
+        // New field: all workflow step assignments
+        workflow_steps: nodeAssignments,
+        primary_role: primaryRole
+      }
+    })
+
+    return NextResponse.json({
+      assignments: enrichedAssignments,
+      has_active_workflow: workflowInstance?.status === 'active'
+    })
 
   } catch (error) {
     console.error('Error in GET /api/projects/[projectId]/assignments:', error)
@@ -269,6 +351,26 @@ export async function DELETE(
     if (updateError) {
       console.error('Error removing assignment:', updateError)
       return NextResponse.json({ error: 'Failed to remove team member' }, { status: 500 })
+    }
+
+    // Also remove any workflow node assignments for this user in this project's workflows
+    const { data: workflowInstances } = await supabase
+      .from('workflow_instances')
+      .select('id')
+      .eq('project_id', projectId)
+
+    if (workflowInstances && workflowInstances.length > 0) {
+      const instanceIds = workflowInstances.map(wi => wi.id)
+      const { error: nodeAssignmentError } = await supabase
+        .from('workflow_node_assignments')
+        .delete()
+        .in('workflow_instance_id', instanceIds)
+        .eq('user_id', userId)
+
+      if (nodeAssignmentError) {
+        console.error('Error removing workflow node assignments:', nodeAssignmentError)
+        // Don't fail the whole operation, just log the error
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Team member removed successfully' })

@@ -95,6 +95,52 @@ export async function DELETE(
       );
     }
 
+    // Check for workflow nodes that reference this role
+    const { data: workflowNodes, error: workflowNodesError } = await supabase
+      .from('workflow_nodes')
+      .select('id, label, workflow_template_id')
+      .eq('entity_id', roleId);
+
+    if (workflowNodesError) {
+      logger.error('Error checking workflow nodes', {
+        action: 'deleteRole',
+        roleId,
+        error: workflowNodesError.message
+      });
+      // Continue anyway - don't block deletion
+    }
+
+    // Clear entity_id on workflow nodes that reference this role
+    if (workflowNodes && workflowNodes.length > 0) {
+      logger.info('Clearing entity_id on workflow nodes that reference this role', {
+        action: 'deleteRole',
+        roleId,
+        roleName: existingRole.name,
+        affectedNodes: workflowNodes.length,
+        nodeLabels: workflowNodes.map(n => n.label)
+      });
+
+      const { error: clearEntityError } = await supabase
+        .from('workflow_nodes')
+        .update({ entity_id: null })
+        .eq('entity_id', roleId);
+
+      if (clearEntityError) {
+        logger.error('Error clearing entity_id on workflow nodes', {
+          action: 'deleteRole',
+          roleId,
+          error: clearEntityError.message
+        });
+        // Continue anyway - the nodes will have orphaned references but won't break
+      } else {
+        logger.info('Successfully cleared entity_id on workflow nodes', {
+          action: 'deleteRole',
+          roleId,
+          clearedCount: workflowNodes.length
+        });
+      }
+    }
+
     // If role has users, reassign them to fallback role
     if (userRoles && userRoles.length > 0) {
       logger.info('Role has assigned users, reassigning to fallback role', { 
@@ -228,10 +274,12 @@ export async function DELETE(
     });
 
     return NextResponse.json(
-      { 
+      {
         message: 'Role deleted successfully',
         deletedRole: existingRole.name,
-        deletedCount: deletedData?.length || 0
+        deletedCount: deletedData?.length || 0,
+        workflowNodesCleared: workflowNodes?.length || 0,
+        affectedWorkflowNodes: workflowNodes?.map(n => n.label) || []
       },
       { status: 200 }
     );

@@ -6,11 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RoleGuard } from '@/components/role-guard'
 import { createClientSupabase } from '@/lib/supabase'
 import { Database } from '@/lib/supabase'
-import { FolderOpen, Calendar, Clock, User, Building2, SortAsc, SortDesc, ExternalLink, Trash2, CheckCircle2, Loader2, Plus } from 'lucide-react'
+import { FolderOpen, Calendar, Clock, User, Building2, SortAsc, SortDesc, ExternalLink, Trash2, Loader2, Plus } from 'lucide-react'
 import ProjectCreationDialog from '@/components/project-creation-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Link from 'next/link'
@@ -28,27 +27,6 @@ interface ProjectWithDetails extends Project {
   workflow_step?: string | null  // Current workflow step name
 }
 
-interface ApprovalRequest {
-  id: string;
-  workflow_instance_id: string;
-  current_node_id: string;
-  project_id: string;
-  projects?: {
-    id: string;
-    name: string;
-    description: string | null;
-    priority: string;
-    account?: {
-      id: string;
-      name: string;
-    };
-  };
-  workflow_nodes?: {
-    id: string;
-    label: string;
-    node_type: string;
-  };
-}
 
 export default function ProjectsPage() {
   const { userProfile } = useAuth()
@@ -65,9 +43,6 @@ export default function ProjectsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<ProjectWithDetails | null>(null)
   const [deletingProject, setDeletingProject] = useState(false)
-  const [activeTab, setActiveTab] = useState('all-projects')
-  const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([])
-  const [approvalsLoading, setApprovalsLoading] = useState(true)
   const [canCreateProject, setCanCreateProject] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -94,26 +69,6 @@ export default function ProjectsPage() {
     if (!userProfile) return;
     hasPermission(userProfile, Permission.CREATE_PROJECT).then(setCanCreateProject);
   }, [userProfile]);
-
-  // Load pending approvals
-  useEffect(() => {
-    const loadApprovals = async () => {
-      try {
-        setApprovalsLoading(true);
-        const response = await fetch('/api/workflows/my-approvals');
-        const data = await response.json();
-        if (data.success) {
-          setPendingApprovals(data.approvals || []);
-        }
-      } catch (error) {
-        console.error('Error loading approvals:', error);
-      } finally {
-        setApprovalsLoading(false);
-      }
-    };
-
-    loadApprovals();
-  }, []);
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -520,7 +475,7 @@ export default function ProjectsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
             <p className="text-gray-600 mt-1">
-              View and manage all projects and workflow approvals
+              View and manage all projects
             </p>
           </div>
           {canCreateProject && (
@@ -542,34 +497,11 @@ export default function ProjectsPage() {
               Project Management
             </CardTitle>
             <CardDescription>
-              All projects you have access to and pending approvals
+              All projects you have access to
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="all-projects" className="flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4" />
-                  All Projects
-                  {visibleProjects.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {visibleProjects.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="approvals" className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Pending Approvals
-                  {pendingApprovals.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {pendingApprovals.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-
-              {/* All Projects Tab */}
-              <TabsContent value="all-projects" className="space-y-4 mt-4">
+            <div className="space-y-4">
                 {visibleProjects.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <FolderOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -755,78 +687,7 @@ export default function ProjectsPage() {
               </div>
                   </>
                 )}
-              </TabsContent>
-
-              {/* Pending Approvals Tab */}
-              <TabsContent value="approvals" className="space-y-4 mt-4">
-                {approvalsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                  </div>
-                ) : pendingApprovals.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">No pending approval requests</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {pendingApprovals.map((approval: any) => (
-                      <Card key={approval.id} className="border-l-4 border-l-yellow-400 hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Link
-                                  href={`/projects/${approval.project_id}`}
-                                  className="font-semibold text-lg hover:text-blue-600 transition-colors"
-                                >
-                                  {approval.projects?.name || 'Unnamed Project'}
-                                </Link>
-                                <Badge className="bg-yellow-100 text-yellow-800">
-                                  Awaiting Approval
-                                </Badge>
-                                {approval.projects?.priority && (
-                                  <Badge
-                                    className="text-xs whitespace-nowrap border"
-                                    style={getPriorityColor(approval.projects.priority)}
-                                  >
-                                    {approval.projects.priority}
-                                  </Badge>
-                                )}
-                              </div>
-                              {approval.projects?.description && (
-                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                                  {approval.projects.description}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-4 text-xs text-gray-500">
-                                {approval.workflow_nodes?.label && (
-                                  <span className="flex items-center gap-1">
-                                    <span className="font-medium">Step:</span>
-                                    {approval.workflow_nodes.label}
-                                  </span>
-                                )}
-                                {approval.projects?.account && (
-                                  <span className="flex items-center gap-1">
-                                    <span className="font-medium">Account:</span>
-                                    {approval.projects.account.name}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <Button size="sm" asChild>
-                              <Link href={`/projects/${approval.project_id}`}>
-                                Review & Approve
-                              </Link>
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+            </div>
           </CardContent>
         </Card>
       </div>

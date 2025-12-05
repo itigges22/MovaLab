@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { RoleGuard } from '@/components/role-guard'
 import { createClientSupabase } from '@/lib/supabase'
 import { Database } from '@/lib/supabase'
-import { ArrowLeft, Calendar, Clock, User, Building2, FolderOpen, Users, AlertCircle, FileText, AlertTriangle, Edit, Plus as PlusIcon, XCircle, CheckCircle2, List, LayoutGrid, GanttChart, RotateCcw, UserPlus, Trash2, Loader2, StickyNote, Pencil } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, User, Building2, FolderOpen, Users, AlertCircle, FileText, AlertTriangle, Edit, Plus as PlusIcon, XCircle, CheckCircle2, List, LayoutGrid, GanttChart, RotateCcw, UserPlus, Trash2, Loader2, StickyNote, Pencil, GitBranch, X } from 'lucide-react'
 import Link from 'next/link'
 import TaskCreationDialog from '@/components/task-creation-dialog'
 import TaskCreateEditDialog from '@/components/task-create-edit-dialog'
@@ -27,6 +27,7 @@ import { hasPermission } from '@/lib/rbac'
 import { toast } from 'sonner'
 import { WorkflowProgressButton } from '@/components/workflow-progress-button'
 import { WorkflowTimeline } from '@/components/workflow-timeline'
+import { WorkflowVisualization } from '@/components/workflow-visualization'
 
 type Project = Database['public']['Tables']['projects']['Row']
 type Account = Database['public']['Tables']['accounts']['Row']
@@ -56,6 +57,33 @@ interface ProjectWithDetails extends Project {
   completed_at?: string | null
   reopened_at?: string | null
   notes?: string | null
+}
+
+// Workflow form data entry for displaying submitted form information
+interface WorkflowFormDataEntry {
+  id: string
+  formName: string | null
+  stepName: string | null
+  submittedAt: string
+  submittedBy: string | null
+  responseData: Record<string, any>
+  fields: Array<{ id: string; label: string; type: string }> | null
+}
+
+// Helper function to render simple markdown (bold text) as React elements
+function renderMarkdownContent(content: string): React.ReactNode {
+  if (!content) return null
+
+  // Split by **text** pattern and render bold parts
+  const parts = content.split(/(\*\*[^*]+\*\*)/g)
+
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      // Remove the ** markers and render as bold
+      return <strong key={index}>{part.slice(2, -2)}</strong>
+    }
+    return <span key={index}>{part}</span>
+  })
 }
 
 // Task item component - shows task details and progress
@@ -248,8 +276,12 @@ export default function ProjectDetailPage() {
   // Workflow refresh key - increment to force reload of workflow components
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0)
 
-  // Workflow step name to display as status
-  const [workflowStepName, setWorkflowStepName] = useState<string | null>(null)
+  // Workflow step names to display as status (array for parallel workflows)
+  const [workflowStepNames, setWorkflowStepNames] = useState<string[]>([])
+
+  // Parallel workflow support - track selected active step and dialog state
+  const [selectedActiveStepId, setSelectedActiveStepId] = useState<string | null>(null)
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false)
 
   // Update and Issue permissions (separate from canEditProject)
   const [canCreateUpdate, setCanCreateUpdate] = useState(false)
@@ -268,6 +300,9 @@ export default function ProjectDetailPage() {
     user_id: string
     role_in_project: string | null
     user_profiles: { id: string; name: string; email: string; image: string | null } | null
+    workflow_step?: { stepId: string; stepName: string } | null
+    workflow_steps?: Array<{ stepId: string; stepName: string }>
+    primary_role?: string | null
   }>>([])
   const [loadingTeamMembers, setLoadingTeamMembers] = useState(false)
   const [addingMember, setAddingMember] = useState(false)
@@ -275,6 +310,35 @@ export default function ProjectDetailPage() {
   const [showAddMemberDropdown, setShowAddMemberDropdown] = useState(false)
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; email: string }>>([])
   const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false)
+
+  // Workflow node assignment state
+  const [workflowNodes, setWorkflowNodes] = useState<Array<{
+    id: string
+    label: string
+    node_type: string
+    entity_id: string | null
+    required_entity_name: string | null
+    user_eligible: boolean
+    user_already_assigned: boolean
+    assignments: Array<{ user_id: string; user_profiles: { name: string } | null }>
+  }>>([])
+  const [workflowInstanceId, setWorkflowInstanceId] = useState<string | null>(null)
+  const [showStepAssignDropdown, setShowStepAssignDropdown] = useState<string | null>(null) // user_id being assigned
+  const [assigningToStep, setAssigningToStep] = useState(false)
+  const [hasActiveWorkflow, setHasActiveWorkflow] = useState(false)
+
+  // Workflow contributors state (historical participants for completed projects)
+  const [workflowContributors, setWorkflowContributors] = useState<Array<{
+    user_id: string
+    name: string
+    contribution_type: string
+    last_contributed_at: string
+  }>>([])
+  const [loadingWorkflowContributors, setLoadingWorkflowContributors] = useState(false)
+
+  // Workflow form data state (submitted form information from workflow)
+  const [workflowFormData, setWorkflowFormData] = useState<WorkflowFormDataEntry[]>([])
+  const [loadingWorkflowFormData, setLoadingWorkflowFormData] = useState(false)
 
   // Status options removed - status is now managed by workflows
 
@@ -296,41 +360,9 @@ export default function ProjectDetailPage() {
     projectRef.current = project
   }, [project])
 
-  // Auto-refresh tasks every 30 seconds for live progress bar updates
-  // Note: Uses projectRef.current to avoid restarting the interval when project state changes
-  useEffect(() => {
-    if (!projectId || !userProfile) return
-
-    const intervalId = setInterval(async () => {
-      try {
-        // Silently refresh tasks without showing loading state
-        const projectTasks = await taskServiceDB.getTasksByProject(projectId)
-        updateTasks(projectTasks)
-        // Use projectRef.current to get latest project value without adding to dependencies
-        const calculatedHours = calculateEstimatedHours(projectTasks, projectRef.current)
-        const remainingHours = calculateRemainingHours(projectTasks)
-        setCalculatedEstimatedHours(calculatedHours)
-        setCalculatedRemainingHours(remainingHours)
-
-        // Also refresh project-level time entries
-        const supabase = createClientSupabase()
-        if (supabase) {
-          const { data: projectTimeEntries } = await supabase
-            .from('time_entries')
-            .select('hours_logged')
-            .eq('project_id', projectId)
-            .is('task_id', null)
-
-          const projectHours = projectTimeEntries?.reduce((sum: number, entry: { hours_logged: number | null }) => sum + (entry.hours_logged || 0), 0) || 0
-          setProjectLevelHours(projectHours)
-        }
-      } catch (err) {
-        console.error('Error auto-refreshing tasks:', err)
-      }
-    }, 30000) // 30 seconds
-
-    return () => clearInterval(intervalId)
-  }, [projectId, userProfile])
+  // DISABLED: Auto-refresh tasks was causing jarring UI updates when filling forms
+  // Tasks will update when user saves changes or navigates to the page
+  // Users can manually refresh the page if they need to see real-time updates
 
   // Check update and issue permissions (separate from edit project permission)
   // Uses async hasPermission() for proper superadmin bypass, caching, and permission evaluation
@@ -587,24 +619,53 @@ export default function ProjectDetailPage() {
           }
         }
 
-        // Fetch current workflow step name if workflow exists
+        // Fetch current workflow step name(s) if workflow exists
+        // For parallel workflows, show ALL active steps
         if (workflowInstanceId) {
-          const { data: workflowData, error: wfError } = await supabase
-            .from('workflow_instances')
+          // First, check for parallel workflow active steps
+          const { data: activeSteps, error: activeStepsError } = await supabase
+            .from('workflow_active_steps')
             .select(`
-              current_node_id,
-              workflow_nodes!workflow_instances_current_node_id_fkey (
+              node_id,
+              branch_id,
+              workflow_nodes!workflow_active_steps_node_id_fkey (
                 label,
                 node_type
               )
             `)
-            .eq('id', workflowInstanceId)
-            .single()
+            .eq('workflow_instance_id', workflowInstanceId)
+            .eq('status', 'active')
 
-          if (!wfError && workflowData?.workflow_nodes) {
-            const nodeData = workflowData.workflow_nodes as any
-            setWorkflowStepName(nodeData.label || null)
-            console.log('Workflow step:', nodeData.label)
+          if (!activeStepsError && activeSteps && activeSteps.length > 0) {
+            // Get unique step labels (deduplicate)
+            const stepLabels = activeSteps
+              .map((step: any) => step.workflow_nodes?.label)
+              .filter(Boolean)
+
+            // Remove duplicates using Set
+            const uniqueLabels = [...new Set(stepLabels)] as string[]
+
+            setWorkflowStepNames(uniqueLabels)
+            console.log('Workflow steps:', uniqueLabels)
+          } else {
+            // Fallback to legacy current_node_id for older workflows
+            const { data: workflowData, error: wfError } = await supabase
+              .from('workflow_instances')
+              .select(`
+                current_node_id,
+                workflow_nodes!workflow_instances_current_node_id_fkey (
+                  label,
+                  node_type
+                )
+              `)
+              .eq('id', workflowInstanceId)
+              .single()
+
+            if (!wfError && workflowData?.workflow_nodes) {
+              const nodeData = workflowData.workflow_nodes as any
+              setWorkflowStepNames(nodeData.label ? [nodeData.label] : [])
+              console.log('Workflow step (legacy):', nodeData.label)
+            }
           }
         }
 
@@ -775,7 +836,7 @@ export default function ProjectDetailPage() {
 
         if (!error && workflowData) {
           const nodeData = workflowData.workflow_nodes as any
-          setWorkflowStepName(nodeData?.label || null)
+          setWorkflowStepNames(nodeData?.label ? [nodeData.label] : [])
 
           // If workflow is completed, refresh project data to update UI
           if (workflowData.status === 'completed') {
@@ -826,6 +887,60 @@ export default function ProjectDetailPage() {
         }
       } catch (updatesErr) {
         console.error('Error refreshing updates:', updatesErr)
+      }
+
+      // Refresh workflow form data (submitted form responses from workflow)
+      // This ensures the "Workflow Form Data" section updates immediately after form submission
+      // Note: loadWorkflowFormData is defined later in the component, so we call it directly
+      // rather than including it in dependencies
+      if (project?.workflow_instance_id) {
+        const supabase = createClientSupabase()
+        if (supabase) {
+          // Inline refresh of workflow form data
+          const { data: historyEntries } = await supabase
+            .from('workflow_history')
+            .select(`
+              id,
+              handed_off_at,
+              notes,
+              form_response_id,
+              to_node_id,
+              handed_off_by,
+              workflow_nodes!workflow_history_to_node_id_fkey (
+                id,
+                label
+              ),
+              user_profiles!workflow_history_handed_off_by_fkey (
+                name
+              )
+            `)
+            .eq('workflow_instance_id', project.workflow_instance_id)
+            .not('notes', 'is', null)
+            .order('handed_off_at', { ascending: false })
+
+          if (historyEntries) {
+            const formDataEntries: any[] = []
+            for (const entry of historyEntries) {
+              try {
+                const notesData = JSON.parse(entry.notes || '{}')
+                if (notesData.type === 'inline_form' && notesData.data) {
+                  formDataEntries.push({
+                    id: entry.id,
+                    formName: notesData.data.formName || null,
+                    stepName: (entry.workflow_nodes as any)?.label || null,
+                    submittedAt: entry.handed_off_at,
+                    submittedBy: (entry.user_profiles as any)?.name || null,
+                    responseData: notesData.data.responses || {},
+                    fields: notesData.data.fields || null
+                  })
+                }
+              } catch {
+                // Skip entries with invalid JSON
+              }
+            }
+            setWorkflowFormData(formDataEntries)
+          }
+        }
       }
 
     } catch (err) {
@@ -990,13 +1105,179 @@ export default function ProjectDetailPage() {
 
       if (response.ok) {
         setTeamMembers(data.assignments || [])
+        setHasActiveWorkflow(data.has_active_workflow || false)
       } else {
         console.error('Error loading team members:', data.error)
+      }
+
+      // Also get the workflow instance ID for node assignments
+      const supabase = createClientSupabase()
+      if (supabase) {
+        const { data: instances, error: instanceError } = await supabase
+          .from('workflow_instances')
+          .select('id, status')
+          .eq('project_id', projectId)
+          .in('status', ['active', 'completed'])
+          .order('started_at', { ascending: false })
+          .limit(1)
+
+        if (instanceError) {
+          console.error('Error fetching workflow instance:', instanceError)
+        }
+
+        const instance = instances?.[0]
+        setWorkflowInstanceId(instance?.id || null)
       }
     } catch (error) {
       console.error('Error loading team members:', error)
     } finally {
       setLoadingTeamMembers(false)
+    }
+  }, [projectId])
+
+  // Load ALL workflow nodes for node assignment (not just active steps)
+  // Pass userId to get eligibility info for that specific user
+  const loadWorkflowNodes = useCallback(async (userId?: string) => {
+    if (!workflowInstanceId) {
+      setWorkflowNodes([])
+      return
+    }
+
+    try {
+      let url = `/api/workflows/steps/assignments?workflowInstanceId=${workflowInstanceId}`
+      if (userId) {
+        url += `&userId=${userId}`
+      }
+      const response = await fetch(url)
+      const data = await response.json()
+
+      if (response.ok) {
+        setWorkflowNodes(data.nodes || [])
+      } else {
+        console.error('Error loading workflow nodes:', data.error)
+        setWorkflowNodes([])
+      }
+    } catch (error) {
+      console.error('Error loading workflow nodes:', error)
+      setWorkflowNodes([])
+    }
+  }, [workflowInstanceId])
+
+  // Handle assigning a user to a workflow node
+  const handleAssignToStep = async (userId: string, nodeId: string) => {
+    if (!projectId || !workflowInstanceId || assigningToStep) return
+
+    setAssigningToStep(true)
+    try {
+      const response = await fetch('/api/workflows/steps/assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflowInstanceId, nodeId, userId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to assign user to step')
+        return
+      }
+
+      toast.success('User assigned to workflow step')
+
+      // Reload team members and workflow nodes to get updated data
+      await loadTeamMembers()
+      await loadWorkflowNodes(userId) // Pass userId to get updated eligibility
+    } catch (error) {
+      console.error('Error assigning user to step:', error)
+      toast.error('Failed to update step assignment')
+    } finally {
+      setAssigningToStep(false)
+    }
+  }
+
+  // Handle removing a user from a workflow node
+  const handleRemoveFromStep = async (userId: string, nodeId: string) => {
+    if (!projectId || !workflowInstanceId || assigningToStep) return
+
+    setAssigningToStep(true)
+    try {
+      const response = await fetch(
+        `/api/workflows/steps/assignments?workflowInstanceId=${workflowInstanceId}&nodeId=${nodeId}&userId=${userId}`,
+        { method: 'DELETE' }
+      )
+
+      if (!response.ok) {
+        const data = await response.json()
+        toast.error(data.error || 'Failed to remove step assignment')
+        return
+      }
+
+      toast.success('Step assignment removed')
+
+      // Reload team members and workflow nodes to get updated data
+      await loadTeamMembers()
+      await loadWorkflowNodes(userId) // Pass userId to get updated eligibility
+    } catch (error) {
+      console.error('Error removing user from step:', error)
+      toast.error('Failed to remove step assignment')
+    } finally {
+      setAssigningToStep(false)
+    }
+  }
+
+  // Load workflow contributors (historical participants for completed projects)
+  const loadWorkflowContributors = useCallback(async () => {
+    if (!projectId) return
+
+    setLoadingWorkflowContributors(true)
+    try {
+      const supabase = createClientSupabase()
+      if (!supabase) return
+
+      // Get all contributors from project_contributors table
+      const { data: contributors, error } = await supabase
+        .from('project_contributors')
+        .select('user_id, contribution_type, last_contributed_at')
+        .eq('project_id', projectId)
+        .order('last_contributed_at', { ascending: false })
+
+      if (error) {
+        console.error('Error loading workflow contributors:', error)
+        return
+      }
+
+      if (!contributors || contributors.length === 0) {
+        setWorkflowContributors([])
+        return
+      }
+
+      // Get user details separately
+      const userIds = contributors.map((c: { user_id: string }) => c.user_id)
+      const { data: users, error: usersError } = await supabase
+        .from('user_profiles')
+        .select('id, name')
+        .in('id', userIds)
+
+      if (usersError) {
+        console.error('Error loading user details:', usersError)
+      }
+
+      // Create a map of user_id -> name
+      const userMap = new Map((users || []).map((u: { id: string; name: string }) => [u.id, u.name]))
+
+      // Transform the data
+      const formattedContributors = contributors.map((c: any) => ({
+        user_id: c.user_id,
+        name: userMap.get(c.user_id) || 'Unknown User',
+        contribution_type: c.contribution_type,
+        last_contributed_at: c.last_contributed_at
+      }))
+
+      setWorkflowContributors(formattedContributors)
+    } catch (error) {
+      console.error('Error loading workflow contributors:', error)
+    } finally {
+      setLoadingWorkflowContributors(false)
     }
   }, [projectId])
 
@@ -1097,12 +1378,27 @@ export default function ProjectDetailPage() {
     }
   }, [projectId, loadTeamMembers])
 
+  // Load workflow contributors when project is complete
+  useEffect(() => {
+    if (projectId && project?.status === 'complete') {
+      loadWorkflowContributors()
+    }
+  }, [projectId, project?.status, loadWorkflowContributors])
+
   // Load available users when dropdown opens
   useEffect(() => {
     if (showAddMemberDropdown) {
       loadAvailableUsers()
     }
   }, [showAddMemberDropdown, loadAvailableUsers])
+
+  // Load workflow nodes when step assignment dropdown opens
+  // Pass the userId to get eligibility info for that user
+  useEffect(() => {
+    if (showStepAssignDropdown) {
+      loadWorkflowNodes(showStepAssignDropdown) // showStepAssignDropdown contains the userId
+    }
+  }, [showStepAssignDropdown, loadWorkflowNodes])
 
   const handleProjectUpdated = async () => {
     setEditDialogOpen(false)
@@ -1369,6 +1665,102 @@ export default function ProjectDetailPage() {
     }
   }, [project?.id])
 
+  // Load workflow form data (submitted form responses from workflow history)
+  const loadWorkflowFormData = async () => {
+    if (!project?.workflow_instance_id) {
+      setWorkflowFormData([])
+      return
+    }
+
+    setLoadingWorkflowFormData(true)
+    try {
+      const supabase = createClientSupabase()
+      if (!supabase) return
+
+      // Get workflow history entries with form data
+      const { data: historyEntries, error: historyError } = await supabase
+        .from('workflow_history')
+        .select(`
+          id,
+          handed_off_at,
+          notes,
+          form_response_id,
+          to_node_id,
+          handed_off_by,
+          workflow_nodes!workflow_history_to_node_id_fkey(label),
+          user_profiles!workflow_history_handed_off_by_fkey(name)
+        `)
+        .eq('workflow_instance_id', project.workflow_instance_id)
+        .order('handed_off_at', { ascending: true })
+
+      if (historyError) {
+        console.error('Error loading workflow history:', historyError)
+        return
+      }
+
+      const formDataEntries: WorkflowFormDataEntry[] = []
+
+      for (const entry of historyEntries || []) {
+        // Check for linked form response
+        if (entry.form_response_id) {
+          const { data: formResponse } = await supabase
+            .from('form_responses')
+            .select(`
+              response_data,
+              submitted_at,
+              form_template:form_templates(name, fields)
+            `)
+            .eq('id', entry.form_response_id)
+            .single()
+
+          if (formResponse) {
+            formDataEntries.push({
+              id: entry.id,
+              formName: (formResponse.form_template as any)?.name || null,
+              stepName: (entry.workflow_nodes as any)?.label || null,
+              submittedAt: formResponse.submitted_at || entry.handed_off_at,
+              submittedBy: (entry.user_profiles as any)?.name || null,
+              responseData: formResponse.response_data || {},
+              fields: (formResponse.form_template as any)?.fields || null
+            })
+          }
+        }
+        // Check for inline form data in notes
+        else if (entry.notes) {
+          try {
+            const notesData = JSON.parse(entry.notes)
+            if (notesData.type === 'inline_form' && notesData.data) {
+              formDataEntries.push({
+                id: entry.id,
+                formName: notesData.data.formName || null,
+                stepName: (entry.workflow_nodes as any)?.label || null,
+                submittedAt: entry.handed_off_at,
+                submittedBy: (entry.user_profiles as any)?.name || null,
+                responseData: notesData.data.responses || {},
+                fields: notesData.data.fields || null
+              })
+            }
+          } catch {
+            // Notes is not JSON, skip
+          }
+        }
+      }
+
+      setWorkflowFormData(formDataEntries)
+    } catch (error) {
+      console.error('Error loading workflow form data:', error)
+    } finally {
+      setLoadingWorkflowFormData(false)
+    }
+  }
+
+  // Load workflow form data when project is loaded
+  useEffect(() => {
+    if (project?.id && project?.workflow_instance_id) {
+      loadWorkflowFormData()
+    }
+  }, [project?.id, project?.workflow_instance_id])
+
   // Submit new issue
   const handleSubmitIssue = async () => {
     if (!newIssueContent.trim() || !projectId) return
@@ -1520,11 +1912,16 @@ export default function ProjectDetailPage() {
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-6 h-6 text-green-600" />
               <div>
-                <p className="font-semibold text-green-800">This project has been completed</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-green-800">This project has been completed</p>
+                  <Badge variant="secondary" className="bg-gray-100 text-gray-600 border border-gray-300">
+                    Read Only
+                  </Badge>
+                </div>
                 <p className="text-sm text-green-600">
                   {project.completed_at
-                    ? `Completed on ${formatDate(project.completed_at)}`
-                    : 'This is a read-only view of the finished project.'}
+                    ? `Completed on ${formatDate(project.completed_at)}. No further modifications allowed.`
+                    : 'No further modifications allowed. Reopen the project to make changes.'}
                 </p>
               </div>
             </div>
@@ -1583,6 +1980,15 @@ export default function ProjectDetailPage() {
               key={`workflow-button-${workflowRefreshKey}`}
               projectId={projectId}
               workflowInstanceId={project.workflow_instance_id || null}
+              activeStepId={selectedActiveStepId}
+              externalDialogOpen={progressDialogOpen}
+              onDialogOpenChange={(open) => {
+                setProgressDialogOpen(open)
+                if (!open) {
+                  // Reset selected step when dialog closes
+                  setSelectedActiveStepId(null)
+                }
+              }}
               onProgress={handleWorkflowProgress}
             />
 
@@ -1610,15 +2016,161 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {/* Workflow Timeline - Show workflow progress if project has active workflow */}
-        <WorkflowTimeline
-          key={`workflow-timeline-${workflowRefreshKey}`}
+        {/* Workflow Visualization - Show workflow progress with React Flow graph */}
+        <WorkflowVisualization
+          key={`workflow-visualization-${workflowRefreshKey}`}
           workflowInstanceId={project.workflow_instance_id || null}
+          onStepClick={(stepId, nodeId) => {
+            // Open the progress dialog for the clicked active step
+            setSelectedActiveStepId(stepId)
+            setProgressDialogOpen(true)
+          }}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Project Notes - Collaborative notes section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                      Project Notes
+                    </CardTitle>
+                    <CardDescription>Shared notes and context for the team</CardDescription>
+                  </div>
+                  {canEditProject && project.status !== 'complete' && !editingNotes && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingNotes(true)}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {editingNotes ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      value={notesContent}
+                      onChange={(e) => setNotesContent(e.target.value)}
+                      placeholder="Add project context, important information, or notes for the team..."
+                      rows={6}
+                      className="resize-none"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingNotes(false)
+                          setNotesContent(project.notes || '')
+                        }}
+                        disabled={savingNotes}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveNotes}
+                        disabled={savingNotes}
+                      >
+                        {savingNotes ? 'Saving...' : 'Save Notes'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    {project.notes ? (
+                      <p className="text-gray-700 whitespace-pre-wrap">{project.notes}</p>
+                    ) : (
+                      <p className="text-gray-400 italic">
+                        No notes yet. {canEditProject && project.status !== 'complete' && 'Click "Edit" to add project context.'}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Workflow Form Data - Display submitted form information from workflow */}
+            {workflowFormData.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                    Workflow Form Data
+                  </CardTitle>
+                  <CardDescription>Information collected during workflow progression</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {loadingWorkflowFormData ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : (
+                    workflowFormData.map((entry, index) => (
+                      <div key={entry.id} className={`${index > 0 ? 'border-t pt-4' : ''}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              {entry.formName || entry.stepName || 'Form'}
+                            </Badge>
+                            {entry.stepName && entry.formName && (
+                              <span className="text-xs text-gray-500">at {entry.stepName}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {entry.submittedBy && <span>{entry.submittedBy} • </span>}
+                            {formatDistance(new Date(entry.submittedAt), new Date(), { addSuffix: true })}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                          {entry.fields?.map((field: any) => {
+                            const value = entry.responseData[field.id]
+                            if (value === undefined || value === null || value === '') return null
+
+                            return (
+                              <div key={field.id} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
+                                <span className="text-xs font-medium text-gray-500 sm:w-1/3">{field.label}:</span>
+                                <span className="text-sm text-gray-900 sm:w-2/3">
+                                  {field.type === 'url' && typeof value === 'string' ? (
+                                    <a href={value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                                      {value}
+                                    </a>
+                                  ) : Array.isArray(value) ? (
+                                    value.join(', ')
+                                  ) : typeof value === 'boolean' ? (
+                                    value ? 'Yes' : 'No'
+                                  ) : (
+                                    String(value)
+                                  )}
+                                </span>
+                              </div>
+                            )
+                          }) || Object.entries(entry.responseData).map(([key, value]) => (
+                            <div key={key} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
+                              <span className="text-xs font-medium text-gray-500 sm:w-1/3">{key}:</span>
+                              <span className="text-sm text-gray-900 sm:w-2/3">
+                                {Array.isArray(value) ? value.join(', ') :
+                                 typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
+                                 String(value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Tasks - Only show if user has VIEW_TASKS permission */}
             {canViewTasks && (
               <Card>
@@ -1690,7 +2242,7 @@ export default function ProjectDetailPage() {
                         <TaskItem
                           key={task.id}
                           task={task}
-                          canEditTasks={canEditTasks}
+                          canEditTasks={canEditTasks && project.status !== 'complete'}
                           onEdit={handleEditTask}
                           onDelete={handleDeleteTask}
                         />
@@ -1705,74 +2257,6 @@ export default function ProjectDetailPage() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Project Notes - Collaborative notes section */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <StickyNote className="w-5 h-5 text-yellow-600" />
-                      Project Notes
-                    </CardTitle>
-                    <CardDescription>Shared notes and context for the team</CardDescription>
-                  </div>
-                  {canEditProject && project.status !== 'complete' && !editingNotes && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditingNotes(true)}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {editingNotes ? (
-                  <div className="space-y-3">
-                    <Textarea
-                      value={notesContent}
-                      onChange={(e) => setNotesContent(e.target.value)}
-                      placeholder="Add project context, important information, or notes for the team..."
-                      rows={6}
-                      className="resize-none"
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingNotes(false)
-                          setNotesContent(project.notes || '')
-                        }}
-                        disabled={savingNotes}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSaveNotes}
-                        disabled={savingNotes}
-                      >
-                        {savingNotes ? 'Saving...' : 'Save Notes'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="prose prose-sm max-w-none">
-                    {project.notes ? (
-                      <p className="text-gray-700 whitespace-pre-wrap">{project.notes}</p>
-                    ) : (
-                      <p className="text-gray-400 italic">
-                        No notes yet. {canEditProject && project.status !== 'complete' && 'Click "Edit" to add project context.'}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Project Updates - Journal Style */}
             <Card>
@@ -1877,7 +2361,7 @@ export default function ProjectDetailPage() {
                               </div>
                             </div>
                             <p className="text-gray-700 whitespace-pre-wrap text-sm">
-                              {update.content}
+                              {renderMarkdownContent(update.content)}
                             </p>
                           </div>
                         </div>
@@ -2008,7 +2492,7 @@ export default function ProjectDetailPage() {
                                   </span>
                                 </div>
                                 <p className="text-gray-700 whitespace-pre-wrap text-sm mb-3">
-                                  {issue.content}
+                                  {renderMarkdownContent(issue.content)}
                                 </p>
                               </div>
                             </div>
@@ -2085,18 +2569,22 @@ export default function ProjectDetailPage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500 uppercase">Workflow Step</p>
-                    {workflowStepName ? (
-                      <Badge className="bg-indigo-100 text-indigo-800 text-xs whitespace-nowrap">
-                        {workflowStepName}
-                      </Badge>
+                    <p className="text-xs font-medium text-gray-500 uppercase">Workflow Step{workflowStepNames.length > 1 ? 's' : ''}</p>
+                    {workflowStepNames.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {workflowStepNames.map((stepName, index) => (
+                          <Badge key={index} className="bg-indigo-100 text-indigo-800 text-xs w-fit">
+                            {stepName}
+                          </Badge>
+                        ))}
+                      </div>
                     ) : (
                       <span className="text-sm text-gray-400">No active workflow</span>
                     )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-gray-500 uppercase">Priority</p>
-                    <Badge className={`${getPriorityColor(project.priority)} text-xs whitespace-nowrap`}>
+                    <Badge className={`${getPriorityColor(project.priority)} text-xs w-fit`}>
                       {project.priority.toUpperCase()}
                     </Badge>
                   </div>
@@ -2252,7 +2740,9 @@ export default function ProjectDetailPage() {
                     <CardDescription>
                       {teamMembers.length > 0
                         ? `${teamMembers.length} ${teamMembers.length === 1 ? 'person' : 'people'} on this project`
-                        : 'No team members assigned yet'
+                        : project.status === 'complete' && workflowContributors.length > 0
+                          ? `${workflowContributors.length} ${workflowContributors.length === 1 ? 'participant' : 'participants'} in workflow`
+                          : 'No team members assigned yet'
                       }
                     </CardDescription>
                   </div>
@@ -2276,7 +2766,13 @@ export default function ProjectDetailPage() {
 
                       {/* Add Member Dropdown */}
                       {showAddMemberDropdown && (
-                        <div className="absolute right-0 top-full mt-1 w-64 bg-white border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                        <>
+                          {/* Backdrop to close on click outside */}
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowAddMemberDropdown(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-1 w-64 bg-white border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
                           <div className="p-2 border-b">
                             <p className="text-xs font-medium text-gray-500">Select user to add</p>
                           </div>
@@ -2322,6 +2818,7 @@ export default function ProjectDetailPage() {
                             </Button>
                           </div>
                         </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -2336,39 +2833,194 @@ export default function ProjectDetailPage() {
                     </div>
                   ) : teamMembers.length > 0 ? (
                     <div className="space-y-2">
-                      {teamMembers.map((member) => (
-                        <div key={member.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 transition-colors group">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                      {teamMembers.map((member) => {
+                        // Determine what to show as the member's role/status
+                        const hasWorkflowSteps = member.workflow_steps && member.workflow_steps.length > 0
+
+                        return (
+                          <div key={member.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 transition-colors group">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              hasWorkflowSteps
+                                ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                                : 'bg-gradient-to-br from-indigo-400 to-indigo-600'
+                            }`}>
+                              <span className="text-white font-semibold text-xs">
+                                {member.user_profiles?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{member.user_profiles?.name || 'Unknown User'}</p>
+                              {/* Show workflow step assignments */}
+                              {hasWorkflowSteps ? (
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {member.workflow_steps?.slice(0, 3).map((step: { stepId: string; stepName: string }) => (
+                                    <span key={step.stepId} className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
+                                      {step.stepName}
+                                    </span>
+                                  ))}
+                                  {(member.workflow_steps?.length ?? 0) > 3 && (
+                                    <span className="text-[10px] text-gray-500">+{(member.workflow_steps?.length ?? 0) - 3} more</span>
+                                  )}
+                                </div>
+                              ) : member.primary_role ? (
+                                <p className="text-xs text-gray-500">
+                                  Collaborator - {member.primary_role}
+                                </p>
+                              ) : member.role_in_project ? (
+                                <p className="text-xs text-gray-500 capitalize">
+                                  {member.role_in_project.replace('_', ' ')}
+                                </p>
+                              ) : null}
+                            </div>
+                            {/* Step Assignment Button - Show when there's a workflow (active or completed) */}
+                            {canEditProject && project.status !== 'complete' && workflowInstanceId && (
+                              <div className="relative">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowStepAssignDropdown(showStepAssignDropdown === member.user_id ? null : member.user_id)}
+                                  className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto ${
+                                    hasWorkflowSteps ? 'text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                  title={hasWorkflowSteps ? 'Manage step assignments' : 'Assign to workflow steps'}
+                                >
+                                  <GitBranch className="w-4 h-4" />
+                                </Button>
+
+                                {/* Step Assignment Dropdown */}
+                                {showStepAssignDropdown === member.user_id && (
+                                  <>
+                                    {/* Backdrop to close on click outside */}
+                                    <div
+                                      className="fixed inset-0 z-40"
+                                      onClick={() => setShowStepAssignDropdown(null)}
+                                    />
+                                    <div className="absolute right-0 top-full mt-1 w-56 bg-white border rounded-lg shadow-lg z-50">
+                                    <div className="p-2 border-b flex items-center justify-between">
+                                      <p className="text-xs font-medium text-gray-500">Assign to step</p>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setShowStepAssignDropdown(null)}
+                                        className="p-0.5 h-auto text-gray-400 hover:text-gray-600"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                    {workflowNodes.length > 0 ? (
+                                      <div className="py-1 max-h-64 overflow-y-auto">
+                                        {/* Show current assignments summary */}
+                                        {member.workflow_steps && member.workflow_steps.length > 0 && (
+                                          <div className="px-3 py-2 border-b bg-gray-50">
+                                            <p className="text-[10px] text-gray-500 mb-1">Currently assigned to:</p>
+                                            <div className="flex flex-wrap gap-1">
+                                              {member.workflow_steps.map((step: { stepId: string; stepName: string }) => (
+                                                <span key={step.stepId} className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
+                                                  {step.stepName}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* List all nodes - click to toggle assignment */}
+                                        {workflowNodes.map((node) => {
+                                          const isAssigned = node.user_already_assigned
+                                          const isEligible = node.user_eligible
+                                          const isDisabled = assigningToStep || (!isEligible && !isAssigned)
+
+                                          return (
+                                            <button
+                                              key={node.id}
+                                              onClick={() => isAssigned
+                                                ? handleRemoveFromStep(member.user_id, node.id)
+                                                : handleAssignToStep(member.user_id, node.id)
+                                              }
+                                              disabled={isDisabled}
+                                              className={`w-full px-3 py-2 text-left flex items-center gap-2 text-xs ${
+                                                isAssigned
+                                                  ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                                                  : isEligible
+                                                    ? 'text-gray-700 hover:bg-gray-50'
+                                                    : 'text-gray-400 cursor-not-allowed'
+                                              }`}
+                                              title={!isEligible && !isAssigned ? `User doesn't have the ${node.required_entity_name || 'required'} role` : undefined}
+                                            >
+                                              {assigningToStep ? (
+                                                <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
+                                              ) : isAssigned ? (
+                                                <CheckCircle2 className="w-3 h-3 text-indigo-600 flex-shrink-0" />
+                                              ) : isEligible ? (
+                                                <GitBranch className="w-3 h-3 flex-shrink-0" />
+                                              ) : (
+                                                <XCircle className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                                              )}
+                                              <div className="flex-1 min-w-0">
+                                                <span className="truncate block">{node.label}</span>
+                                                {node.required_entity_name && (
+                                                  <span className={`text-[10px] ${isEligible ? 'text-gray-400' : 'text-red-400'}`}>
+                                                    Requires: {node.required_entity_name}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <span className="text-[10px] text-gray-400 capitalize flex-shrink-0">{node.node_type}</span>
+                                            </button>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <div className="p-3 text-center">
+                                        <p className="text-xs text-gray-500">No workflow steps available</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {/* Remove Button - Only show for non-complete projects with edit permission */}
+                            {canEditProject && project.status !== 'complete' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveTeamMember(member.user_id)}
+                                disabled={removingMemberId === member.user_id}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                {removingMemberId === member.user_id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : project.status === 'complete' && workflowContributors.length > 0 ? (
+                    // Show workflow contributors for completed projects
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 font-medium mb-3">Workflow Participants</p>
+                      {workflowContributors.map((contributor) => (
+                        <div key={contributor.user_id} className="flex items-center gap-3 p-2 rounded-md bg-green-50 border border-green-100">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-semibold text-xs">
-                              {member.user_profiles?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                              {contributor.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{member.user_profiles?.name || 'Unknown User'}</p>
-                            {member.role_in_project && (
-                              <p className="text-xs text-gray-500 capitalize">
-                                {member.role_in_project.replace('_', ' ')}
-                              </p>
-                            )}
+                            <p className="text-sm font-medium text-gray-900">{contributor.name}</p>
+                            <p className="text-xs text-green-600 capitalize">
+                              {contributor.contribution_type === 'workflow' ? 'Workflow Participant' : contributor.contribution_type}
+                            </p>
                           </div>
-                          {/* Remove Button - Only show for non-complete projects with edit permission */}
-                          {canEditProject && project.status !== 'complete' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveTeamMember(member.user_id)}
-                              disabled={removingMemberId === member.user_id}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              {removingMemberId === member.user_id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
                         </div>
                       ))}
+                    </div>
+                  ) : loadingWorkflowContributors && project.status === 'complete' ? (
+                    <div className="text-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                      <p className="text-xs text-gray-500 mt-1">Loading workflow participants...</p>
                     </div>
                   ) : (
                     <div className="text-center py-4">

@@ -44,15 +44,19 @@ async function userHasProjectAccess(supabase: any, userId: string, projectId: st
   return false
 }
 
-// Helper function to get task's project_id
-async function getTaskProjectId(supabase: any, taskId: string): Promise<string | null> {
+// Helper function to get task's project info
+async function getTaskProject(supabase: any, taskId: string): Promise<{ project_id: string; status: string } | null> {
   const { data: task } = await supabase
     .from('tasks')
-    .select('project_id')
+    .select('project_id, projects!inner(status)')
     .eq('id', taskId)
     .single()
 
-  return task?.project_id || null
+  if (!task?.project_id) return null
+  return {
+    project_id: task.project_id,
+    status: (task.projects as any)?.status || 'unknown'
+  }
 }
 
 // PUT /api/tasks/[taskId] - Update a task
@@ -97,11 +101,18 @@ export async function PUT(
     }
 
     // Get the task's project to check access
-    const projectId = await getTaskProjectId(supabase, taskId)
-    if (projectId) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, projectId, userProfile)
+    const taskProject = await getTaskProject(supabase, taskId)
+    if (taskProject) {
+      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
+      }
+
+      // Check if project is completed (read-only mode)
+      if (taskProject.status === 'complete') {
+        return NextResponse.json({
+          error: 'Cannot modify tasks in a completed project. The project is in read-only mode.'
+        }, { status: 400 })
       }
     }
 
@@ -174,11 +185,18 @@ export async function PATCH(
     }
 
     // Get the task's project to check access
-    const projectId = await getTaskProjectId(supabase, taskId)
-    if (projectId) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, projectId, userProfile)
+    const taskProject = await getTaskProject(supabase, taskId)
+    if (taskProject) {
+      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
+      }
+
+      // Check if project is completed (read-only mode)
+      if (taskProject.status === 'complete') {
+        return NextResponse.json({
+          error: 'Cannot modify tasks in a completed project. The project is in read-only mode.'
+        }, { status: 400 })
       }
     }
 
@@ -267,11 +285,18 @@ export async function DELETE(
     }
 
     // Get the task's project to check access
-    const projectId = await getTaskProjectId(supabase, taskId)
-    if (projectId) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, projectId, userProfile)
+    const taskProject = await getTaskProject(supabase, taskId)
+    if (taskProject) {
+      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
+      }
+
+      // Check if project is completed (read-only mode)
+      if (taskProject.status === 'complete') {
+        return NextResponse.json({
+          error: 'Cannot delete tasks in a completed project. The project is in read-only mode.'
+        }, { status: 400 })
       }
     }
 

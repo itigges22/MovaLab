@@ -2,10 +2,10 @@
 
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { GitBranch, Users, UserCheck, CheckCircle, Play, Flag, FileText, GitMerge, HelpCircle } from 'lucide-react';
+import { GitBranch, Users, UserCheck, CheckCircle, Play, Flag, FileText, GitMerge, Combine, HelpCircle } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 
-export type WorkflowNodeType = 'start' | 'department' | 'role' | 'approval' | 'form' | 'conditional' | 'end';
+export type WorkflowNodeType = 'start' | 'department' | 'role' | 'approval' | 'form' | 'conditional' | 'sync' | 'end';
 
 export interface WorkflowNodeData {
   label: string;
@@ -35,6 +35,9 @@ export interface WorkflowNodeData {
       value: string;
       color?: string;
     }>;
+    // Form-value conditional: reference to source form
+    sourceFormFieldId?: string;
+    sourceFormNodeId?: string;
     // Approval feedback
     allowFeedback?: boolean;
     allowSendBack?: boolean;
@@ -77,7 +80,13 @@ const nodeStyles: Record<WorkflowNodeType, { bg: string; border: string; icon: a
     bg: 'bg-pink-50',
     border: 'border-pink-500',
     icon: GitMerge,
-    description: 'Smart routing: Different paths based on previous decision (e.g., if approved → delivery, if rejected → revisions).',
+    description: 'Branch workflow based on form responses. Connect to a Form node and create up to 5 output paths.',
+  },
+  sync: {
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-500',
+    icon: Combine,
+    description: 'Wait point: Pauses until all incoming parallel paths complete before continuing.',
   },
   end: {
     bg: 'bg-gray-50',
@@ -157,13 +166,55 @@ export const WorkflowNode = memo(({ data, selected }: NodeProps) => {
         </div>
 
       {/* Output Handle (except for end) */}
-      {nodeData.type !== 'end' && (
+      {nodeData.type !== 'end' && nodeData.type !== 'conditional' && (
         <Handle
           type="source"
           position={Position.Bottom}
           className="w-3 h-3 !bg-gray-400 border-2 border-white"
         />
       )}
+
+      {/* Conditional nodes get dynamic output handles based on configured branches */}
+      {nodeData.type === 'conditional' && nodeData.config?.conditions && nodeData.config.conditions.length > 0 ? (
+        // Show custom branches
+        <>
+          {nodeData.config.conditions.map((condition: any, index: number) => {
+            const total = nodeData.config!.conditions!.length;
+            const leftPercent = total === 1 ? 50 : (index + 1) * (100 / (total + 1));
+            return (
+              <div key={condition.id || index}>
+                <Handle
+                  type="source"
+                  position={Position.Bottom}
+                  id={condition.value || condition.id}
+                  className="w-3 h-3 border-2 border-white"
+                  style={{
+                    left: `${leftPercent}%`,
+                    backgroundColor: condition.color || '#3B82F6'
+                  }}
+                  title={condition.label}
+                />
+                <span
+                  className="absolute bottom-[-18px] text-[8px] font-semibold pointer-events-none whitespace-nowrap overflow-hidden max-w-[60px] text-ellipsis"
+                  style={{
+                    left: `${leftPercent}%`,
+                    transform: 'translateX(-50%)',
+                    color: condition.color || '#3B82F6'
+                  }}
+                  title={condition.label}
+                >
+                  {condition.label.length > 10 ? condition.label.substring(0, 10) + '...' : condition.label}
+                </span>
+              </div>
+            );
+          })}
+        </>
+      ) : nodeData.type === 'conditional' ? (
+        // No branches configured yet - show placeholder
+        <div className="absolute bottom-[-20px] left-1/2 transform -translate-x-1/2">
+          <span className="text-[9px] text-gray-400 whitespace-nowrap">No branches configured</span>
+        </div>
+      ) : null}
     </div>
   );
 });

@@ -16,16 +16,20 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup
 } from './ui/dropdown-menu'
-import { 
-  LayoutDashboard, 
-  Building2, 
-  Users, 
-  User, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  User,
+  Menu,
   X,
   LogOut,
   BarChart3,
-  ChevronDown
+  ChevronDown,
+  Settings,
+  GitBranch,
+  Shield,
+  Clock
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isSuperadmin, isUnassigned, hasPermission } from '@/lib/rbac'
@@ -371,26 +375,37 @@ export function ClientNavigation() {
                   })
                 )}
                 
-                {/* Admin dropdown for superadmin - removed for now due to redirect issues */}
-                {/* {isSuperadmin(userProfile) && (
+                {/* Admin dropdown for users with admin access */}
+                {userProfile && isSuperadmin(userProfile) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="flex items-center space-x-2 px-3 py-2 text-sm font-medium">
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                          pathname.startsWith('/admin')
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                      >
                         <Settings className="w-4 h-4" />
                         <span>Admin</span>
+                        <ChevronDown className="w-3 h-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuLabel>Administration</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
                         <Link href="/admin" className="flex items-center">
                           <Settings className="mr-2 h-4 w-4" />
-                          <span>System Admin</span>
+                          <span>Admin Dashboard</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/database" className="flex items-center">
-                          <Database className="mr-2 h-4 w-4" />
-                          <span>Database Status</span>
+                        <Link href="/admin/workflows" className="flex items-center">
+                          <GitBranch className="mr-2 h-4 w-4" />
+                          <span>Workflows</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
@@ -399,9 +414,15 @@ export function ClientNavigation() {
                           <span>Role Management</span>
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/time-tracking" className="flex items-center">
+                          <Clock className="mr-2 h-4 w-4" />
+                          <span>Time Tracking</span>
+                        </Link>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )} */}
+                )}
               </div>
 
               {/* Medium screen navigation (shows fewer items) */}
@@ -639,6 +660,65 @@ export function ClientNavigation() {
                           </Link>
                         )
                       })}
+                    </div>
+                  )}
+
+                  {/* Admin section for mobile */}
+                  {userProfile && isSuperadmin(userProfile) && (
+                    <div className="pt-2 border-t">
+                      <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
+                      <Link
+                        href="/admin"
+                        className={cn(
+                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                          pathname === '/admin'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                      <Link
+                        href="/admin/workflows"
+                        className={cn(
+                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                          pathname.startsWith('/admin/workflows')
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <GitBranch className="w-4 h-4" />
+                        <span>Workflows</span>
+                      </Link>
+                      <Link
+                        href="/admin/roles"
+                        className={cn(
+                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                          pathname.startsWith('/admin/roles')
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Shield className="w-4 h-4" />
+                        <span>Role Management</span>
+                      </Link>
+                      <Link
+                        href="/admin/time-tracking"
+                        className={cn(
+                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                          pathname.startsWith('/admin/time-tracking')
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Clock className="w-4 h-4" />
+                        <span>Time Tracking</span>
+                      </Link>
                     </div>
                   )}
                 </div>

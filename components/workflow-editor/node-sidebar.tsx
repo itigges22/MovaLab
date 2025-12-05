@@ -1,6 +1,6 @@
 'use client';
 
-import { GitBranch, Users, UserCheck, Play, Flag, FileText } from 'lucide-react';
+import { GitBranch, Users, UserCheck, Play, Flag, FileText, GitMerge, Combine } from 'lucide-react';
 import { WorkflowNodeType } from './workflow-node';
 
 interface NodeTypeConfig {
@@ -52,6 +52,22 @@ const nodeTypes: NodeTypeConfig[] = [
     description: 'Collect structured data via form. User fills out fields before continuing.',
     bgColor: 'bg-cyan-50',
     borderColor: 'border-cyan-500',
+  },
+  {
+    type: 'conditional',
+    label: 'Conditional',
+    icon: GitMerge,
+    description: 'Branch workflow based on form responses. Connect to a Form node and create up to 5 output paths.',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-500',
+  },
+  {
+    type: 'sync',
+    label: 'Sync',
+    icon: Combine,
+    description: 'Wait point: Pauses until all incoming parallel paths complete before continuing.',
+    bgColor: 'bg-indigo-50',
+    borderColor: 'border-indigo-500',
   },
   {
     type: 'end',
@@ -115,6 +131,17 @@ export function NodeSidebar() {
             <li><strong>Review Loop:</strong> Role → Approval (approved → End, rejected → Role)</li>
             <li><strong>Sequential Steps:</strong> Role → Role → Role → End</li>
             <li><strong>Quality Gate:</strong> Role → Approval → End</li>
+            <li><strong>Parallel Work:</strong> Fork from node → Multiple paths → Sync → End</li>
+          </ul>
+        </div>
+
+        <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <p className="text-xs font-semibold text-indigo-900 mb-2">Parallel Workflows</p>
+          <ul className="text-xs text-indigo-800 space-y-1">
+            <li>✓ Connect one node to multiple targets to create parallel paths</li>
+            <li>✓ Use <strong>Sync</strong> node to wait for all paths before continuing</li>
+            <li>✓ All parallel paths execute simultaneously</li>
+            <li>✓ Workflow completes when ALL paths reach End or Sync</li>
           </ul>
         </div>
 

@@ -51,13 +51,31 @@ export async function GET(
       return NextResponse.json({ error: 'Insufficient permissions to view issues' }, { status: 403 });
     }
 
-    // Get issues
+    // Get issues with workflow history info
+    // Use explicit foreign key hint to resolve relationship ambiguity
     const { data: issues, error } = await supabase
       .from('project_issues')
       .select(`
         *,
         user_profiles:created_by(id, name, email, image),
-        resolver_profiles:resolved_by(id, name, email, image)
+        resolver_profiles:resolved_by(id, name, email, image),
+        workflow_history:workflow_history!project_issues_workflow_history_id_fkey(
+          id,
+          from_node_id,
+          approval_decision,
+          workflow_nodes:workflow_nodes!workflow_history_from_node_id_fkey(
+            id,
+            label,
+            node_type
+          ),
+          workflow_instances:workflow_instances(
+            id,
+            workflow_templates(
+              id,
+              name
+            )
+          )
+        )
       `)
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
@@ -120,6 +138,19 @@ export async function POST(
     const canCreateIssue = await hasPermission(userProfile, Permission.CREATE_ISSUE, undefined, supabase);
     if (!canCreateIssue) {
       return NextResponse.json({ error: 'Insufficient permissions to create issues' }, { status: 403 });
+    }
+
+    // Check if project is completed (read-only mode)
+    const { data: project } = await supabase
+      .from('projects')
+      .select('status')
+      .eq('id', projectId)
+      .single();
+
+    if (project?.status === 'complete') {
+      return NextResponse.json({
+        error: 'Cannot add issues to a completed project. The project is in read-only mode.'
+      }, { status: 400 });
     }
 
     const body = await request.json();

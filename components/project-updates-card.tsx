@@ -9,62 +9,35 @@ import { Button } from '@/components/ui/button'
 import { AllProjectUpdate } from '@/lib/all-project-updates-service'
 import { formatDistanceToNow } from 'date-fns'
 import { Activity, Clock, User } from 'lucide-react'
-import { createClientSupabase } from '@/lib/supabase'
 
 interface ProjectUpdatesCardProps {
   className?: string;
+}
+
+// Helper function to render simple markdown (bold text) as React elements
+function renderMarkdownContent(content: string): React.ReactNode {
+  if (!content) return null
+
+  // Split by **text** pattern and render bold parts
+  const parts = content.split(/(\*\*[^*]+\*\*)/g)
+
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      // Remove the ** markers and render as bold
+      return <strong key={index}>{part.slice(2, -2)}</strong>
+    }
+    return <span key={index}>{part}</span>
+  })
 }
 
 export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProps) {
   const [updates, setUpdates] = useState<AllProjectUpdate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({})
 
   useEffect(() => {
     loadUpdates()
   }, [])
-
-  // Fetch workflow steps when updates change
-  useEffect(() => {
-    if (updates.length === 0) {
-      setWorkflowSteps({})
-      return
-    }
-
-    async function fetchWorkflowSteps() {
-      const supabase = createClientSupabase()
-      if (!supabase) return
-
-      // Get unique project IDs from updates
-      const projectIds = [...new Set(updates.map(u => u.project_id).filter(Boolean))]
-      if (projectIds.length === 0) return
-
-      const { data: workflowData, error } = await supabase
-        .from('workflow_instances')
-        .select(`
-          project_id,
-          current_node_id,
-          workflow_nodes!workflow_instances_current_node_id_fkey (
-            label
-          )
-        `)
-        .in('project_id', projectIds)
-        .eq('status', 'active')
-
-      if (!error && workflowData) {
-        const steps: { [key: string]: string | null } = {}
-        workflowData.forEach((instance: any) => {
-          if (instance.project_id && instance.workflow_nodes?.label) {
-            steps[instance.project_id] = instance.workflow_nodes.label
-          }
-        })
-        setWorkflowSteps(steps)
-      }
-    }
-
-    fetchWorkflowSteps()
-  }, [updates])
 
   const loadUpdates = async () => {
     try {
@@ -208,19 +181,24 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
                         </span>
                       </div>
                       
-                      <p className="text-sm text-gray-700 mb-3 break-words">{update.content}</p>
+                      <p className="text-sm text-gray-700 mb-3 break-words">{renderMarkdownContent(update.content)}</p>
                       
                       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                         <span className="font-medium">{update.projects?.name || 'Unknown Project'}</span>
                         <span className="hidden sm:inline">•</span>
                         <span className="break-all sm:break-normal">{update.projects?.accounts?.name || 'Unknown Account'}</span>
                         <span className="hidden sm:inline">•</span>
-                        {workflowSteps[update.project_id] ? (
+                        {(update as any).workflow_history?.workflow_nodes?.label ? (
                           <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
-                            {workflowSteps[update.project_id]}
+                            {(update as any).workflow_history.workflow_nodes.label}
+                            {(update as any).workflow_history.approval_decision && (
+                              <span className="ml-1">
+                                ({(update as any).workflow_history.approval_decision})
+                              </span>
+                            )}
                           </Badge>
                         ) : (
-                          <span className="text-xs text-gray-400">No workflow</span>
+                          <span className="text-xs text-gray-400">Manual update</span>
                         )}
                         <Badge variant="outline" className={`${getPriorityColor(update.projects?.priority || '')} text-xs whitespace-nowrap`}>
                           {update.projects?.priority || 'Unknown'}

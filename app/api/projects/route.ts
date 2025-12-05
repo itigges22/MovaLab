@@ -104,6 +104,26 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Add the creator as a team member in project_assignments
+    const { error: assignmentError } = await supabase
+      .from('project_assignments')
+      .insert({
+        project_id: project.id,
+        user_id: user.id,
+        role_in_project: 'Project Creator',
+        assigned_at: new Date().toISOString(),
+        assigned_by: user.id
+      })
+
+    if (assignmentError) {
+      logger.error('Failed to add creator to project assignments', {
+        action: 'create_project',
+        userId: user.id,
+        projectId: project.id
+      }, assignmentError as Error)
+      // Don't fail the request, the project was created successfully
+    }
+
     logger.info('Project created successfully', {
       action: 'create_project',
       userId: user.id,

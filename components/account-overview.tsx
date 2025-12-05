@@ -761,7 +761,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
 
   const handleDeleteProject = (projectId: string) => {
     console.log('handleDeleteProject called with ID:', projectId);
-    const project = projects.find(p => p.id === projectId);
+    // Look in both active and finished projects
+    const project = projects.find(p => p.id === projectId) || finishedProjects.find(p => p.id === projectId);
     console.log('Found project:', project);
     if (project) {
       console.log('Setting project to delete:', { id: project.id, name: project.name });
@@ -902,9 +903,16 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       console.log('Delete result:', success);
       
       if (success) {
+        // Remove from active projects
         setProjects(prev => {
           const filtered = prev.filter(p => p.id !== projectToDelete.id);
           console.log('Updated projects list:', filtered.length, 'projects remaining');
+          return filtered;
+        });
+        // Also remove from finished projects
+        setFinishedProjects(prev => {
+          const filtered = prev.filter(p => p.id !== projectToDelete.id);
+          console.log('Updated finished projects list:', filtered.length, 'projects remaining');
           return filtered;
         });
         console.log('Project deleted successfully');
@@ -1686,6 +1694,16 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                         </Link>
+                        {canDeleteProject && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteProject(project.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

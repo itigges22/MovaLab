@@ -26,21 +26,21 @@ export function SWRProvider({ children }: { children: ReactNode }) {
         fetcher,
         // Dedupe requests within 2 seconds
         dedupingInterval: 2000,
-        // Keep data fresh
-        focusThrottleInterval: 5000,
-        // Revalidate on focus (when user returns to tab)
-        revalidateOnFocus: true,
-        // Revalidate on reconnect
+        // Throttle focus revalidation to once per 60 seconds
+        focusThrottleInterval: 60000,
+        // DISABLED: revalidateOnFocus causes jarring refreshes when filling out forms
+        // Data will still update via explicit mutations and periodic refetches
+        revalidateOnFocus: false,
+        // Revalidate on reconnect (after losing network connection)
         revalidateOnReconnect: true,
-        // Don't revalidate on mount if data is fresh
+        // Don't revalidate stale data automatically
         revalidateIfStale: false,
-        // Keep cache for 5 minutes
+        // Error retry configuration
         errorRetryCount: 2,
-        // Retry with exponential backoff
         errorRetryInterval: 5000,
         // Performance: Use cache immediately while revalidating in background
         suspense: false,
-        // Enable SWR to automatically refetch when window regains focus
+        // KEEP THIS TRUE: Required for initial data loading on component mount
         revalidateOnMount: true,
       }}
     >

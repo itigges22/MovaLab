@@ -199,26 +199,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Periodic background refresh to catch permission changes (every 60 seconds)
-  useEffect(() => {
-    if (!user) return
-
-    const intervalId = setInterval(async () => {
-      try {
-        // Silent refresh - don't set loading state to avoid UI flickering
-        clearPermissionCache()
-        const profile = await getCurrentUserProfile()
-        if (profile) {
-          setUserProfile(profile)
-        }
-      } catch (error) {
-        // Silent fail - don't disrupt user experience
-        console.error('Background profile refresh failed:', error)
-      }
-    }, 60000) // Refresh every 60 seconds
-
-    return () => clearInterval(intervalId)
-  }, [user])
+  // DISABLED: Periodic background refresh was causing jarring UI updates
+  // Permission changes will be picked up on next page navigation or explicit refresh
+  // Users can manually refresh the page if they need to see permission changes immediately
 
   const value = {
     user,

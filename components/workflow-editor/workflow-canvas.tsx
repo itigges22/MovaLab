@@ -28,6 +28,7 @@ import { WorkflowTutorialDialog } from './workflow-tutorial-dialog';
 import { Button } from '@/components/ui/button';
 import { Save, Trash2, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateWorkflow, ValidationResult } from '@/lib/workflow-validation';
 
 interface Department {
   id: string;
@@ -58,7 +59,7 @@ const edgeTypes = {
 };
 
 const defaultEdgeOptions = {
-  type: 'smoothstep',
+  type: 'labeled', // Use custom labeled edge for curved bezier style and hover effects on ALL edges
   markerEnd: {
     type: MarkerType.ArrowClosed,
     width: 20,
@@ -91,16 +92,87 @@ function WorkflowCanvasInner({
 
   const onConnect = useCallback(
     (params: Connection) => {
-      // Check if source node is approval - these can have multiple decision-based paths
       const sourceNode = nodes.find((n) => n.id === params.source);
+      const targetNode = nodes.find((n) => n.id === params.target);
+
+      // CASE 1: Connecting FROM a conditional node
+      // The sourceHandle identifies which branch - auto-set the label based on handle
+      if (sourceNode?.data.type === 'conditional') {
+        const handleId = params.sourceHandle;
+
+        // Find the condition label from config
+        let label = handleId || 'Unknown';
+        let decision = handleId;
+
+        if (sourceNode.data.config?.conditions) {
+          const condition = sourceNode.data.config.conditions.find(
+            (c: any) => c.value === handleId || c.id === handleId
+          );
+          label = condition?.label || handleId || 'Unknown';
+          decision = handleId;
+        }
+
+        const newEdge: Edge = {
+          id: `edge-${params.source}-${params.target}-${Date.now()}`,
+          source: params.source!,
+          target: params.target!,
+          sourceHandle: params.sourceHandle,
+          targetHandle: params.targetHandle,
+          type: 'labeled',
+          data: {
+            label,
+            conditionValue: decision,
+            conditionType: 'form_value',
+            decision,
+          },
+        };
+        setEdges((eds) => addEdge(newEdge, eds));
+        return;
+      }
+
+      // CASE 2: Connecting FROM an approval node TO a conditional node
+      // No dialog needed - the conditional will handle the branching
+      if (sourceNode?.data.type === 'approval' && targetNode?.data.type === 'conditional') {
+        const newEdge: Edge = {
+          id: `edge-${params.source}-${params.target}-${Date.now()}`,
+          source: params.source!,
+          target: params.target!,
+          sourceHandle: params.sourceHandle,
+          targetHandle: params.targetHandle,
+          type: 'labeled',
+          data: {}, // No decision label - flows into conditional for routing
+        };
+        setEdges((eds) => addEdge(newEdge, eds));
+        return;
+      }
+
+      // CASE 3: Connecting FROM an approval node to any other node type
+      // Show dialog to select approved/rejected path
       if (sourceNode?.data.type === 'approval') {
-        // Open edge config dialog for approval nodes to set decision (approved/rejected)
         setPendingConnection(params);
         setEdgeConfigDialogOpen(true);
-      } else {
-        // Add edge normally for all other node types
-        setEdges((eds) => addEdge(params, eds));
+        return;
       }
+
+      // CASE 3b: Connecting FROM a sync node to any other node type
+      // Show dialog to select all_approved/any_rejected path (aggregate decision routing)
+      if (sourceNode?.data.type === 'sync') {
+        setPendingConnection(params);
+        setEdgeConfigDialogOpen(true);
+        return;
+      }
+
+      // CASE 4: All other connections - no dialog, just connect with curved style
+      const newEdge: Edge = {
+        id: `edge-${params.source}-${params.target}-${Date.now()}`,
+        source: params.source!,
+        target: params.target!,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        type: 'labeled', // Use labeled edge for curved bezier style and hover effects
+        data: {}, // No label data for non-conditional edges
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
     },
     [nodes, setEdges]
   );
@@ -176,7 +248,7 @@ function WorkflowCanvasInner({
   }, []);
 
   const handleConfigSave = useCallback(
-    (data: WorkflowNodeData) => {
+    (data: WorkflowNodeData, clearOutgoingEdges?: boolean) => {
       if (!selectedNodeForConfig) return;
 
       setNodes((nds) =>
@@ -190,8 +262,13 @@ function WorkflowCanvasInner({
           return node;
         })
       );
+
+      // Clear outgoing edges if condition type changed (for conditional nodes)
+      if (clearOutgoingEdges) {
+        setEdges((eds) => eds.filter((edge) => edge.source !== selectedNodeForConfig));
+      }
     },
-    [selectedNodeForConfig, setNodes]
+    [selectedNodeForConfig, setNodes, setEdges]
   );
 
   const handleSave = async () => {
@@ -200,26 +277,36 @@ function WorkflowCanvasInner({
       return;
     }
 
-    // Validate workflow
-    if (nodes.length === 0) {
-      toast.error('Workflow is empty. Add at least one node.');
+    // Run comprehensive workflow validation
+    const validation = validateWorkflow(nodes, edges);
+
+    // Show errors first (blocking)
+    if (!validation.valid) {
+      const errorMessages = validation.errors.map((e) => {
+        const nodeInfo = e.nodeLabel ? ` ("${e.nodeLabel}")` : '';
+        return `${e.message}${nodeInfo}`;
+      });
+      toast.error(
+        `Cannot save workflow:\n${errorMessages.join('\n')}`,
+        { duration: 8000 }
+      );
       return;
     }
 
-    const hasStart = nodes.some((n) => n.data.type === 'start');
-    const hasEnd = nodes.some((n) => n.data.type === 'end');
-
-    if (!hasStart) {
-      toast.error('Workflow must have a Start node');
-      return;
-    }
-
-    if (!hasEnd) {
-      toast.error('Workflow must have an End node');
-      return;
+    // Show warnings (non-blocking, but inform user)
+    if (validation.warnings.length > 0) {
+      const warningMessages = validation.warnings.map((w) => {
+        const nodeInfo = w.nodeLabel ? ` ("${w.nodeLabel}")` : '';
+        return `${w.message}${nodeInfo}`;
+      });
+      toast.warning(
+        `Workflow has warnings:\n${warningMessages.join('\n')}`,
+        { duration: 6000 }
+      );
     }
 
     // Check for unconfigured nodes with detailed validation
+    // (This is separate from structural validation - checks node-specific config)
     const unconfiguredNodes: { node: any; reason: string }[] = [];
 
     nodes.forEach((node) => {
@@ -236,7 +323,6 @@ function WorkflowCanvasInner({
           unconfiguredNodes.push({ node, reason: 'At least one form field is required' });
         }
       }
-      // Note: conditional nodes are deprecated - branching is now handled by approval nodes directly
     });
 
     if (unconfiguredNodes.length > 0) {
@@ -247,68 +333,6 @@ function WorkflowCanvasInner({
         `Please configure all nodes before saving:\n${errorMessages.join('\n')}`,
         { duration: 6000 }
       );
-      return;
-    }
-
-    // Validate that a path from Start to End exists
-    // This allows revision loops (rejection → back to previous step) while ensuring
-    // the workflow can complete through the "approved" path
-    const hasPathToEnd = (): boolean => {
-      const startNode = nodes.find((n) => n.data.type === 'start');
-      const endNode = nodes.find((n) => n.data.type === 'end');
-      if (!startNode || !endNode) return false;
-
-      const visited = new Set<string>();
-      const queue = [startNode.id];
-
-      while (queue.length > 0) {
-        const currentId = queue.shift()!;
-        if (currentId === endNode.id) return true; // Found path to end
-        if (visited.has(currentId)) continue;
-        visited.add(currentId);
-
-        const currentNode = nodes.find((n) => n.id === currentId);
-        const outgoingEdges = edges.filter((e) => e.source === currentId);
-
-        for (const edge of outgoingEdges) {
-          // For approval nodes (and legacy conditional nodes), follow decision-based paths
-          // Rejection loops are valid as long as an approval path to End exists
-          if (currentNode?.data.type === 'approval' || currentNode?.data.type === 'conditional') {
-            const edgeData = edge.data as any;
-            // Follow approved path OR any path without a decision label (default path)
-            // Skip rejected paths as they create valid revision loops
-            if (edgeData?.decision === 'approved' || edgeData?.conditionValue === 'approved' ||
-                edgeData?.decision === undefined || edgeData?.decision === null) {
-              queue.push(edge.target);
-            }
-          } else {
-            // For other nodes, follow all outgoing edges
-            queue.push(edge.target);
-          }
-        }
-      }
-
-      return false; // No path to end found
-    };
-
-    if (!hasPathToEnd()) {
-      toast.error('Workflow must have a valid path from Start to End through approval steps. Check your connections.');
-      return;
-    }
-
-    // Check for orphaned nodes (nodes with no connections)
-    const connectedNodes = new Set<string>();
-    edges.forEach((edge) => {
-      connectedNodes.add(edge.source);
-      connectedNodes.add(edge.target);
-    });
-
-    const orphanedNodes = nodes.filter(
-      (node) => !connectedNodes.has(node.id) && node.data.type !== 'start' && node.data.type !== 'end'
-    );
-
-    if (orphanedNodes.length > 0) {
-      toast.error(`${orphanedNodes.length} node(s) are not connected to the workflow. All nodes must be connected.`);
       return;
     }
 
@@ -390,6 +414,9 @@ function WorkflowCanvasInner({
           open={configDialogOpen}
           onOpenChange={setConfigDialogOpen}
           nodeData={selectedNode?.data || null}
+          nodeId={selectedNodeForConfig || undefined}
+          allNodes={nodes}
+          allEdges={edges}
           onSave={handleConfigSave}
           departments={departments}
           roles={roles}
@@ -403,7 +430,13 @@ function WorkflowCanvasInner({
               ? nodes.find((n) => n.id === pendingConnection.source)?.data.type || 'approval'
               : 'approval'
           }
-          conditionType="approval_decision"
+          conditionType={
+            pendingConnection?.source
+              ? nodes.find((n) => n.id === pendingConnection.source)?.data.type === 'sync'
+                ? 'sync_aggregate_decision'
+                : 'approval_decision'
+              : 'approval_decision'
+          }
           onSave={handleEdgeConfigSave}
         />
 

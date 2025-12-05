@@ -816,19 +816,26 @@ export async function updateRolePermissions(
 
 /**
  * Check if user is superadmin (helper function)
+ * Uses is_superadmin flag on user profile, NOT hardcoded role names
  * @param userProfile - User profile with roles
  * @returns True if user is superadmin
  */
 function isSuperadmin(userProfile: UserWithRoles | null): boolean {
-  if (!userProfile?.user_roles) return false;
-  return userProfile.user_roles.some(ur => 
-    ur.roles.name === 'Superadmin' || 
-    ur.roles.name === 'Executive' ||
-    ur.roles.name === 'superadmin' ||
-    ur.roles.name === 'executive' ||
-    ur.roles.name.toLowerCase() === 'superadmin' ||
-    ur.roles.name.toLowerCase() === 'executive'
-  );
+  if (!userProfile) return false;
+
+  // Primary check: use the is_superadmin flag on user profile
+  if (userProfile.is_superadmin) return true;
+
+  // Fallback: check if user has a system role with superadmin-level permissions
+  // This uses is_system_role flag, not hardcoded role names
+  if (userProfile.user_roles) {
+    return userProfile.user_roles.some(ur =>
+      ur.roles.is_system_role &&
+      ur.roles.name?.toLowerCase() === 'superadmin'
+    );
+  }
+
+  return false;
 }
 
 /**

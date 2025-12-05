@@ -13,7 +13,11 @@ import { TimePeriod } from '@/components/capacity-trend-chart'
 // Capacity history hook
 export function useCapacityHistory(userId: string | undefined, period: TimePeriod) {
   const { data, error, isLoading, mutate } = useSWR(
-    userId ? `/api/capacity/history?userId=${userId}&period=${period}` : null
+    userId ? `/api/capacity/history?userId=${userId}&period=${period}` : null,
+    {
+      // Disable focus-based refresh to prevent jarring UI updates when filling forms
+      revalidateOnFocus: false,
+    }
   )
 
   return {
@@ -28,7 +32,11 @@ export function useCapacityHistory(userId: string | undefined, period: TimePerio
 // Organization capacity hook
 export function useOrganizationCapacity(period: TimePeriod) {
   const { data, error, isLoading, mutate } = useSWR(
-    `/api/capacity/organization?period=${period}`
+    `/api/capacity/organization?period=${period}`,
+    {
+      // Disable focus-based refresh to prevent jarring UI updates when filling forms
+      revalidateOnFocus: false,
+    }
   )
 
   return {
@@ -43,7 +51,11 @@ export function useOrganizationCapacity(period: TimePeriod) {
 // Department capacity hook
 export function useDepartmentCapacity(departmentId: string | undefined, period: TimePeriod) {
   const { data, error, isLoading, mutate } = useSWR(
-    departmentId ? `/api/capacity/department?departmentId=${departmentId}&period=${period}` : null
+    departmentId ? `/api/capacity/department?departmentId=${departmentId}&period=${period}` : null,
+    {
+      // Disable focus-based refresh to prevent jarring UI updates when filling forms
+      revalidateOnFocus: false,
+    }
   )
 
   return {
@@ -58,7 +70,11 @@ export function useDepartmentCapacity(departmentId: string | undefined, period: 
 // Account capacity hook
 export function useAccountCapacity(accountId: string | undefined, period: TimePeriod) {
   const { data, error, isLoading, mutate } = useSWR(
-    accountId ? `/api/capacity/account?accountId=${accountId}&period=${period}` : null
+    accountId ? `/api/capacity/account?accountId=${accountId}&period=${period}` : null,
+    {
+      // Disable focus-based refresh to prevent jarring UI updates when filling forms
+      revalidateOnFocus: false,
+    }
   )
 
   return {
@@ -76,8 +92,9 @@ export function useClockStatus(enabled: boolean = true) {
   const { data, error, isLoading, mutate } = useSWR(
     enabled ? '/api/clock' : null,
     {
-      // Refresh every 30 seconds
-      refreshInterval: 30000
+      // Disable focus-based refresh to prevent jarring UI updates when filling forms
+      // Clock status will update via explicit mutate() calls when clocking in/out
+      revalidateOnFocus: false,
     }
   )
 
@@ -94,7 +111,11 @@ export function useClockStatus(enabled: boolean = true) {
 // Projects hook
 export function useProjects(userId: string | undefined, limit: number = 10) {
   const { data, error, isLoading, mutate } = useSWR(
-    userId ? `/api/projects?userId=${userId}&limit=${limit}` : null
+    userId ? `/api/projects?userId=${userId}&limit=${limit}` : null,
+    {
+      // Disable focus-based refresh to prevent jarring UI updates when filling forms
+      revalidateOnFocus: false,
+    }
   )
 
   return {

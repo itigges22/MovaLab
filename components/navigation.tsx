@@ -205,6 +205,7 @@ export function Navigation() {
       // Superadmin sees everything
       if (userIsSuperadmin) {
         if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
+        console.log('✅ Superadmin detected - showing all navigation items:', navigationItems.map(i => i.name));
         setVisibleItems(navigationItems);
         setPermissionsChecked(true);
         return;
@@ -371,7 +372,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-4">
             {/* Only render items after permissions are checked (for assigned users) */}
             {(!isMounted || loading || (!permissionsChecked && userProfile && !isUnassigned(userProfile))) ? (
               // Show minimal loading state
@@ -389,11 +390,18 @@ export function Navigation() {
                 );
               })
             ) : (
-              visibleItems.map((item) => {
+              (() => {
+                console.log('🔍 DEBUG: Rendering visibleItems:', visibleItems.map(i => i.name));
+                return visibleItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || 
+                const isActive = pathname === item.href ||
                   (item.href !== '/dashboard' && pathname.startsWith(item.href));
-              
+
+              // Skip items that are grouped under Admin dropdown
+              if (['Profile', 'Pending Users', 'Workflows', 'Forms'].includes(item.name)) {
+                return null;
+              }
+
               // Special handling for Department dropdown
               if (item.name === 'Department') {
                 const userDepartments = getUserDepartments();
@@ -442,7 +450,54 @@ export function Navigation() {
                   </DropdownMenu>
                 );
               }
-              
+
+              // Special handling for Admin dropdown with sub-items
+              if (item.name === 'Admin') {
+                const adminSubItems = visibleItems.filter(i =>
+                  ['Pending Users', 'Workflows', 'Forms'].includes(i.name)
+                );
+                const isAdminActive = pathname === '/admin' || pathname.startsWith('/admin/');
+                return (
+                  <DropdownMenu key={item.name}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-normal transition-colors',
+                          isAdminActive
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        )}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Admin</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>Admin Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      {adminSubItems.length > 0 && <DropdownMenuSeparator />}
+                      {adminSubItems.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        return (
+                          <DropdownMenuItem key={subItem.name} asChild>
+                            <Link href={subItem.href} className="flex items-center">
+                              <SubIcon className="mr-2 h-4 w-4" />
+                              <span>{subItem.name}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+
               return (
                 <Link
                   key={item.name}
@@ -458,7 +513,8 @@ export function Navigation() {
                   <span>{item.name}</span>
                 </Link>
               );
-              })
+              });
+              })()
             )}
           </div>
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { progressWorkflow } from '@/lib/workflow-execution-service';
+import { progressWorkflow, progressWorkflowStep } from '@/lib/workflow-execution-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { workflowInstanceId, decision, feedback, formResponseId, assignedUserId, formData } = await request.json();
+    const {
+      workflowInstanceId,
+      activeStepId, // NEW: for parallel workflow support
+      decision,
+      feedback,
+      formResponseId,
+      assignedUserId,
+      assignedUsersPerNode, // NEW: map of nodeId -> userId for parallel branches
+      formData
+    } = await request.json();
 
     if (!workflowInstanceId) {
       return NextResponse.json(
@@ -24,16 +33,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Progress the workflow
-    const result = await progressWorkflow(
+    // Use the new progressWorkflowStep function which supports parallel workflows
+    // If activeStepId is provided, it progresses that specific step
+    // If not provided, it falls back to legacy behavior using current_node_id
+    const result = await progressWorkflowStep(
       supabase,
       workflowInstanceId,
+      activeStepId || null, // Pass null for legacy behavior
       user.id,
       decision,
       feedback,
       formResponseId,
       assignedUserId,
-      formData // Pass inline form data
+      formData,
+      assignedUsersPerNode // NEW: map of nodeId -> userId for parallel branches
     );
 
     if (!result.success) {
@@ -43,6 +56,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       nextNode: result.nextNode,
+      newActiveSteps: result.newActiveSteps || [], // Include new active steps for parallel workflows
     });
   } catch (error) {
     console.error('Error in POST /api/workflows/progress:', error);

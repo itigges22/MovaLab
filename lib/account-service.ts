@@ -197,16 +197,7 @@ class AccountService {
           const role = ur.roles as any;
           if (!role?.permissions) continue;
 
-          // Check for superadmin/executive role
-          const roleName = role.name?.toLowerCase() || '';
-          if (roleName === 'superadmin' || roleName === 'executive' || role.is_system_role) {
-            // Check if it's actually a superadmin role with all permissions
-            if (role.permissions.edit_all_projects === true) {
-              return true;
-            }
-          }
-
-          // Check for EDIT_ALL_PROJECTS permission (override - can edit any project)
+          // Check for EDIT_ALL_PROJECTS permission (permission-based, not role name based)
           if (role.permissions.edit_all_projects === true) {
             return true;
           }

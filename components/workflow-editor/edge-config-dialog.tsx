@@ -25,7 +25,7 @@ interface EdgeConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sourceNodeType: string;
-  conditionType?: 'approval_decision' | 'form_value' | 'custom';
+  conditionType?: 'approval_decision' | 'sync_aggregate_decision' | 'form_value' | 'custom';
   initialData?: LabeledEdgeData;
   onSave: (data: LabeledEdgeData) => void;
 }
@@ -57,7 +57,9 @@ export function EdgeConfigDialog({
       conditionValue,
       conditionType,
       // Also store decision for workflow execution service compatibility
-      decision: conditionType === 'approval_decision' ? conditionValue : undefined,
+      decision: (conditionType === 'approval_decision' || conditionType === 'sync_aggregate_decision')
+        ? conditionValue
+        : undefined,
     };
     onSave(data);
     onOpenChange(false);
@@ -68,6 +70,12 @@ export function EdgeConfigDialog({
       return [
         { value: 'approved', label: 'Approved' },
         { value: 'rejected', label: 'Rejected' },
+      ];
+    }
+    if (conditionType === 'sync_aggregate_decision') {
+      return [
+        { value: 'all_approved', label: 'All Approved' },
+        { value: 'any_rejected', label: 'Any Rejected' },
       ];
     }
     return [];
@@ -81,12 +89,14 @@ export function EdgeConfigDialog({
         <DialogHeader>
           <DialogTitle>Configure Decision Path</DialogTitle>
           <DialogDescription>
-            Define when this path should be taken from the {sourceNodeType} node. Approval nodes can route to different paths based on the decision (approved or rejected).
+            {sourceNodeType === 'sync'
+              ? 'Define when this path should be taken from the sync node. Sync nodes can route based on the aggregate decision from parallel branches (all approved or any rejected).'
+              : 'Define when this path should be taken from the approval node. Approval nodes can route to different paths based on the decision (approved or rejected).'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {conditionType === 'approval_decision' && conditionOptions.length > 0 ? (
+          {(conditionType === 'approval_decision' || conditionType === 'sync_aggregate_decision') && conditionOptions.length > 0 ? (
             <div className="space-y-2">
               <Label htmlFor="condition-value">Condition *</Label>
               <Select value={conditionValue} onValueChange={setConditionValue}>
@@ -102,7 +112,9 @@ export function EdgeConfigDialog({
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                This path will be taken when the approval decision is &quot;{conditionValue}&quot;
+                {conditionType === 'sync_aggregate_decision'
+                  ? `This path will be taken when the parallel branch aggregate decision is "${conditionValue === 'all_approved' ? 'All Approved' : conditionValue === 'any_rejected' ? 'Any Rejected' : conditionValue}"`
+                  : `This path will be taken when the approval decision is "${conditionValue}"`}
               </p>
             </div>
           ) : conditionType === 'form_value' ? (
