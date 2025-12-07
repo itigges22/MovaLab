@@ -63,12 +63,14 @@ performance-test.js
 # local MCP configuration
 .mcp.json
 
-# Claude Code local settings and plans
-.claude/settings.local.json
-.claude/plans/
+# Claude Code configuration (local only)
+.claude/
 
-# Codacy CLI logs (generated during analysis)
-.codacy/logs/
+# Codacy CLI configuration and logs (local only)
+.codacy/
+
+# VS Code settings (local only)
+.vscode/
 
 # Test screenshots (large binary files - not needed in repo)
 docs/testing/*.png
