@@ -89,3 +89,6 @@ ehthumbs.db
 # Temporary files
 *.temp
 *.cache
+# Bun lockfile (using npm for CI)
+bun.lock
+bun.lockb

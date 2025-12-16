@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/itigges22/PRISMPSA/security/policy
+    about: Please report security vulnerabilities privately via email, not through issues.
+  - name: Questions & Discussions
+    url: https://github.com/itigges22/PRISMPSA/discussions
+    about: Ask questions and discuss ideas here.
