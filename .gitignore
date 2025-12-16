@@ -92,3 +92,4 @@ ehthumbs.db
 # Bun lockfile (using npm for CI)
 bun.lock
 bun.lockb
+CLAUDE.md
