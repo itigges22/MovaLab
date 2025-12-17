@@ -1,4 +1,4 @@
-# PRISM PSA - Comprehensive Feature List & Architecture Documentation
+# MovaLab - Comprehensive Feature List & Architecture Documentation
 
 ## Table of Contents
 1. [Platform Overview](#platform-overview)
@@ -14,7 +14,7 @@
 
 ## Platform Overview
 
-**PRISM PSA** (Professional Service Automation) is an enterprise-grade project and resource management platform designed for professional services organizations. It provides comprehensive tools for managing client accounts, projects, departments, teams, capacity planning, time tracking, and organizational structure through a sophisticated role-based permission system.
+**MovaLab** (Professional Service Automation) is an enterprise-grade project and resource management platform designed for professional services organizations. It provides comprehensive tools for managing client accounts, projects, departments, teams, capacity planning, time tracking, and organizational structure through a sophisticated role-based permission system.
 
 ### Key Value Propositions
 - **Granular Permission Control**: 136 unique permissions across 15 categories
@@ -1219,7 +1219,7 @@ POLICY "Admins can view all clock sessions" ON clock_sessions
 
 ## Summary
 
-**PRISM PSA** is a comprehensive professional services automation platform built on:
+**MovaLab** is a comprehensive professional services automation platform built on:
 
 1. **Sophisticated RBAC**: 136 permissions, hybrid permission system, context-aware checks
 2. **Complete Capacity Management**: Weekly planning, real-time utilization, multi-level aggregation

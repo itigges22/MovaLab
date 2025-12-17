@@ -1,4 +1,4 @@
-# PRISM PSA Documentation
+# MovaLab Documentation
 
 ## Folder Structure
 

@@ -52,7 +52,7 @@ npx tsx scripts/debug-permissions.ts user@example.com
 
 **Output Example:**
 ```
-🔍 PRISM PSA - Permission Debugger
+🔍 MovaLab - Permission Debugger
 ═══════════════════════════════════════════════════════════
 👤 User: John Doe (john@example.com)
    ID: uuid-here

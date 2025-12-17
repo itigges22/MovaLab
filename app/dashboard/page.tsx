@@ -190,7 +190,7 @@ export default function DashboardPage() {
       <div>
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-            <p className="text-gray-600">Welcome to your PRISM PSA dashboard</p>
+            <p className="text-gray-600">Welcome to your MovaLab dashboard</p>
           </div>
 
         {/* Unified Projects Section - combines workflow inbox and assigned projects */}

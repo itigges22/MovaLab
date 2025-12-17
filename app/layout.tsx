@@ -18,8 +18,8 @@ const raleway = Raleway({
 });
 
 export const metadata: Metadata = {
-  title: "PRISM PSA - Professional Service Automation",
-  description: "Professional Service Automation Platform for PRISM Marketing Agency",
+  title: "MovaLab - Professional Service Automation",
+  description: "Professional Service Automation Platform for MovaLab",
 };
 
 export default function RootLayout({

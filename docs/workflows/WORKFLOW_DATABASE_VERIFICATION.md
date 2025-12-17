@@ -2,7 +2,7 @@
 
 **Generated:** 2025-11-28T15:20:50.351Z
 **Verifier:** Database Scout
-**Environment:** PRISM PSA Production Database
+**Environment:** MovaLab Production Database
 
 ---
 
@@ -45,7 +45,7 @@ All 6 workflow tables exist in the database:
 **Note:** Individual policy names cannot be queried via API (pg_policies requires direct database access). However, all tables are accessible via service role and respect RLS boundaries when accessed via authenticated users.
 
 **Expected RLS Policy Pattern:**
-Based on PRISM PSA architecture, each table should have:
+Based on MovaLab architecture, each table should have:
 1. **SELECT policy** - Users can view templates/instances they have access to
 2. **INSERT policy** - Users with `CREATE_WORKFLOW` permission can create
 3. **UPDATE policy** - Users with `EDIT_WORKFLOW` permission can modify
@@ -429,7 +429,7 @@ No data integrity issues, schema mismatches, or orphaned records detected.
 ## APPENDIX: VERIFICATION SCRIPT
 
 The complete verification was performed using:
-- `/Users/isaac/Desktop/PRISMPSA/PRISMPSA/scripts/workflow-database-report.ts`
+- `/Users/isaac/Desktop/MovaLab/MovaLab/scripts/workflow-database-report.ts`
 
 **Execution:**
 ```bash
@@ -440,7 +440,7 @@ npx tsx scripts/workflow-database-report.ts
 
 ---
 
-**Report Prepared By:** Database Scout (PRISM PSA)
+**Report Prepared By:** Database Scout (MovaLab)
 **Database:** Supabase PostgreSQL
 **Service Role:** Used for schema inspection
 **RLS:** Bypassed for verification (service role key)

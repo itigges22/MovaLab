@@ -303,7 +303,7 @@ VIEW_TEAM_TIME_ENTRIES (View team time logs)
 
 1. **Run SQL Migration:**
    ```bash
-   cd /Users/isaac/Desktop/PRISMPSA/PRISMPSA
+   cd /Users/isaac/Desktop/MovaLab/MovaLab
    PGPASSWORD='Isaac@9389454!' psql -h aws-1-us-east-2.pooler.supabase.com -p 5432 -U postgres.oomnezdhkmsfjlihkmui -d postgres -f supabase/migrations/add_capacity_system.sql
    ```
 

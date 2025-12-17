@@ -2,11 +2,11 @@
 
 ## Overview
 
-This document provides comprehensive testing and debugging procedures for the PRISM PSA RBAC (Role-Based Access Control) system.
+This document provides comprehensive testing and debugging procedures for the MovaLab RBAC (Role-Based Access Control) system.
 
 ## Dynamic Permission System
 
-**IMPORTANT**: Roles in PRISM PSA have **dynamic permissions**. This means:
+**IMPORTANT**: Roles in MovaLab have **dynamic permissions**. This means:
 - Any role (including "Founder", "Superadmin", etc.) can have zero permissions if configured that way
 - Permissions are determined by the `role_permissions` table, not by role name
 - Only the `is_superadmin` flag bypasses permission checks entirely

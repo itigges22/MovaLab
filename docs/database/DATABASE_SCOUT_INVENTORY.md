@@ -1,6 +1,6 @@
 # Database Scout - Table Inventory
 **Generated**: 2025-11-27
-**Database**: PRISM PSA Supabase PostgreSQL
+**Database**: MovaLab Supabase PostgreSQL
 
 ## Table Count Summary
 - **Auth schema**: 16 tables (Supabase managed authentication)

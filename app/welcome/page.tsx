@@ -140,7 +140,7 @@ export default function WelcomePage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to PRISM PSA</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to MovaLab</h1>
             <p className="text-gray-600">Please log in to access your account</p>
           </div>
           <div className="space-y-4">
@@ -178,7 +178,7 @@ export default function WelcomePage() {
         {/* Hero Section */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-gray-900">
-            {userProfile?.name ? `Hello ${userProfile.name}! Welcome Back!` : 'Welcome to PRISM PSA!'}
+            {userProfile?.name ? `Hello ${userProfile.name}! Welcome Back!` : 'Welcome to MovaLab!'}
           </h1>
         </div>
 
@@ -221,7 +221,7 @@ export default function WelcomePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-yellow-800">
-              Welcome to PRISM! Your account has been created successfully, but you haven&apos;t been assigned a role yet.
+              Welcome to MovaLab! Your account has been created successfully, but you haven&apos;t been assigned a role yet.
               An administrator will review your account and assign you to the appropriate role and department.
             </p>
             <div className="p-4 bg-white rounded-md border border-yellow-200">
@@ -260,7 +260,7 @@ export default function WelcomePage() {
       {/* Hero Section */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold text-gray-900">
-          {userProfile?.name ? `Hello ${userProfile.name}! Welcome Back!` : 'Welcome to PRISM PSA!'}
+          {userProfile?.name ? `Hello ${userProfile.name}! Welcome Back!` : 'Welcome to MovaLab!'}
         </h1>
       </div>
 
@@ -338,7 +338,7 @@ export default function WelcomePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-600 mb-4">
-                  An administrator will assign you to the appropriate department and role based on your position at PRISM. 
+                  An administrator will assign you to the appropriate department and role based on your position at MovaLab. 
                   Roles are created dynamically by administrators to match your team structure.
                 </p>
                 <div className="space-y-2 text-sm">
@@ -386,7 +386,7 @@ export default function WelcomePage() {
           <Card>
           <CardHeader>
             <CardTitle>Need IT Support?</CardTitle>
-            <CardDescription>Contact the PRISM team for assistance</CardDescription>
+            <CardDescription>Contact the MovaLab team for assistance</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

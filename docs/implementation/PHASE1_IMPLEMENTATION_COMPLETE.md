@@ -8,7 +8,7 @@
 
 ## 🎯 What Was Implemented
 
-Phase 1 adds the foundational workflow, form, and client portal infrastructure to PRISM PSA. This implementation includes:
+Phase 1 adds the foundational workflow, form, and client portal infrastructure to MovaLab. This implementation includes:
 
 ### Feature 1: Workflow/Supply Chain Builder ✅
 - **Visual workflow templates** with nodes and connections (n8n-style)

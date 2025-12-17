@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-The PRISM PSA application has **catastrophic failures across all three architectural layers**:
+The MovaLab application has **catastrophic failures across all three architectural layers**:
 
 1. **Database Layer (RLS)**: Security holes allowing unauthorized data modification
 2. **Application Layer (Permissions)**: Missing authenticated client passing breaks permission checks
@@ -419,7 +419,7 @@ The issues are **NOT cascading from one layer**. They are **independent failures
 
 ## Conclusion
 
-The PRISM PSA application is in a **catastrophic state** with critical failures at all three architectural layers. The issues are **independent** and **non-cascading**, requiring fixes at each layer.
+The MovaLab application is in a **catastrophic state** with critical failures at all three architectural layers. The issues are **independent** and **non-cascading**, requiring fixes at each layer.
 
 **Confidence in Platform**: Currently **2/10** (user's stated confidence is accurate).
 

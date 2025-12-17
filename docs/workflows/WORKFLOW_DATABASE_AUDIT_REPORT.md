@@ -2,13 +2,13 @@
 
 **Date**: November 28, 2025
 **Audited By**: Database Scout
-**Database**: PRISM PSA (Supabase PostgreSQL)
+**Database**: MovaLab (Supabase PostgreSQL)
 
 ---
 
 ## Executive Summary
 
-The workflow system in PRISM PSA is **FULLY CONFIGURED but COMPLETELY UNUSED**. All necessary tables, templates, and infrastructure exist, but no workflows have been initiated on actual projects.
+The workflow system in MovaLab is **FULLY CONFIGURED but COMPLETELY UNUSED**. All necessary tables, templates, and infrastructure exist, but no workflows have been initiated on actual projects.
 
 ### Quick Statistics
 
@@ -345,7 +345,7 @@ CREATE TABLE form_responses (
 
 ### Tables Requiring RLS Policies
 
-Based on PRISM PSA's security architecture, these workflow tables need RLS:
+Based on MovaLab's security architecture, these workflow tables need RLS:
 
 1. **workflow_templates**
    - ✅ Table exists
@@ -494,7 +494,7 @@ Based on `docs/PHASE1_API_ROUTES.md`, these endpoints need validation:
 
 ### System Status: READY BUT DORMANT
 
-The PRISM PSA workflow system is architecturally sound and fully configured, but **has never been activated in production**.
+The MovaLab workflow system is architecturally sound and fully configured, but **has never been activated in production**.
 
 ### Evidence Summary
 

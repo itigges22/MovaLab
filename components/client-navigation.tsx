@@ -243,7 +243,7 @@ export function ClientNavigation() {
                 <div className="w-8 h-8 relative">
                   <Image
                     src="/prism-logo.png"
-                    alt="PRISM PSA Logo"
+                    alt="MovaLab Logo"
                     width={32}
                     height={32}
                     className="object-contain"

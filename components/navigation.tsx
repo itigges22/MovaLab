@@ -360,14 +360,14 @@ export function Navigation() {
               <div className="w-10 h-10 relative">
                 <Image
                   src="/prism-logo.png"
-                  alt="PRISM PSA Logo"
+                  alt="MovaLab Logo"
                   width={40}
                   height={40}
                   className="object-contain"
                   priority
                 />
               </div>
-              <span className="text-xl font-semibold text-gray-900">PRISM PSA</span>
+              <span className="text-xl font-semibold text-gray-900">MovaLab</span>
             </Link>
           </div>
 

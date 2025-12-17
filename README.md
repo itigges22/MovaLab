@@ -1,8 +1,8 @@
-# PRISM PSA - Professional Service Automation
+# MovaLab - Professional Service Automation
 
 **Stop juggling disconnected tools. Start delivering exceptional client work.**
 
-PRISM PSA is an enterprise-grade project and resource management platform built to solve the chaos of running a professional services organization with fragmented tools, disconnected workflows, and limited visibility. Originally developed for a student-run marketing agency managing 11 client accounts across 8 departments with 60+ members, PRISM PSA consolidates what used to require Basecamp, Monday.com, Notion, MS Planner, and Slack into a single unified system.
+MovaLab is an enterprise-grade project and resource management platform built to solve the chaos of running a professional services organization with fragmented tools, disconnected workflows, and limited visibility. Originally developed for a student-run marketing agency managing 11 client accounts across 8 departments with 60+ members, MovaLab consolidates what used to require Basecamp, Monday.com, Notion, MS Planner, and Slack into a single unified system.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
@@ -45,9 +45,9 @@ If you're managing client work across multiple teams, you know these challenges 
 
 ---
 
-## 💡 Why PRISM PSA Exists
+## 💡 Why MovaLab Exists
 
-PRISM PSA was purpose-built for an organization operating a complex, professional services model:
+MovaLab was purpose-built for an organization operating a complex, professional services model:
 
 - **11 active client accounts** requiring dedicated account management
 - **8 specialized departments** (Accounts, Analytics, Social Media, Multimedia, Copy, Graphics, Leadership, Internal Affairs)
@@ -58,15 +58,15 @@ PRISM PSA was purpose-built for an organization operating a complex, professiona
 
 The agency tried everything—Basecamp for projects, Monday.com for tasks, Notion for documentation, Slack for communication, spreadsheets for capacity. Nothing integrated. Leadership lacked visibility into what was happening across teams. Team culture suffered because no one understood how their work connected to the bigger picture.
 
-**PRISM PSA consolidates all of this into one intelligent system** that provides transparency, accountability without chaos, and professional delivery while supporting experiential learning.
+**MovaLab consolidates all of this into one intelligent system** that provides transparency, accountability without chaos, and professional delivery while supporting experiential learning.
 
 ---
 
-## 🚀 How PRISM PSA Works
+## 🚀 How MovaLab Works
 
 ### The Client-Centric Approach
 
-Everything in PRISM PSA starts with **client accounts**. Each client gets a dedicated account with:
+Everything in MovaLab starts with **client accounts**. Each client gets a dedicated account with:
 - All their projects in one place
 - Dedicated account managers
 - Historical work and deliverables
@@ -101,7 +101,7 @@ Work flows naturally through the organization:
 
 ### Capacity Planning That Actually Works
 
-Here's the game-changer: **PRISM PSA tracks capacity at every level**.
+Here's the game-changer: **MovaLab tracks capacity at every level**.
 
 **Individual Level**
 - Set your weekly availability (40 hours, 25 hours, whatever matches your commitment)
@@ -189,7 +189,7 @@ Every marketing agency has Standard Operating Procedures. They're documented in 
 
 ### Visual Workflow Builder
 
-PRISM PSA transforms your SOPs into **visual, interactive workflows** that guide work through your organization:
+MovaLab transforms your SOPs into **visual, interactive workflows** that guide work through your organization:
 
 **Create Workflows Visually**
 - Drag-and-drop node-based editor (similar to n8n or Zapier)
@@ -244,7 +244,7 @@ This isn't about forcing compliance—it's about **consistency with clarity**.
 
 ### Stop the "Any Updates?" Emails
 
-Clients deserve visibility without pestering your team. PRISM PSA's Client Portal provides:
+Clients deserve visibility without pestering your team. MovaLab's Client Portal provides:
 
 **Project Visibility**
 - Clients see their projects' current status
@@ -278,63 +278,63 @@ Clients deserve visibility without pestering your team. PRISM PSA's Client Porta
 ### For Account Managers
 **Scenario:** Client asks, "When will the social media campaign be ready?"
 
-**Before PRISM PSA:** Slack 5 different people, check Monday.com, search email for the last update, piece together a guess.
+**Before MovaLab:** Slack 5 different people, check Monday.com, search email for the last update, piece together a guess.
 
-**With PRISM PSA:** Open the client's account page. See the campaign project is 67% complete, 3 tasks in review, 1 blocked (waiting on client feedback), estimated completion in 6 days. Answer the client in 30 seconds with confidence.
+**With MovaLab:** Open the client's account page. See the campaign project is 67% complete, 3 tasks in review, 1 blocked (waiting on client feedback), estimated completion in 6 days. Answer the client in 30 seconds with confidence.
 
 ### For Department Leaders
 **Scenario:** New project request comes in. Do you have capacity to take it on?
 
-**Before PRISM PSA:** Ping team members one-by-one asking about their workload. Make a gut-feel decision. Hope you're right.
+**Before MovaLab:** Ping team members one-by-one asking about their workload. Make a gut-feel decision. Hope you're right.
 
-**With PRISM PSA:** Check department capacity dashboard. See current utilization at 72% (healthy). View weekly capacity trends showing 15 hours available next week. Accept the project and assign it with data-backed confidence.
+**With MovaLab:** Check department capacity dashboard. See current utilization at 72% (healthy). View weekly capacity trends showing 15 hours available next week. Accept the project and assign it with data-backed confidence.
 
 ### For Team Members
 **Scenario:** You work on multiple projects across different clients. What should you work on today?
 
-**Before PRISM PSA:** Check Basecamp for Client A, Monday.com for Client B, Notion for internal projects. Hope you didn't miss anything urgent.
+**Before MovaLab:** Check Basecamp for Client A, Monday.com for Client B, Notion for internal projects. Hope you didn't miss anything urgent.
 
-**With PRISM PSA:** Open your dashboard. See all assigned tasks prioritized by due date and status. Clock in, work, clock out, allocate time. Everything in one place.
+**With MovaLab:** Open your dashboard. See all assigned tasks prioritized by due date and status. Clock in, work, clock out, allocate time. Everything in one place.
 
 ### For Leadership
 **Scenario:** Board meeting tomorrow. Need to report on organizational health.
 
-**Before PRISM PSA:** Spend 4 hours compiling spreadsheets from disparate tools. Present outdated data. Field questions you can't answer.
+**Before MovaLab:** Spend 4 hours compiling spreadsheets from disparate tools. Present outdated data. Field questions you can't answer.
 
-**With PRISM PSA:** Open analytics dashboard. See real-time metrics: 23 active projects across 11 clients, 78% average utilization, 4 projects at-risk (and why), department performance breakdown. Export reports in minutes.
+**With MovaLab:** Open analytics dashboard. See real-time metrics: 23 active projects across 11 clients, 78% average utilization, 4 projects at-risk (and why), department performance breakdown. Export reports in minutes.
 
 ### For New Members (Onboarding)
 **Scenario:** New student joins the agency. They need to understand how work flows and get productive quickly.
 
-**Before PRISM PSA:** Read scattered documentation across Notion, watch outdated Loom videos, shadow 5 different people across 3 tools, still confused after 2 weeks.
+**Before MovaLab:** Read scattered documentation across Notion, watch outdated Loom videos, shadow 5 different people across 3 tools, still confused after 2 weeks.
 
-**With PRISM PSA:** Get assigned to projects with clear tasks, see the full workflow from client request to deliverable completion, understand your role in the bigger picture, log time and contribute meaningfully within days.
+**With MovaLab:** Get assigned to projects with clear tasks, see the full workflow from client request to deliverable completion, understand your role in the bigger picture, log time and contribute meaningfully within days.
 
 ---
 
-## 🔍 Why PRISM PSA Is Different
+## 🔍 Why MovaLab Is Different
 
 ### vs. Basecamp
 **Basecamp** is great for communication and simple project tracking, but it doesn't handle capacity planning, time tracking, or complex organizational permissions. You'll still need spreadsheets for resource management and another tool for time tracking.
 
-**PRISM PSA** integrates capacity planning, time tracking, and sophisticated permissions into the project workflow. You can see not just what projects exist, but whether you have the capacity to deliver them.
+**MovaLab** integrates capacity planning, time tracking, and sophisticated permissions into the project workflow. You can see not just what projects exist, but whether you have the capacity to deliver them.
 
 ### vs. Monday.com
 **Monday.com** is powerful for task management with beautiful boards, but its capacity features are limited to add-ons, permissions are board-based (not contextual), and it's not designed for organizations with frequent role changes and complex departmental relationships.
 
-**PRISM PSA** provides dynamic department membership based on actual project assignments, proportional capacity allocation for people working across multiple clients, and context-aware permissions that adapt to your organizational structure.
+**MovaLab** provides dynamic department membership based on actual project assignments, proportional capacity allocation for people working across multiple clients, and context-aware permissions that adapt to your organizational structure.
 
 ### vs. Notion
 **Notion** is incredible for documentation and lightweight databases, but it's not purpose-built for professional services project management. Time tracking is manual, capacity planning requires complex formulas, and there's no built-in permissions for client confidentiality.
 
-**PRISM PSA** is purpose-built for client services work with first-class time tracking, automatic capacity calculations, and enterprise-grade Row Level Security protecting sensitive client data.
+**MovaLab** is purpose-built for client services work with first-class time tracking, automatic capacity calculations, and enterprise-grade Row Level Security protecting sensitive client data.
 
 ### vs. Spreadsheets
 **Spreadsheets** are flexible but become unmaintainable nightmares as organizations grow. Data gets stale, formulas break, permissions are all-or-nothing, and there's no audit trail.
 
-**PRISM PSA** provides structured data with automatic calculations, granular permissions, complete audit trails, and real-time updates across all views.
+**MovaLab** provides structured data with automatic calculations, granular permissions, complete audit trails, and real-time updates across all views.
 
-### The PRISM PSA Advantage
+### The MovaLab Advantage
 
 **Single Source of Truth** - One system for projects, tasks, time, capacity, and communication.
 
@@ -422,7 +422,7 @@ Clients deserve visibility without pestering your team. PRISM PSA's Client Porta
 1. **Clone and Install**
    ```bash
    git clone <repository-url>
-   cd PRISMPSA
+   cd MovaLab
    npm install
    ```
 
@@ -557,7 +557,7 @@ Clients deserve visibility without pestering your team. PRISM PSA's Client Porta
 ## 📁 Project Structure
 
 ```
-PRISMPSA/
+MovaLab/
 ├── app/                          # Next.js App Router pages and routes
 │   ├── (auth)/                  # Authentication pages (login, signup)
 │   ├── accounts/                # Client account management
@@ -653,7 +653,7 @@ PRISMPSA/
 
 ## 🔒 Security & Privacy
 
-PRISM PSA is built with enterprise-grade security:
+MovaLab is built with enterprise-grade security:
 
 - **Row Level Security (RLS)** - All data access controlled at the PostgreSQL database level, not just application logic
 - **136 Granular Permissions** - Fine-grained control over who can do what, organized across 15 permission categories
@@ -671,7 +671,7 @@ PRISM PSA is built with enterprise-grade security:
 
 ## 🚀 Future Roadmap
 
-PRISM PSA is continuously evolving. Here's what's planned for future releases:
+MovaLab is continuously evolving. Here's what's planned for future releases:
 
 ### Phase 2: Analytics Foundation
 
@@ -757,7 +757,7 @@ PRISM PSA is continuously evolving. Here's what's planned for future releases:
 
 ## 🎓 Perfect for Student Organizations
 
-PRISM PSA was built for a student-run agency, making it ideal for organizations where:
+MovaLab was built for a student-run agency, making it ideal for organizations where:
 
 - **Members have limited tenure** (2-4 years typical) and knowledge transfer is critical
 - **Roles rotate frequently** as students develop new skills and interests
@@ -779,7 +779,7 @@ PRISM PSA was built for a student-run agency, making it ideal for organizations 
 
 Contributions are welcome! This project was originally developed for a student-run marketing agency but is designed to be adaptable for any professional services organization.
 
-For feature requests, bug reports, or questions about adapting PRISM PSA for your organization, please open an issue on GitHub.
+For feature requests, bug reports, or questions about adapting MovaLab for your organization, please open an issue on GitHub.
 
 ---
 
@@ -799,4 +799,4 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 **Built by students, for students—delivering professional results without the professional price tag.**
 
-*PRISM PSA: Because your team deserves better than spreadsheet chaos and Slack pandemonium.*
+*MovaLab: Because your team deserves better than spreadsheet chaos and Slack pandemonium.*

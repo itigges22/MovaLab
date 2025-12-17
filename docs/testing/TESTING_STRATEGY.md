@@ -1,5 +1,5 @@
 # TESTING STRATEGY
-**PRISM PSA Platform - Comprehensive Testing Strategy**
+**MovaLab Platform - Comprehensive Testing Strategy**
 
 Last Updated: November 26, 2025
 

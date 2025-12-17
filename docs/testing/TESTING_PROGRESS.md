@@ -1,5 +1,5 @@
 # TESTING PROGRESS TRACKER
-**PRISM PSA Platform - Testing Session Progress**
+**MovaLab Platform - Testing Session Progress**
 
 Last Updated: November 26, 2025
 

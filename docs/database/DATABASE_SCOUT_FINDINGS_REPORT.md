@@ -2,14 +2,14 @@
 
 **Date:** 2025-11-27
 **Investigator:** Database Scout (Founder Agent)
-**Database:** PRISM PSA Supabase PostgreSQL
+**Database:** MovaLab Supabase PostgreSQL
 **Scope:** RLS policies, data integrity, permission system architecture
 
 ---
 
 ## Executive Summary
 
-This investigation identified **5 CRITICAL issues** and **3 HIGH-priority issues** in the PRISM PSA database RLS implementation. The most severe finding is a **circular RLS dependency** in the `user_roles` table that creates infinite recursion in permission checking. Additionally, overly permissive policies allow any authenticated user to modify critical data, and complex nested RLS queries in workflow tables will cause performance degradation and potential access failures.
+This investigation identified **5 CRITICAL issues** and **3 HIGH-priority issues** in the MovaLab database RLS implementation. The most severe finding is a **circular RLS dependency** in the `user_roles` table that creates infinite recursion in permission checking. Additionally, overly permissive policies allow any authenticated user to modify critical data, and complex nested RLS queries in workflow tables will cause performance degradation and potential access failures.
 
 **Immediate Action Required:**
 1. Fix circular RLS dependency in `user_roles` table
@@ -767,7 +767,7 @@ Multiple layers of policies added over time without removing old ones:
 
 ## Conclusion
 
-The PRISM PSA database has a sophisticated permission system defined in application code with 136 granular permissions and role-based access control. However, the database-level RLS policies do not enforce these permissions, creating a significant security gap.
+The MovaLab database has a sophisticated permission system defined in application code with 136 granular permissions and role-based access control. However, the database-level RLS policies do not enforce these permissions, creating a significant security gap.
 
 The most critical issue is the circular RLS dependency in the `user_roles` table, which will cause permission checking to fail or enter infinite recursion. The second most critical issue is the overly permissive policies that allow any authenticated user to modify critical data, completely bypassing the intended permission system.
 
