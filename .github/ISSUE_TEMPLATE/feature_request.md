@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest an idea for PRISM PSA
+about: Suggest an idea for MovaLab
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''

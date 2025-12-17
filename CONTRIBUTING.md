@@ -1,6 +1,6 @@
-# Contributing to PRISM PSA
+# Contributing to MovaLab
 
-Thank you for your interest in contributing to PRISM PSA! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to MovaLab! This document provides guidelines for contributing to the project.
 
 ## Ways to Contribute
 
@@ -25,8 +25,8 @@ Thank you for your interest in contributing to PRISM PSA! This document provides
 
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/PRISMPSA.git
-   cd PRISMPSA
+   git clone https://github.com/YOUR_USERNAME/MovaLab.git
+   cd MovaLab
    ```
 
 3. **Install dependencies**
