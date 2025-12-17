@@ -35,7 +35,9 @@ Thank you for your interest in contributing to MovaLab! This document provides g
    # or: npm install
    ```
 
-4. **Set up environment variables**
+4. **Set up Supabase** (see [Database Setup](#database-setup) below)
+
+5. **Set up environment variables**
 
    Create `.env.local`:
    ```env
@@ -43,13 +45,85 @@ Thank you for your interest in contributing to MovaLab! This document provides g
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
    ```
 
-5. **Start the development server**
+6. **Start the development server**
    ```bash
    bun run dev
    # or: npm run dev
    ```
 
-6. **Open** [http://localhost:3000](http://localhost:3000)
+7. **Open** [http://localhost:3000](http://localhost:3000)
+
+## Database Setup
+
+MovaLab uses [Supabase](https://supabase.com) (PostgreSQL) with Row Level Security (RLS) for data protection. The database schema includes 45+ tables with complex relationships and security policies.
+
+### Creating Your Supabase Project
+
+1. **Create a free account** at [supabase.com](https://supabase.com)
+
+2. **Create a new project**
+   - Click "New Project"
+   - Choose your organization
+   - Enter a project name (e.g., "movalab-dev")
+   - Generate a strong database password (save this!)
+   - Select a region close to you
+   - Click "Create new project"
+
+3. **Wait for setup** - This takes 1-2 minutes
+
+4. **Get your credentials**
+   - Go to **Settings** → **API**
+   - Copy the **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - Copy the **anon/public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### Setting Up the Database Schema
+
+The database schema is managed through migrations. To set up your development database:
+
+#### Option 1: Request Schema Access (Recommended for Contributors)
+
+Contact the maintainers to get the current schema export:
+- Open a GitHub issue titled "Request: Database Schema for Development"
+- Or email the maintainer (see SECURITY.md)
+
+We'll provide you with:
+- A SQL file containing the complete schema
+- Instructions for running it in your Supabase project
+
+#### Option 2: Use Supabase CLI (Advanced)
+
+If you have access to the migration files:
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Link to your project
+supabase link --project-ref your-project-ref
+
+# Run migrations
+supabase db push
+```
+
+### Database Structure Overview
+
+The schema includes these main areas:
+
+| Area | Tables | Description |
+|------|--------|-------------|
+| **Users & Auth** | `user_profiles`, `user_roles`, `roles` | User management and RBAC |
+| **Accounts** | `accounts`, `account_members` | Client account management |
+| **Projects** | `projects`, `project_assignments`, `tasks` | Project and task tracking |
+| **Time Tracking** | `time_entries`, `clock_sessions`, `user_availability` | Capacity and time management |
+| **Workflows** | `workflow_templates`, `workflow_nodes`, `workflow_instances` | Visual workflow automation |
+| **Forms** | `form_templates`, `form_responses` | Dynamic form builder |
+
+### Important Notes
+
+- **RLS is mandatory** - All tables have Row Level Security policies
+- **Don't disable RLS** - This protects data isolation between users
+- **Test with real auth** - Many features require authenticated users
+- **136 permissions** - The RBAC system has granular permission controls
 
 ## Code Style
 
@@ -112,4 +186,10 @@ When requesting features:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). This means:
+
+- Your contributions remain open source
+- Any modifications must also be open source
+- If you run a modified version as a service, you must share the source code
+
+See the [LICENSE](LICENSE) file for details.
