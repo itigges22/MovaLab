@@ -33,17 +33,17 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check SUBMIT_FORMS permission
-    const canSubmit = await hasPermission(userProfile, Permission.SUBMIT_FORMS, undefined, supabase);
+    // Phase 9: Forms are inline-only in workflows - check EXECUTE_WORKFLOWS permission
+    const canSubmit = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
     if (!canSubmit) {
-      return NextResponse.json({ error: 'Insufficient permissions to submit forms' }, { status: 403 });
+      return NextResponse.json({ error: 'Insufficient permissions to submit forms (requires workflow execution permission)' }, { status: 403 });
     }
 
     // Validate request body
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // If workflow_history_id is provided, verify user has access to that workflow
     if (validation.data.workflow_history_id) {
-      const accessCheck = await verifyWorkflowHistoryAccess(supabase, user.id, validation.data.workflow_history_id);
+      const accessCheck = await verifyWorkflowHistoryAccess(supabase, (user as any).id, validation.data.workflow_history_id);
       if (!accessCheck.hasAccess) {
         return NextResponse.json({
           error: accessCheck.error || 'You do not have access to this workflow'
@@ -67,12 +67,12 @@ export async function POST(request: NextRequest) {
     const response = await submitFormResponse({
       formTemplateId: validation.data.form_template_id,
       responseData: validation.data.response_data,
-      submittedBy: user.id,
+      submittedBy: (user as any).id,
       workflowHistoryId: validation.data.workflow_history_id || null
     });
 
     return NextResponse.json({ success: true, response }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/workflows/forms/responses:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

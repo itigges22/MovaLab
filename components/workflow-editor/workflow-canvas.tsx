@@ -75,7 +75,7 @@ const defaultEdgeOptions = {
 };
 
 function WorkflowCanvasInner({
-  templateId,
+  templateId: _templateId,
   initialNodes = [],
   initialEdges = [],
   departments,
@@ -96,8 +96,8 @@ function WorkflowCanvasInner({
 
   const onConnect = useCallback(
     (params: Connection) => {
-      const sourceNode = nodes.find((n) => n.id === params.source);
-      const targetNode = nodes.find((n) => n.id === params.target);
+      const sourceNode = nodes.find((n:any) => n.id === params.source);
+      const targetNode = nodes.find((n:any) => n.id === params.target);
 
       // CASE 1: Connecting FROM a conditional node
       // The sourceHandle identifies which branch - auto-set the label based on handle
@@ -106,7 +106,7 @@ function WorkflowCanvasInner({
 
         // Find the condition from config - this contains the actual evaluation parameters
         let label = handleId || 'Unknown';
-        let edgeData: Record<string, any> = {
+        let edgeData: Record<string, unknown> = {
           label,
           conditionValue: handleId,
           conditionType: 'form_value',
@@ -118,7 +118,7 @@ function WorkflowCanvasInner({
             (c: any) => c.value === handleId || c.id === handleId
           );
           if (condition) {
-            label = condition.label || handleId || 'Unknown';
+            label = (condition.label as string) || handleId || 'Unknown';
             // Include full condition data for form evaluation
             edgeData = {
               label,
@@ -128,7 +128,7 @@ function WorkflowCanvasInner({
               // Critical: These fields are needed for form-based conditional routing
               sourceFormFieldId: sourceNode.data.config?.sourceFormFieldId,
               value: condition.value,
-              value2: (condition as Record<string, unknown>).value2,
+              value2: (condition as { value2?: unknown }).value2,
             };
           }
         }
@@ -264,7 +264,7 @@ function WorkflowCanvasInner({
       if (!selectedNodeForConfig) return;
 
       setNodes((nds) =>
-        nds.map((node) => {
+        nds.map((node:any) => {
           if (node.id === selectedNodeForConfig) {
             return {
               ...node,
@@ -277,7 +277,7 @@ function WorkflowCanvasInner({
 
       // Clear outgoing edges if condition type changed (for conditional nodes)
       if (clearOutgoingEdges) {
-        setEdges((eds) => eds.filter((edge) => edge.source !== selectedNodeForConfig));
+        setEdges((eds) => eds.filter((edge:any) => edge.source !== selectedNodeForConfig));
       }
 
       // CRITICAL: Force React Flow to recalculate handle bounds after config change.
@@ -301,9 +301,9 @@ function WorkflowCanvasInner({
     // Debug logging
     console.log('[Workflow Canvas] Initiating save...');
     console.log('[Workflow Canvas] Nodes to save:', nodes.length);
-    console.log('[Workflow Canvas] Node IDs:', nodes.map(n => ({ id: n.id, type: n.data.type, label: n.data.label })));
+    console.log('[Workflow Canvas] Node IDs:', nodes.map((n: any) => ({ id: n.id, type: n.data.type, label: n.data.label })));
     console.log('[Workflow Canvas] Edges to save:', edges.length);
-    console.log('[Workflow Canvas] Edge connections:', edges.map(e => ({ id: e.id, source: e.source, target: e.target })));
+    console.log('[Workflow Canvas] Edge connections:', edges.map((e: any) => ({ id: e.id, source: e.source, target: e.target })));
 
     // Run comprehensive workflow validation
     // Note: Role user count validation is NOT done here - workflows can be saved
@@ -312,7 +312,7 @@ function WorkflowCanvasInner({
 
     // Show errors first (blocking)
     if (!validation.valid) {
-      const errorMessages = validation.errors.map((e) => {
+      const errorMessages = validation.errors.map((e:any) => {
         const nodeInfo = e.nodeLabel ? ` ("${e.nodeLabel}")` : '';
         return `${e.message}${nodeInfo}`;
       });
@@ -325,7 +325,7 @@ function WorkflowCanvasInner({
 
     // Show warnings (non-blocking, but inform user)
     if (validation.warnings.length > 0) {
-      const warningMessages = validation.warnings.map((w) => {
+      const warningMessages = validation.warnings.map((w:any) => {
         const nodeInfo = w.nodeLabel ? ` ("${w.nodeLabel}")` : '';
         return `${w.message}${nodeInfo}`;
       });
@@ -337,9 +337,9 @@ function WorkflowCanvasInner({
 
     // Check for unconfigured nodes with detailed validation
     // (This is separate from structural validation - checks node-specific config)
-    const unconfiguredNodes: { node: any; reason: string }[] = [];
+    const unconfiguredNodes: { node: Node<WorkflowNodeData>; reason: string }[] = [];
 
-    nodes.forEach((node) => {
+    nodes.forEach((node:any) => {
       if (node.data.type === 'department' && !node.data.config?.departmentId) {
         unconfiguredNodes.push({ node, reason: 'Department not selected' });
       } else if (node.data.type === 'role' && !node.data.config?.roleId) {
@@ -370,7 +370,7 @@ function WorkflowCanvasInner({
     try {
       await onSave(nodes, edges);
       toast.success('Workflow saved successfully!');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving workflow:', error);
       toast.error('Failed to save workflow');
     } finally {
@@ -387,11 +387,11 @@ function WorkflowCanvasInner({
   }, [setNodes, setEdges]);
 
   const handleDeleteSelected = useCallback(() => {
-    setNodes((nds) => nds.filter((node) => !node.selected));
-    setEdges((eds) => eds.filter((edge) => !edge.selected));
+    setNodes((nds) => nds.filter((node:any) => !node.selected));
+    setEdges((eds) => eds.filter((edge:any) => !edge.selected));
   }, [setNodes, setEdges]);
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeForConfig);
+  const selectedNode = nodes.find((n:any) => n.id === selectedNodeForConfig);
 
   return (
     <div className="h-full w-full flex">
@@ -457,7 +457,7 @@ function WorkflowCanvasInner({
           onOpenChange={setEdgeConfigDialogOpen}
           sourceNodeType={
             pendingConnection?.source
-              ? nodes.find((n) => n.id === pendingConnection.source)?.data.type || 'approval'
+              ? nodes.find((n:any) => n.id === pendingConnection.source)?.data.type || 'approval'
               : 'approval'
           }
           conditionType="approval_decision"

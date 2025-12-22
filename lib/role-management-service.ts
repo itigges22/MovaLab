@@ -1,7 +1,41 @@
+
 import { createClientSupabase } from './supabase';
 import { Permission } from './permissions';
 import { logger, databaseQuery, databaseError, roleManagement, performance } from './debug-logger';
-import { validateRole, ValidationResult } from './validation';
+import { validateRole } from './validation';
+
+// Types for database responses
+interface RoleWithDepartment {
+  id: string;
+  name: string;
+  description: string | null;
+  department_id: string;
+  permissions: Record<string, boolean>;
+  reporting_role_id: string | null;
+  hierarchy_level: number;
+  is_system_role: boolean;
+  created_at: string;
+  updated_at: string;
+  department: { id: string; name: string } | null;
+  reporting_role: { id: string; name: string } | null;
+  user_roles?: { count: number }[];
+}
+
+interface UserRoleWithRoles {
+  role_id: string;
+  roles?: { name: string } | null;
+}
+
+interface UserRoleWithProfile {
+  user_id: string;
+  assigned_at: string;
+  assigned_by: string;
+  user_profiles: { id: string; name: string; email: string; image: string | null } | null;
+}
+
+interface UserRoleRecord {
+  role_id: string;
+}
 
 // Types for role management
 export interface Role {
@@ -66,7 +100,7 @@ export interface UserRoleAssignment {
 
 class RoleManagementService {
   private async getSupabase() {
-    return createClientSupabase();
+    return createClientSupabase() as any;
   }
 
   // CRUD operations
@@ -140,7 +174,7 @@ class RoleManagementService {
       });
 
       return role;
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       logger.error('Exception in createRole', { 
         action: 'createRole',
@@ -183,7 +217,7 @@ class RoleManagementService {
       }
 
       return role;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateRole:', error);
       return null;
     }
@@ -227,7 +261,7 @@ class RoleManagementService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in deleteRole:', error);
       return false;
     }
@@ -299,7 +333,7 @@ class RoleManagementService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       logger.error('Exception in getRoleById', { action: 'getRoleById', roleId, duration }, error as Error);
       return null;
@@ -326,13 +360,13 @@ class RoleManagementService {
         return [];
       }
 
-      return roles.map((role: any) => ({
+      return roles.map((role: RoleWithDepartment) => ({
         ...role,
-        department: role.department,
-        reporting_role: role.reporting_role,
+        department: role.department || { id: '', name: 'Unknown' },
+        reporting_role: role.reporting_role || null,
         user_count: role.user_roles?.[0]?.count || 0,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAllRoles:', error);
       return [];
     }
@@ -359,13 +393,13 @@ class RoleManagementService {
         return [];
       }
 
-      return roles.map((role: any) => ({
+      return roles.map((role: RoleWithDepartment) => ({
         ...role,
-        department: role.department,
-        reporting_role: role.reporting_role,
+        department: role.department || { id: '', name: 'Unknown' },
+        reporting_role: role.reporting_role || null,
         user_count: role.user_roles?.[0]?.count || 0,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getRolesByDepartment:', error);
       return [];
     }
@@ -406,7 +440,7 @@ class RoleManagementService {
       }
 
       // Get user counts separately to avoid complex joins
-      const roleIds = roles.map((role: any) => role.id);
+      const roleIds = roles.map((role: RoleWithDepartment) => role.id);
       const { data: userCounts } = await supabase
         .from('user_roles')
         .select('role_id')
@@ -414,7 +448,7 @@ class RoleManagementService {
 
       // Count users per role
       const userCountMap = new Map<string, number>();
-      userCounts?.forEach((ur: any) => {
+      userCounts?.forEach((ur: UserRoleRecord) => {
         const count = userCountMap.get(ur.role_id) || 0;
         userCountMap.set(ur.role_id, count + 1);
       });
@@ -424,7 +458,7 @@ class RoleManagementService {
       const rootRoles: RoleHierarchyNode[] = [];
 
       // Create nodes with null checks
-      roles.forEach((role: any) => {
+      roles.forEach((role: RoleWithDepartment) => {
         // Handle null departments
         const departmentName = role.department?.name || 'Unknown Department';
         const departmentId = role.department?.id || role.department_id;
@@ -434,9 +468,9 @@ class RoleManagementService {
         try {
           if (role.permissions && typeof role.permissions === 'object') {
             permissions = Object.entries(role.permissions as Record<string, boolean> || {})
-              .filter(([_, hasPermission]) => hasPermission)
-              .map(([permission, _]) => permission as Permission)
-              .filter(permission => Object.values(Permission).includes(permission));
+              .filter(([, hasPermission]) => hasPermission)
+              .map(([permission]) => permission as Permission)
+              .filter((permission: any) => Object.values(Permission).includes(permission));
           }
         } catch (permError) {
           logger.warn('Error parsing permissions', { 
@@ -462,7 +496,7 @@ class RoleManagementService {
       });
 
       // Build tree structure with null checks
-      roles.forEach((role: any) => {
+      roles.forEach((role: RoleWithDepartment) => {
         const node = roleMap.get(role.id);
         if (!node) {
           logger.warn('Node not found in map', { action: 'getRoleHierarchy', roleId: role.id });
@@ -502,7 +536,7 @@ class RoleManagementService {
       });
 
       return rootRoles;
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       logger.error('Exception in getRoleHierarchy', { action: 'getRoleHierarchy', duration }, error as Error);
       return [];
@@ -536,7 +570,7 @@ class RoleManagementService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateRoleReporting:', error);
       return false;
     }
@@ -572,8 +606,8 @@ class RoleManagementService {
       }
 
       // Find the "No Assigned Role" if user has it
-      const noAssignedRole = currentRoles?.find((cr: any) => this.isUnassignedRole(cr.roles?.name));
-      const hasOtherRoles = currentRoles?.some((cr: any) => !this.isUnassignedRole(cr.roles?.name));
+      const noAssignedRole = currentRoles?.find((cr: UserRoleWithRoles) => this.isUnassignedRole(cr.roles?.name));
+      const hasOtherRoles = currentRoles?.some((cr: UserRoleWithRoles) => !this.isUnassignedRole(cr.roles?.name));
 
       // If user has "No Assigned Role" + other roles, remove "No Assigned Role" first
       if (noAssignedRole && hasOtherRoles) {
@@ -616,7 +650,7 @@ class RoleManagementService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in assignUserToRole:', error);
       return false;
     }
@@ -649,7 +683,7 @@ class RoleManagementService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in removeUserFromRole:', error);
       return false;
     }
@@ -672,14 +706,14 @@ class RoleManagementService {
         return [];
       }
 
-      return userRoles.map((ur: any) => ur.roles).filter(Boolean);
-    } catch (error) {
+      return userRoles.map((ur: { roles: Role | null }) => ur.roles).filter(Boolean) as Role[];
+    } catch (error: unknown) {
       console.error('Error in getUserRoles:', error);
       return [];
     }
   }
 
-  async getRoleUsers(roleId: string): Promise<any[]> {
+  async getRoleUsers(roleId: string): Promise<{ user_id: string; assigned_at: string; assigned_by: string; user: { id: string; name: string; email: string; image: string | null } | null }[]> {
     try {
       const supabase = await this.getSupabase();
       if (!supabase) return [];
@@ -699,13 +733,13 @@ class RoleManagementService {
         return [];
       }
 
-      return userRoles.map((ur: any) => ({
+      return userRoles.map((ur: UserRoleWithProfile) => ({
         user_id: ur.user_id,
         assigned_at: ur.assigned_at,
         assigned_by: ur.assigned_by,
         user: ur.user_profiles,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getRoleUsers:', error);
       return [];
     }
@@ -742,7 +776,7 @@ class RoleManagementService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateRolePermissions:', error);
       return false;
     }
@@ -766,10 +800,10 @@ class RoleManagementService {
 
       const permissions = role.permissions as Record<string, boolean> || {};
       return Object.entries(permissions)
-        .filter(([_, hasPermission]) => hasPermission)
-        .map(([permission, _]) => permission as Permission)
-        .filter(permission => Object.values(Permission).includes(permission));
-    } catch (error) {
+        .filter(([, hasPermission]) => hasPermission)
+        .map(([permission]) => permission as Permission)
+        .filter((permission: any) => Object.values(Permission).includes(permission));
+    } catch (error: unknown) {
       console.error('Error in getRolePermissions:', error);
       return [];
     }
@@ -801,7 +835,7 @@ class RoleManagementService {
       }
 
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking circular reference:', error);
       return true; // Assume circular to be safe
     }
@@ -847,7 +881,7 @@ class RoleManagementService {
       }
 
       return { valid: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error validating role assignment:', error);
       return { valid: false, message: 'Validation failed' };
     }
@@ -865,7 +899,7 @@ class RoleManagementService {
       }
 
       return { valid: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error validating role hierarchy:', error);
       return { valid: false, message: 'Validation failed' };
     }

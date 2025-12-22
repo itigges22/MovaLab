@@ -5,6 +5,48 @@ import { Permission } from '@/lib/permissions';
 import { accountService } from '@/lib/account-service';
 import { isSuperadmin, hasPermission } from '@/lib/rbac';
 
+// Type definitions
+interface AuthErrorWithStatus extends Error {
+  status?: number;
+  name: string;
+}
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  department_id: string | null;
+  departments: Department | null;
+}
+
+interface UserRoleData {
+  id: string;
+  user_id: string;
+  roles: Role | null;
+}
+
+interface AccountMember {
+  id: string;
+  user_id: string;
+  account_id: string;
+  created_at: string;
+}
+
+interface MemberWithProfile extends AccountMember {
+  user_profiles: (UserProfile & { user_roles: UserRoleData[] }) | null;
+}
+
 /**
  * GET /api/accounts/[accountId]/members
  * Get all members assigned to an account
@@ -21,7 +63,7 @@ export async function GET(
     // Uses same access logic as account detail page for consistency
     try {
       const user = await requireAuthentication(request);
-      console.log(`[GET /api/accounts/${accountId}/members] User authenticated: ${user.id}`);
+      console.log(`[GET /api/accounts/${accountId}/members] User authenticated: ${(user as any).id}`);
 
       // Create API Supabase client for checking access
       const supabase = createApiSupabaseClient(request);
@@ -61,7 +103,7 @@ export async function GET(
       // If no permission-based access, check service-level access
       // This uses the same logic as the account detail page
       if (!hasAccess) {
-        const hasServiceAccess = await accountService.canUserAccessAccount(user.id, accountId, supabase);
+        const hasServiceAccess = await accountService.canUserAccessAccount((user as any).id, accountId, supabase);
         console.log(`[GET /api/accounts/${accountId}/members] Service-level access check: ${hasServiceAccess}`);
 
         if (hasServiceAccess) {
@@ -76,18 +118,19 @@ export async function GET(
       }
 
       console.log(`[GET /api/accounts/${accountId}/members] Access granted`);
-    } catch (authError: any) {
+    } catch (authError: unknown) {
+      const err = authError as AuthErrorWithStatus;
       console.error('[GET /api/accounts/[accountId]/members] Authentication/permission error:', {
-        error: authError.message,
-        name: authError.name,
-        status: authError.status,
-        stack: authError.stack
+        error: err.message,
+        name: err.name,
+        status: err.status,
+        stack: err.stack
       });
       // Return proper JSON error response
-      const status = authError.status || (authError.name === 'AuthenticationError' ? 401 : 403);
+      const status = err.status || (err.name === 'AuthenticationError' ? 401 : 403);
       const errorResponse = {
-        error: authError.message || 'Authentication failed',
-        details: authError.message || 'No details available',
+        error: err.message || 'Authentication failed',
+        details: err.message || 'No details available',
         status: status
       };
       console.log(`[GET /api/accounts/${accountId}/members] Returning error response:`, errorResponse);
@@ -133,8 +176,8 @@ export async function GET(
     }
 
     // Get user profiles for these members
-    const userIds = (accountMembers || []).map((m: { user_id: string }) => m.user_id);
-    let members: any[] = [];
+    const userIds = (accountMembers || []).map((m: AccountMember) => m.user_id);
+    let members: MemberWithProfile[] = [];
 
     if (userIds.length > 0) {
       const { data: profiles, error: profilesError } = await supabase
@@ -171,16 +214,16 @@ export async function GET(
       }
 
       // Map everything together
-      const profilesMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-      const rolesMap = new Map<string, any[]>();
-      (userRolesData || []).forEach((ur: any) => {
+      const profilesMap = new Map((profiles || []).map((p: UserProfile) => [p.id, p]));
+      const rolesMap = new Map<string, UserRoleData[]>();
+      (userRolesData as unknown as UserRoleData[] || []).forEach((ur: UserRoleData) => {
         if (!rolesMap.has(ur.user_id)) {
           rolesMap.set(ur.user_id, []);
         }
         rolesMap.get(ur.user_id)?.push(ur);
       });
 
-      members = (accountMembers || []).map((member: any) => {
+      members = (accountMembers || []).map((member: AccountMember) => {
         const profile = profilesMap.get(member.user_id);
         const userRoles = rolesMap.get(member.user_id) ?? [];
 
@@ -193,25 +236,25 @@ export async function GET(
         };
       });
     } else {
-      members = accountMembers || [];
+      members = (accountMembers || []).map((m: AccountMember) => ({ ...m, user_profiles: null }));
     }
 
     // Transform the data to include user roles
-    const formattedMembers = (members || []).map((member: any) => {
+    const formattedMembers = (members || []).map((member: MemberWithProfile) => {
       const userProfile = member.user_profiles;
       const userRoles = userProfile?.user_roles || [];
-      
+
       return {
         id: member.id,
         user_id: member.user_id,
         account_id: member.account_id,
         created_at: member.created_at,
         user: userProfile ? {
-          id: userProfile.id,
-          name: userProfile.name,
-          email: userProfile.email,
-          image: userProfile.image,
-          roles: userRoles.map((ur: any) => {
+          id: (userProfile as any).id,
+          name: (userProfile as any).name,
+          email: (userProfile as any).email,
+          image: (userProfile as any).image,
+          roles: userRoles.map((ur: UserRoleData) => {
             const role = ur.roles;
             const department = role?.departments;
             return {
@@ -222,28 +265,29 @@ export async function GET(
                 name: department.name
               } : null
             };
-          }).filter((r: any) => r.id) // Filter out any invalid roles
+          }).filter((r: { id?: string }) => r.id) // Filter out any invalid roles
         } : null
       };
     });
     
     console.log(`[GET /api/accounts/${accountId}/members] Successfully returning ${formattedMembers.length} members`);
     return NextResponse.json({ members: formattedMembers });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as AuthErrorWithStatus;
     console.error('[GET /api/accounts/[accountId]/members] Unexpected error:', {
-      error: error.message,
-      name: error.name,
-      status: error.status,
-      stack: error.stack
+      error: err.message,
+      name: err.name,
+      status: err.status,
+      stack: err.stack
     });
     // Ensure we always return proper JSON
-    const errorResponse = { 
-      error: error.message || 'Internal server error',
-      details: error.message || 'An unexpected error occurred',
-      status: error.status || 500
+    const errorResponse = {
+      error: err.message || 'Internal server error',
+      details: err.message || 'An unexpected error occurred',
+      status: err.status || 500
     };
     console.log('[GET /api/accounts/[accountId]/members] Returning unexpected error response:', errorResponse);
-    return NextResponse.json(errorResponse, { status: error.status || 500 });
+    return NextResponse.json(errorResponse, { status: err.status || 500 });
   }
 }
 
@@ -265,7 +309,7 @@ export async function POST(
     }
     
     // Require permission to assign users to accounts
-    await requireAuthAndPermission(Permission.ASSIGN_ACCOUNT_USERS, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USERS_IN_ACCOUNTS, {}, request);
 
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -316,10 +360,11 @@ export async function POST(
     }
     
     return NextResponse.json({ member: data, message: 'User assigned to account successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as AuthErrorWithStatus;
     console.error('Error in POST /api/accounts/[accountId]/members:', error);
-    if (error.status) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    if (err.status) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

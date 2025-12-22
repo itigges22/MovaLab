@@ -38,7 +38,6 @@ interface DepartmentWithRoles {
   user_count: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RoleCallback = (role: any) => void;
 
 interface DepartmentViewProps {
@@ -68,10 +67,10 @@ function DepartmentCard({
   isReadOnly = false,
 }: DepartmentCardProps) {
   const [expandedRoles, setExpandedRoles] = useState<Set<string>>(new Set());
-  const [roleUsers, setRoleUsers] = useState<Record<string, any[]>>({});
+  const [roleUsers, setRoleUsers] = useState<Record<string, Record<string, unknown>[]>>({});
 
   // Filter roles by search query
-  const filteredRoles = department.roles.filter(role =>
+  const filteredRoles = department.roles.filter((role: any) =>
     !searchQuery || 
     role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     department.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -97,17 +96,17 @@ function DepartmentCard({
       
       // Transform the response to match the expected format
       const formattedUsers = users.map((user: any) => ({
-        user_id: user.id,
+        user_id: (user as any).id,
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image
+          id: (user as any).id,
+          name: (user as any).name,
+          email: (user as any).email,
+          image: (user as any).image
         }
       }));
       
       setRoleUsers(prev => ({ ...prev, [roleId]: formattedUsers }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading role users:', error);
       setRoleUsers(prev => ({ ...prev, [roleId]: [] }));
     }
@@ -121,24 +120,24 @@ function DepartmentCard({
     onUserAssign?.(userId, roleId);
   };
 
-  const handleRoleUpdate = (roleId: string) => {
+  const _handleRoleUpdate = (roleId: string) => {
     onRoleUpdate?.(roleId);
   };
 
   const getRoleIcon = (role: any) => {
-    if (role.is_system_role) {
+    if (role.is_system_role as boolean) {
       return <Shield className="h-4 w-4 text-red-500" />;
     }
-    if (role.hierarchy_level >= 100) {
+    if ((role.hierarchy_level as number) >= 100) {
       return <Users className="h-4 w-4 text-blue-500" />;
     }
     return <Users className="h-4 w-4 text-gray-500" />;
   };
 
   const getRoleColor = (role: any) => {
-    if (role.is_system_role) return 'border-red-200 bg-red-50';
-    if (role.hierarchy_level >= 100) return 'border-blue-200 bg-blue-50';
-    if (role.hierarchy_level >= 80) return 'border-green-200 bg-green-50';
+    if (role.is_system_role as boolean) return 'border-red-200 bg-red-50';
+    if ((role.hierarchy_level as number) >= 100) return 'border-blue-200 bg-blue-50';
+    if ((role.hierarchy_level as number) >= 80) return 'border-green-200 bg-green-50';
     return 'border-gray-200 bg-gray-50';
   };
 
@@ -167,7 +166,7 @@ function DepartmentCard({
               {searchQuery ? 'No roles match your search' : 'No roles in this department'}
             </p>
           ) : (
-            filteredRoles.map((role) => (
+            filteredRoles.map((role:any) => (
               <div key={role.id} className="space-y-2">
                 <div
                   className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 ${getRoleColor(role)}`}
@@ -226,21 +225,23 @@ function DepartmentCard({
                         </p>
                       ) : (
                         <div className="space-y-2">
-                          {roleUsers[role.id].map((userRole) => (
+                          {(roleUsers[role.id as string] as Array<Record<string, unknown>> || []).map((userRole: any) => {
+                            const user = userRole.user as Record<string, unknown> | undefined;
+                            return (
                             <div
-                              key={userRole.user_id}
+                              key={userRole.user_id as string}
                               className="flex items-center justify-between p-2 bg-muted/30 rounded border"
                             >
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
-                                  <AvatarImage src={userRole.user?.image || undefined} />
+                                  <AvatarImage src={((user as any)?.image as string | null) || undefined} />
                                   <AvatarFallback>
-                                     {userRole.user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                     {((user as any)?.name as string | undefined)?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium">{userRole.user?.name}</p>
-                                  <p className="text-xs text-muted-foreground">{userRole.user?.email}</p>
+                                  <p className="text-sm font-medium">{String((user as any)?.name)}</p>
+                                  <p className="text-xs text-muted-foreground">{String((user as any)?.email)}</p>
                                 </div>
                               </div>
                               {!isReadOnly && onUserAssign && (
@@ -248,14 +249,15 @@ function DepartmentCard({
                                   variant="ghost"
                                   size="sm"
                                   className="h-6 px-2 text-xs"
-                                  onClick={() => { handleUserAssign(userRole.user_id, role.id); }}
+                                  onClick={() => { handleUserAssign(userRole.user_id as string, role.id as string); }}
                                 >
                                   <UserPlus className="h-3 w-3 mr-1" />
                                   Reassign
                                 </Button>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )
                     ) : (
@@ -327,13 +329,13 @@ export function DepartmentView({
         roles: roles.filter((role: any) => role.department_id === dept.id),
         user_count: roles
           .filter((role: any) => role.department_id === dept.id)
-          .reduce((sum: number, role: any) => sum + (role.user_count || 0), 0)
+          .reduce((sum: number, role: any) => sum + ((role.user_count as number) || 0), 0)
       }));
       
       console.log('✅ Departments with roles:', departmentsWithRoles);
       
       setDepartments(departmentsWithRoles);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('💥 Error loading departments:', error);
     } finally {
       setLoading(false);
@@ -355,7 +357,7 @@ export function DepartmentView({
   // Filter departments by selected department
   // Treat 'all' or empty string as "show all departments"
   const filteredDepartments = (selectedDepartment && selectedDepartment !== 'all')
-    ? departments.filter(dept => dept.id === selectedDepartment)
+    ? departments.filter((dept: any) => dept.id === selectedDepartment)
     : departments;
   
   console.log('🔍 Filtering departments:', {
@@ -411,7 +413,7 @@ export function DepartmentView({
         </Card>
       ) : (
         <div className="grid gap-6">
-          {filteredDepartments.map((department) => (
+          {filteredDepartments.map((department:any) => (
             <DepartmentCard
               key={department.id}
               department={department}

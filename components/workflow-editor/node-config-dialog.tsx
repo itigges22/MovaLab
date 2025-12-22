@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { WorkflowNodeData, WorkflowNodeType } from './workflow-node';
+import { WorkflowNodeData } from './workflow-node';
 import { InlineFormBuilder, FormField } from '@/components/inline-form-builder';
 import { Plus, Trash2, AlertTriangle, Info } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
@@ -161,8 +161,8 @@ export function NodeConfigDialog({
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedApproverRole, setSelectedApproverRole] = useState('');
-  const [selectedFormTemplate, setSelectedFormTemplate] = useState('');
-  const [allowAttachments, setAllowAttachments] = useState(false);
+  const [_selectedFormTemplate, setSelectedFormTemplate] = useState('');
+  const [_allowAttachments, setAllowAttachments] = useState(false);
   const [conditionType, setConditionType] = useState<'form_value'>('form_value');
   const [conditionBranches, setConditionBranches] = useState<ConditionBranch[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -178,16 +178,16 @@ export function NodeConfigDialog({
 
     // Debug logging
     console.log('[NodeConfigDialog] Looking for incoming edge to conditional node:', nodeId);
-    console.log('[NodeConfigDialog] Available edges:', allEdges.map(e => ({ source: e.source, target: e.target })));
-    console.log('[NodeConfigDialog] Available nodes:', allNodes.map(n => ({ id: n.id, type: n.data.type })));
+    console.log('[NodeConfigDialog] Available edges:', allEdges.map((e: any) => ({ source: e.source, target: e.target })));
+    console.log('[NodeConfigDialog] Available nodes:', allNodes.map((n: any) => ({ id: n.id, type: n.data.type })));
 
     // Find incoming edge to this node
-    const incomingEdge = allEdges.find(e => e.target === nodeId);
+    const incomingEdge = allEdges.find((e: any) => e.target === nodeId);
     console.log('[NodeConfigDialog] Found incoming edge:', incomingEdge);
     if (!incomingEdge) return { type: 'none' as const, node: null };
 
     // Find the source node
-    const sourceNode = allNodes.find(n => n.id === incomingEdge.source);
+    const sourceNode = allNodes.find((n: any) => n.id === incomingEdge.source);
     console.log('[NodeConfigDialog] Found source node:', sourceNode?.data.type);
     if (!sourceNode) return { type: 'none' as const, node: null };
 
@@ -207,13 +207,13 @@ export function NodeConfigDialog({
   // Get the currently selected field's details
   const selectedField = useMemo(() => {
     if (!selectedFormField || sourceFormFields.length === 0) return null;
-    return sourceFormFields.find((f: FormField) => f.id === selectedFormField) || null;
+    return (sourceFormFields as unknown as FormField[]).find((f: FormField) => f.id === selectedFormField) || null;
   }, [selectedFormField, sourceFormFields]);
 
   // Get condition types for the selected field
   const availableConditionTypes = useMemo(() => {
     if (!selectedField) return [];
-    return CONDITION_TYPES_BY_FIELD[selectedField.type] || [];
+    return CONDITION_TYPES_BY_FIELD[selectedField.type as keyof typeof CONDITION_TYPES_BY_FIELD] || [];
   }, [selectedField]);
 
   // State for the "Add Branch" form
@@ -230,7 +230,7 @@ export function NodeConfigDialog({
 
   // Get the selected condition type details
   const selectedConditionType = useMemo(() => {
-    return availableConditionTypes.find(c => c.value === newBranchCondition) || null;
+    return availableConditionTypes.find((c: { value: string; label: string; needsValue: boolean; needsValue2?: boolean }) => c.value === newBranchCondition) || null;
   }, [availableConditionTypes, newBranchCondition]);
 
   // Maximum number of branches allowed
@@ -241,7 +241,7 @@ export function NodeConfigDialog({
     if (!selectedField || !newBranchCondition) return;
     if (conditionBranches.length >= MAX_BRANCHES) return;
 
-    const conditionTypeInfo = availableConditionTypes.find(c => c.value === newBranchCondition);
+    const conditionTypeInfo = availableConditionTypes.find((c: { value: string; label: string; needsValue: boolean; needsValue2?: boolean }) => c.value === newBranchCondition);
     if (!conditionTypeInfo) return;
 
     // Validate required values
@@ -250,7 +250,7 @@ export function NodeConfigDialog({
 
     const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
     const label = generateBranchLabel(
-      selectedField.label,
+      selectedField.label as string,
       newBranchCondition,
       newBranchValue || undefined,
       newBranchValue2 || undefined
@@ -281,7 +281,7 @@ export function NodeConfigDialog({
       setSelectedApproverRole(nodeData.config?.approverRoleId || '');
       setSelectedFormTemplate(nodeData.config?.formTemplateId || '');
       setAllowAttachments(nodeData.config?.allowAttachments || false);
-      setFormFields(nodeData.config?.formFields || []);
+      setFormFields((nodeData.config?.formFields as unknown as FormField[]) || []);
       setFormName(nodeData.config?.formName || '');
       setFormDescription(nodeData.config?.formDescription || '');
       setIsDraftForm(nodeData.config?.isDraftForm || false);
@@ -303,20 +303,20 @@ export function NodeConfigDialog({
     const config: WorkflowNodeData['config'] = {};
 
     if (nodeData.type === 'department' && selectedDepartment) {
-      const dept = departments.find((d) => d.id === selectedDepartment);
+      const dept = departments.find((d:any) => d.id === selectedDepartment);
       config.departmentId = selectedDepartment;
       config.departmentName = dept?.name;
     }
 
     if (nodeData.type === 'role' && selectedRole) {
-      const role = roles.find((r) => r.id === selectedRole);
+      const role = roles.find((r:any) => r.id === selectedRole);
       config.roleId = selectedRole;
       config.roleName = role?.name;
     }
 
     if (nodeData.type === 'approval') {
       if (selectedApproverRole) {
-        const role = roles.find((r) => r.id === selectedApproverRole);
+        const role = roles.find((r:any) => r.id === selectedApproverRole);
         config.approverRoleId = selectedApproverRole;
         config.approverRoleName = role?.name;
       }
@@ -325,7 +325,7 @@ export function NodeConfigDialog({
     }
 
     if (nodeData.type === 'form') {
-      config.formFields = formFields;
+      config.formFields = formFields as unknown as Record<string, unknown>[];
       config.formName = formName;
       config.formDescription = formDescription;
       config.isDraftForm = isDraftForm;
@@ -360,7 +360,7 @@ export function NodeConfigDialog({
   if (!nodeData) return null;
 
   const filteredRoles = selectedDepartment && selectedDepartment !== "all"
-    ? roles.filter((r) => r.department_id === selectedDepartment)
+    ? roles.filter((r:any) => r.department_id === selectedDepartment)
     : roles;
 
   // Debug logging
@@ -411,7 +411,7 @@ export function NodeConfigDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All departments</SelectItem>
-                    {departments.map((dept) => (
+                    {departments.map((dept:any) => (
                       <SelectItem key={dept.id} value={dept.id}>
                         {dept.name}
                       </SelectItem>
@@ -426,7 +426,7 @@ export function NodeConfigDialog({
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredRoles.map((role) => (
+                    {filteredRoles.map((role:any) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.name}
                       </SelectItem>
@@ -447,7 +447,7 @@ export function NodeConfigDialog({
                     <SelectValue placeholder="Select approver role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {roles.map((role) => (
+                    {roles.map((role:any) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.name}
                       </SelectItem>
@@ -568,7 +568,7 @@ export function NodeConfigDialog({
                         <div>
                           <p className="text-sm font-medium text-amber-800">No form fields found</p>
                           <p className="text-xs text-amber-700 mt-1">
-                            The source form doesn't have any fields.
+                            The source form doesn&apos;t have any fields.
                             Add fields to the form to enable conditional branching.
                           </p>
                         </div>
@@ -591,7 +591,7 @@ export function NodeConfigDialog({
                             <SelectValue placeholder="Select a form field" />
                           </SelectTrigger>
                           <SelectContent>
-                            {sourceFormFields.map((field: FormField) => (
+                            {(sourceFormFields as unknown as FormField[]).map((field: FormField) => (
                               <SelectItem key={field.id} value={field.id}>
                                 {field.label} ({field.type})
                               </SelectItem>
@@ -620,7 +620,7 @@ export function NodeConfigDialog({
                                   <SelectValue placeholder="Condition..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {availableConditionTypes.map((cond) => (
+                                  {availableConditionTypes.map((cond: { value: string; label: string; needsValue: boolean; needsValue2?: boolean }) => (
                                     <SelectItem key={cond.value} value={cond.value}>
                                       {cond.label}
                                     </SelectItem>
@@ -632,13 +632,13 @@ export function NodeConfigDialog({
                               {selectedConditionType?.needsValue && (
                                 <>
                                   {/* Dropdown/Multiselect: show options */}
-                                  {(selectedField.type === 'dropdown' || selectedField.type === 'multiselect') && selectedField.options ? (
+                                  {(selectedField.type === 'dropdown' || selectedField.type === 'multiselect') && (selectedField as { options?: string[] }).options ? (
                                     <Select value={newBranchValue} onValueChange={setNewBranchValue}>
                                       <SelectTrigger className="h-8 text-sm">
                                         <SelectValue placeholder="Select value..." />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {selectedField.options.map((opt: string) => (
+                                        {((selectedField as { options?: string[] }).options || []).map((opt: string) => (
                                           <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                                         ))}
                                       </SelectContent>
@@ -732,7 +732,7 @@ export function NodeConfigDialog({
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                {conditionBranches.map((branch) => (
+                                {conditionBranches.map((branch:any) => (
                                   <div key={branch.id} className="flex items-center gap-2 p-2 bg-white rounded border">
                                     <div
                                       className="w-3 h-3 rounded-full flex-shrink-0"
@@ -747,7 +747,7 @@ export function NodeConfigDialog({
                                       variant="ghost"
                                       className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
                                       onClick={() => {
-                                        setConditionBranches(conditionBranches.filter((b) => b.id !== branch.id));
+                                        setConditionBranches(conditionBranches.filter((b:any) => b.id !== branch.id));
                                       }}
                                     >
                                       <Trash2 className="w-3 h-3" />

@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from '@/components/ui/badge'
-import { isAdminLevel, isUnassigned, isSuperadmin, hasPermission } from '@/lib/rbac'
+import { isUnassigned, isSuperadmin, hasPermission } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import dynamic from 'next/dynamic'
 import { 
@@ -76,8 +75,8 @@ export default function WelcomePage() {
     if (userProfile) {
       const computedUnassigned = isUnassigned(userProfile);
       console.log('🔍 WelcomePage Debug:', {
-        userEmail: userProfile.email,
-        userRoles: userProfile.user_roles?.map(ur => ({
+        userEmail: (userProfile as any).email,
+        userRoles: userProfile.user_roles?.map((ur: any) => ({
           name: ur.roles?.name,
           isSystem: ur.roles?.is_system_role,
           permissions: Object.keys(ur.roles?.permissions || {}).length
@@ -89,11 +88,11 @@ export default function WelcomePage() {
         userProfileRolesLength: userProfile.user_roles?.length || 0
       });
     }
-  }, [userProfile]);
+  }, [userProfile, hasRoles, isSuperadminUser, userIsUnassigned]);
 
   // Check if all three status items are completed
   const isAccountCreated = !!user
-  const isEmailVerified = !!user?.email_confirmed_at
+  const isEmailVerified = !!(user as any)?.email_confirmed_at
   const isRoleAssigned = hasRoles
   const isSetupComplete = isAccountCreated && isEmailVerified && isRoleAssigned
 
@@ -178,7 +177,7 @@ export default function WelcomePage() {
         {/* Hero Section */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-gray-900">
-            {userProfile?.name ? `Hello ${userProfile.name}! Welcome Back!` : 'Welcome to MovaLab!'}
+            {(userProfile as any)?.name ? `Hello ${(userProfile as any).name}! Welcome Back!` : 'Welcome to MovaLab!'}
           </h1>
         </div>
 
@@ -260,7 +259,7 @@ export default function WelcomePage() {
       {/* Hero Section */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold text-gray-900">
-          {userProfile?.name ? `Hello ${userProfile.name}! Welcome Back!` : 'Welcome to MovaLab!'}
+          {(userProfile as any)?.name ? `Hello ${(userProfile as any).name}! Welcome Back!` : 'Welcome to MovaLab!'}
         </h1>
       </div>
 

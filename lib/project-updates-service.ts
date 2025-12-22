@@ -25,7 +25,7 @@ export const projectUpdatesService = {
    * Get all updates for a project
    */
   async getProjectUpdates(projectId: string): Promise<ProjectUpdate[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     
     const { data, error } = await supabase
       .from('project_updates')
@@ -48,7 +48,7 @@ export const projectUpdatesService = {
    * Create a new project update
    */
   async createProjectUpdate(input: ProjectUpdateInput): Promise<ProjectUpdate> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -80,7 +80,7 @@ export const projectUpdatesService = {
    * Update an existing project update
    */
   async updateProjectUpdate(updateId: string, content: string): Promise<ProjectUpdate> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
 
     const { data, error } = await supabase
       .from('project_updates')
@@ -107,7 +107,7 @@ export const projectUpdatesService = {
    * Delete a project update
    */
   async deleteProjectUpdate(updateId: string): Promise<void> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
 
     const { error } = await supabase
       .from('project_updates')

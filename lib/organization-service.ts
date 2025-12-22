@@ -71,7 +71,7 @@ export interface HierarchyView {
 
 class OrganizationService {
   private async getSupabase() {
-    return createClientSupabase();
+    return createClientSupabase() as any;
   }
 
   // Get complete organization structure
@@ -169,8 +169,8 @@ class OrganizationService {
           dept.roles.forEach((role: any) => {
             if (role?.users) {
               role.users.forEach((user: any) => {
-                if (user?.id) {
-                  allUserIds.add(user.id);
+                if ((user as any)?.id) {
+                  allUserIds.add((user as any).id);
                 }
               });
             }
@@ -204,7 +204,7 @@ class OrganizationService {
         total_roles: totalRoles,
         total_departments: totalDepartments,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       logger.error('Exception in getOrganizationStructure', { action: 'getOrganizationStructure', duration }, error as Error);
       return null;
@@ -227,7 +227,7 @@ class OrganizationService {
         total_users: totalUsers,
         max_depth: maxDepth,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getHierarchyView:', error);
       return null;
     }
@@ -265,7 +265,7 @@ class OrganizationService {
           users: role.user_roles.map((ur: any) => ur.user_profiles).filter(Boolean),
         })),
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getDepartmentView:', error);
       return null;
     }
@@ -297,7 +297,7 @@ class OrganizationService {
       }
 
       return users || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getUsersByDepartment:', error);
       return [];
     }
@@ -322,7 +322,7 @@ class OrganizationService {
       }
 
       return userRoles.map((ur: any) => ur.user_profiles).filter(Boolean);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getUsersByRole:', error);
       return [];
     }
@@ -395,7 +395,7 @@ class OrganizationService {
         system_roles: systemRoles,
         custom_roles: customRoles,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getRoleStatistics:', error);
       return {
         total_roles: 0,
@@ -463,7 +463,7 @@ class OrganizationService {
       });
 
       const totalUsers = Object.keys(userRoleCounts).length;
-      const usersWithMultipleRoles = Object.values(userRoleCounts).filter(count => count > 1).length;
+      const usersWithMultipleRoles = Object.values(userRoleCounts).filter((count: any) => count > 1).length;
 
       return {
         total_users: totalUsers,
@@ -471,7 +471,7 @@ class OrganizationService {
         users_by_role: usersByRole,
         users_with_multiple_roles: usersWithMultipleRoles,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getUserStatistics:', error);
       return {
         total_users: 0,
@@ -518,7 +518,7 @@ class OrganizationService {
       }
 
       return users || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in searchUsers:', error);
       return [];
     }
@@ -541,7 +541,7 @@ class OrganizationService {
       }
 
       return roles || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in searchRoles:', error);
       return [];
     }

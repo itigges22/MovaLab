@@ -1,12 +1,17 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+// Get Supabase publishable key
+const getSupabasePublishableKey = () => {
+  return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+};
+
 // Check if Supabase is configured (runtime check)
 const isSupabaseConfigured = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return supabaseUrl && supabaseAnonKey && 
-    supabaseUrl !== 'your-supabase-url' && 
-    supabaseAnonKey !== 'your-anon-key';
+  const supabasePublishableKey = getSupabasePublishableKey();
+  return supabaseUrl && supabasePublishableKey &&
+    supabaseUrl !== 'your-supabase-project-url' &&
+    supabasePublishableKey !== 'your-supabase-publishable-key';
 };
 
 // Singleton client instance to avoid multiple GoTrueClient instances
@@ -15,9 +20,9 @@ let clientInstance: any = null;
 // Client component Supabase client (for use in client components)
 export const createClientSupabase = () => {
   if (!isSupabaseConfigured()) return null;
-  
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabasePublishableKey = getSupabasePublishableKey();
   
   // Check if we're in a browser environment (not SSR)
   if (typeof window === 'undefined') {
@@ -32,17 +37,17 @@ export const createClientSupabase = () => {
   
   // Create new instance only if none exists (browser only)
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabasePublishableKey) {
       console.error('Supabase environment variables are not set');
       return null;
     }
-    clientInstance = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    clientInstance = createBrowserClient(supabaseUrl, supabasePublishableKey);
     
     // Set up automatic session refresh on token expiry
     // This prevents "Auth session missing!" errors when idle
     // Supabase automatically refreshes tokens, but we listen for events
     if (typeof window !== 'undefined') {
-      clientInstance.auth.onAuthStateChange((event: any, session: any) => {
+      clientInstance.auth.onAuthStateChange((event: string, _session: any) => {
         if (process.env.NODE_ENV === 'development') {
           if (event === 'TOKEN_REFRESHED') {
             console.log('Session token refreshed automatically');
@@ -54,7 +59,7 @@ export const createClientSupabase = () => {
     }
     
     return clientInstance;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating Supabase client:', error);
     return null;
   }
@@ -97,7 +102,7 @@ export interface Database {
           name: string;
           department_id: string;
           description: string | null;
-          permissions: any;
+          permissions: Record<string, unknown>;
           is_system_role: boolean;
           hierarchy_level: number;
           display_order: number;
@@ -110,7 +115,7 @@ export interface Database {
           name: string;
           department_id: string;
           description?: string | null;
-          permissions?: any;
+          permissions?: Record<string, unknown>;
           is_system_role?: boolean;
           hierarchy_level?: number;
           display_order?: number;
@@ -123,7 +128,7 @@ export interface Database {
           name?: string;
           department_id?: string;
           description?: string | null;
-          permissions?: any;
+          permissions?: Record<string, unknown>;
           is_system_role?: boolean;
           hierarchy_level?: number;
           display_order?: number;
@@ -457,7 +462,7 @@ export interface Database {
           user_id: string;
           week_start_date: string;
           available_hours: number;
-          schedule_data: any | null;
+          schedule_data: Record<string, unknown> | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -467,7 +472,7 @@ export interface Database {
           user_id: string;
           week_start_date: string;
           available_hours?: number;
-          schedule_data?: any | null;
+          schedule_data?: Record<string, unknown> | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -477,7 +482,7 @@ export interface Database {
           user_id?: string;
           week_start_date?: string;
           available_hours?: number;
-          schedule_data?: any | null;
+          schedule_data?: Record<string, unknown> | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;

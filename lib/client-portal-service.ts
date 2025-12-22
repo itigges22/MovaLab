@@ -41,7 +41,7 @@ export interface ClientFeedback {
   satisfaction_score: number | null;
   what_went_well: string | null;
   what_needs_improvement: string | null;
-  performance_metrics: Record<string, any> | null;
+  performance_metrics: Record<string, Record<string, unknown>> | null;
   submitted_at: string;
   visibility: 'private' | 'public';
 }
@@ -382,7 +382,7 @@ export async function submitClientFeedback(params: {
   satisfactionScore?: number;
   whatWentWell?: string;
   whatNeedsImprovement?: string;
-  performanceMetrics?: Record<string, any>;
+  performanceMetrics?: Record<string, Record<string, unknown>>;
   workflowHistoryId?: string | null;
 }): Promise<ClientFeedback> {
   const supabase = await getSupabase();
@@ -539,7 +539,7 @@ export async function getAccountFeedbackStats(accountId: string): Promise<{
     };
   }
 
-  const scores = feedback.map(f => f.satisfaction_score as number);
+  const scores = feedback.map((f: any) => f.satisfaction_score as number);
   const averageSatisfaction = scores.reduce((sum, score) => sum + score, 0) / totalFeedback;
 
   const feedbackByScore: Record<number, number> = {};
@@ -570,7 +570,7 @@ export async function clientApproveProject(params: {
   workflowInstanceId: string;
   clientUserId: string;
   notes?: string | null;
-}): Promise<{ success: boolean; message: string; nextNodes?: any[] }> {
+}): Promise<{ success: boolean; message: string; nextNodes?: Record<string, unknown>[] }> {
   const supabase = await getSupabase();
   const { projectId, workflowInstanceId, clientUserId, notes } = params;
 
@@ -652,7 +652,7 @@ export async function clientApproveProject(params: {
     return {
       success: false,
       message: 'Multiple workflow paths available. Please specify which path to take.',
-      nextNodes: connections.map(c => c.workflow_nodes),
+      nextNodes: connections.map((c: any) => c.workflow_nodes) as any,
     };
   }
 
@@ -761,7 +761,7 @@ export async function clientRejectProject(params: {
 
   // 5. Create project issues for each concern raised
   if (issues.length > 0) {
-    const issueInserts = issues.map(issue => ({
+    const issueInserts = issues.map((issue: any) => ({
       project_id: projectId,
       content: issue,
       status: 'open',

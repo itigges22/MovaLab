@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { createClientSupabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -74,27 +74,15 @@ export default function AdminTimeTrackingPage() {
   const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Check permissions
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (userProfile) {
-        const canView = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES)
-        setHasAccess(canView)
-        setCheckingAccess(false)
-        if (canView) {
-          loadTimeEntries()
-          loadUsers()
-          loadProjects()
-        }
-      }
-    }
-    checkAccess()
-  }, [userProfile])
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
-      const supabase = createClientSupabase()
-      const { data, error } = await supabase
+      const supabase = createClientSupabase() as any
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        return
+      }
+
+      const { data, error } = await (supabase as any)
         .from('user_profiles')
         .select('id, name')
         .order('name')
@@ -107,15 +95,20 @@ export default function AdminTimeTrackingPage() {
       if (data) {
         setUsers(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading users:', error)
     }
-  }
+  }, [])
 
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
-      const supabase = createClientSupabase()
-      const { data, error } = await supabase
+      const supabase = createClientSupabase() as any
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        return
+      }
+
+      const { data, error } = await (supabase as any)
         .from('projects')
         .select('id, name')
         .order('name')
@@ -128,12 +121,12 @@ export default function AdminTimeTrackingPage() {
       if (data) {
         setProjects(data)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading projects:', error)
     }
-  }
+  }, [])
 
-  const loadTimeEntries = async () => {
+  const loadTimeEntries = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -150,13 +143,30 @@ export default function AdminTimeTrackingPage() {
       } else {
         toast.error(data.error || 'Failed to load time entries')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading time entries:', error)
       toast.error('Failed to load time entries')
     } finally {
       setLoading(false)
     }
-  }
+  }, [startDate, endDate, selectedUser])
+
+  // Check permissions - Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (userProfile) {
+        const canView = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES)
+        setHasAccess(canView)
+        setCheckingAccess(false)
+        if (canView) {
+          loadTimeEntries()
+          loadUsers()
+          loadProjects()
+        }
+      }
+    }
+    checkAccess()
+  }, [userProfile, loadTimeEntries, loadUsers, loadProjects])
 
   // Apply filters
   const handleApplyFilters = () => {
@@ -192,7 +202,7 @@ export default function AdminTimeTrackingPage() {
   // Export to CSV
   const exportToCSV = () => {
     const headers = ['Date', 'User', 'Project', 'Task', 'Hours', 'Clock In', 'Clock Out', 'Auto Clock Out', 'Description']
-    const rows = timeEntries.map(entry => [
+    const rows = timeEntries.map((entry: any) => [
       entry.entry_date,
       entry.user?.name || 'Unknown',
       entry.project?.name || 'N/A',
@@ -204,7 +214,7 @@ export default function AdminTimeTrackingPage() {
       entry.description || ''
     ])
 
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+    const csv = [headers, ...rows].map((row: any) => row.map((cell: any) => `"${cell}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -247,7 +257,7 @@ export default function AdminTimeTrackingPage() {
       } else {
         toast.error(data.error || 'Failed to update time entry')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating time entry:', error)
       toast.error('Failed to update time entry')
     } finally {
@@ -274,7 +284,7 @@ export default function AdminTimeTrackingPage() {
       } else {
         toast.error(data.error || 'Failed to delete time entry')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting time entry:', error)
       toast.error('Failed to delete time entry')
     } finally {
@@ -392,9 +402,9 @@ export default function AdminTimeTrackingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Users</SelectItem>
-                  {users.map(user => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
+                  {users.map((user: any) => (
+                    <SelectItem key={(user as any).id} value={(user as any).id}>
+                      {(user as any).name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -437,7 +447,7 @@ export default function AdminTimeTrackingPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {timeEntries.map(entry => (
+                {timeEntries.map((entry: any) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">
                       {formatDate(entry.entry_date)}
@@ -536,7 +546,7 @@ export default function AdminTimeTrackingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Project</SelectItem>
-                  {projects.map(project => (
+                  {projects.map((project: any) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
                     </SelectItem>

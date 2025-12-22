@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   type Node,
@@ -13,10 +13,6 @@ import {
   Background,
   MiniMap,
   type ReactFlowInstance,
-  type NodeTypes,
-  type EdgeTypes,
-  type OnNodesChange,
-  type OnEdgesChange,
   type OnConnect,
   ReactFlowProvider,
 } from '@xyflow/react';
@@ -27,7 +23,7 @@ import { OrgChartNode } from './org-chart-node';
 import { OrgChartEdge } from './org-chart-edge';
 import { RoleDetailPanel } from './role-detail-panel';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { logger, componentRender, componentError, orgChartAction } from '@/lib/debug-logger';
+import { logger, componentError, orgChartAction } from '@/lib/debug-logger';
 
 interface OrgChartCanvasProps {
   data: OrganizationStructure | null;
@@ -42,13 +38,11 @@ interface OrgChartCanvasProps {
 }
 
 // Move nodeTypes and edgeTypes outside component to prevent recreation
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const nodeTypes: any = {
+const nodeTypes = {
   roleNode: OrgChartNode,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const edgeTypes: any = {
+const edgeTypes = {
   roleEdge: OrgChartEdge,
 };
 
@@ -143,7 +137,7 @@ export function OrgChartCanvas({
         const childSpacing = 280; // Horizontal spacing between children
         const startX = x - ((role.children.length - 1) * childSpacing) / 2;
         
-        role.children.forEach((child, index) => {
+        role.children.forEach((child:any, index:any) => {
           const childX = startX + (index % childrenPerRow) * childSpacing;
           calculatePositions(child, level + 1, childX);
         });
@@ -153,7 +147,7 @@ export function OrgChartCanvas({
     // Sort hierarchy by hierarchy level (highest first)
     const sortedHierarchy = [...hierarchy].sort((a, b) => a.hierarchy_level - b.hierarchy_level);
     
-    sortedHierarchy.forEach(role => {
+    sortedHierarchy.forEach((role: any) => {
       calculatePositions(role);
     });
 
@@ -181,12 +175,12 @@ export function OrgChartCanvas({
         });
       }
 
-      role.children.forEach(child => {
+      role.children.forEach((child: any) => {
         createEdges(child, nodeId);
       });
     };
 
-    sortedHierarchy.forEach(role => {
+    sortedHierarchy.forEach((role: any) => {
       createEdges(role);
     });
 
@@ -197,7 +191,7 @@ export function OrgChartCanvas({
       });
 
       return { nodes, edges };
-    } catch (error) {
+    } catch (error: unknown) {
       componentError('OrgChartCanvas', error as Error, { 
         action: 'createImprovedLayout',
         function: 'createImprovedLayout'
@@ -207,13 +201,7 @@ export function OrgChartCanvas({
       }, error as Error);
       return { nodes: [], edges: [] };
     }
-  }, [searchQuery, selectedDepartment, onUserAssign, onRoleUpdate, isReadOnly]);
-
-  // Convert hierarchy data to ReactFlow nodes and edges
-  const convertHierarchyToNodes = useCallback((hierarchy: RoleHierarchyNode[]): { nodes: Node[]; edges: Edge[] } => {
-    // For now, return empty arrays - we'll use the async ELK layout instead
-    return { nodes: [], edges: [] };
-  }, []);
+  }, [searchQuery, selectedDepartment, selectedNode, onUserAssign, onRoleUpdate, isReadOnly]);
 
   // Convert department data to ReactFlow nodes and edges
   const convertDepartmentToNodes = useCallback((orgData: OrganizationStructure): { nodes: Node[]; edges: Edge[] } => {
@@ -312,14 +300,14 @@ export function OrgChartCanvas({
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [data, viewType, searchQuery, selectedDepartment, createImprovedLayout, convertDepartmentToNodes]);
+  }, [data, viewType, searchQuery, selectedDepartment, createImprovedLayout, convertDepartmentToNodes, setNodes, setEdges]);
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     try {
       console.log('Node clicked:', node);
       setSelectedNode(node);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error handling node click:', error);
     }
   }, []);
@@ -331,7 +319,7 @@ export function OrgChartCanvas({
     // Check if this is a user being dragged to a role
     if (node.data.type === 'user' && node.dragging) {
       // Find the target role node
-      const targetNode = nodes.find(n => 
+      const targetNode = nodes.find((n: any) => 
         n.type === 'roleNode' && 
         n.id !== node.id &&
         Math.abs(n.position.x - node.position.x) < 100 &&
@@ -339,7 +327,7 @@ export function OrgChartCanvas({
       );
 
       if (targetNode && onUserAssign && typeof node.data.userId === 'string') {
-        const roleId = (targetNode.data as any)?.role?.id;
+        const roleId = ((targetNode.data as Record<string, unknown>)?.role as Record<string, unknown> | undefined)?.id;
         if (typeof roleId === 'string') {
           onUserAssign(node.data.userId, roleId);
         }
@@ -360,7 +348,7 @@ export function OrgChartCanvas({
     };
     
     setEdges((eds) => addEdge(newEdge, eds));
-  }, [isReadOnly]);
+  }, [isReadOnly, setEdges]);
 
   // Auto-layout nodes (only on initial load)
   const onLayout = useCallback(() => {
@@ -461,10 +449,9 @@ export function OrgChartCanvas({
         />
         <MiniMap
           nodeColor={(node) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const data = node.data as any;
+            const data = node.data as Record<string, unknown>;
             if (data?.type === 'department') return '#3b82f6';
-            if (data?.role?.is_system_role) return '#ef4444';
+            if ((data?.role as Record<string, unknown> | undefined)?.is_system_role) return '#ef4444';
             return '#6b7280';
           }}
           nodeStrokeWidth={3}

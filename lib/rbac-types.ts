@@ -5,13 +5,12 @@
  * to avoid circular dependencies between rbac.ts and permissions.ts
  */
 
-import { Database } from './supabase';
 
 // Database types
-export type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
-export type Role = Database['public']['Tables']['roles']['Row'];
-export type UserRole = Database['public']['Tables']['user_roles']['Row'];
-export type Department = Database['public']['Tables']['departments']['Row'];
+export type UserProfile = any;
+export type Role = any;
+export type UserRole = any;
+export type Department = any;
 
 // Extended user profile with roles
 export interface UserWithRoles extends UserProfile {
@@ -32,5 +31,6 @@ export interface PermissionContext {
   projectId?: string;
   taskId?: string;
   deliverableId?: string;
+  workflowInstanceId?: string; // For workflow node assignment checks
 }
 

@@ -26,7 +26,7 @@ import {
   checkAllPermissions
 } from './permission-checker';
 import { logger } from './debug-logger';
-import type { SupabaseClient } from '@supabase/supabase-js';
+
 
 // Re-export UserWithRoles for backwards compatibility
 export type { UserWithRoles };
@@ -115,7 +115,7 @@ export function getUserDepartmentIds(userProfile: UserWithRoles | null): string[
  * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<Array of permissions>
  */
-export async function getAllUserPermissions(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<Permission[]> {
+export async function getAllUserPermissions(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<Permission[]> {
   return getUserPermissions(userProfile, supabaseClient);
 }
 
@@ -135,13 +135,13 @@ export async function hasPermission(
   userProfile: UserWithRoles | null,
   permission: Permission,
   context?: PermissionContext,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: any
 ): Promise<boolean> {
   return checkPermissionHybrid(userProfile, permission, context, supabaseClient);
 }
 
 /**
- * Check if user has any of the specified permissions
+ * Check if user has Record<string, unknown> of the specified permissions
  * @param userProfile - User profile with roles
  * @param permissions - Array of permissions to check
  * @param context - Optional context
@@ -152,7 +152,7 @@ export async function hasAnyPermission(
   userProfile: UserWithRoles | null,
   permissions: Permission[],
   context?: PermissionContext,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: any
 ): Promise<boolean> {
   return checkAnyPermission(userProfile, permissions, context, supabaseClient);
 }
@@ -169,7 +169,7 @@ export async function hasAllPermissions(
   userProfile: UserWithRoles | null,
   permissions: Permission[],
   context?: PermissionContext,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: any
 ): Promise<boolean> {
   return checkAllPermissions(userProfile, permissions, context, supabaseClient);
 }
@@ -179,56 +179,52 @@ export async function hasAllPermissions(
 // ================================================================================
 
 /**
- * @deprecated Use hasPermission with Permission.CREATE_ROLE instead
+ * @deprecated Use hasPermission with Permission.MANAGE_USER_ROLES instead
  */
-export async function canManageRoles(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
-  return hasAnyPermission(userProfile, [
-    Permission.CREATE_ROLE,
-    Permission.EDIT_ROLE,
-    Permission.DELETE_ROLE,
-  ], undefined, supabaseClient);
+export async function canManageRoles(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<boolean> {
+  return hasPermission(userProfile, Permission.MANAGE_USER_ROLES, undefined, supabaseClient);
 }
 
 /**
- * @deprecated Use hasPermission with appropriate department permission + context
+ * @deprecated Use hasPermission with Permission.MANAGE_DEPARTMENTS + context
  */
-export async function canManageDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
-  return hasPermission(userProfile, Permission.EDIT_DEPARTMENT, { departmentId }, supabaseClient);
+export async function canManageDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: any): Promise<boolean> {
+  return hasPermission(userProfile, Permission.MANAGE_DEPARTMENTS, { departmentId }, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with Permission.VIEW_DEPARTMENTS + context
  */
-export async function canViewDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+export async function canViewDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: any): Promise<boolean> {
   return hasPermission(userProfile, Permission.VIEW_DEPARTMENTS, { departmentId }, supabaseClient);
 }
 
 /**
- * @deprecated Use hasPermission with Permission.EDIT_ACCOUNT instead
+ * @deprecated Use hasPermission with Permission.MANAGE_ACCOUNTS instead
  */
-export async function hasAccountManagementPrivileges(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
-  return hasPermission(userProfile, Permission.EDIT_ACCOUNT, undefined, supabaseClient);
+export async function hasAccountManagementPrivileges(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<boolean> {
+  return hasPermission(userProfile, Permission.MANAGE_ACCOUNTS, undefined, supabaseClient);
 }
 
 /**
  * Check if user can manage accounts
- * @deprecated Use hasPermission with Permission.EDIT_ACCOUNT
+ * @deprecated Use hasPermission with Permission.MANAGE_ACCOUNTS
  */
-export async function canManageAccounts(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
+export async function canManageAccounts(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<boolean> {
   return hasAccountManagementPrivileges(userProfile, supabaseClient);
 }
 
 /**
- * @deprecated Use hasPermission with Permission.EDIT_PROJECT + context
+ * @deprecated Use hasPermission with Permission.MANAGE_PROJECTS + context
  */
-export async function canEditProject(userProfile: UserWithRoles | null, projectId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
-  return hasPermission(userProfile, Permission.EDIT_PROJECT, { projectId }, supabaseClient);
+export async function canEditProject(userProfile: UserWithRoles | null, projectId: string, supabaseClient?: any): Promise<boolean> {
+  return hasPermission(userProfile, Permission.MANAGE_PROJECTS, { projectId }, supabaseClient);
 }
 
 /**
  * @deprecated Use hasPermission with Permission.VIEW_PROJECTS + context
  */
-export async function canViewProject(userProfile: UserWithRoles | null, projectId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+export async function canViewProject(userProfile: UserWithRoles | null, projectId: string, supabaseClient?: any): Promise<boolean> {
   return hasPermission(userProfile, Permission.VIEW_PROJECTS, { projectId }, supabaseClient);
 }
 
@@ -292,15 +288,15 @@ export function hasRoleInDepartment(
  * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<boolean>
  */
-export async function isAdminLevel(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
+export async function isAdminLevel(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<boolean> {
   if (isSuperadmin(userProfile)) return true;
 
   // Admin level = can manage users, roles, departments, or accounts
   return hasAnyPermission(userProfile, [
     Permission.MANAGE_USERS,
-    Permission.CREATE_ROLE,
-    Permission.CREATE_DEPARTMENT,
-    Permission.CREATE_ACCOUNT,
+    Permission.MANAGE_USER_ROLES,
+    Permission.MANAGE_DEPARTMENTS,
+    Permission.MANAGE_ACCOUNTS,
   ], undefined, supabaseClient);
 }
 
@@ -310,7 +306,7 @@ export async function isAdminLevel(userProfile: UserWithRoles | null, supabaseCl
  * @param supabaseClient - Optional authenticated Supabase client
  * @returns Promise<boolean>
  */
-export async function canAccessAdminDashboard(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<boolean> {
+export async function canAccessAdminDashboard(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<boolean> {
   return isAdminLevel(userProfile, supabaseClient);
 }
 
@@ -319,7 +315,7 @@ export async function canAccessAdminDashboard(userProfile: UserWithRoles | null,
 // ================================================================================
 
 /**
- * Check if user has any role at all (not unassigned)
+ * Check if user has Record<string, unknown> role at all (not unassigned)
  * @param userProfile - User profile with roles
  * @returns boolean
  */
@@ -336,7 +332,7 @@ export function getPrimaryRole(userProfile: UserWithRoles | null): string | null
   if (!userProfile?.user_roles || userProfile.user_roles.length === 0) return null;
   
   // Try to find first non-system role
-  const nonSystemRole = userProfile.user_roles.find(ur => !ur.roles.is_system_role);
+  const nonSystemRole = userProfile.user_roles.find((ur: any) => !ur.roles.is_system_role);
   if (nonSystemRole) return nonSystemRole.roles.name;
   
   // Fall back to first role
@@ -352,7 +348,7 @@ export function getPrimaryDepartment(userProfile: UserWithRoles | null): string 
   if (!userProfile?.user_roles || userProfile.user_roles.length === 0) return null;
   
   // Try to find first non-system role's department
-  const nonSystemRole = userProfile.user_roles.find(ur => !ur.roles?.is_system_role);
+  const nonSystemRole = userProfile.user_roles.find((ur: any) => !ur.roles?.is_system_role);
   if (nonSystemRole?.roles?.departments?.name) {
     return nonSystemRole.roles.departments.name;
   }

@@ -28,7 +28,7 @@ export default function CapacityDashboard({
 
   return (
     <CapacityTrendChart
-      userId={userProfile.id}
+      userId={(userProfile as any).id}
       timePeriod={timePeriod}
       onPeriodChange={setTimePeriod}
       onOpenAvailability={onOpenAvailability}

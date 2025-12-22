@@ -1,3 +1,4 @@
+
 import { createClientSupabase } from './supabase'
 
 /**
@@ -5,7 +6,7 @@ import { createClientSupabase } from './supabase'
  */
 export async function testDatabaseConnection() {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -60,7 +61,7 @@ export async function testDatabaseConnection() {
       return { success: false, error: `User query failed: ${userError.message}` }
     }
 
-    console.log('Current user:', user?.id)
+    console.log('Current user:', (user as any)?.id)
 
     return { 
       success: true, 
@@ -68,11 +69,11 @@ export async function testDatabaseConnection() {
         departments: deptData,
         systemDepartment: systemDept,
         superadminRole,
-        user: user?.id
+        user: (user as any)?.id
       }
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Database test error:', error)
     return { 
       success: false, 

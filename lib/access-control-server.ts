@@ -6,7 +6,6 @@
  * work with server-side Supabase clients passed as parameters.
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
 import { logger } from './debug-logger';
 
 /**
@@ -14,7 +13,7 @@ import { logger } from './debug-logger';
  * Server-side version that accepts supabase client as parameter
  */
 export async function isAssignedToProjectServer(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   projectId: string
 ): Promise<boolean> {
@@ -59,7 +58,7 @@ export async function isAssignedToProjectServer(
  * Get project ID from workflow instance
  */
 export async function getProjectIdFromWorkflowInstance(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string
 ): Promise<string | null> {
   const { data, error } = await supabase
@@ -80,7 +79,7 @@ export async function getProjectIdFromWorkflowInstance(
  * Get project ID from workflow history entry
  */
 export async function getProjectIdFromWorkflowHistory(
-  supabase: SupabaseClient,
+  supabase: any,
   historyId: string
 ): Promise<string | null> {
   const { data, error } = await supabase
@@ -94,14 +93,20 @@ export async function getProjectIdFromWorkflowHistory(
     return null;
   }
 
-  return (data.workflow_instances as any)?.project_id || null;
+  // workflow_instances could be a single object or an array
+  const workflowInstance = data.workflow_instances as unknown as { project_id: string } | { project_id: string }[] | null;
+  if (!workflowInstance) return null;
+
+  // If it's an array, get the first element
+  const instance = Array.isArray(workflowInstance) ? workflowInstance[0] : workflowInstance;
+  return instance?.project_id || null;
 }
 
 /**
  * Check if user has access to account (via project assignments or task assignments)
  */
 export async function hasAccountAccessServer(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   accountId: string
 ): Promise<boolean> {
@@ -115,7 +120,7 @@ export async function hasAccountAccessServer(
     return false;
   }
 
-  const projectIds = projects.map(p => p.id);
+  const projectIds = projects.map((p: any) => p.id);
 
   // Check project assignments
   const { data: projectAssignments } = await supabase
@@ -145,7 +150,7 @@ export async function hasAccountAccessServer(
  * Verify user has workflow instance access (via project access)
  */
 export async function verifyWorkflowInstanceAccess(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   workflowInstanceId: string
 ): Promise<{ hasAccess: boolean; projectId?: string; error?: string }> {
@@ -164,7 +169,7 @@ export async function verifyWorkflowInstanceAccess(
  * Verify user has workflow history access (via project access)
  */
 export async function verifyWorkflowHistoryAccess(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   historyId: string
 ): Promise<{ hasAccess: boolean; projectId?: string; error?: string }> {
@@ -183,7 +188,7 @@ export async function verifyWorkflowHistoryAccess(
  * Verify user has form response access (via workflow access if linked)
  */
 export async function verifyFormResponseAccess(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   formResponseId: string
 ): Promise<{ hasAccess: boolean; error?: string }> {
@@ -198,7 +203,7 @@ export async function verifyFormResponseAccess(
     return { hasAccess: false, error: 'Form response not found' };
   }
 
-  // If not linked to workflow, user just needs VIEW_FORMS permission (already checked)
+  // If not linked to workflow, user just needs MANAGE_WORKFLOWS permission (forms are inline only)
   if (!formResponse.workflow_history_id) {
     return { hasAccess: true };
   }

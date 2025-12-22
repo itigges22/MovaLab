@@ -8,6 +8,11 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { hasPermission, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = createApiSupabaseClient(request);
@@ -98,10 +103,11 @@ export async function GET(request: NextRequest) {
           .select('*', { count: 'exact', head: true })
           .eq('role_id', role.id);
 
+        const departments = role.departments as Record<string, unknown> | undefined;
         return {
           id: role.id,
           name: role.name,
-          department_name: role.departments?.name || 'Unknown',
+          department_name: departments?.name || 'Unknown',
           permissions: role.permissions || {},
           user_count: count || 0,
         };
@@ -113,10 +119,11 @@ export async function GET(request: NextRequest) {
       users: users || [],
       roles: rolesWithCounts,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
     console.error('Error in GET /api/admin/rbac-diagnostics:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

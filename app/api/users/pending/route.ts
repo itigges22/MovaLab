@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    // Check authentication and permission (approving users is part of assigning users to roles)
-    await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    // Check authentication and permission (approving users is part of user role management)
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       count: pendingUsers.length
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

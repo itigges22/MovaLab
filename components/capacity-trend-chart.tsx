@@ -23,7 +23,7 @@ import { Calendar } from 'lucide-react';
 
 export type TimePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 
-interface CapacityDataPoint {
+interface _CapacityDataPoint {
   label: string;
   available: number;
   allocated: number;
@@ -107,7 +107,7 @@ export default function CapacityTrendChart({
           </CardDescription>
         </div>
         <div className="flex rounded-lg border overflow-hidden">
-          {(['daily', 'weekly', 'monthly', 'quarterly'] as TimePeriod[]).map((period) => (
+          {(['daily', 'weekly', 'monthly', 'quarterly'] as TimePeriod[]).map((period:any) => (
             <button
               key={period}
               onClick={() => { onPeriodChange(period); }}

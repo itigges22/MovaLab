@@ -9,7 +9,6 @@ import type {
 } from '@dnd-kit/core';
 import {
   closestCenter,
-  closestCorners,
   rectIntersection,
   DndContext,
   DragOverlay,
@@ -148,13 +147,17 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
         {...attributes} 
         ref={setNodeRef}
         onMouseDown={(e) => {
-          process.env.NODE_ENV === 'development' && console.log(`[KANBAN CARD] ${id} - mouse down event`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[KANBAN CARD] ${id} - mouse down event`);
+          }
           if (listeners?.onMouseDown) {
             listeners.onMouseDown(e);
           }
         }}
         onTouchStart={(e) => {
-          process.env.NODE_ENV === 'development' && console.log(`[KANBAN CARD] ${id} - touch start event`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[KANBAN CARD] ${id} - touch start event`);
+          }
           if (listeners?.onTouchStart) {
             listeners.onTouchStart(e);
           }
@@ -201,7 +204,7 @@ export const KanbanCards = <T extends KanbanItemProps = KanbanItemProps>({
   ...props
 }: KanbanCardsProps<T>) => {
   const { data } = useContext(KanbanContext) as KanbanContextProps<T>;
-  const filteredData = data.filter((item) => item.column === props.id);
+  const filteredData = data.filter((item: any) => item.column === props.id);
 
   return (
     <ScrollArea className="overflow-hidden">
@@ -253,23 +256,23 @@ export const KanbanProvider = <
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
   // Custom collision detection for Kanban
-  const customCollisionDetection = (args: any) => {
+  const customCollisionDetection = (args: Parameters<typeof closestCenter>[0]) => {
     // First, try to find collisions with items
     const itemCollisions = closestCenter(args);
-    
+
     // If we found item collisions, return them
     if (itemCollisions.length > 0) {
       return itemCollisions;
     }
-    
+
     // Otherwise, try to find collisions with columns
     const columnCollisions = rectIntersection({
       ...args,
-      droppableContainers: args.droppableContainers.filter((container: any) => 
-        columns.some(col => col.id === container.id)
+      droppableContainers: args.droppableContainers.filter((container:any) =>
+        columns.some((col: any) => col.id === container.id)
       )
     });
-    
+
     return columnCollisions;
   };
 
@@ -282,11 +285,11 @@ export const KanbanProvider = <
   const handleDragStart = (event: DragStartEvent) => {
     console.log('[KANBAN] Drag started:', {
       activeId: event.active.id,
-      activeData: data.find((item) => item.id === event.active.id),
+      activeData: data.find((item: any) => item.id === event.active.id),
       allData: data,
       columns: columns
     });
-    const card = data.find((item) => item.id === event.active.id);
+    const card = data.find((item: any) => item.id === event.active.id);
     if (card) {
       setActiveCardId(event.active.id as string);
     }
@@ -298,8 +301,8 @@ export const KanbanProvider = <
     console.log('[KANBAN] Drag over:', {
       activeId: active.id,
       overId: over?.id,
-      overData: over ? data.find((item) => item.id === over.id) : null,
-      isColumn: over ? columns.find((col) => col.id === over.id) : null
+      overData: over ? data.find((item: any) => item.id === over.id) : null,
+      isColumn: over ? columns.find((col:any) => col.id === over.id) : null
     });
     
     onDragOver?.(event);
@@ -315,9 +318,9 @@ export const KanbanProvider = <
       activeId: active.id,
       overId: over?.id,
       hasOver: !!over,
-      overData: over ? data.find((item) => item.id === over.id) : null,
-      isColumn: over ? columns.find((col) => col.id === over.id) : null,
-      allColumns: columns.map(col => col.id)
+      overData: over ? data.find((item: any) => item.id === over.id) : null,
+      isColumn: over ? columns.find((col:any) => col.id === over.id) : null,
+      allColumns: columns.map((col: any) => col.id)
     });
 
     if (!over) {
@@ -325,8 +328,8 @@ export const KanbanProvider = <
       return;
     }
 
-    const activeItem = data.find((item) => item.id === active.id);
-    const overItem = data.find((item) => item.id === over.id);
+    const activeItem = data.find((item: any) => item.id === active.id);
+    const overItem = data.find((item: any) => item.id === over.id);
     
     if (!activeItem) {
       console.log('[KANBAN] Active item not found, skipping');
@@ -340,7 +343,7 @@ export const KanbanProvider = <
     }
 
     const activeColumn = activeItem.column;
-    const overColumn = overItem?.column ?? columns.find((col) => col.id === over.id)?.id;
+    const overColumn = overItem?.column ?? columns.find((col:any) => col.id === over.id)?.id;
 
     console.log('[KANBAN] Column analysis:', {
       activeColumn,
@@ -348,7 +351,7 @@ export const KanbanProvider = <
       isColumnDrop: !overItem,
       isItemDrop: !!overItem,
       overId: over.id,
-      columnIds: columns.map(col => col.id)
+      columnIds: columns.map((col: any) => col.id)
     });
 
     if (!overColumn) {
@@ -360,7 +363,7 @@ export const KanbanProvider = <
     if (!overItem) {
       if (activeColumn !== overColumn) {
         console.log('[KANBAN] Column drop detected, updating column');
-        let newData = [...data];
+        const newData = [...data];
         const activeIndex = newData.findIndex((item) => item.id === active.id);
         newData[activeIndex].column = overColumn;
         console.log('[KANBAN] Calling onDataChange from handleDragEnd (column drop)');
@@ -374,7 +377,7 @@ export const KanbanProvider = <
     // If dropping on another item, handle reordering
     if (activeColumn !== overColumn) {
       console.log('[KANBAN] Cross-column item drop detected');
-      let newData = [...data];
+      const newData = [...data];
       const activeIndex = newData.findIndex((item) => item.id === active.id);
       newData[activeIndex].column = overColumn;
       console.log('[KANBAN] Calling onDataChange from handleDragEnd (cross-column)');
@@ -392,21 +395,21 @@ export const KanbanProvider = <
 
   const announcements: Announcements = {
     onDragStart({ active }) {
-      const { name, column } = data.find((item) => item.id === active.id) ?? {};
+      const { name, column } = data.find((item: any) => item.id === active.id) ?? {};
       return `Picked up the card "${name}" from the "${column}" column`;
     },
     onDragOver({ active, over }) {
-      const { name } = data.find((item) => item.id === active.id) ?? {};
-      const newColumn = columns.find((column) => column.id === over?.id)?.name;
+      const { name } = data.find((item: any) => item.id === active.id) ?? {};
+      const newColumn = columns.find((column:any) => column.id === over?.id)?.name;
       return `Dragged the card "${name}" over the "${newColumn}" column`;
     },
     onDragEnd({ active, over }) {
-      const { name } = data.find((item) => item.id === active.id) ?? {};
-      const newColumn = columns.find((column) => column.id === over?.id)?.name;
+      const { name } = data.find((item: any) => item.id === active.id) ?? {};
+      const newColumn = columns.find((column:any) => column.id === over?.id)?.name;
       return `Dropped the card "${name}" into the "${newColumn}" column`;
     },
     onDragCancel({ active }) {
-      const { name } = data.find((item) => item.id === active.id) ?? {};
+      const { name } = data.find((item: any) => item.id === active.id) ?? {};
       return `Cancelled dragging the card "${name}"`;
     },
   };
@@ -414,8 +417,8 @@ export const KanbanProvider = <
   // Debug logging for DndContext initialization
   React.useEffect(() => {
     console.log('[KANBAN PROVIDER] Initialized with:', {
-      columns: columns.map(col => ({ id: col.id, name: col.name })),
-      data: data.map(item => ({ id: item.id, name: item.name, column: item.column })),
+      columns: columns.map((col: any) => ({ id: col.id, name: col.name })),
+      data: data.map((item: any) => ({ id: item.id, name: item.name, column: item.column })),
       sensorsCount: sensors.length
     });
   }, [columns, data, sensors]);
@@ -432,14 +435,14 @@ export const KanbanProvider = <
         sensors={sensors}
         {...props}
       >
-        <SortableContext items={data.map(item => item.id)}>
+        <SortableContext items={data.map((item: any) => item.id)}>
           <div
             className={cn(
               'grid size-full auto-cols-fr grid-flow-col gap-4',
               className
             )}
           >
-            {columns.map((column) => children(column))}
+            {columns.map((column:any) => children(column))}
           </div>
         </SortableContext>
         {typeof window !== 'undefined' &&

@@ -27,9 +27,7 @@ import {
   BarChart3,
   ChevronDown,
   UserPlus,
-  Workflow,
-  FileText,
-  UserCheck
+  Workflow
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Permission } from '@/lib/permissions';
@@ -76,34 +74,30 @@ const navigationItems: NavigationItem[] = [
     name: 'Analytics',
     href: '/analytics',
     icon: BarChart3,
-    anyPermission: [Permission.VIEW_ANALYTICS, Permission.VIEW_ALL_ANALYTICS],
+    // Phase 9: Viewing own analytics is implicit - all users can access
+    // VIEW_ALL_ANALYTICS determines if they see org-wide data
     allowUnassigned: false, // Explicitly disallow for unassigned users
   },
   {
     name: 'Profile',
     href: '/profile',
     icon: User,
-    permission: Permission.VIEW_OWN_PROFILE,
-    // Profile should NOT be shown in nav for unassigned users - only in dropdown
-    allowUnassigned: false,
+    // Phase 9: Profile access is implicit for all authenticated users
+    allowUnassigned: true,
   },
   {
     name: 'Admin',
     href: '/admin',
     icon: Settings,
     anyPermission: [
-      // Role management permissions
-      Permission.VIEW_ROLES,
-      Permission.CREATE_ROLE,
-      Permission.EDIT_ROLE,
-      Permission.DELETE_ROLE,
-      Permission.ASSIGN_USERS_TO_ROLES,
-      Permission.REMOVE_USERS_FROM_ROLES,
-      Permission.VIEW_ACCOUNTS_TAB,
+      // Role management permissions (consolidated)
+      Permission.MANAGE_USER_ROLES,
+      Permission.MANAGE_USERS_IN_ACCOUNTS,
+      Permission.MANAGE_USERS_IN_DEPARTMENTS,
       // Other admin permissions
       Permission.MANAGE_USERS,
-      Permission.CREATE_DEPARTMENT,
-      Permission.CREATE_ACCOUNT,
+      Permission.MANAGE_DEPARTMENTS,
+      Permission.MANAGE_ACCOUNTS,
       // Analytics permission that grants admin access
       Permission.VIEW_ALL_ANALYTICS,
     ],
@@ -120,16 +114,10 @@ const navigationItems: NavigationItem[] = [
     name: 'Workflows',
     href: '/admin/workflows',
     icon: Workflow,
-    anyPermission: [Permission.MANAGE_WORKFLOWS, Permission.VIEW_WORKFLOWS],
+    permission: Permission.MANAGE_WORKFLOWS,
     allowUnassigned: false,
   },
-  {
-    name: 'Forms',
-    href: '/admin/forms',
-    icon: FileText,
-    anyPermission: [Permission.MANAGE_FORMS, Permission.VIEW_FORMS],
-    allowUnassigned: false,
-  },
+  // Phase 9: Forms removed - now inline-only within workflow nodes
 ];
 
 export function Navigation() {
@@ -137,7 +125,7 @@ export function Navigation() {
   const [isMounted, setIsMounted] = useState(false);
   // Initialize with Welcome only to prevent showing unauthorized items
   const [visibleItems, setVisibleItems] = useState<NavigationItem[]>(
-    navigationItems.filter(item => item.allowUnassigned === true)
+    navigationItems.filter((item: any) => item.allowUnassigned === true)
   );
   const [permissionsChecked, setPermissionsChecked] = useState(false);
   const { userProfile, signOut, loading } = useAuth();
@@ -156,13 +144,13 @@ export function Navigation() {
       isMounted,
       loading,
       hasUserProfile: !!userProfile,
-      userId: userProfile?.id
+      userId: (userProfile as any)?.id
     });
 
     if (!isMounted || loading || !userProfile) {
       // Show minimal items during loading
       console.log('⏸️ Navigation: Showing loading state (minimal items)');
-      setVisibleItems(navigationItems.filter(item => item.allowUnassigned));
+      setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned));
       setPermissionsChecked(false);
       // Cancel any pending operations
       filterOperationRef.current.cancelled = true;
@@ -170,7 +158,7 @@ export function Navigation() {
     }
 
     // Cancel previous operation and start new one
-    const currentUserId = userProfile.id;
+    const currentUserId = (userProfile as any).id;
     filterOperationRef.current.cancelled = true;
     filterOperationRef.current = { cancelled: false, userId: currentUserId };
 
@@ -184,9 +172,9 @@ export function Navigation() {
 
       // Debug logging
       console.log('🔍 Navigation Debug:', {
-        userEmail: userProfile?.email,
-        userId: userProfile?.id,
-        userRoles: userProfile?.user_roles?.map(ur => ({
+        userEmail: (userProfile as any)?.email,
+        userId: (userProfile as any)?.id,
+        userRoles: userProfile?.user_roles?.map((ur: any) => ({
           name: ur.roles?.name,
           isSystem: ur.roles?.is_system_role,
           roleNameLower: ur.roles?.name?.toLowerCase()
@@ -205,7 +193,7 @@ export function Navigation() {
       // Superadmin sees everything
       if (userIsSuperadmin) {
         if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
-        console.log('✅ Superadmin detected - showing all navigation items:', navigationItems.map(i => i.name));
+        console.log('✅ Superadmin detected - showing all navigation items:', navigationItems.map((i: any) => i.name));
         setVisibleItems(navigationItems);
         setPermissionsChecked(true);
         return;
@@ -214,9 +202,9 @@ export function Navigation() {
       // Unassigned users ONLY see items with allowUnassigned === true
       if (isActuallyUnassigned) {
         if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
-        const allowedItems = navigationItems.filter(item => item.allowUnassigned === true);
+        const allowedItems = navigationItems.filter((item: any) => item.allowUnassigned === true);
         console.log('✅ Unassigned user detected - filtering navigation');
-        console.log('   Allowed items:', allowedItems.map(i => i.name));
+        console.log('   Allowed items:', allowedItems.map((i: any) => i.name));
         setVisibleItems(allowedItems);
         setPermissionsChecked(true);
         return;
@@ -284,7 +272,7 @@ export function Navigation() {
 
       // Ensure Welcome is always included if no other items are visible
       if (filtered.length === 0) {
-        const welcomeItem = navigationItems.find(item => item.allowUnassigned === true);
+        const welcomeItem = navigationItems.find((item: any) => item.allowUnassigned === true);
         if (welcomeItem) {
           filtered.push(welcomeItem);
         }
@@ -292,7 +280,7 @@ export function Navigation() {
 
       console.log('✅ Navigation filter complete:', {
         userId: operationId,
-        visibleItems: filtered.map(i => i.name),
+        visibleItems: filtered.map((i: any) => i.name),
         totalItems: navigationItems.length,
         filteredCount: filtered.length
       });
@@ -308,7 +296,7 @@ export function Navigation() {
       if (!filterOperationRef.current.cancelled && filterOperationRef.current.userId === currentUserId) {
         console.error('Error filtering navigation items:', err);
         // On error, show only Welcome to be safe
-        setVisibleItems(navigationItems.filter(item => item.allowUnassigned === true));
+        setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true));
         setPermissionsChecked(true);
       }
     });
@@ -319,7 +307,7 @@ export function Navigation() {
     try {
       await signOut();
       window.location.href = '/';
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error signing out:', error);
     }
   };
@@ -327,7 +315,7 @@ export function Navigation() {
   const getUserInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word.charAt(0))
+      .map((word: any) => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2);
@@ -336,7 +324,7 @@ export function Navigation() {
   const getUserDepartments = () => {
     if (!userProfile?.user_roles) return [];
     return userProfile.user_roles
-      .map(ur => {
+      .map((ur: any) => {
         const dept = ur.roles?.departments;
         if (!dept) return null;
         return {
@@ -376,7 +364,7 @@ export function Navigation() {
             {/* Only render items after permissions are checked (for assigned users) */}
             {(!isMounted || loading || (!permissionsChecked && userProfile && !isUnassigned(userProfile))) ? (
               // Show minimal loading state
-              navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+              navigationItems.filter((item: any) => item.allowUnassigned === true).map((item: NavigationItem) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -391,8 +379,8 @@ export function Navigation() {
               })
             ) : (
               (() => {
-                console.log('🔍 DEBUG: Rendering visibleItems:', visibleItems.map(i => i.name));
-                return visibleItems.map((item) => {
+                console.log('🔍 DEBUG: Rendering visibleItems:', visibleItems.map((i: any) => i.name));
+                return visibleItems.map((item: NavigationItem) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href ||
                   (item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -426,7 +414,7 @@ export function Navigation() {
                       <DropdownMenuLabel>Your Departments</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       {userDepartments.length > 0 ? (
-                        userDepartments.map((dept) => (
+                        userDepartments.map((dept:any) => (
                           <DropdownMenuItem key={dept.id} asChild>
                             <Link href={`/departments/${dept.id}`} className="flex items-center">
                               <Building2 className="mr-2 h-4 w-4" />
@@ -453,7 +441,7 @@ export function Navigation() {
 
               // Special handling for Admin dropdown with sub-items
               if (item.name === 'Admin') {
-                const adminSubItems = visibleItems.filter(i =>
+                const adminSubItems = visibleItems.filter((i: any) =>
                   ['Pending Users', 'Workflows', 'Forms'].includes(i.name)
                 );
                 const isAdminActive = pathname === '/admin' || pathname.startsWith('/admin/');
@@ -525,9 +513,9 @@ export function Navigation() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={userProfile.image || ''} alt={userProfile.name} />
+                      <AvatarImage src={(userProfile as any).image || ''} alt={(userProfile as any).name} />
                       <AvatarFallback className="bg-blue-100 text-blue-700">
-                        {getUserInitials(userProfile.name)}
+                        {getUserInitials((userProfile as any).name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -535,12 +523,12 @@ export function Navigation() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userProfile.name}</p>
+                      <p className="text-sm font-medium leading-none">{(userProfile as any).name}</p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {userProfile.email}
+                        {(userProfile as any).email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {userProfile.user_roles?.map(ur => ur.roles.name).join(', ') || 'No roles'}
+                        {userProfile.user_roles?.map((ur: any) => ur.roles.name).join(', ') || 'No roles'}
                       </p>
                     </div>
                   </DropdownMenuLabel>
@@ -588,7 +576,7 @@ export function Navigation() {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {(!isMounted || loading || (!permissionsChecked && userProfile && !isUnassigned(userProfile))) ? (
               // Show minimal loading state
-              navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+              navigationItems.filter((item: any) => item.allowUnassigned === true).map((item: NavigationItem) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -603,7 +591,7 @@ export function Navigation() {
                 );
               })
             ) : (
-              visibleItems.map((item) => {
+              visibleItems.map((item: NavigationItem) => {
               const Icon = item.icon;
               const isActive = pathname === item.href ||
                 (item.href !== '/dashboard' && pathname.startsWith(item.href));

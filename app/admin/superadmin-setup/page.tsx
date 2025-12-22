@@ -89,7 +89,7 @@ export default function SuperadminSetupPage() {
       } else {
         setMessage({ type: 'error', text: result.message })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error assigning superadmin role:', error)
       setMessage({ 
         type: 'error', 
@@ -116,7 +116,7 @@ export default function SuperadminSetupPage() {
       } else {
         setMessage({ type: 'error', text: result.message })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking superadmin status:', error)
       setMessage({ 
         type: 'error', 
@@ -144,7 +144,7 @@ export default function SuperadminSetupPage() {
       } else {
         setMessage({ type: 'error', text: result.message })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing superadmin role:', error)
       setMessage({ 
         type: 'error', 
@@ -166,7 +166,7 @@ export default function SuperadminSetupPage() {
       } else {
         setMessage({ type: 'error', text: result.error || 'Database test failed' })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error testing database:', error)
       setMessage({ 
         type: 'error', 

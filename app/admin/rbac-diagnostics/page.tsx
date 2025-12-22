@@ -44,10 +44,13 @@ export default function RBACDiagnosticsPage() {
   const [roles, setRoles] = useState<RoleDiagnostic[]>([]);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
-  const [testResults, setTestResults] = useState<any>(null);
+  const [testResults, setTestResults] = useState<{
+    allPassed: boolean;
+    passed: number;
+    total: number;
+    failures: string[];
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  // Permission filter state (reserved for future use)
-  const [_selectedPermission, _setSelectedPermission] = useState('');
 
   useEffect(() => {
     fetchDiagnostics();
@@ -60,7 +63,7 @@ export default function RBACDiagnosticsPage() {
       const data = await response.json();
       setUsers(data.users || []);
       setRoles(data.roles || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching RBAC diagnostics:', error);
     }
     setLoading(false);
@@ -76,21 +79,21 @@ export default function RBACDiagnosticsPage() {
       });
       const results = await response.json();
       setTestResults(results);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error running diagnostic test:', error);
     }
 
     setTesting(false);
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter((user: any) =>
+    (user as any).name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user as any).email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const usersWithIssues = users.filter(u => u.user_roles.length === 0 && !u.is_superadmin);
+  const usersWithIssues = users.filter((u: any) => u.user_roles.length === 0 && !u.is_superadmin);
   const allPermissions = Array.from(
-    new Set(roles.flatMap(r => Object.keys(r.permissions)))
+    new Set(roles.flatMap((r:any) => Object.keys(r.permissions)))
   ).sort();
 
   if (loading) {
@@ -248,17 +251,17 @@ export default function RBACDiagnosticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => {
+                    {filteredUsers.map((user:any) => {
                       const totalPermissions = new Set(
-                        user.user_roles.flatMap(ur => Object.keys(ur.roles.permissions || {}))
+                        user.user_roles.flatMap((ur:any) => Object.keys(ur.roles.permissions || {}))
                       ).size;
                       const hasIssue = user.user_roles.length === 0 && !user.is_superadmin;
 
                       return (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableRow key={(user as any).id}>
+                          <TableCell className="font-medium">{(user as any).name}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {user.email}
+                            {(user as any).email}
                           </TableCell>
                           <TableCell>
                             {user.is_superadmin ? (
@@ -274,7 +277,7 @@ export default function RBACDiagnosticsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {user.user_roles.map((ur) => (
+                              {user.user_roles.map((ur:any) => (
                                 <Badge key={ur.id} variant="outline" className="text-xs">
                                   {ur.roles.name}
                                   <span className="ml-1 text-muted-foreground">
@@ -314,7 +317,7 @@ export default function RBACDiagnosticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {roles.map((role) => (
+                {roles.map((role:any) => (
                   <Card key={role.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
@@ -361,7 +364,7 @@ export default function RBACDiagnosticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="sticky left-0 bg-background">Permission</TableHead>
-                      {roles.map((role) => (
+                      {roles.map((role:any) => (
                         <TableHead key={role.id} className="text-center min-w-[100px]">
                           <div className="text-xs">{role.name}</div>
                           <div className="text-xs text-muted-foreground">{role.department_name}</div>
@@ -370,12 +373,12 @@ export default function RBACDiagnosticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allPermissions.map((permission) => (
+                    {allPermissions.map((permission:any) => (
                       <TableRow key={permission}>
                         <TableCell className="sticky left-0 bg-background font-mono text-xs">
                           {permission}
                         </TableCell>
-                        {roles.map((role) => (
+                        {roles.map((role:any) => (
                           <TableCell key={`${role.id}-${permission}`} className="text-center">
                             {role.permissions[permission] ? (
                               <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />

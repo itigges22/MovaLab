@@ -8,7 +8,7 @@
  */
 
 import { createServerSupabase } from './supabase-server';
-import { SupabaseClient } from '@supabase/supabase-js';
+
 import { logger } from './debug-logger';
 
 // Helper to get supabase client with null check
@@ -44,7 +44,7 @@ export interface WorkflowNode {
   label: string;
   requires_form: boolean;
   form_template_id: string | null;
-  settings: Record<string, any>;
+  settings: Record<string, Record<string, unknown>>;
   created_at: string;
 }
 
@@ -53,7 +53,7 @@ export interface WorkflowConnection {
   workflow_template_id: string;
   from_node_id: string;
   to_node_id: string;
-  condition: Record<string, any> | null;
+  condition: Record<string, Record<string, unknown>> | null;
   created_at: string;
 }
 
@@ -391,7 +391,7 @@ export async function createWorkflowNode(
     label: string;
     requires_form?: boolean;
     form_template_id?: string | null;
-    settings?: Record<string, any>;
+    settings?: Record<string, Record<string, unknown>>;
   }
 ): Promise<WorkflowNode> {
   const supabase = await getSupabase();
@@ -469,7 +469,7 @@ export async function createWorkflowConnection(
   templateId: string,
   fromNodeId: string,
   toNodeId: string,
-  condition?: Record<string, any> | null
+  condition?: Record<string, Record<string, unknown>> | null
 ): Promise<WorkflowConnection> {
   const supabase = await getSupabase();
 
@@ -678,8 +678,8 @@ export async function getNextAvailableNodes(instanceId: string): Promise<Workflo
   }
 
   // Use snapshot data if available (for workflow independence from template changes)
-  let connections: any[];
-  let allNodes: any[];
+  let connections: Record<string, unknown>[];
+  let allNodes: Record<string, unknown>[];
 
   if (instance.started_snapshot?.nodes && instance.started_snapshot?.connections) {
     // Use the snapshot - this ensures template changes don't affect in-progress workflows
@@ -706,7 +706,7 @@ export async function getNextAvailableNodes(instanceId: string): Promise<Workflo
       return []; // No next nodes (end of workflow)
     }
 
-    const nodeIds = liveConnections.map(c => c.to_node_id);
+    const nodeIds = liveConnections.map((c: any) => c.to_node_id);
 
     const { data: liveNodes, error: nodesError } = await supabase
       .from('workflow_nodes')
@@ -729,14 +729,14 @@ export async function getNextAvailableNodes(instanceId: string): Promise<Workflo
   const nodeIds = connections.map((c: any) => c.to_node_id);
   const nextNodes = allNodes.filter((n: any) => nodeIds.includes(n.id));
 
-  return nextNodes;
+  return nextNodes as unknown as WorkflowNode[];
 }
 
 /**
  * Hand off workflow to next node
  */
 export async function handoffWorkflow(
-  supabase: SupabaseClient,
+  supabase: any,
   params: {
     instanceId: string;
     toNodeId: string;

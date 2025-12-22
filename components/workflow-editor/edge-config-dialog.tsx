@@ -104,7 +104,7 @@ export function EdgeConfigDialog({
                   <SelectValue placeholder="Select condition" />
                 </SelectTrigger>
                 <SelectContent>
-                  {conditionOptions.map((option) => (
+                  {conditionOptions.map((option:any) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

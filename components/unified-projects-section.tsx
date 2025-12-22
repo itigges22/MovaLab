@@ -1,4 +1,5 @@
 'use client';
+
 import { toast } from 'sonner';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Inbox,
   CheckCircle2,
   Clock,
   Loader2,
@@ -29,6 +29,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { useProjects } from '@/lib/hooks/use-data';
 import { hasPermission, canViewProject, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
+import { UserWithRoles } from '@/lib/rbac-types';
 
 interface WorkflowProject {
   id: string;
@@ -82,7 +83,7 @@ interface ProjectWithDetails {
     id: string;
     name: string;
   } | null;
-  departments: any[];
+  departments: Record<string, unknown>[];
   daysUntilDeadline?: number | null;
   workflow_step?: string | null;
   reopened_at?: string | null;
@@ -132,19 +133,19 @@ interface PastProject {
 }
 
 interface UnifiedProjectsSectionProps {
-  userProfile: any;
+  userProfile: UserWithRoles | null;
 }
 
 export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionProps) {
   const [loading, setLoading] = useState(true);
-  const [workflowProjects, setWorkflowProjects] = useState<WorkflowProject[]>([]);
+  const [_workflowProjects, setWorkflowProjects] = useState<WorkflowProject[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
   const [pipelineProjects, setPipelineProjects] = useState<PipelineProject[]>([]);
   const [pastProjects, setPastProjects] = useState<PastProject[]>([]);
   const [activeTab, setActiveTab] = useState('projects');
 
   // Fetch all assigned projects using SWR hook
-  const { projects: assignedProjects, isLoading: projectsLoading, error: projectsError } = useProjects(userProfile?.id, 100);
+  const { projects: assignedProjects, isLoading: projectsLoading, error: projectsError } = useProjects((userProfile as any)?.id as string | undefined, 100);
   const [visibleProjects, setVisibleProjects] = useState<ProjectWithDetails[]>([]);
 
   // Filters and sorting for My Projects tab
@@ -177,13 +178,13 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
         return;
       }
 
-      // Check if user has DELETE_ALL_PROJECTS or DELETE_PROJECT permission
-      const [hasDeleteAll, hasDelete] = await Promise.all([
-        hasPermission(userProfile, Permission.DELETE_ALL_PROJECTS),
-        hasPermission(userProfile, Permission.DELETE_PROJECT)
+      // Check if user has MANAGE_ALL_PROJECTS or MANAGE_PROJECTS permission
+      const [hasManageAll, hasManage] = await Promise.all([
+        hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS),
+        hasPermission(userProfile, Permission.MANAGE_PROJECTS)
       ]);
 
-      setCanDeleteProjects(hasDeleteAll || hasDelete);
+      setCanDeleteProjects(hasManageAll || hasManage);
     }
 
     checkDeletePermission();
@@ -228,7 +229,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       if (pastData.success) {
         setPastProjects(pastData.projects || []);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading inbox data:', error);
     } finally {
       setLoading(false);
@@ -242,7 +243,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
     try {
       setDeletingProject(true);
 
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }
@@ -258,14 +259,14 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       }
 
       // Update local state to remove the deleted project
-      setVisibleProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
+      setVisibleProjects(prev => prev.filter((p: any) => p.id !== projectToDelete.id));
 
       // Close dialog and reset state
       setDeleteDialogOpen(false);
       setProjectToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting project:', error);
-      toast.error(`Failed to delete project: ${error.message}`);
+      toast.error(`Failed to delete project: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDeletingProject(false);
     }
@@ -327,6 +328,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
     return () => {
       isMounted = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- assignedProjects intentionally omitted: projectIds provides stable memoized representation
   }, [projectIds, userProfile]);
 
   // Fetch workflow steps for visible projects
@@ -337,16 +339,19 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
     }
 
     async function fetchWorkflowSteps() {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return;
 
-      const projectIds = visibleProjects.map(p => p.id);
+      const projectIds = visibleProjects.map((p: any) => p.id);
+
+      // Fetch workflow instances - try to get both snapshot and live node data
       const { data: workflowData, error } = await supabase
         .from('workflow_instances')
         .select(`
           project_id,
           current_node_id,
-          workflow_nodes!workflow_instances_current_node_id_fkey (
+          started_snapshot,
+          workflow_nodes:workflow_nodes!workflow_instances_current_node_id_fkey (
             label
           )
         `)
@@ -355,11 +360,37 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
 
       if (!error && workflowData) {
         const steps: { [key: string]: string | null } = {};
+
         workflowData.forEach((instance: any) => {
-          if (instance.project_id && instance.workflow_nodes?.label) {
-            steps[instance.project_id] = instance.workflow_nodes.label;
+          if (!instance.project_id) return;
+
+          let nodeLabel: string | null = null;
+
+          // Strategy 1: Try to get label from snapshot (most reliable for modified workflows)
+          const snapshot = instance.started_snapshot;
+          if (snapshot?.nodes && Array.isArray(snapshot.nodes)) {
+            const currentNode = snapshot.nodes.find((n: any) => n.id === instance.current_node_id);
+            if (currentNode?.label) {
+              nodeLabel = currentNode.label;
+            }
+          }
+
+          // Strategy 2: Fallback to live workflow_nodes table (for workflows without snapshots)
+          if (!nodeLabel && instance.workflow_nodes?.label) {
+            nodeLabel = instance.workflow_nodes.label;
+          }
+
+          // Strategy 3: If we have a current_node_id but no label, show generic "Active Workflow"
+          if (!nodeLabel && instance.current_node_id) {
+            nodeLabel = 'Active Workflow';
+          }
+
+          // Set the step label if we found anything
+          if (nodeLabel) {
+            steps[instance.project_id as string] = nodeLabel;
           }
         });
+
         setWorkflowSteps(steps);
       }
     }
@@ -384,12 +415,12 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
 
   // Filter and sort projects
   const filteredAndSortedProjects = visibleProjects
-    .filter(project => {
+    .filter((project: any) => {
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false;
       return true;
     })
     .sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: string | number, bValue: string | number;
 
       switch (sortBy) {
         case 'name':
@@ -413,7 +444,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     })
-    .map(project => ({
+    .map((project: any) => ({
       ...project,
       daysUntilDeadline: project.end_date
         ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -479,9 +510,9 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
               <History className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Completed</span>
               <span className="sm:hidden">Done</span>
-              {pastProjects.filter(p => p.completion_reason === 'project_completed').length > 0 && (
+              {pastProjects.filter((p: any) => p.completion_reason === 'project_completed').length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-[10px] px-1">
-                  {pastProjects.filter(p => p.completion_reason === 'project_completed').length}
+                  {pastProjects.filter((p: any) => p.completion_reason === 'project_completed').length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -556,7 +587,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAndSortedProjects.map((project) => (
+                    {filteredAndSortedProjects.map((project:any) => (
                       <tr key={project.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <div>
@@ -668,8 +699,8 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingApprovals.map((approval: any, index: number) => (
-                  <Card key={approval.active_step_id || `${approval.id}-${index}`} className="border-l-4 border-l-yellow-400 hover:shadow-md transition-shadow">
+                {pendingApprovals.map((approval, index: number) => (
+                  <Card key={(approval as any).active_step_id || `${approval.id}-${index}`} className="border-l-4 border-l-yellow-400 hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -695,11 +726,11 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
                             </p>
                           )}
                           <div className="flex items-center flex-wrap gap-4 text-xs text-gray-500">
-                            {approval.assigned_user && (
+                            {(approval as any).assigned_user && (
                               <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
                                 <span className="font-medium">Assigned to:</span>
-                                {approval.assigned_user.name}
+                                {(approval as any).assigned_user.name}
                               </span>
                             )}
                             {approval.workflow_nodes?.label && (
@@ -741,7 +772,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
               </div>
             ) : (
               <div className="space-y-3">
-                {pipelineProjects.map((project, index) => (
+                {pipelineProjects.map((project:any, index:any) => (
                   <Card key={`${project.id}-${project.assigned_user?.id || index}`} className="border-l-4 border-l-blue-400 hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
@@ -806,11 +837,11 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
             {/* Project count */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">
-                {pastProjects.filter(p => p.completion_reason === 'project_completed').length} completed projects
+                {pastProjects.filter((p: any) => p.completion_reason === 'project_completed').length} completed projects
               </span>
             </div>
 
-            {pastProjects.filter(p => p.completion_reason === 'project_completed').length === 0 ? (
+            {pastProjects.filter((p: any) => p.completion_reason === 'project_completed').length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p className="text-sm">No completed projects</p>
@@ -821,8 +852,8 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
             ) : (
               <div className="space-y-3">
                 {pastProjects
-                  .filter(p => p.completion_reason === 'project_completed')
-                  .map((project, index) => (
+                  .filter((p: any) => p.completion_reason === 'project_completed')
+                  .map((project:any, index:any) => (
                   <Card key={`${project.id}-${project.assigned_user?.id || index}`} className="border-l-4 hover:shadow-md transition-shadow border-l-green-400">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
@@ -905,7 +936,7 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
           <DialogHeader>
             <DialogTitle>Delete Project</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the project "{projectToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete the project &quot;{projectToDelete?.name}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

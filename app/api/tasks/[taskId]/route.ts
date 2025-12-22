@@ -3,9 +3,10 @@ import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { taskServiceDB, UpdateTaskData } from '@/lib/task-service-db'
+import type { UserWithRoles } from '@/lib/rbac-types'
 
 // Helper function to check if user has access to a project
-async function userHasProjectAccess(supabase: any, userId: string, projectId: string, userProfile: any): Promise<boolean> {
+async function userHasProjectAccess(supabase: any, userId: string, projectId: string, userProfile: UserWithRoles): Promise<boolean> {
   // Superadmins have access to all projects
   if (isSuperadmin(userProfile)) {
     return true
@@ -53,9 +54,11 @@ async function getTaskProject(supabase: any, taskId: string): Promise<{ project_
     .single()
 
   if (!task?.project_id) return null
+  const projects = task.projects as Record<string, unknown> | Record<string, unknown>[];
+  const projectData = Array.isArray(projects) ? projects[0] : projects;
   return {
-    project_id: task.project_id,
-    status: (task.projects as any)?.status || 'unknown'
+    project_id: task.project_id as string,
+    status: (projectData?.status as string) || 'unknown'
   }
 }
 
@@ -93,7 +96,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
@@ -103,7 +106,7 @@ export async function PUT(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -138,7 +141,7 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, task })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/tasks/[taskId]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -177,7 +180,7 @@ export async function PATCH(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
@@ -187,7 +190,7 @@ export async function PATCH(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -237,7 +240,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, task })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in PATCH /api/tasks/[taskId]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -277,7 +280,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
@@ -287,7 +290,7 @@ export async function DELETE(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -307,7 +310,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/tasks/[taskId]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

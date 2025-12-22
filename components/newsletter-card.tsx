@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { newsletterService, Newsletter } from '@/lib/newsletter-service'
 import { formatDistanceToNow } from 'date-fns'
-import { Mail, Plus, Send, Clock, User, Edit, Trash2 } from 'lucide-react'
+import { Mail, Plus, Clock, User, Edit, Trash2 } from 'lucide-react'
 import NewsletterCreationDialog from './newsletter-creation-dialog'
 import NewsletterEditDialog from './newsletter-edit-dialog'
 import NewsletterDeleteDialog from './newsletter-delete-dialog'
@@ -41,14 +41,12 @@ export default function NewsletterCard({ className, canCreate = false }: Newslet
     
     async function checkPermissions() {
       const view = await hasPermission(userProfile, Permission.VIEW_NEWSLETTERS)
-      const create = await hasPermission(userProfile, Permission.CREATE_NEWSLETTER)
-      const edit = await hasPermission(userProfile, Permission.EDIT_NEWSLETTER)
-      const del = await hasPermission(userProfile, Permission.DELETE_NEWSLETTER)
-      
+      const manage = await hasPermission(userProfile, Permission.MANAGE_NEWSLETTERS)
+
       setCanViewNewsletters(view)
-      setCanCreateNewsletter(create)
-      setCanEditNewsletter(edit)
-      setCanDeleteNewsletter(del)
+      setCanCreateNewsletter(manage)
+      setCanEditNewsletter(manage)
+      setCanDeleteNewsletter(manage)
       
       // Only load newsletters if user can view them
       if (view) {
@@ -65,7 +63,7 @@ export default function NewsletterCard({ className, canCreate = false }: Newslet
       setError(null)
       const data = await newsletterService.getPublishedNewsletters()
       setNewsletters(data)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error loading newsletters:', err)
       setError('Failed to load newsletters')
     } finally {
@@ -94,7 +92,7 @@ export default function NewsletterCard({ className, canCreate = false }: Newslet
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word.charAt(0))
+      .map((word: any) => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2)
@@ -182,7 +180,7 @@ export default function NewsletterCard({ className, canCreate = false }: Newslet
         ) : newsletters.length === 1 ? (
           <div className="px-6 py-4">
             <div className="space-y-4">
-              {newsletters.map((newsletter) => (
+              {newsletters.map((newsletter:any) => (
                 <div key={newsletter.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start space-x-3">
                     <Avatar className="w-8 h-8 flex-shrink-0">
@@ -257,7 +255,7 @@ export default function NewsletterCard({ className, canCreate = false }: Newslet
         ) : (
           <ScrollArea className="h-96 px-6 py-4">
             <div className="space-y-4">
-              {newsletters.map((newsletter) => (
+              {newsletters.map((newsletter:any) => (
                 <div key={newsletter.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start space-x-3">
                     <Avatar className="w-8 h-8 flex-shrink-0">

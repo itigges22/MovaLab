@@ -41,12 +41,11 @@ interface RoleCreationDialogProps {
   children?: React.ReactNode;
 }
 
-export function RoleCreationDialog({ 
+export function RoleCreationDialog({
   open,
   onOpenChange,
   onSuccess,
-  departments: externalDepartments,
-  children
+  departments: externalDepartments
 }: RoleCreationDialogProps) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -57,8 +56,8 @@ export function RoleCreationDialog({
   });
   const [permissions, setPermissions] = useState<Record<Permission, boolean>>(() => {
     const initialPermissions = {} as Record<Permission, boolean>;
-    getAllPermissions().forEach(permission => {
-      initialPermissions[permission] = false;
+    getAllPermissions().forEach((permission: any) => {
+      (initialPermissions as any)[permission] = false;
     });
     return initialPermissions;
   });
@@ -134,7 +133,7 @@ export function RoleCreationDialog({
         });
         toast.error(`Failed to create role: ${errorData.error || 'Please try again.'}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       componentError('RoleCreationDialog', error as Error, { 
         action: 'handleSubmit'
       });
@@ -154,8 +153,8 @@ export function RoleCreationDialog({
       department_id: '',
     });
     const resetPermissions = {} as Record<Permission, boolean>;
-    getAllPermissions().forEach(permission => {
-      resetPermissions[permission] = false;
+    getAllPermissions().forEach((permission: any) => {
+      (resetPermissions as any)[permission] = false;
     });
     setPermissions(resetPermissions);
   };
@@ -208,8 +207,8 @@ export function RoleCreationDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {departments
-                    .filter((dept) => dept && dept.id && dept.id !== '')
-                    .map((dept) => (
+                    .filter((dept:any) => dept && dept.id && dept.id !== '')
+                    .map((dept:any) => (
                       <SelectItem key={dept.id} value={dept.id}>
                         {dept.name}
                       </SelectItem>

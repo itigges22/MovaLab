@@ -9,6 +9,7 @@ import {
 } from '@/lib/workflow-service';
 import { validateRequestBody, updateWorkflowTemplateSchema } from '@/lib/validation-schemas';
 
+// Type definitions
 // GET /api/admin/workflows/templates/[id] - Get workflow template with nodes and connections
 export async function GET(
   request: NextRequest,
@@ -43,7 +44,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -51,7 +52,7 @@ export async function GET(
     }
 
     // Check VIEW_WORKFLOWS permission (pass supabase client for server context)
-    const canView = await hasPermission(userProfile, Permission.VIEW_WORKFLOWS, undefined, supabase);
+    const canView = await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
     if (!canView) {
       return NextResponse.json({ error: 'Insufficient permissions to view workflows' }, { status: 403 });
     }
@@ -64,8 +65,8 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, template }, { status: 200 });
-  } catch (error) {
-    console.error('Error in GET /api/admin/workflows/templates/[id]:', error);
+  } catch (error: unknown) {
+console.error('Error in GET /api/admin/workflows/templates/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -104,7 +105,7 @@ export async function PATCH(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -135,8 +136,8 @@ export async function PATCH(
       if (nodes && nodes.length > 0) {
         // Get role IDs from role and approval nodes
         const roleIds = nodes
-          .filter(n => (n.node_type === 'role' || n.node_type === 'approval') && n.entity_id)
-          .map(n => n.entity_id);
+          .filter((n: any) => (n.node_type === 'role' || n.node_type === 'approval') && n.entity_id)
+          .map((n: any) => n.entity_id);
 
         if (roleIds.length > 0) {
           // Get roles with user counts
@@ -150,18 +151,18 @@ export async function PATCH(
             .in('id', roleIds);
 
           // Check for roles with no users
-          const emptyRoles = (roles || []).filter(r => {
+          const emptyRoles = (roles || []).filter((r: any) => {
             const count = r.user_roles?.[0]?.count || 0;
             return count === 0;
           });
 
           if (emptyRoles.length > 0) {
             const nodeLabels = nodes
-              .filter(n => emptyRoles.some(r => r.id === n.entity_id))
-              .map(n => `"${n.label}"`)
+              .filter((n: any) => emptyRoles.some((r: any) => r.id === n.entity_id))
+              .map((n: any) => `"${n.label}"`)
               .join(', ');
 
-            const roleNames = emptyRoles.map(r => `"${r.name}"`).join(', ');
+            const roleNames = emptyRoles.map((r: any) => `"${r.name}"`).join(', ');
 
             return NextResponse.json({
               error: `Cannot activate workflow: ${emptyRoles.length === 1 ? 'Role' : 'Roles'} ${roleNames} ${emptyRoles.length === 1 ? 'has' : 'have'} no users assigned. Affected nodes: ${nodeLabels}. Please assign users to these roles first.`
@@ -188,8 +189,8 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, template }, { status: 200 });
-  } catch (error) {
-    console.error('Error in PATCH /api/admin/workflows/templates/[id]:', error);
+  } catch (error: unknown) {
+console.error('Error in PATCH /api/admin/workflows/templates/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -228,7 +229,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -249,8 +250,8 @@ export async function DELETE(
       success: true,
       message: 'Workflow template deleted successfully. Existing projects will continue using their workflow snapshots.'
     }, { status: 200 });
-  } catch (error) {
-    console.error('Error in DELETE /api/admin/workflows/templates/[id]:', error);
+  } catch (error: unknown) {
+console.error('Error in DELETE /api/admin/workflows/templates/[id]:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

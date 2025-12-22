@@ -33,9 +33,9 @@ export default function ForgotPasswordPage() {
     try {
       await resetPassword(email)
       setSuccess(true)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset error:', error)
-      setError(error.message || 'Failed to send password reset email. Please try again.')
+      setError(error instanceof Error ? error.message : 'Failed to send password reset email. Please try again.')
     } finally {
       setIsLoading(false)
     }

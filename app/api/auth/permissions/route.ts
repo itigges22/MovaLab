@@ -17,13 +17,14 @@ export async function GET() {
       });
     }
 
-    // Check actual permissions using permission checker
-    const canViewRoles = await checkPermissionHybrid(userProfile, Permission.VIEW_ROLES);
-    const canManageRoles = await checkPermissionHybrid(userProfile, Permission.CREATE_ROLE) ||
-                           await checkPermissionHybrid(userProfile, Permission.EDIT_ROLE) ||
-                           await checkPermissionHybrid(userProfile, Permission.DELETE_ROLE);
+    // Check actual permissions using permission checker (Phase 9: consolidated to MANAGE_USER_ROLES)
+    const canManageRoles = await checkPermissionHybrid(userProfile, Permission.MANAGE_USER_ROLES);
+    const canViewRoles = canManageRoles; // Viewing is implied by MANAGE permission
 
-    const roleNames = userProfile.user_roles?.map((ur: any) => ur.roles?.name).filter(Boolean) || [];
+    const roleNames = userProfile.user_roles?.map((ur: any) => {
+      const roles = ur.roles as Record<string, unknown> | undefined;
+      return roles?.name;
+    }).filter(Boolean) || [];
     const isAdmin = isSuperadmin(userProfile);
 
     return NextResponse.json({
@@ -32,7 +33,7 @@ export async function GET() {
       is_admin: isAdmin,
       roles: roleNames
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error checking permissions', { action: 'getPermissions' }, error as Error);
     return NextResponse.json({ 
       can_manage_roles: false,

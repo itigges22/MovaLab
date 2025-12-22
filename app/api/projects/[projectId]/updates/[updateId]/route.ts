@@ -38,16 +38,16 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check EDIT_UPDATE permission
-    const canEditUpdate = await hasPermission(userProfile, Permission.EDIT_UPDATE, undefined, supabase);
-    if (!canEditUpdate) {
+    // Check MANAGE_UPDATES permission (consolidated from EDIT_UPDATE)
+    const canManageUpdates = await hasPermission(userProfile, Permission.MANAGE_UPDATES, undefined, supabase);
+    if (!canManageUpdates) {
       return NextResponse.json({ error: 'Insufficient permissions to edit updates' }, { status: 403 });
     }
 
@@ -79,7 +79,7 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, update });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/projects/[projectId]/updates/[updateId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -120,16 +120,16 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check DELETE_UPDATE permission
-    const canDeleteUpdate = await hasPermission(userProfile, Permission.DELETE_UPDATE, undefined, supabase);
-    if (!canDeleteUpdate) {
+    // Check MANAGE_UPDATES permission (consolidated from DELETE_UPDATE)
+    const canManageUpdates = await hasPermission(userProfile, Permission.MANAGE_UPDATES, undefined, supabase);
+    if (!canManageUpdates) {
       return NextResponse.json({ error: 'Insufficient permissions to delete updates' }, { status: 403 });
     }
 
@@ -146,7 +146,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/projects/[projectId]/updates/[updateId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

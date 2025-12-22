@@ -37,21 +37,21 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check SEND_CLIENT_INVITES permission
-    const canInvite = await hasPermission(userProfile, Permission.SEND_CLIENT_INVITES, undefined, supabase);
+    // Check MANAGE_CLIENT_INVITES permission
+    const canInvite = await hasPermission(userProfile, Permission.MANAGE_CLIENT_INVITES, undefined, supabase);
     if (!canInvite) {
       return NextResponse.json({ error: 'Insufficient permissions to send client invitations' }, { status: 403 });
     }
 
     // Verify user has access to this account
-    const hasAccess = await hasAccountAccessServer(supabase, user.id, accountId);
+    const hasAccess = await hasAccountAccessServer(supabase, (user as any).id, accountId);
     if (!hasAccess) {
       return NextResponse.json({
         error: 'You do not have access to this account'
@@ -69,12 +69,12 @@ export async function POST(
     const invitation = await sendClientInvitation({
       accountId: accountId,
       email: validation.data.email,
-      invitedBy: user.id,
+      invitedBy: (user as any).id,
       expiresInDays: validation.data.expires_in_days
     });
 
     return NextResponse.json({ success: true, invitation }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/accounts/[id]/invite-client:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -6,15 +6,12 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Users, 
-  Plus, 
-  Building2, 
-  Calendar, 
+import {
+  Users,
+  Building2,
+  Calendar,
   ArrowRight,
-  Mail,
-  Phone
+  Mail
 } from 'lucide-react';
 import { Account } from '@/lib/account-service';
 import { UserWithRoles, isSuperadmin, hasPermission } from '@/lib/rbac';
@@ -42,7 +39,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
     }
     
     async function checkPermissionsAndFilter() {
-      const canCreate = await hasPermission(userProfile, Permission.CREATE_ACCOUNT);
+      const canCreate = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS);
       setCanCreateAccount(canCreate);
       
       // Filter accounts based on permissions
@@ -60,7 +57,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
         // If user has VIEW_ACCOUNTS, check if they have access to this specific account
         if (hasViewAccounts) {
           // Check if user has account access (via project assignments)
-          const hasAccess = await hasAccountAccess(userProfile.id, account.id);
+          const hasAccess = await hasAccountAccess((userProfile as any).id, account.id);
           if (hasAccess) {
             filtered.push(account);
           }
@@ -73,7 +70,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
     void checkPermissionsAndFilter();
   }, [userProfile, accounts]);
 
-  const filteredAccounts = visibleAccounts.filter(account =>
+  const filteredAccounts = visibleAccounts.filter((account: any) =>
     account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     account.primary_contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     account.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -104,7 +101,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
           <CardDescription>
             {isSuperadmin(userProfile)
               ? "Get started by creating your first client account"
-              : userProfile.user_roles?.some(ur => 
+              : userProfile.user_roles?.some((ur: any) => 
                   ['Executive', 'Director', 'Account Manager', 'Account Executive'].includes(ur.roles.name)
                 ) 
                 ? "No accounts have been created yet. Contact a superadmin to create accounts."
@@ -118,7 +115,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               {isSuperadmin(userProfile)
                 ? "No accounts yet"
-                : userProfile.user_roles?.some(ur => 
+                : userProfile.user_roles?.some((ur: any) => 
                     ['Executive', 'Director', 'Account Manager', 'Account Executive'].includes(ur.roles.name)
                   ) 
                   ? "No accounts available"
@@ -128,7 +125,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
             <p className="text-gray-600 mb-6">
               {isSuperadmin(userProfile)
                 ? "Create your first client account to start managing projects and relationships."
-                : userProfile.user_roles?.some(ur => 
+                : userProfile.user_roles?.some((ur: any) => 
                     ['Executive', 'Director', 'Account Manager', 'Account Executive'].includes(ur.roles.name)
                   ) 
                   ? "No accounts have been created yet. Contact a superadmin to create accounts."
@@ -175,7 +172,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
 
       {/* Accounts Grid - Responsive */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {filteredAccounts.map((account) => (
+        {filteredAccounts.map((account:any) => (
           <Card key={account.id} className="hover:shadow-lg transition-shadow h-full">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
@@ -247,7 +244,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No accounts found</h3>
             <p className="text-gray-600 mb-4">
-              No accounts match your search for "{searchTerm}"
+              No accounts match your search for &quot;{searchTerm}&quot;
             </p>
             <Button variant="outline" onClick={() => { setSearchTerm(''); }}>
               Clear Search

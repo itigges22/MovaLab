@@ -15,29 +15,26 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell
 } from 'recharts';
-import { 
-  Users, 
-  FolderOpen, 
-  TrendingUp, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Users,
+  FolderOpen,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
   Clock,
-  Plus,
   Settings,
   SortAsc,
   SortDesc,
   ExternalLink
 } from 'lucide-react';
-import { Department, UserProfile } from '@/lib/supabase';
+import { Department, createClientSupabase } from '@/lib/supabase';
+
 import { UserWithRoles } from '@/lib/rbac-types';
 import { DepartmentMetrics, DepartmentProject } from '@/lib/department-client-service';
 import { projectIssuesService, type ProjectIssue } from '@/lib/project-issues-service';
 import { format } from 'date-fns';
-import { createClientSupabase } from '@/lib/supabase';
 import CapacityDashboard from '@/components/capacity-dashboard';
 
 interface DepartmentOverviewProps {
@@ -72,10 +69,10 @@ export function DepartmentOverview({
     const fetchTaskHours = async () => {
       if (!projects || projects.length === 0) return;
 
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) return;
 
-      const projectIds = projects.map(p => p.id);
+      const projectIds = projects.map((p: any) => p.id);
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('project_id, estimated_hours')
@@ -84,13 +81,14 @@ export function DepartmentOverview({
       if (tasksData) {
         const projectTaskSum: Record<string, number> = {};
         tasksData.forEach((task: any) => {
-          if (!projectTaskSum[task.project_id]) {
-            projectTaskSum[task.project_id] = 0;
+          const projectId = task.project_id as string;
+          if (!projectTaskSum[projectId]) {
+            projectTaskSum[projectId] = 0;
           }
-          projectTaskSum[task.project_id] += (task.estimated_hours || 0);
+          projectTaskSum[projectId] += (task.estimated_hours as number || 0);
         });
 
-        setProjectsWithTaskData(projects.map(project => ({
+        setProjectsWithTaskData(projects.map((project: any) => ({
           ...project,
           task_hours_sum: projectTaskSum[project.id] || 0
         })));
@@ -107,7 +105,7 @@ export function DepartmentOverview({
         setLoadingActiveIssues(true);
         const issues = await projectIssuesService.getDepartmentActiveIssues(department.id);
         setActiveIssues(issues);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading department issues:', error);
         setActiveIssues([]);
       } finally {
@@ -126,10 +124,10 @@ export function DepartmentOverview({
     }
 
     async function fetchWorkflowSteps() {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) return;
 
-      const projectIds = projects.map(p => p.id);
+      const projectIds = projects.map((p: any) => p.id);
       const { data: workflowData, error } = await supabase
         .from('workflow_instances')
         .select(`
@@ -145,8 +143,10 @@ export function DepartmentOverview({
       if (!error && workflowData) {
         const steps: { [key: string]: string | null } = {};
         workflowData.forEach((instance: any) => {
-          if (instance.project_id && instance.workflow_nodes?.label) {
-            steps[instance.project_id] = instance.workflow_nodes.label;
+          const projectId = instance.project_id as string;
+          const workflowNode = instance.workflow_nodes as Record<string, unknown> | null | undefined;
+          if (projectId && workflowNode?.label) {
+            steps[projectId] = workflowNode.label as string;
           }
         });
         setWorkflowSteps(steps);
@@ -157,12 +157,12 @@ export function DepartmentOverview({
   }, [projects]);
 
   // Split projects into active and finished
-  const activeProjects = projectsWithTaskData.filter(p => p.status !== 'complete');
-  const finishedProjects = projectsWithTaskData.filter(p => p.status === 'complete');
+  const activeProjects = projectsWithTaskData.filter((p: any) => p.status !== 'complete');
+  const finishedProjects = projectsWithTaskData.filter((p: any) => p.status === 'complete');
 
   // Sort and filter active projects only
   const filteredAndSortedProjects = activeProjects
-    .filter(project => {
+    .filter((project: any) => {
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false;
       return true;
     })
@@ -187,13 +187,13 @@ export function DepartmentOverview({
 
       return sortOrder === 'asc' ? comparison : -comparison;
     })
-    .map(project => ({
+    .map((project: any) => ({
       ...project,
       workflow_step: workflowSteps[project.id] ?? null
     }));
 
   // Chart data for workload distribution
-  const workloadChartData = metrics.workloadDistribution.map(member => ({
+  const workloadChartData = metrics.workloadDistribution.map((member: any) => ({
     name: member.userName,
     workload: member.workloadPercentage,
     sentiment: member.workloadSentiment
@@ -321,8 +321,7 @@ export function DepartmentOverview({
                       tickFormatter={(value) => `${value}%`}
                     />
                     <Tooltip
-                      formatter={(value: any, name: any) => {
-                        const color = value >= 90 ? '#EF4444' : value >= 75 ? '#F59E0B' : '#10B981';
+                      formatter={(value: string | number) => {
                         return [`${value}%`, 'Utilization'];
                       }}
                       labelFormatter={(label) => `Team Member: ${label}`}
@@ -331,7 +330,7 @@ export function DepartmentOverview({
                       dataKey="workload"
                       radius={[4, 4, 0, 0]}
                     >
-                      {workloadChartData.map((entry, index) => (
+                      {workloadChartData.map((entry:any, index:any) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={
@@ -373,19 +372,19 @@ export function DepartmentOverview({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{projects.filter(p => p.status === 'planning').length}</div>
+                  <div className="text-2xl font-bold text-blue-600">{projects.filter((p: any) => p.status === 'planning').length}</div>
                   <div className="text-sm text-blue-800">Planning</div>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">{projects.filter(p => p.status === 'in_progress').length}</div>
+                  <div className="text-2xl font-bold text-yellow-600">{projects.filter((p: any) => p.status === 'in_progress').length}</div>
                   <div className="text-sm text-yellow-800">In Progress</div>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">{projects.filter(p => p.status === 'review').length}</div>
+                  <div className="text-2xl font-bold text-purple-600">{projects.filter((p: any) => p.status === 'review').length}</div>
                   <div className="text-sm text-purple-800">In Review</div>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{projects.filter(p => p.status === 'complete').length}</div>
+                  <div className="text-2xl font-bold text-green-600">{projects.filter((p: any) => p.status === 'complete').length}</div>
                   <div className="text-sm text-green-800">Complete</div>
                 </div>
               </div>
@@ -433,7 +432,7 @@ export function DepartmentOverview({
             </div>
           ) : (
             <div className="space-y-3">
-              {activeIssues.map((issue) => (
+              {activeIssues.map((issue:any) => (
                 <div 
                   key={issue.id} 
                   className={`p-4 border rounded-lg ${
@@ -564,7 +563,7 @@ export function DepartmentOverview({
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSortedProjects.map((project) => (
+                {filteredAndSortedProjects.map((project:any) => (
                   <tr key={project.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div>
@@ -660,7 +659,7 @@ export function DepartmentOverview({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {finishedProjects.map((project) => (
+              {finishedProjects.map((project:any) => (
                 <div
                   key={project.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"

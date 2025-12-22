@@ -37,7 +37,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -61,7 +61,7 @@ export async function POST(
     const node = await createWorkflowNode(id, validation.data);
 
     return NextResponse.json({ success: true, node }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/admin/workflows/templates/[id]/nodes:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

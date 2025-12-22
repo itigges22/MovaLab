@@ -6,6 +6,7 @@ import { createAccountSchema, validateRequestBody } from '@/lib/validation-schem
 import { logger } from '@/lib/debug-logger'
 import { config } from '@/lib/config'
 
+// Type definitions
 /**
  * GET /api/accounts - List all accounts user has access to
  */
@@ -35,15 +36,15 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
-    // Check if user can view accounts
-    const canViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB, undefined, supabase)
+    // Phase 9: VIEW_ACCOUNTS_TAB removed - use VIEW_ACCOUNTS for listing accounts
+    const canViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS, undefined, supabase)
     if (!canViewAccounts) {
       return NextResponse.json({ error: 'Insufficient permissions to view accounts' }, { status: 403 })
     }
@@ -60,8 +61,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, accounts }, { status: 200 })
-  } catch (error) {
-    logger.error('Error in GET /api/accounts', { action: 'list_accounts' }, error as Error)
+  } catch (error: unknown) {
+logger.error('Error in GET /api/accounts', { action: 'list_accounts' }, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -98,20 +99,20 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
-      logger.error('User profile not found', { action: 'create_account', userId: user.id })
+      logger.error('User profile not found', { action: 'create_account', userId: (user as any).id })
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
-    // Check CREATE_ACCOUNT permission
-    const canCreateAccount = await hasPermission(userProfile, Permission.CREATE_ACCOUNT, undefined, supabase)
-    if (!canCreateAccount) {
+    // Check MANAGE_ACCOUNTS permission (consolidated from CREATE_ACCOUNT)
+    const canManageAccounts = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS, undefined, supabase)
+    if (!canManageAccounts) {
       logger.warn('Insufficient permissions to create account', {
         action: 'create_account',
-        userId: user.id
+        userId: (user as any).id
       })
       return NextResponse.json({ error: 'Insufficient permissions to create accounts' }, { status: 403 })
     }
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       logger.warn('Invalid account creation data', {
         action: 'create_account',
-        userId: user.id,
+        userId: (user as any).id,
         error: validation.error
       })
       return NextResponse.json({ error: validation.error }, { status: 400 })
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
         primary_contact_name: validation.data.primary_contact_name || null,
         primary_contact_email: validation.data.primary_contact_email || null,
         status: validation.data.status || 'active',
-        account_manager_id: validation.data.account_manager_id || user.id,
+        account_manager_id: validation.data.account_manager_id || (user as any).id,
         created_at: new Date().toISOString()
       })
       .select()
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       logger.error('Failed to create account in database', {
         action: 'create_account',
-        userId: user.id
+        userId: (user as any).id
       }, error as Error)
 
       return NextResponse.json({
@@ -158,13 +159,13 @@ export async function POST(request: NextRequest) {
 
     logger.info('Account created successfully', {
       action: 'create_account',
-      userId: user.id,
+      userId: (user as any).id,
       accountId: account.id
     })
 
     return NextResponse.json({ success: true, account }, { status: 201 })
-  } catch (error) {
-    logger.error('Error in POST /api/accounts', { action: 'create_account' }, error as Error)
+  } catch (error: unknown) {
+logger.error('Error in POST /api/accounts', { action: 'create_account' }, error as Error)
     return NextResponse.json({
       error: 'Internal server error',
       ...(config.errors.exposeDetails && { details: (error as Error).message })

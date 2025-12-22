@@ -6,7 +6,6 @@ import { useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart3 } from 'lucide-react'
 import { RoleGuard } from '@/components/role-guard'
-import { Permission } from '@/lib/permissions'
 import CapacityDashboard from '@/components/capacity-dashboard'
 
 export default function AnalyticsPage() {
@@ -31,7 +30,13 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <RoleGuard requireAnyPermission={[Permission.VIEW_ANALYTICS, Permission.VIEW_DEPARTMENT_ANALYTICS, Permission.VIEW_ALL_ANALYTICS]}>
+    <RoleGuard allowUnassigned={false}>
+      {/* All authenticated users can view analytics - own data is implicit */}
+      {/* Scope is determined by context-aware permissions:
+          - Own data: Always visible (implicit)
+          - Department: VIEW_ALL_DEPARTMENT_ANALYTICS
+          - Account: VIEW_ALL_ACCOUNT_ANALYTICS
+          - Organization: VIEW_ALL_ANALYTICS */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

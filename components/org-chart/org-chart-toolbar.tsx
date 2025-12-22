@@ -13,12 +13,11 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Filter, 
-  Grid3X3, 
-  List, 
-  Plus, 
+import {
+  Search,
+  Filter,
+  Grid3X3,
+  Plus,
   Download,
   RefreshCw,
   Settings,
@@ -53,7 +52,6 @@ export function OrgChartToolbar({
   onDepartmentChange,
   onRefresh,
   onExport,
-  onRoleCreated,
   isReadOnly = false,
   totalUsers = 0,
   totalRoles = 0,
@@ -66,12 +64,12 @@ export function OrgChartToolbar({
     try {
       const orgStructure = await organizationService.getOrganizationStructure();
       if (orgStructure) {
-        setDepartments(orgStructure.departments.map(dept => ({
+        setDepartments(orgStructure.departments.map((dept: any) => ({
           id: dept.id,
           name: dept.name
         })));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading departments:', error);
     }
   };
@@ -216,8 +214,8 @@ export function OrgChartToolbar({
                   <SelectContent>
                     <SelectItem value="all">All departments</SelectItem>
                     {departments
-                      .filter((dept) => dept?.id && dept.id !== '')
-                      .map((dept) => (
+                      .filter((dept:any) => dept?.id && dept.id !== '')
+                      .map((dept:any) => (
                         <SelectItem key={dept.id} value={dept.id}>
                           {dept.name}
                         </SelectItem>

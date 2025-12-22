@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClientSupabase } from '../supabase'
 import { getCurrentUserProfile, signOut } from '../auth'
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       setLoading(false)
       return
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserProfile(null)
           setLoading(false)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         if (isMounted) {
           console.error('Error in getInitialSession:', error)
           setError('Failed to load user session')
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(currentUser => {
             if (currentUser) {
               supabase.auth.refreshSession()
-                .then(({ data: { session: refreshedSession }, error: refreshError }: { data: { session: any }, error: any }) => {
+                .then(({ data: { session: refreshedSession }, error: refreshError }: { data: { session: any }, error: unknown }) => {
                   if (refreshError || !refreshedSession) {
                     setUser(null)
                     setUserProfile(null)
@@ -168,7 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       currentProfileRequest = null
       subscription.unsubscribe()
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // userProfile intentionally excluded - adding it would cause subscription to re-create on every profile change
 
   const handleSignOut = async () => {
     try {
@@ -176,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signOut()
       setUser(null)
       setUserProfile(null)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error signing out:', error)
       setError('Failed to sign out')
     } finally {
@@ -191,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearPermissionCache()
       const profile = await getCurrentUserProfile()
       setUserProfile(profile)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error refreshing profile:', error)
       setError('Failed to refresh profile')
     } finally {

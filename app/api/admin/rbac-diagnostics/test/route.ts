@@ -8,6 +8,11 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { hasPermission, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createApiSupabaseClient(request);
@@ -91,9 +96,10 @@ export async function POST(request: NextRequest) {
 
     // Test 4: Verify no users are missing roles (except superadmins)
     totalTests++;
-    const usersWithoutRoles = (allUsers || []).filter((user: any) =>
-      !user.is_superadmin && (!user.user_roles || user.user_roles.length === 0)
-    );
+    const usersWithoutRoles = (allUsers || []).filter((user: any) => {
+      const userRoles = user.user_roles as unknown[] | undefined;
+      return !user.is_superadmin && (!userRoles || userRoles.length === 0);
+    });
 
     if (usersWithoutRoles.length > 0) {
       failures.push(`${usersWithoutRoles.length} non-superadmin user(s) have no roles assigned`);
@@ -128,7 +134,7 @@ export async function POST(request: NextRequest) {
     if (roles) {
       const invalidPermissionRoles = roles.filter((r: any) => {
         if (!r.permissions) return true;
-        return Object.values(r.permissions).some(v => typeof v !== 'boolean');
+        return Object.values(r.permissions).some((v: any) => typeof v !== 'boolean');
       });
 
       if (invalidPermissionRoles.length > 0) {
@@ -151,10 +157,11 @@ export async function POST(request: NextRequest) {
       failures,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
     console.error('Error in POST /api/admin/rbac-diagnostics/test:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

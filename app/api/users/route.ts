@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ users: users || [] });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

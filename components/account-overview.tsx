@@ -8,26 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  PlusIcon, 
-  Calendar, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
-  Users, 
-  TrendingUp,
+import {
+  PlusIcon,
+  Calendar,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Users,
   BarChart3,
-  Grid3X3,
-  List,
-  GanttChart,
-  Settings,
   Trash2,
-  MoreVertical,
-  ZoomIn,
-  ZoomOut,
-  CalendarDays,
-  CalendarRange,
   ExternalLink,
   Move,
   SortAsc,
@@ -35,35 +24,14 @@ import {
   Edit
 } from 'lucide-react';
 import { AccountWithProjects, AccountMetrics, UrgentItem, ProjectWithDetails, accountService } from '@/lib/account-service';
-import { UserProfile } from '@/lib/supabase';
 import { createClientSupabase } from '@/lib/supabase';
+
 import TaskCreationDialog from '@/components/task-creation-dialog';
-import { KanbanConfigDialog } from '@/components/kanban-config-dialog';
-import { KanbanProvider, KanbanBoard, KanbanCard, KanbanCards, KanbanHeader } from '@/components/ui/shadcn-io/kanban';
-import { 
-  GanttProvider, 
-  GanttSidebar, 
-  GanttSidebarGroup,
-  GanttSidebarItem, 
-  GanttTimeline, 
-  GanttHeader, 
-  GanttFeatureList, 
-  GanttFeatureListGroup,
-  GanttFeatureItem,
-  GanttToday,
-  GanttMarker,
-  GanttCreateMarkerTrigger,
-  type GanttFeature,
-  type GanttStatus,
-  type GanttMarkerProps
-} from '@/components/ui/shadcn-io/gantt/index';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, formatDistance, addDays, isSameDay } from 'date-fns';
+import { format, formatDistance } from 'date-fns';
 import { accountKanbanConfigService, KanbanColumn } from '@/lib/account-kanban-config';
-import { isSuperadmin, UserWithRoles, hasPermission, canViewProject } from '@/lib/rbac';
+import { UserWithRoles, hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
-import { checkPermissionHybrid } from '@/lib/permission-checker';
-import { getMilestones, createMilestone, deleteMilestone, type Milestone } from '@/lib/milestone-service';
+import { getMilestones, createMilestone, type Milestone } from '@/lib/milestone-service';
 import { MilestoneDialog } from '@/components/milestone-dialog';
 import { projectIssuesService, type ProjectIssue } from '@/lib/project-issues-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -93,12 +61,13 @@ const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
   { id: 'complete', name: 'Complete', color: '#10B981', order: 4 },
 ];
 
-export function AccountOverview({ account, metrics, urgentItems, userProfile, hasFullAccess = true }: AccountOverviewProps) {
+export function AccountOverview({ account, metrics, urgentItems, userProfile }: AccountOverviewProps) {
   // Account overview component
   // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), only table view remains
-  const [viewMode, setViewMode] = useState<'table'>('table');
+  // Memoize account ID to avoid complex expressions in deps
+  const accountId = useMemo(() => (account as any).id, [account]);
+
   const [projects, setProjects] = useState(account.projects);
-  const [projectsLoading, setProjectsLoading] = useState(false);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>(DEFAULT_KANBAN_COLUMNS);
   const [accountMembers, setAccountMembers] = useState<Array<{
     id: string;
@@ -120,16 +89,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       }>;
     } | null;
   }>>([]);
-  const [loadingKanbanConfig, setLoadingKanbanConfig] = useState(true);
   const [customColumnAssignments, setCustomColumnAssignments] = useState<Record<string, string>>({});
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [ganttZoom, setGanttZoom] = useState(200);
-  const [ganttRange, setGanttRange] = useState<'daily' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
-  const [milestoneDialogInitialDate, setMilestoneDialogInitialDate] = useState<Date | undefined>(undefined);
-  const [projectDialogStartDate, setProjectDialogStartDate] = useState<Date | undefined>(undefined);
+  const [milestoneDialogInitialDate] = useState<Date | undefined>(undefined);
+  const [projectDialogStartDate] = useState<Date | undefined>(undefined);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   
   // Move Project Dialog State
@@ -155,36 +119,27 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Permission states
-  // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), but visual display still works
-  // View permissions are now derived from project permissions
+  // NOTE: Table view is just the project list (no separate permission needed)
+  // Kanban/Gantt for projects is deprecated (workflows replace it)
+  // View permissions are derived from project permissions
   const [canCreateProject, setCanCreateProject] = useState(false);
-  const [canEditProject, setCanEditProject] = useState(false);
   const [canDeleteProject, setCanDeleteProject] = useState(false);
-  const [canViewProjects, setCanViewProjects] = useState(false);
-  const [canViewTable, setCanViewTable] = useState(false);
-  const [canEditTable, setCanEditTable] = useState(false);
   const [canEditAccount, setCanEditAccount] = useState(false);
 
-  // Derived view permissions (kanban/gantt views inherit from project view)
-  const canViewKanban = canViewProjects;
-  const canViewGantt = canViewProjects;
-  const canEditKanban = canEditProject;
-  const canEditGantt = canEditProject;
-  const canMoveAllKanbanItems = canEditProject;
+  // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), only table view remains
 
   // Load account members
-  useEffect(() => {
-    const loadAccountMembers = async () => {
+  const loadAccountMembers = useCallback(async () => {
       try {
-        const response = await fetch(`/api/accounts/${account.id}/members`);
+        const response = await fetch(`/api/accounts/${accountId}/members`);
         
         // Get response text first to check if it's valid JSON
         const responseText = await response.text();
-        let data: any;
+        let data: Record<string, unknown>;
         
         try {
           data = JSON.parse(responseText);
-        } catch (parseError) {
+        } catch {
           console.error('Failed to parse API response:', {
             status: response.status,
             statusText: response.statusText,
@@ -204,7 +159,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
             error: data?.error || 'Unknown error',
             details: data?.details || data?.message || 'No details provided',
             code: data?.code || 'No error code',
-            url: `/api/accounts/${account.id}/members`
+            url: `/api/accounts/${accountId}/members`
           });
           // Set empty array if error - don't crash the page
           setAccountMembers([]);
@@ -212,31 +167,32 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
         }
         
         // Success - set the members
-        setAccountMembers(data.members || []);
-      } catch (error: any) {
+        setAccountMembers((data.members as typeof accountMembers) || []);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
         console.error('Error loading account members:', {
-          error: error.message || error,
-          stack: error.stack
+          error: errorMessage,
+          stack: errorStack
         });
         // Set empty array on error - don't crash the page
         setAccountMembers([]);
       }
-    };
-    
+    }, [accountId]);
+
+  useEffect(() => {
     loadAccountMembers();
-  }, [account.id]);
+  }, [loadAccountMembers]);
 
   // Fetch remaining hours for all projects
-  useEffect(() => {
-    const fetchRemainingHours = async () => {
+  const fetchRemainingHours = useCallback(async () => {
       if (!projects || projects.length === 0) return;
-      
-      setProjectsLoading(true);
+
       try {
-        const supabase = createClientSupabase();
+        const supabase = createClientSupabase() as any;
         if (!supabase) return;
 
-        const projectIds = projects.map(p => p.id);
+        const projectIds = projects.map((p: any) => p.id);
         const { data: tasksData } = await supabase
           .from('tasks')
           .select('project_id, remaining_hours, estimated_hours')
@@ -247,103 +203,90 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
           const projectRemainingHours: Record<string, number> = {};
           const projectTaskSum: Record<string, number> = {};
           tasksData.forEach((task: any) => {
-            if (!projectRemainingHours[task.project_id]) {
-              projectRemainingHours[task.project_id] = 0;
+            const projectId = task.project_id as string;
+            if (!projectRemainingHours[projectId]) {
+              projectRemainingHours[projectId] = 0;
             }
-            if (!projectTaskSum[task.project_id]) {
-              projectTaskSum[task.project_id] = 0;
+            if (!projectTaskSum[projectId]) {
+              projectTaskSum[projectId] = 0;
             }
-            projectRemainingHours[task.project_id] += (task.remaining_hours ?? task.estimated_hours ?? 0);
-            projectTaskSum[task.project_id] += (task.estimated_hours ?? 0);
+            projectRemainingHours[projectId] += (task.remaining_hours as number ?? task.estimated_hours as number ?? 0);
+            projectTaskSum[projectId] += (task.estimated_hours as number ?? 0);
           });
 
           // Update projects with remaining hours and task sum
           setProjects(prevProjects =>
-            prevProjects.map(project => ({
+            prevProjects.map((project: any) => ({
               ...project,
               remaining_hours: projectRemainingHours[project.id] ?? null,
               task_hours_sum: projectTaskSum[project.id] ?? 0
             }))
           );
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching remaining hours:', error);
-      } finally {
-        setProjectsLoading(false);
       }
-    };
+    }, [projects]);
 
+  useEffect(() => {
     fetchRemainingHours();
-  }, [account.id]); // Re-fetch when account changes
+  }, [fetchRemainingHours, projects]);
 
   // Check permissions
-  // NOTE: Kanban/Gantt permissions are deprecated - view permissions now derive from project permissions
-  useEffect(() => {
+  // NOTE: Table view is just the project list (no separate permission needed)
+  // Kanban/Gantt views for projects are deprecated (workflows replace them)
+  const checkPermissions = useCallback(async () => {
     if (!userProfile) return;
+      const manage = await hasPermission(userProfile, Permission.MANAGE_PROJECTS, { accountId });
+      const editAccount = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS, { accountId });
 
-    async function checkPermissions() {
-      const create = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId: account.id });
-      const edit = await hasPermission(userProfile, Permission.EDIT_PROJECT, { accountId: account.id });
-      const del = await hasPermission(userProfile, Permission.DELETE_PROJECT, { accountId: account.id });
-      const viewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS, { accountId: account.id });
-      const viewTable = await hasPermission(userProfile, Permission.VIEW_TABLE);
-      const editTable = await hasPermission(userProfile, Permission.EDIT_TABLE);
-      const editAccount = await hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId: account.id });
-
-      setCanCreateProject(create);
-      setCanEditProject(edit);
-      setCanDeleteProject(del);
-      setCanViewProjects(viewProjects);
-      setCanViewTable(viewTable);
-      setCanEditTable(editTable);
+      setCanCreateProject(manage);
+      setCanDeleteProject(manage);
       setCanEditAccount(editAccount);
+    }, [userProfile, accountId]);
 
-      // NOTE: Kanban/Gantt views for projects are deprecated (workflows replace them)
-      // Only table view is now available - no view mode switching needed
-    }
-
+  useEffect(() => {
     checkPermissions();
-  }, [userProfile, account.id, viewMode]);
+  }, [checkPermissions]);
 
   // Load milestones from database
-  useEffect(() => {
-    const loadMilestones = async () => {
+  const loadMilestones = useCallback(async () => {
       try {
         console.log('AccountOverview: Loading milestones...');
         const fetchedMilestones = await getMilestones();
         console.log('AccountOverview: Fetched milestones:', fetchedMilestones);
         setMilestones(fetchedMilestones);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load milestones:', error);
       }
-    };
+    }, []);
 
+  useEffect(() => {
     loadMilestones();
-  }, []);
+  }, [loadMilestones]);
 
   // Load active issues for this account
-  useEffect(() => {
-    const loadActiveIssues = async () => {
+  const loadActiveIssues = useCallback(async () => {
       setLoadingActiveIssues(true);
       try {
-        const issues = await projectIssuesService.getAccountActiveIssues(account.id);
+        const issues = await projectIssuesService.getAccountActiveIssues(accountId);
         setActiveIssues(issues);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load active issues:', error);
       } finally {
         setLoadingActiveIssues(false);
       }
-    };
+    }, [accountId]);
 
+  useEffect(() => {
     loadActiveIssues();
-  }, [account.id]);
+  }, [loadActiveIssues]);
 
   // Load finished projects for this account
-  useEffect(() => {
-    const loadFinishedProjects = async () => {
+  const loadFinishedProjects = useCallback(async () => {
       setLoadingFinishedProjects(true);
       try {
-        const supabase = createClientSupabase();
+        const supabase = createClientSupabase() as any;
         if (!supabase) return;
 
         const { data, error } = await supabase
@@ -352,7 +295,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
             *,
             account:accounts(id, name)
           `)
-          .eq('account_id', account.id)
+          .eq('account_id', accountId)
           .eq('status', 'complete')
           .order('completed_at', { ascending: false });
 
@@ -366,24 +309,25 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
           ...p,
           departments: [],
           daysUntilDeadline: null
-        }));
+        } as unknown as ProjectWithDetails));
 
         setFinishedProjects(finished);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load finished projects:', error);
       } finally {
         setLoadingFinishedProjects(false);
       }
-    };
+    }, [accountId]);
 
+  useEffect(() => {
     loadFinishedProjects();
-  }, [account.id]);
+  }, [loadFinishedProjects]);
 
   // Handle issue status update
   const handleUpdateIssueStatus = async (issueId: string, projectId: string, newStatus: 'open' | 'in_progress' | 'resolved') => {
     // Optimistic update for immediate feedback
     const previousIssues = [...activeIssues];
-    setActiveIssues(prev => prev.map(issue =>
+    setActiveIssues(prev => prev.map((issue: any) =>
       issue.id === issueId ? { ...issue, status: newStatus } : issue
     ));
 
@@ -399,7 +343,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
 
       if (response.ok) {
         // Reload active issues (will automatically filter out resolved ones)
-        const issues = await projectIssuesService.getAccountActiveIssues(account.id);
+        const issues = await projectIssuesService.getAccountActiveIssues(accountId);
         setActiveIssues(issues);
         toast.success(`Issue ${newStatus === 'resolved' ? 'resolved' : 'status updated'}`);
       } else {
@@ -407,125 +351,74 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
         setActiveIssues(previousIssues);
         toast.error(result.error || 'Failed to update issue status');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revert on error
       setActiveIssues(previousIssues);
       console.error('Error updating issue status:', error);
-      toast.error(error.message || 'Failed to update issue status. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update issue status. Please try again.';
+      toast.error(errorMessage);
     }
   };
 
   // Load account-specific kanban configuration
-  useEffect(() => {
-    const loadKanbanConfig = async () => {
+  const loadKanbanConfig = useCallback(async () => {
       try {
-        const config = await accountKanbanConfigService.getOrCreateAccountKanbanConfig(account.id);
+        const config = await accountKanbanConfigService.getOrCreateAccountKanbanConfig(accountId);
         setKanbanColumns(config.columns.sort((a, b) => a.order - b.order));
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading kanban config:', error);
         setKanbanColumns(DEFAULT_KANBAN_COLUMNS);
-      } finally {
-        setLoadingKanbanConfig(false);
       }
-    };
+    }, [accountId]);
 
+  useEffect(() => {
     loadKanbanConfig();
-  }, [account.id]);
+  }, [loadKanbanConfig]);
 
   // Load custom column assignments from localStorage
-  useEffect(() => {
-    const loadCustomAssignments = () => {
+  const loadCustomAssignments = useCallback(() => {
       try {
-        const stored = localStorage.getItem(`kanban-custom-assignments-${account.id}`);
+        const stored = localStorage.getItem(`kanban-custom-assignments-${accountId}`);
         if (stored) {
           const assignments = JSON.parse(stored);
           console.log('Loaded custom column assignments from localStorage:', assignments);
           setCustomColumnAssignments(assignments);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading custom column assignments:', error);
       }
-    };
+    }, [accountId]);
 
+  useEffect(() => {
     loadCustomAssignments();
-  }, [account.id]);
+  }, [loadCustomAssignments]);
 
   // Save custom column assignments to localStorage whenever they change
   useEffect(() => {
     if (Object.keys(customColumnAssignments).length > 0) {
       try {
-        localStorage.setItem(`kanban-custom-assignments-${account.id}`, JSON.stringify(customColumnAssignments));
+        localStorage.setItem(`kanban-custom-assignments-${accountId}`, JSON.stringify(customColumnAssignments));
         console.log('Saved custom column assignments to localStorage:', customColumnAssignments);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error saving custom column assignments:', error);
       }
     }
-  }, [customColumnAssignments, account.id]);
+  }, [customColumnAssignments, accountId]);
 
-  const handleKanbanColumnsUpdated = (newColumns: KanbanColumn[]) => {
-    setKanbanColumns(newColumns.sort((a, b) => a.order - b.order));
-  };
-
-  const handleTaskCreated = (newProject: any, assignedUser?: any) => {
+  const handleTaskCreated = (newProject: Record<string, unknown>, assignedUser?: any) => {
     if (newProject) {
       // Add the new project to local state immediately (optimistic update)
       // Don't use router.refresh() - it can cause CSS MIME type issues in Next.js dev mode
-      const projectWithDetails: ProjectWithDetails = {
+      const projectWithDetails = {
         ...newProject,
         departments: [],
-        assigned_users: assignedUser ? [assignedUser] : [],
+        assigned_users: assignedUser ? [assignedUser as { id: string; name: string; image: string }] : [],
         status_info: { id: newProject.status || 'planning', name: 'Planning', color: '#6B7280' },
         workflow_step: null,
-      };
+      } as unknown as ProjectWithDetails;
       setProjects(prev => [projectWithDetails, ...prev]);
     }
   };
-
-  // Helper functions to get status info
-  const getStatusName = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      'planning': 'Planning',
-      'in_progress': 'In Progress',
-      'review': 'Review',
-      'complete': 'Complete',
-      'on_hold': 'On Hold'
-    };
-    return statusMap[status] || 'Planning';
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' }
-      case 'in_progress':
-        return { backgroundColor: '#fef3c7', color: '#d97706', borderColor: '#fbbf24' }
-      case 'review':
-        return { backgroundColor: '#e9d5ff', color: '#7c3aed', borderColor: '#c4b5fd' }
-      case 'complete':
-        return { backgroundColor: '#d1fae5', color: '#059669', borderColor: '#6ee7b7' }
-      case 'on_hold':
-        return { backgroundColor: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5' }
-      default:
-        return { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' }
-    }
-  }
-
-  const getStatusColorString = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return '#3B82F6'
-      case 'in_progress':
-        return '#F59E0B'
-      case 'review':
-        return '#7c3aed'
-      case 'complete':
-        return '#059669'
-      case 'on_hold':
-        return '#dc2626'
-      default:
-        return '#6B7280'
-    }
-  }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -542,227 +435,10 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     }
   }
 
-  // Helper function to check if user can modify a specific project
-  const canUserModifyProject = (project: ProjectWithDetails) => {
-    // Full access users can modify any project
-    if (hasFullAccess) return true;
-    
-    // Read-only users can only modify projects they're assigned to or are stakeholders on
-    const isAssignedUser = project.assigned_user_id === userProfile.id;
-    const isStakeholder = project.stakeholders?.some((s: any) => s.user_id === userProfile.id);
-    
-    return isAssignedUser || isStakeholder;
-  };
-
-  // Cache for project view permissions
-  const [canViewProjectCache, setCanViewProjectCache] = useState<Record<string, boolean>>({});
-  
-  // Create stable project IDs string for dependency tracking
-  const projectIdsString = useMemo(() => {
-    return projects.map(p => p.id).sort().join(',');
-  }, [projects]);
-  
-  // Pre-check view permissions for all projects
-  useEffect(() => {
-    if (!userProfile || projects.length === 0) {
-      // Clear cache if no user or projects
-      setCanViewProjectCache({});
-      return;
-    }
-    
-    const checkAllProjectPermissions = async () => {
-      try {
-        const permissions: Record<string, boolean> = {};
-        
-        console.log(`[Kanban] Checking permissions for ${projects.length} projects for user ${userProfile.id} in account ${account.id}`);
-        
-        // Check each project individually - user can view project page if:
-        // 1. They have VIEW_ALL_PROJECTS permission, OR
-        // 2. They are assigned to the project (via project_assignments, created_by, assigned_user_id, or tasks), OR
-        // 3. They have account-level access AND are assigned to at least one project in the account
-        
-        for (const project of projects) {
-          try {
-            // Check project-specific access with account context
-            // This allows account-level access to grant project access
-            const canView = await checkPermissionHybrid(userProfile, Permission.VIEW_PROJECTS, { 
-              projectId: project.id,
-              accountId: account.id 
-            });
-            permissions[project.id] = canView;
-            console.log(`[Kanban] ✓ Project "${project.name}" (${project.id.substring(0, 8)}...): canView=${canView}`);
-          } catch (error) {
-            console.error(`[Kanban] ✗ Error checking permission for project ${project.id}:`, error);
-            // Default to false on error (won't show links for inaccessible projects)
-            permissions[project.id] = false;
-          }
-        }
-        
-        console.log('[Kanban] ✅ Permission cache updated:', Object.keys(permissions).length, 'projects checked');
-        console.log('[Kanban] Permission results:', permissions);
-        setCanViewProjectCache(permissions);
-      } catch (error) {
-        console.error('[Kanban] ❌ Error checking project permissions:', error);
-      }
-    };
-    
-    checkAllProjectPermissions();
-  }, [userProfile?.id, projectIdsString, account.id]);
-  
-  // Helper function to check if user can view a specific project
-  const canUserViewProject = (project: ProjectWithDetails): boolean => {
-    const cached = canViewProjectCache[project.id];
-    if (cached === undefined) {
-      // Not checked yet - return false to hide links (safer)
-      return false;
-    }
-    return cached;
-  };
-
-  const handleDataChange = async (newKanbanData: any[]) => {
-    try {
-      console.log('Kanban data change triggered:', newKanbanData);
-      console.log('Current projects:', projects);
-      
-      // Compare against the actual project status (from projects state) not kanbanData
-      // because kanbanData might have already been updated by the drag library
-      const changedItems = newKanbanData.filter((newItem) => {
-        const project = projects.find(p => p.id === newItem.id);
-        if (!project) return false;
-        
-        // Get the current kanban column for this project's status
-        // First check if there's a custom assignment for this project
-        const customAssignment = customColumnAssignments[project.id];
-        const currentColumn = customAssignment || accountKanbanConfigService.getKanbanColumnForStatus(project.status, kanbanColumns);
-        const hasChanged = currentColumn !== newItem.column;
-        
-        console.log('Checking project:', {
-          id: newItem.id,
-          name: newItem.name,
-          projectStatus: project.status,
-          customAssignment,
-          currentColumn,
-          newColumn: newItem.column,
-          hasChanged
-        });
-        
-        return hasChanged;
-      });
-      
-      if (changedItems.length === 0) {
-        console.log('No items changed columns');
-        return;
-      }
-      
-      console.log('Items that changed columns:', changedItems);
-      
-      // Process each changed item
-      for (const movedItem of changedItems) {
-        // Find the corresponding project
-        const project = projects.find(p => p.id === movedItem.id);
-        if (!project) {
-          console.error('Project not found for moved item:', movedItem.id);
-          continue;
-        }
-        
-        // Check if user can modify this project
-        if (!canUserModifyProject(project)) {
-          console.warn('User does not have permission to modify this project');
-          toast.error('You do not have permission to modify this project. You can only modify projects you are assigned to or are a stakeholder on.');
-          continue;
-        }
-        
-        // Check if this is a custom column (like "Approved") that should be visual-only
-        const isCustomColumn = !['planned', 'in-progress', 'review', 'complete'].includes(movedItem.column);
-        const customColumn = kanbanColumns.find(col => col.id === movedItem.column);
-        const isApprovedColumn = customColumn?.name.toLowerCase().includes('approved') || customColumn?.name.toLowerCase().includes('approval');
-        
-        console.log('Drag and drop column detection:', {
-          movedItemColumn: movedItem.column,
-          isCustomColumn,
-          customColumn: customColumn ? { id: customColumn.id, name: customColumn.name } : null,
-          isApprovedColumn,
-          availableColumns: kanbanColumns.map(col => ({ id: col.id, name: col.name }))
-        });
-        
-        if (isCustomColumn && isApprovedColumn) {
-          // For "Approved" columns, only store the visual assignment without changing database status
-          console.log('Moving to custom Approved column - visual only, no database update');
-          
-          setCustomColumnAssignments(prev => ({
-            ...prev,
-            [movedItem.id]: movedItem.column
-          }));
-          
-          console.log('Custom column assignment stored for Approved column:', movedItem.column);
-        } else {
-          // For standard columns, update the database status
-          console.log('User can modify project, updating status in database');
-
-          // Map the kanban column back to project status
-          const newStatus = accountKanbanConfigService.getStatusForKanbanColumn(movedItem.column, kanbanColumns);
-            console.log('Updating project status:', {
-            projectId: movedItem.id,
-            projectName: movedItem.name,
-            oldStatus: project.status,
-            newColumn: movedItem.column,
-            newStatus: newStatus
-          });
-
-          // Update the project via API
-          const response = await fetch(`/api/projects/${movedItem.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              status: newStatus as 'planning' | 'in_progress' | 'review' | 'complete' | 'on_hold'
-            })
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            console.error('Failed to update project status:', result.error);
-            toast.error(result.error || 'Failed to update project status. Please try again.');
-            return;
-          }
-
-          const updatedProject = result.project;
-
-          if (updatedProject) {
-            // Update local state with the new status
-            setProjects(prevProjects =>
-              prevProjects.map(p =>
-                p.id === movedItem.id
-                  ? { ...p, status: newStatus }
-                  : p
-              )
-            );
-
-            // Store the custom column assignment to maintain visual position
-            setCustomColumnAssignments(prev => ({
-              ...prev,
-              [movedItem.id]: movedItem.column
-            }));
-
-            console.log('Project status updated successfully:', movedItem.name);
-            console.log('Custom column assignment stored:', movedItem.column);
-          } else {
-            console.error('Failed to update project status');
-            toast.error('Failed to update project status. Please try again.');
-          }
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error in handleDataChange:', error);
-      toast.error('Error updating project. Please try again.');
-    }
-  };
-
   const handleDeleteProject = (projectId: string) => {
     console.log('handleDeleteProject called with ID:', projectId);
     // Look in both active and finished projects
-    const project = projects.find(p => p.id === projectId) || finishedProjects.find(p => p.id === projectId);
+    const project = projects.find((p: any) => p.id === projectId) || finishedProjects.find((p: any) => p.id === projectId);
     console.log('Found project:', project);
     if (project) {
       console.log('Setting project to delete:', { id: project.id, name: project.name });
@@ -774,15 +450,10 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     }
   };
 
-  const handleMoveProject = (project: ProjectWithDetails) => {
-    setProjectToMove(project);
-    setMoveDialogOpen(true);
-  };
-
   const handleMoveProjectToStatus = async (projectId: string, newStatus: string) => {
     try {
       // Find the column that corresponds to this status
-      const targetColumn = kanbanColumns.find(col => 
+      const targetColumn = kanbanColumns.find((col: any) => 
         accountKanbanConfigService.getStatusForKanbanColumn(col.id, kanbanColumns) === newStatus
       );
       
@@ -809,11 +480,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       } else {
         // For standard columns, update the database status
         console.log('Moving to standard column - updating database status');
-        
-        const supabase = createClientSupabase();
+
+        const supabase = createClientSupabase() as any;
         if (!supabase) return;
 
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('projects')
           .update({ status: newStatus })
           .eq('id', projectId);
@@ -825,7 +496,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
 
         // Update the local state
         setProjects(prevProjects => 
-          prevProjects.map(project => 
+          prevProjects.map((project: any) => 
             project.id === projectId 
               ? { ...project, status: newStatus }
               : project
@@ -842,14 +513,14 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       // Close the dialog
       setMoveDialogOpen(false);
       setProjectToMove(null);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error moving project:', error);
     }
   };
 
   // Filter and sort projects (exclude completed - they show in Finished Projects section)
   const filteredAndSortedProjects = projects
-    .filter(project => {
+    .filter((project: any) => {
       // Exclude completed projects - they go to the Finished Projects section
       if (project.status === 'complete') return false;
       if (statusFilter !== 'all' && project.status !== statusFilter) return false;
@@ -857,8 +528,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       return true;
     })
     .sort((a, b) => {
-      let aValue: any, bValue: any;
-      
+      let aValue: string | number, bValue: string | number;
+
       switch (sortBy) {
         case 'name':
           aValue = a.name.toLowerCase();
@@ -885,7 +556,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     })
-    .map(project => ({
+    .map((project: any) => ({
       ...project,
       daysUntilDeadline: project.end_date 
         ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -905,13 +576,13 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       if (success) {
         // Remove from active projects
         setProjects(prev => {
-          const filtered = prev.filter(p => p.id !== projectToDelete.id);
+          const filtered = prev.filter((p: any) => p.id !== projectToDelete.id);
           console.log('Updated projects list:', filtered.length, 'projects remaining');
           return filtered;
         });
         // Also remove from finished projects
         setFinishedProjects(prev => {
-          const filtered = prev.filter(p => p.id !== projectToDelete.id);
+          const filtered = prev.filter((p: any) => p.id !== projectToDelete.id);
           console.log('Updated finished projects list:', filtered.length, 'projects remaining');
           return filtered;
         });
@@ -920,7 +591,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
         console.error('Failed to delete project - service returned false');
         toast.error('Failed to delete project. Please try again.');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting project:', error);
       toast.error('Error deleting project. Please try again.');
     } finally {
@@ -930,160 +601,24 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
     }
   };
 
-  const handleProjectSelect = (projectId: string) => {
-    setSelectedProject(selectedProject === projectId ? null : projectId);
-  };
-
-  const handleSidebarToggle = () => {
-    setSidebarExpanded(!sidebarExpanded);
-  };
-
   // Convert projects to Gantt features
-  const convertProjectToGanttFeature = (project: ProjectWithDetails): GanttFeature => {
-    // Parse dates - Supabase returns ISO strings
-    const startDate = project.start_date ? new Date(project.start_date) : new Date();
-    const endDate = project.end_date ? new Date(project.end_date) : addDays(startDate, 7);
-    
-    console.log('Converting project to Gantt feature:', {
-      projectId: project.id,
-      projectName: project.name,
-      startDate_iso: project.start_date,
-      endDate_iso: project.end_date,
-      startDate_parsed: startDate.toISOString(),
-      endDate_parsed: endDate.toISOString(),
-      status: project.status
-    });
-    
-    return {
-      id: project.id,
-      name: project.name || 'Unnamed Project',
-      startAt: startDate,
-      endAt: endDate,
-      status: {
-        id: project.status || 'planning',
-        name: project.status_info?.name || getStatusName(project.status),
-        color: project.status_info?.color || getStatusColorString(project.status)
-      },
-      lane: project.id  // Use project ID as lane to ensure each project gets its own row
-    };
-  };
 
-  // Handle project date updates from Gantt chart
-  const handleProjectMove = async (projectId: string, startAt: Date, endAt: Date | null) => {
-    try {
-      console.log('Moving project:', { projectId, startAt, endAt });
-      
-      // Find the project to check permissions
-      const project = projects.find(p => p.id === projectId);
-      if (!project) {
-        console.error('Project not found:', projectId);
-        return;
-      }
-      
-      // Check if user can modify this project
-      if (!canUserModifyProject(project)) {
-        console.warn('User does not have permission to modify this project');
-        toast.error('You do not have permission to modify this project. You can only modify projects you are assigned to or are a stakeholder on.');
-        return;
-      }
-      
-      // Update the project in the database
-      const updatedProject = await accountService.updateProject(projectId, {
-        start_date: startAt.toISOString(),
-        end_date: endAt ? endAt.toISOString() : null,
-      });
-
-      if (updatedProject) {
-        // Update local state
-        setProjects(prevProjects => 
-          prevProjects.map(project => 
-            project.id === projectId 
-              ? { 
-                  ...project, 
-                  start_date: startAt.toISOString(),
-                  end_date: endAt ? endAt.toISOString() : null
-                }
-              : project
-          )
-        );
-        console.log('Project dates updated successfully');
-      } else {
-        console.error('Failed to update project dates');
-      }
-    } catch (error) {
-      console.error('Error updating project dates:', error);
-    }
-  };
-
-  // Handle clicking on Gantt chart timeline to create project
-  const handleAddProject = (date: Date) => {
-    console.log('Gantt chart clicked at date for project creation:', date);
-    setProjectDialogStartDate(date);
-    setProjectDialogOpen(true);
-  };
+  // NOTE: Gantt chart handlers removed as Gantt view is deprecated
 
   // Handle project creation
   const handleProjectCreated = (newProject: any) => {
     if (newProject) {
       // Add the new project to local state immediately (optimistic update)
-      const projectWithDetails: ProjectWithDetails = {
+      const projectWithDetails = {
         ...newProject,
         departments: [],
         assigned_users: [],
-        status_info: { id: newProject.status || 'planning', name: 'Planning', color: '#6B7280' },
+        status_info: { id: (newProject.status as string) || 'planning', name: 'Planning', color: '#6B7280' },
         workflow_step: null,
-      };
+      } as unknown as ProjectWithDetails;
       setProjects(prev => [projectWithDetails, ...prev]);
     }
     setProjectDialogOpen(false);
-  };
-
-  // Filter projects for Gantt chart - exclude completed, read-only users only see their assigned projects
-  const activeProjectsOnly = projects.filter(p => p.status !== 'complete');
-  const filteredProjectsForGantt = hasFullAccess
-    ? activeProjectsOnly
-    : activeProjectsOnly.filter(canUserModifyProject);
-  
-  const ganttFeatures: GanttFeature[] = filteredProjectsForGantt.map(convertProjectToGanttFeature);
-  
-  // Function to scroll Gantt chart to today's marker using the same logic as scrollToFeature
-  const scrollToToday = useCallback(() => {
-    setTimeout(() => {
-      // Access the Gantt context's scrollToFeature function if available
-      // For now, we'll create a dummy feature at today's date and scroll to it
-      const todayFeature: GanttFeature = {
-        id: 'today-marker',
-        name: 'Today',
-        startAt: new Date(),
-        endAt: new Date(),
-        status: { id: 'today', name: 'Today', color: '#10B981' },
-        lane: 'today'
-      };
-      
-      // Trigger a custom event that the Gantt component can listen to
-      const event = new CustomEvent('scrollToToday', { detail: todayFeature });
-      window.dispatchEvent(event);
-    }, 100);
-  }, []);
-
-  // NOTE: Gantt view is deprecated - these scroll effects are no longer needed
-  // but keeping the variables to avoid breaking other code that references them
-
-  const handleZoomIn = () => {
-    setGanttZoom(prev => Math.min(prev + 50, 500));
-  };
-
-  const handleZoomOut = () => {
-    setGanttZoom(prev => Math.max(prev - 50, 100));
-  };
-
-  const handleRangeChange = (range: 'daily' | 'monthly' | 'quarterly' | 'yearly') => {
-    setGanttRange(range);
-  };
-
-  const handleCreateMilestone = (date: Date) => {
-    setMilestoneDialogInitialDate(date);
-    setMilestoneDialogOpen(true);
   };
 
   const handleMilestoneSubmit = async (data: {
@@ -1106,22 +641,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       );
       console.log('AccountOverview: Updated milestones array:', updatedMilestones);
       setMilestones(updatedMilestones);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create milestone:', error);
       throw error; // Re-throw to let the dialog handle the error
     }
   };
-
-  const handleRemoveMilestone = async (id: string) => {
-    try {
-      await deleteMilestone(id);
-      setMilestones((prev) => prev.filter((m) => m.id !== id));
-    } catch (error) {
-      console.error('Failed to delete milestone:', error);
-      toast.error('Failed to delete milestone. Please try again.');
-    }
-  };
-
 
   // Helper function to map project status to kanban column
   const getKanbanColumn = (status: string) => {
@@ -1129,7 +653,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
   };
 
   // Convert projects to Kanban format
-  const kanbanData = projects.map(project => {
+  const kanbanData = projects.map((project: any) => {
     // Check if this project has a custom column assignment
     const customColumn = customColumnAssignments[project.id];
     const columnId = customColumn || getKanbanColumn(project.status);
@@ -1139,7 +663,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
       projectStatus: project.status,
       customColumn,
       mappedColumnId: columnId,
-      availableColumns: kanbanColumns.map(c => c.id)
+      availableColumns: kanbanColumns.map((c: any) => c.id)
     });
     
     return {
@@ -1157,26 +681,12 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
 
   console.log('Kanban data:', kanbanData);
   console.log('Kanban columns:', kanbanColumns);
-  console.log('Projects status mapping:', projects.map(p => ({
+  console.log('Projects status mapping:', projects.map((p: any) => ({
     id: p.id,
     name: p.name,
     status: p.status,
     mappedColumn: getKanbanColumn(p.status)
   })));
-
-  // Convert projects to Gantt format
-  const ganttData = projects.map(project => ({
-    id: project.id,
-    name: project.name,
-    startAt: project.start_date ? new Date(project.start_date) : new Date(),
-    endAt: project.end_date ? new Date(project.end_date) : new Date(),
-    status: {
-      id: project.status_info?.id || project.status,
-      name: project.status_info?.name || getStatusName(project.status),
-      color: project.status_info?.color || getStatusColorString(project.status),
-    },
-    lane: project.departments?.[0]?.name || 'General',
-  }));
 
   const getHealthScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
@@ -1199,13 +709,13 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <h1 className="text-4xl font-bold text-foreground">{account.name}</h1>
-                  <Badge variant={account.status === 'active' ? 'default' : 'secondary'} className="text-xs whitespace-nowrap w-fit">
-                    {account.status}
+                  <h1 className="text-4xl font-bold text-foreground">{(account as any).name}</h1>
+                  <Badge variant={(account as any).status === 'active' ? 'default' : 'secondary'} className="text-xs whitespace-nowrap w-fit">
+                    {(account as any).status}
                   </Badge>
                 </div>
                 <p className="text-lg text-muted-foreground leading-relaxed">
-                  {account.description || 'No description provided'}
+                  {(account as any).description || 'No description provided'}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -1246,8 +756,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                   {canCreateProject && (
                     <TaskCreationDialog
                       onTaskCreated={handleTaskCreated}
-                      accountId={account.id}
-                      account={account}
+                      accountId={(account as any).id}
+                      account={account as unknown as Record<string, unknown>}
                       userProfile={userProfile}
                       initialStartDate={projectDialogStartDate}
                     >
@@ -1328,7 +838,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAndSortedProjects.map((project) => (
+                  {filteredAndSortedProjects.map((project:any) => (
                     <tr key={project.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div>
@@ -1358,7 +868,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                         </Badge>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-sm text-gray-600">{account.name}</span>
+                        <span className="text-sm text-gray-600">{(account as any).name}</span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
@@ -1454,7 +964,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
               </div>
             ) : (
               <div className="space-y-3">
-                {activeIssues.map((issue) => (
+                {activeIssues.map((issue:any) => (
                   <div
                     key={issue.id}
                     className={`p-4 border rounded-lg ${
@@ -1550,7 +1060,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
               </div>
             ) : (
               <div className="space-y-4">
-                {urgentItems.map((item, index) => (
+                {urgentItems.map((item:any, index:any) => (
                   <div key={index} className="flex items-center p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className={`h-2 w-2 rounded-full ${item.priority === 'high' ? 'bg-red-500' : 'bg-yellow-500'}`} />
@@ -1647,7 +1157,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
         <CapacityDashboard
           userProfile={userProfile}
           mode="account"
-          accountId={account.id}
+          accountId={(account as any).id}
         />
 
         {/* 6. Finished Projects Card */}
@@ -1669,7 +1179,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {finishedProjects.map((project) => (
+                  {finishedProjects.map((project:any) => (
                     <div
                       key={project.id}
                       className="flex items-center justify-between p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors"
@@ -1737,15 +1247,15 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b">
               <div>
                 <p className="text-sm text-muted-foreground">Primary Contact</p>
-                <p className="text-sm font-medium">{account.primary_contact_name || 'Not specified'}</p>
+                <p className="text-sm font-medium">{(account as any).primary_contact_name || 'Not specified'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="text-sm font-medium">{account.primary_contact_email || 'No email'}</p>
+                <p className="text-sm font-medium">{(account as any).primary_contact_email || 'No email'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Created</p>
-                <p className="text-sm font-medium">{format(new Date(account.created_at), 'MMM dd, yyyy')}</p>
+                <p className="text-sm font-medium">{format(new Date((account as any).created_at), 'MMM dd, yyyy')}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Team Size</p>
@@ -1758,7 +1268,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
               <div className="pt-6">
                 <p className="text-sm font-medium mb-4">Team Members</p>
                 <div className="flex flex-wrap gap-4">
-                  {accountMembers.map((member) => (
+                  {accountMembers.map((member:any) => (
                     member.user && (
                       <div key={member.id} className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
@@ -1771,7 +1281,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                           <p className="text-sm font-medium">{member.user.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {member.user.roles && member.user.roles.length > 0
-                              ? member.user.roles.map(r => r.name).join(', ')
+                              ? member.user.roles.map((r: any) => r.name).join(', ')
                               : 'No role assigned'}
                           </p>
                         </div>
@@ -1805,7 +1315,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
           {projectToDelete && (
             <div className="space-y-3 pt-2">
               <p className="text-sm text-muted-foreground">
-                You are about to delete <span className="font-semibold text-gray-900">"{projectToDelete.name}"</span>.
+                You are about to delete <span className="font-semibold text-gray-900">&quot;{projectToDelete.name}&quot;</span>.
               </p>
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
                 <p className="text-sm text-red-800">
@@ -1838,8 +1348,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
         open={projectDialogOpen}
         onOpenChange={setProjectDialogOpen}
         onTaskCreated={handleProjectCreated}
-        accountId={account.id}
-        account={account}
+        accountId={(account as any).id}
+        account={account as unknown as Record<string, unknown>}
         userProfile={userProfile}
         initialStartDate={projectDialogStartDate}
       >
@@ -1862,7 +1372,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile, ha
                   Move <strong>{projectToMove.name}</strong> to a different status:
                 </p>
                 <div className="grid grid-cols-1 gap-2">
-                  {kanbanColumns.map((column) => {
+                  {kanbanColumns.map((column:any) => {
                     const columnStatus = accountKanbanConfigService.getStatusForKanbanColumn(column.id, kanbanColumns);
                     
                     // Check if this is the current column by looking at custom assignments or status mapping

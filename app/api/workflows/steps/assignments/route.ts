@@ -55,11 +55,11 @@ export async function GET(request: NextRequest) {
 
     // Get role names for entity_ids (for role/approval/department nodes)
     const entityIds = (nodes || [])
-      .map(n => n.entity_id)
+      .map((n: any) => n.entity_id)
       .filter((id): id is string => id !== null);
 
-    let roleNamesMap: Record<string, string> = {};
-    let departmentNamesMap: Record<string, string> = {};
+    const roleNamesMap: Record<string, string> = {};
+    const departmentNamesMap: Record<string, string> = {};
 
     if (entityIds.length > 0) {
       // Get role names
@@ -98,9 +98,13 @@ export async function GET(request: NextRequest) {
         .eq('user_id', targetUserId);
 
       if (userRoles) {
-        targetUserRoleIds = userRoles.map(ur => ur.role_id);
+        targetUserRoleIds = userRoles.map((ur: any) => ur.role_id);
         targetUserDepartmentIds = userRoles
-          .map(ur => (ur.roles as any)?.department_id)
+          .map((ur: any) => {
+            const roles = ur.roles as Record<string, unknown> | Record<string, unknown>[];
+            const role = Array.isArray(roles) ? roles[0] : roles;
+            return role?.department_id;
+          })
           .filter((id): id is string => id !== null);
       }
     }
@@ -128,7 +132,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build a map of node_id -> assignments
-    const assignmentsByNode: Record<string, any[]> = {};
+    const assignmentsByNode: Record<string, Record<string, unknown>[]> = {};
     for (const assignment of assignments || []) {
       if (!assignmentsByNode[assignment.node_id]) {
         assignmentsByNode[assignment.node_id] = [];
@@ -137,7 +141,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Enrich nodes with their assignments and eligibility info
-    const nodesWithAssignments = (nodes || []).map(node => {
+    const nodesWithAssignments = (nodes || []).map((node: any) => {
       // Determine required entity name based on node type
       let requiredEntityName: string | null = null;
       let userEligible = true; // Default to eligible if no entity_id
@@ -161,7 +165,7 @@ export async function GET(request: NextRequest) {
       // Check if user is already assigned to this node
       const existingAssignments = assignmentsByNode[node.id] || [];
       const userAlreadyAssigned = targetUserId
-        ? existingAssignments.some(a => a.user_id === targetUserId)
+        ? existingAssignments.some((a: any) => a.user_id === targetUserId)
         : false;
 
       return {
@@ -177,7 +181,7 @@ export async function GET(request: NextRequest) {
       success: true,
       nodes: nodesWithAssignments,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/steps/assignments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -214,7 +218,7 @@ export async function POST(request: NextRequest) {
     const { data: currentUserProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     const isSuperadmin = currentUserProfile?.is_superadmin === true;
@@ -234,8 +238,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Workflow instance not found' }, { status: 404 });
       }
 
-      const projectCreatedBy = (instance.projects as any)?.created_by;
-      if (projectCreatedBy !== user.id) {
+      const projects = instance.projects as Record<string, unknown> | Record<string, unknown>[];
+      const project = Array.isArray(projects) ? projects[0] : projects;
+      const projectCreatedBy = project?.created_by;
+      if (projectCreatedBy !== (user as any).id) {
         return NextResponse.json(
           { error: 'Only the project creator or superadmins can assign users to workflow nodes' },
           { status: 403 }
@@ -266,7 +272,7 @@ export async function POST(request: NextRequest) {
         workflow_instance_id: workflowInstanceId,
         node_id: nodeId,
         user_id: userId,
-        assigned_by: user.id,
+        assigned_by: (user as any).id,
       })
       .select(`
         id,
@@ -290,7 +296,7 @@ export async function POST(request: NextRequest) {
       success: true,
       assignment,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/workflows/steps/assignments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -330,7 +336,7 @@ export async function DELETE(request: NextRequest) {
     const { data: currentUserProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     const isSuperadmin = currentUserProfile?.is_superadmin === true;
@@ -350,8 +356,10 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'Workflow instance not found' }, { status: 404 });
       }
 
-      const projectCreatedBy = (instance.projects as any)?.created_by;
-      if (projectCreatedBy !== user.id) {
+      const projects = instance.projects as Record<string, unknown> | Record<string, unknown>[];
+      const project = Array.isArray(projects) ? projects[0] : projects;
+      const projectCreatedBy = project?.created_by;
+      if (projectCreatedBy !== (user as any).id) {
         return NextResponse.json(
           { error: 'Only the project creator or superadmins can remove users from workflow nodes' },
           { status: 403 }
@@ -375,7 +383,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       success: true,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/workflows/steps/assignments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

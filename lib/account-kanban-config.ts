@@ -1,3 +1,4 @@
+
 import { createClientSupabase } from './supabase';
 
 export interface KanbanColumn {
@@ -26,7 +27,7 @@ export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
 
 class AccountKanbanConfigService {
   private getSupabase() {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase client not available');
     }
@@ -40,7 +41,7 @@ class AccountKanbanConfigService {
       console.log('Testing database access...');
       
       // Test basic table access
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('account_kanban_configs')
         .select('count')
         .limit(1);
@@ -52,7 +53,7 @@ class AccountKanbanConfigService {
       
       console.log('Database access test successful');
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Exception in database access test:', error);
       return false;
     }
@@ -81,14 +82,14 @@ class AccountKanbanConfigService {
       }
 
       console.log('Successfully loaded kanban config from database:', {
-        id: data.id,
-        account_id: data.account_id,
-        columns: data.columns,
-        columnCount: data.columns?.length || 0
+        id: (data as AccountKanbanConfig).id,
+        account_id: (data as AccountKanbanConfig).account_id,
+        columns: (data as AccountKanbanConfig).columns,
+        columnCount: (data as AccountKanbanConfig).columns?.length || 0
       });
 
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAccountKanbanConfig:', error);
       return null;
     }
@@ -98,12 +99,12 @@ class AccountKanbanConfigService {
     try {
       const supabase = this.getSupabase();
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('account_kanban_configs')
-        .insert({
+        .insert([{
           account_id: accountId,
           columns: columns,
-        })
+        }])
         .select()
         .single();
 
@@ -113,14 +114,14 @@ class AccountKanbanConfigService {
         // 2. A config already exists (duplicate key)
         // We handle this gracefully by using an in-memory fallback config
         console.log('Could not create kanban config in database (using fallback instead):', {
-          code: (error as any).code,
-          reason: (error as any).code === '42501' ? 'RLS policy' : (error as any).code === '23505' ? 'Already exists' : 'Other'
+          code: (error as unknown as Record<string, unknown>).code,
+          reason: (error as unknown as Record<string, unknown>).code === '42501' ? 'RLS policy' : (error as unknown as Record<string, unknown>).code === '23505' ? 'Already exists' : 'Other'
         });
         return null;
       }
 
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in createAccountKanbanConfig:', error);
       return null;
     }
@@ -135,7 +136,7 @@ class AccountKanbanConfigService {
       
       // First, let's try to check if we can read from the table
       console.log('Testing table access...');
-      const { data: testData, error: testError } = await supabase
+      const { error: testError } = await supabase
         .from('account_kanban_configs')
         .select('*')
         .limit(1);
@@ -154,11 +155,12 @@ class AccountKanbanConfigService {
         .eq('account_id', accountId)
         .single();
 
-      let { data, error } = { data: null, error: null };
+      let data: AccountKanbanConfig | null = null;
+      let error = null;
 
       if (existingRecord) {
         console.log('Record exists, updating...');
-        const result = await supabase
+        const result = await (supabase as any)
           .from('account_kanban_configs')
           .update({
             columns: columns,
@@ -167,35 +169,35 @@ class AccountKanbanConfigService {
           .eq('account_id', accountId)
           .select()
           .single();
-        data = result.data;
+        data = result.data as AccountKanbanConfig | null;
         error = result.error;
       } else {
         console.log('No existing record, inserting...');
-        const result = await supabase
+        const result = await (supabase as any)
           .from('account_kanban_configs')
-          .insert({
+          .insert([{
             account_id: accountId,
             columns: columns,
-          })
+          }])
           .select()
           .single();
-        data = result.data;
+        data = result.data as AccountKanbanConfig | null;
         error = result.error;
       }
 
       if (error) {
         console.error('Supabase error updating account kanban config:', {
-          code: (error as any).code,
-          message: (error as any).message,
-          details: (error as any).details,
-          hint: (error as any).hint
+          code: (error as unknown as Record<string, unknown>).code,
+          message: (error as unknown as Record<string, unknown>).message,
+          details: (error as unknown as Record<string, unknown>).details,
+          hint: (error as unknown as Record<string, unknown>).hint
         });
         return null;
       }
 
       console.log('Successfully updated kanban config:', data);
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Exception in updateAccountKanbanConfig:', error);
       return null;
     }
@@ -239,7 +241,7 @@ class AccountKanbanConfigService {
       });
       
       return config;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getOrCreateAccountKanbanConfig:', error);
       // Return fallback config
       return {
@@ -253,7 +255,7 @@ class AccountKanbanConfigService {
   }
 
   // Helper function to map project status to kanban column
-  getKanbanColumnForStatus(status: string, columns: KanbanColumn[], customAssignments?: Record<string, string>): string {
+  getKanbanColumnForStatus(status: string, columns: KanbanColumn[], _customAssignments?: Record<string, string>): string {
     const statusToColumnMap: { [key: string]: string } = {
       'planning': 'planned',
       'in_progress': 'in-progress',
@@ -265,7 +267,7 @@ class AccountKanbanConfigService {
     const defaultColumn = statusToColumnMap[status] || 'planned';
     
     // Check if the mapped column exists in the account's columns
-    const columnExists = columns.some(col => col.id === defaultColumn);
+    const columnExists = columns.some((col: any) => col.id === defaultColumn);
     if (columnExists) {
       return defaultColumn;
     }
@@ -278,7 +280,7 @@ class AccountKanbanConfigService {
   getStatusForKanbanColumn(columnId: string, columns: KanbanColumn[]): string {
     console.log('[KANBAN CONFIG] Mapping column to status:', {
       columnId,
-      columns: columns.map(col => ({ id: col.id, name: col.name }))
+      columns: columns.map((col: any) => ({ id: col.id, name: col.name }))
     });
     
     const columnToStatusMap: { [key: string]: string } = {
@@ -289,7 +291,7 @@ class AccountKanbanConfigService {
     };
     
     // Check if this is a custom column
-    const customColumn = columns.find(col => col.id === columnId);
+    const customColumn = columns.find((col: any) => col.id === columnId);
     console.log('[KANBAN CONFIG] Custom column found:', customColumn);
     
     if (customColumn && !columnToStatusMap[columnId]) {

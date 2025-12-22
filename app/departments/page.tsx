@@ -46,30 +46,27 @@ export default async function DepartmentsPage() {
   // Otherwise, filter by department assignment
   const departments = hasViewAllDepartments 
     ? allDepartments 
-    : allDepartments.filter(dept => 
+    : allDepartments.filter((dept: any) => 
     canViewDepartment(userProfile, dept.id)
   );
 
   // Fetch metrics for all visible departments (in parallel for performance)
-  const metricsPromises = departments.map(dept =>
+  const metricsPromises = departments.map((dept: any) =>
     serverDepartmentService.getDepartmentMetrics(dept.id)
   );
   const metricsResults = await Promise.all(metricsPromises);
 
   // Build the metrics map
   const departmentMetrics = new Map<string, DepartmentMetrics>();
-  metricsResults.forEach((metrics, index) => {
+  metricsResults.forEach((metrics:any, index:any) => {
     if (metrics) {
       departmentMetrics.set(departments[index].id, metrics);
     }
   });
 
-  // Check if user can create departments - specifically check CREATE_DEPARTMENT permission
-  const canCreateDepartments = await hasPermission(userProfile, Permission.CREATE_DEPARTMENT);
-  
-  // Check if user can manage departments (edit/delete) - separate from create
-  const canManageDepartments = await hasPermission(userProfile, Permission.EDIT_DEPARTMENT) ||
-                                await hasPermission(userProfile, Permission.DELETE_DEPARTMENT);
+  // Check if user can manage departments (create/edit/delete) - consolidated permission
+  const canManageDepartments = await hasPermission(userProfile, Permission.MANAGE_DEPARTMENTS);
+  const canCreateDepartments = canManageDepartments; // Create is part of manage
 
   return (
     <div className="container mx-auto p-6 space-y-6">

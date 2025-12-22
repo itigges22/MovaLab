@@ -11,7 +11,7 @@ export async function POST(
     const { roleId } = await params;
     
     // Check authentication and permission
-    const userProfile = await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    const userProfile = await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -92,7 +92,7 @@ export async function POST(
       .insert({
         user_id: userId,
         role_id: fallbackRole.id,
-        assigned_by: userProfile.id,
+        assigned_by: (userProfile as any).id,
         assigned_at: new Date().toISOString()
       });
 
@@ -109,7 +109,7 @@ export async function POST(
       success: true,
       message: `${targetUser.name} removed from ${role.name} and assigned to ${fallbackRole.name}`
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

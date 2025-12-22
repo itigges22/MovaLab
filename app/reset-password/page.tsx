@@ -26,7 +26,7 @@ function ResetPasswordForm() {
   const [message, setMessage] = useState('')
   
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const _searchParams = useSearchParams()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,9 +54,10 @@ function ResetPasswordForm() {
       setTimeout(() => {
         router.push('/login')
       }, 2000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password update error:', error)
-      setError(error.message || 'Failed to update password. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update password. Please try again.'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

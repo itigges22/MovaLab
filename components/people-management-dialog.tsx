@@ -1,5 +1,6 @@
 'use client';
 import { toast } from 'sonner';
+import Image from 'next/image';
 
 import { useState, useEffect } from 'react';
 import {
@@ -45,7 +46,7 @@ export default function PeopleManagementDialog({
     try {
       const peopleData = await supabaseTaskService.getUsers();
       setPeople(peopleData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading people:', error);
     }
   };
@@ -68,7 +69,7 @@ export default function PeopleManagementDialog({
         setNewPersonName('');
         setNewPersonImage('');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating person:', error);
     } finally {
       setLoading(false);
@@ -89,10 +90,10 @@ export default function PeopleManagementDialog({
     try {
       const success = await supabaseTaskService.deleteUser(personId);
       if (success) {
-        setPeople(prev => prev.filter(person => person.id !== personId));
+        setPeople(prev => prev.filter((person: any) => person.id !== personId));
         onPersonDeleted?.(personId);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting person:', error);
     }
   };
@@ -157,7 +158,7 @@ export default function PeopleManagementDialog({
                   No people added yet. Add your first team member above.
                 </div>
               ) : (
-                people.map((person) => {
+                people.map((person:any) => {
                   const isDefaultUser = person.id === 'default-user';
                   return (
                     <div
@@ -167,14 +168,13 @@ export default function PeopleManagementDialog({
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full overflow-hidden bg-muted">
-                          <img
-                            src={person.image}
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-muted relative">
+                          <Image
+                            src={person.image || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face'}
                             alt={person.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face';
-                            }}
+                            width={32}
+                            height={32}
+                            className="object-cover"
                           />
                         </div>
                         <div className="flex flex-col">

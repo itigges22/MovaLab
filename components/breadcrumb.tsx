@@ -20,7 +20,7 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items, className }: BreadcrumbProps) {
   const pathname = usePathname()
-  const [departmentNames, setDepartmentNames] = useState<Map<string, string>>(new Map())
+  const [departmentNames, setDepartmentNames] = useState<Map<string, string>>(new Map<string, string>())
   const [projectAccountInfo, setProjectAccountInfo] = useState<{ accountId: string; accountName: string } | null>(null)
 
   // Check if a segment is a UUID (department ID, account ID, or project ID)
@@ -37,7 +37,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       
       // Fetch department names if in department path
       if (pathname.includes('/departments/')) {
-        const departmentIds = pathSegments.filter(segment => isUUID(segment))
+        const departmentIds = pathSegments.filter((segment: any) => isUUID(segment))
         console.log('Breadcrumb: Processing department IDs:', departmentIds)
         for (const id of departmentIds) {
           try {
@@ -49,7 +49,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
             } else {
               console.warn(`Department not found for ID: ${id}`)
             }
-          } catch (error) {
+          } catch (error: unknown) {
             console.error(`Error fetching department ${id}:`, error)
             // Continue with other departments instead of failing completely
           }
@@ -72,12 +72,13 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
                 .eq('id', projectId)
                 .single()
               if (data) {
-                names.set(projectId, data.name)
+                const projectData = data as unknown as { name: string; account_id: string; accounts: { name: string } | null }
+                names.set(projectId, projectData.name)
                 // Store account info for breadcrumb replacement
-                if (data.account_id && data.accounts) {
+                if (projectData.account_id && projectData.accounts) {
                   setProjectAccountInfo({
-                    accountId: data.account_id,
-                    accountName: (data.accounts as any).name
+                    accountId: projectData.account_id,
+                    accountName: projectData.accounts.name
                   })
                 }
               }
@@ -102,7 +103,8 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
                 .eq('id', accountId)
                 .single()
               if (data) {
-                names.set(accountId, data.name)
+                const accountData = data as unknown as { name: string }
+                names.set(accountId, accountData.name)
               }
             }
           }
@@ -130,7 +132,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
 
     // Build breadcrumbs from path segments
     let currentPath = ''
-    pathSegments.forEach((segment, index) => {
+    pathSegments.forEach((segment:any, index:any) => {
       currentPath += `/${segment}`
 
       // Skip if it's the dashboard segment (already added)
@@ -163,7 +165,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       } else {
         label = segment
           .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .map((word: any) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ')
       }
 
@@ -193,7 +195,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
         <span className="sr-only">Home</span>
       </Link>
       
-      {breadcrumbItems.slice(1).map((item, index) => (
+      {breadcrumbItems.slice(1).map((item:any, index:any) => (
         <div key={index} className="flex items-center space-x-1">
           <ChevronRight className="w-4 h-4 text-gray-400" />
           {item.current ? (
@@ -226,7 +228,7 @@ export function createBreadcrumbs(
   ]
 
   let currentPath = basePath
-  segments.forEach((segment, index) => {
+  segments.forEach((segment:any, index:any) => {
     if (segment.href) {
       currentPath = segment.href
     } else {

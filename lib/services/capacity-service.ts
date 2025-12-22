@@ -5,7 +5,7 @@
 
 import { createClientSupabase } from '../supabase';
 import { availabilityService } from './availability-service';
-import { SupabaseClient } from '@supabase/supabase-js';
+
 
 export interface UserCapacityMetrics {
   userId: string;
@@ -62,9 +62,9 @@ class CapacityService {
   async getUserCapacityMetrics(
     userId: string,
     weekStartDate: string,
-    supabaseClient?: SupabaseClient
+    supabaseClient?: any
   ): Promise<UserCapacityMetrics | null> {
-    const supabase = supabaseClient || createClientSupabase();
+    const supabase = supabaseClient || createClientSupabase() as any;
     if (!supabase) return null;
 
     // OPTIMIZATION: Calculate week end date once
@@ -197,9 +197,9 @@ class CapacityService {
     const remainingCapacity = availableHours - actualHours;
 
     return {
-      userId: userProfile.id,
-      userName: userProfile.name || 'Unknown',
-      userEmail: userProfile.email || '',
+      userId: (userProfile as any).id,
+      userName: (userProfile as any).name || 'Unknown',
+      userEmail: (userProfile as any).email || '',
       weekStartDate,
       availableHours,
       allocatedHours,
@@ -215,9 +215,9 @@ class CapacityService {
   async getDepartmentCapacityMetrics(
     departmentId: string,
     weekStartDate: string,
-    supabaseClient?: SupabaseClient
+    supabaseClient?: any
   ): Promise<DepartmentCapacityMetrics | null> {
-    const supabase = supabaseClient || createClientSupabase();
+    const supabase = supabaseClient || createClientSupabase() as any;
     if (!supabase) return null;
 
     // OPTIMIZATION: Parallelize department info and user roles queries
@@ -288,9 +288,9 @@ class CapacityService {
   async getProjectCapacityMetrics(
     projectId: string,
     weekStartDate: string,
-    supabaseClient?: SupabaseClient
+    supabaseClient?: any
   ): Promise<ProjectCapacityMetrics | null> {
-    const supabase = supabaseClient || createClientSupabase();
+    const supabase = supabaseClient || createClientSupabase() as any;
     if (!supabase) return null;
 
     // OPTIMIZATION: Calculate week end date once
@@ -387,8 +387,8 @@ class CapacityService {
   /**
    * Get organization-wide capacity metrics for a specific week
    */
-  async getOrgCapacityMetrics(weekStartDate: string, supabaseClient?: SupabaseClient): Promise<OrgCapacityMetrics | null> {
-    const supabase = supabaseClient || createClientSupabase();
+  async getOrgCapacityMetrics(weekStartDate: string, supabaseClient?: any): Promise<OrgCapacityMetrics | null> {
+    const supabase = supabaseClient || createClientSupabase() as any;
     if (!supabase) return null;
 
     // Get all departments
@@ -450,12 +450,12 @@ class CapacityService {
       weeks.push(availabilityService.getWeekStartDate(weekDate));
     }
 
-    const metricsPromises = weeks.map(week =>
+    const metricsPromises = weeks.map((week: any) =>
       this.getUserCapacityMetrics(userId, week)
     );
 
     const metrics = await Promise.all(metricsPromises);
-    return metrics.filter(m => m !== null) as UserCapacityMetrics[];
+    return metrics.filter((m: any) => m !== null) as UserCapacityMetrics[];
   }
 
   /**
@@ -474,12 +474,12 @@ class CapacityService {
       weeks.push(availabilityService.getWeekStartDate(weekDate));
     }
 
-    const metricsPromises = weeks.map(week =>
+    const metricsPromises = weeks.map((week: any) =>
       this.getDepartmentCapacityMetrics(departmentId, week)
     );
 
     const metrics = await Promise.all(metricsPromises);
-    return metrics.filter(m => m !== null) as DepartmentCapacityMetrics[];
+    return metrics.filter((m: any) => m !== null) as DepartmentCapacityMetrics[];
   }
 }
 

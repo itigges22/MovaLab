@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform to include user_count as a simple number
-    const rolesWithCounts = (roles || []).map(role => ({
+    const rolesWithCounts = (roles || []).map((role: any) => ({
       id: role.id,
       name: role.name,
       department_id: role.department_id,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ success: true, roles: rolesWithCounts }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/org-structure/roles:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

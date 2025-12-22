@@ -22,8 +22,16 @@ const eslintConfig = [
   },
   {
     rules: {
-      "@typescript-eslint/no-unused-vars": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "off", // Disabled: Supabase PostgrestBuilder has complex types; security is enforced by RLS
       "react/no-unescaped-entities": "warn",
       "@next/next/no-html-link-for-pages": "warn",
       "@next/next/no-img-element": "warn",

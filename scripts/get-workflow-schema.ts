@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Get Workflow Table Schemas
  *

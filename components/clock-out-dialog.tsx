@@ -50,7 +50,6 @@ interface ClockOutDialogProps {
 export function ClockOutDialog({
   open,
   onOpenChange,
-  session,
   elapsedSeconds,
   onComplete
 }: ClockOutDialogProps) {
@@ -85,12 +84,12 @@ export function ClockOutDialog({
         }])
       }
     }
-  }, [open])
+  }, [open, allocations.length, elapsedHours])
 
   const loadProjects = async () => {
     setLoading(true)
     try {
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (!supabase) return
 
       // Get user's assigned projects
@@ -113,7 +112,7 @@ export function ClockOutDialog({
             completed_at
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', (user as any).id)
         .is('removed_at', null)
 
       if (assignmentsError) {
@@ -122,10 +121,11 @@ export function ClockOutDialog({
 
       if (assignments && assignments.length > 0) {
         assignments.forEach((a: any) => {
-          if (a.projects && a.projects.status !== 'complete') {
-            projectMap.set(a.projects.id, {
-              id: a.projects.id,
-              name: a.projects.name
+          const project = a.projects as Record<string, unknown> | null | undefined
+          if (project && (project.status as string) !== 'complete') {
+            projectMap.set(project.id as string, {
+              id: project.id as string,
+              name: project.name as string
             })
           }
         })
@@ -144,7 +144,7 @@ export function ClockOutDialog({
             completed_at
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', (user as any).id)
 
       if (contributionsError) {
         console.error('Error fetching project contributions:', contributionsError)
@@ -152,21 +152,22 @@ export function ClockOutDialog({
 
       if (contributions && contributions.length > 0) {
         contributions.forEach((c: any) => {
-          if (c.projects) {
+          const project = c.projects as Record<string, unknown> | null | undefined
+          if (project) {
             // Include active projects the user has contributed to
-            if (c.projects.status !== 'complete') {
-              projectMap.set(c.projects.id, {
-                id: c.projects.id,
-                name: c.projects.name
+            if ((project.status as string) !== 'complete') {
+              projectMap.set(project.id as string, {
+                id: project.id as string,
+                name: project.name as string
               })
             }
             // Include completed projects within 1-hour grace period
-            else if (c.projects.completed_at) {
-              const completedAt = new Date(c.projects.completed_at)
+            else if (project.completed_at) {
+              const completedAt = new Date(project.completed_at as string)
               if (completedAt > oneHourAgo) {
-                projectMap.set(c.projects.id, {
-                  id: c.projects.id,
-                  name: `${c.projects.name} (Completed - grace period)`
+                projectMap.set(project.id as string, {
+                  id: project.id as string,
+                  name: `${project.name as string} (Completed - grace period)`
                 })
               }
             }
@@ -182,8 +183,8 @@ export function ClockOutDialog({
 
       // Get ALL tasks from projects the user can log time to
       const projectIds = projectList
-        .filter(p => p.id !== 'other')
-        .map(p => p.id)
+        .filter((p: any) => p.id !== 'other')
+        .map((p: any) => p.id)
 
       if (projectIds.length > 0) {
         const { data: projectTasks, error: tasksError } = await supabase
@@ -200,7 +201,7 @@ export function ClockOutDialog({
           setTasks(projectTasks)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading projects:', error)
     } finally {
       setLoading(false)
@@ -227,12 +228,12 @@ export function ClockOutDialog({
       toast.error('At least one allocation is required')
       return
     }
-    setAllocations(allocations.filter(a => a.id !== id))
+    setAllocations(allocations.filter((a: any) => a.id !== id))
   }
 
   // Update allocation
-  const updateAllocation = (id: string, field: keyof TimeAllocation, value: any) => {
-    setAllocations(allocations.map(a => {
+  const updateAllocation = (id: string, field: keyof TimeAllocation, value: string | number) => {
+    setAllocations(allocations.map((a: any) => {
       if (a.id === id) {
         const updated = { ...a, [field]: value }
         // Reset task if project changes
@@ -247,13 +248,13 @@ export function ClockOutDialog({
 
   // Get tasks for a specific project
   const getProjectTasks = (projectId: string) => {
-    return tasks.filter(t => t.project_id === projectId)
+    return tasks.filter((t: any) => t.project_id === projectId)
   }
 
   // Handle submit
   const handleSubmit = async () => {
     // Validate allocations
-    const validAllocations = allocations.filter(a => a.projectId && a.hours > 0)
+    const validAllocations = allocations.filter((a: any) => a.projectId && a.hours > 0)
     if (validAllocations.length === 0) {
       toast.error('Please add at least one time allocation')
       return
@@ -273,7 +274,7 @@ export function ClockOutDialog({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          allocations: validAllocations.map(a => ({
+          allocations: validAllocations.map((a: any) => ({
             projectId: a.projectId === 'other' ? null : a.projectId,
             taskId: (a.taskId && a.taskId !== 'none') ? a.taskId : null,
             hours: a.hours,
@@ -291,7 +292,7 @@ export function ClockOutDialog({
       } else {
         toast.error(data.error || 'Failed to clock out')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error clocking out:', error)
       toast.error('Failed to clock out')
     } finally {
@@ -316,7 +317,7 @@ export function ClockOutDialog({
       } else {
         toast.error(data.error || 'Failed to clock out')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error clocking out:', error)
       toast.error('Failed to clock out')
     } finally {
@@ -333,14 +334,14 @@ export function ClockOutDialog({
             Clock Out - Allocate Time
           </DialogTitle>
           <DialogDescription>
-            You've been clocked in for <strong>{formattedElapsed}</strong> ({elapsedHours.toFixed(2)} hours).
+            You&apos;ve been clocked in for <strong>{formattedElapsed}</strong> ({elapsedHours.toFixed(2)} hours).
             Allocate your time to projects and tasks.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Allocations */}
-          {allocations.map((allocation, index) => (
+          {allocations.map((allocation:any, index:any) => (
             <div key={allocation.id} className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Allocation {index + 1}</span>
@@ -366,7 +367,7 @@ export function ClockOutDialog({
                       <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects.map(project => (
+                      {projects.map((project: any) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
                         </SelectItem>
@@ -388,7 +389,7 @@ export function ClockOutDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No specific task</SelectItem>
-                      {getProjectTasks(allocation.projectId).map(task => (
+                      {getProjectTasks(allocation.projectId).map((task: any) => (
                         <SelectItem key={task.id} value={task.id}>
                           {task.name}
                         </SelectItem>

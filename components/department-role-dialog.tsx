@@ -14,15 +14,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusIcon, EditIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import { createClientSupabase } from '@/lib/supabase';
+
 
 interface Role {
   id: string;
   name: string;
   description: string | null;
   department_id: string;
-  permissions: any;
+  permissions: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -65,7 +66,7 @@ export default function DepartmentRoleDialog({
   useEffect(() => {
     if (open) {
       if (mode === 'edit' && existingRole) {
-        const existingPermissions = existingRole.permissions || {};
+        const existingPermissions = existingRole.permissions as Record<string, boolean> || {};
         setFormData({
           name: existingRole.name,
           permissions: {
@@ -100,14 +101,14 @@ export default function DepartmentRoleDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }
 
       // Check current user and their permissions
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id, userError);
+      console.log('Current user:', (user as any)?.id, userError);
       
       if (userError) {
         console.error('Error getting user:', userError);
@@ -123,8 +124,8 @@ export default function DepartmentRoleDialog({
         };
         
         console.log('Creating role with data:', insertData);
-        
-        const { data, error } = await supabase
+
+        const { data, error } = await (supabase as any)
           .from('roles')
           .insert(insertData)
           .select()
@@ -151,8 +152,8 @@ export default function DepartmentRoleDialog({
         
         console.log('Updating role with data:', updateData);
         console.log('Role ID:', existingRole.id);
-        
-        const { data, error } = await supabase
+
+        const { data, error } = await (supabase as any)
           .from('roles')
           .update(updateData)
           .eq('id', existingRole.id)
@@ -175,7 +176,7 @@ export default function DepartmentRoleDialog({
       }
 
       setOpen(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in handleSubmit:', {
         error,
         message: error instanceof Error ? error.message : 'Unknown error',

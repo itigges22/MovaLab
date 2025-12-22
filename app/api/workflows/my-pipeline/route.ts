@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Only filter by user if not superadmin
     if (!isSuperadmin) {
-      query = query.eq('user_id', user.id);
+      query = query.eq('user_id', (user as any).id);
     }
 
     const { data: nodeAssignments, error: assignmentError } = await query;
@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get currently active steps for these workflow instances
-    const instanceIds = [...new Set(nodeAssignments?.map(na => na.workflow_instance_id) || [])];
+    const instanceIds = [...new Set(nodeAssignments?.map((na: any) => na.workflow_instance_id) || [])];
 
-    let activeStepsMap: Record<string, string[]> = {};
+    const activeStepsMap: Record<string, string[]> = {};
 
     if (instanceIds.length > 0) {
       const { data: activeSteps } = await supabase
@@ -108,11 +108,13 @@ export async function GET(request: NextRequest) {
     for (const assignment of nodeAssignments || []) {
       const instanceId = assignment.workflow_instance_id;
       const nodeId = assignment.node_id;
-      const instance = assignment.workflow_instances as any;
-      const project = instance?.projects;
+      const instances = assignment.workflow_instances as Record<string, unknown> | Record<string, unknown>[];
+      const instance = Array.isArray(instances) ? instances[0] : instances;
+      const projects = instance?.projects as Record<string, unknown> | Record<string, unknown>[] | undefined;
+      const project = projects ? (Array.isArray(projects) ? projects[0] : projects) : undefined;
 
       // Skip if workflow is not active or project is complete
-      if (instance?.status !== 'active' || project?.status === 'complete') {
+      if ((instance?.status as string) !== 'active' || (project?.status as string) === 'complete') {
         continue;
       }
 
@@ -123,13 +125,13 @@ export async function GET(request: NextRequest) {
       // If the node is NOT currently active, it's in the pipeline
       // For superadmins, we allow multiple entries per project (one per assigned user)
       // For regular users, we dedupe by project
-      const projectKey = isSuperadmin
+      const projectKey = project && isSuperadmin
         ? `${project.id}-${assignment.user_id}`
-        : project.id;
+        : (project?.id as string);
 
-      if (!isCurrentlyActive && project && !processedProjectIds.has(projectKey)) {
+      if (!isCurrentlyActive && project && !processedProjectIds.has(projectKey as string)) {
         processedProjectIds.add(projectKey);
-        const assignedUser = (assignment as any).user_profiles;
+        const assignedUser = (assignment as Record<string, unknown>).user_profiles;
         pipelineProjects.push({
           id: project.id,
           name: project.name,
@@ -140,16 +142,24 @@ export async function GET(request: NextRequest) {
           account: project.accounts,
           assigned_step: {
             nodeId: assignment.node_id,
-            nodeName: (assignment.workflow_nodes as any)?.label || 'Unknown Step',
-            nodeType: (assignment.workflow_nodes as any)?.node_type || 'role'
+            nodeName: (() => {
+              const workflowNodes = assignment.workflow_nodes as Record<string, unknown> | Record<string, unknown>[];
+              const node = Array.isArray(workflowNodes) ? workflowNodes[0] : workflowNodes;
+              return (node?.label as string) || 'Unknown Step';
+            })(),
+            nodeType: (() => {
+              const workflowNodes = assignment.workflow_nodes as Record<string, unknown> | Record<string, unknown>[];
+              const node = Array.isArray(workflowNodes) ? workflowNodes[0] : workflowNodes;
+              return (node?.node_type as string) || 'role';
+            })()
           },
           assigned_at: assignment.assigned_at,
           workflow_instance_id: instanceId,
           // Include assigned user info for superadmins
           assigned_user: isSuperadmin && assignedUser ? {
-            id: assignedUser.id,
-            name: assignedUser.name,
-            email: assignedUser.email
+            id: (assignedUser as Record<string, unknown>).id,
+            name: (assignedUser as Record<string, unknown>).name,
+            email: (assignedUser as Record<string, unknown>).email
           } : undefined
         });
       }
@@ -159,7 +169,7 @@ export async function GET(request: NextRequest) {
       success: true,
       projects: pipelineProjects
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/my-pipeline:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -74,7 +74,7 @@ export default function MilestoneCreationDialog({
       } else {
         console.error('Failed to create milestone - no result returned');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating milestone:', error);
     } finally {
       setLoading(false);
@@ -124,7 +124,7 @@ export default function MilestoneCreationDialog({
             <div className="grid gap-2">
               <Label>Color</Label>
               <div className="grid grid-cols-4 gap-2">
-                {milestoneColors.map((color) => (
+                {milestoneColors.map((color:any) => (
                   <button
                     key={color.value}
                     type="button"

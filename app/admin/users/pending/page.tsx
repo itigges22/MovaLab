@@ -56,8 +56,8 @@ export default function PendingUsersPage() {
     }
 
     async function checkPermissions() {
-      // Check if user has permission to approve users (via ASSIGN_USERS_TO_ROLES)
-      const canApprove = await hasPermission(userProfile, Permission.ASSIGN_USERS_TO_ROLES);
+      // Check if user has permission to approve users (via MANAGE_USER_ROLES)
+      const canApprove = await hasPermission(userProfile, Permission.MANAGE_USER_ROLES);
       if (!canApprove) {
         router.push('/welcome');
         return;
@@ -84,7 +84,7 @@ export default function PendingUsersPage() {
         action: 'loadPendingUsers',
         count: users.length
       });
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Error loading pending users', { action: 'loadPendingUsers' }, err as Error);
       setError('Failed to load pending users');
     } finally {
@@ -101,7 +101,7 @@ export default function PendingUsersPage() {
         action: 'loadStats',
         ...statsData
       });
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Error loading approval stats', { action: 'loadStats' }, err as Error);
     }
   };
@@ -112,13 +112,13 @@ export default function PendingUsersPage() {
     try {
       setProcessingUsers(prev => new Set(prev).add(userId));
       
-      logger.info('Approving user', { action: 'handleApproveUser', userId, approvedBy: userProfile.id });
+      logger.info('Approving user', { action: 'handleApproveUser', userId, approvedBy: (userProfile as any).id });
       
-      const success = await userApprovalService.approveUser(userId, userProfile.id, 'Approved via admin panel');
+      const success = await userApprovalService.approveUser(userId, (userProfile as any).id, 'Approved via admin panel');
       
       if (success) {
         // Remove from pending list
-        setPendingUsers(prev => prev.filter(user => user.id !== userId));
+        setPendingUsers(prev => prev.filter((user: any) => (user as any).id !== userId));
         setSelectedUsers(prev => {
           const newSet = new Set(prev);
           newSet.delete(userId);
@@ -128,12 +128,12 @@ export default function PendingUsersPage() {
         // Reload stats
         await loadStats();
         
-        userAction('approved', userId, { action: 'handleApproveUser', approvedBy: userProfile.id });
+        userAction('approved', userId, { action: 'handleApproveUser', approvedBy: (userProfile as any).id });
         logger.info('User approved successfully', { action: 'handleApproveUser', userId });
       } else {
         setError('Failed to approve user');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Error approving user', { action: 'handleApproveUser', userId }, err as Error);
       setError('Failed to approve user');
     } finally {
@@ -151,13 +151,13 @@ export default function PendingUsersPage() {
     try {
       setProcessingUsers(prev => new Set(prev).add(userId));
       
-      logger.info('Rejecting user', { action: 'handleRejectUser', userId, rejectedBy: userProfile.id });
+      logger.info('Rejecting user', { action: 'handleRejectUser', userId, rejectedBy: (userProfile as any).id });
       
-      const success = await userApprovalService.rejectUser(userId, userProfile.id, 'Rejected via admin panel');
+      const success = await userApprovalService.rejectUser(userId, (userProfile as any).id, 'Rejected via admin panel');
       
       if (success) {
         // Remove from pending list
-        setPendingUsers(prev => prev.filter(user => user.id !== userId));
+        setPendingUsers(prev => prev.filter((user: any) => (user as any).id !== userId));
         setSelectedUsers(prev => {
           const newSet = new Set(prev);
           newSet.delete(userId);
@@ -167,12 +167,12 @@ export default function PendingUsersPage() {
         // Reload stats
         await loadStats();
         
-        userAction('rejected', userId, { action: 'handleRejectUser', rejectedBy: userProfile.id });
+        userAction('rejected', userId, { action: 'handleRejectUser', rejectedBy: (userProfile as any).id });
         logger.info('User rejected successfully', { action: 'handleRejectUser', userId });
       } else {
         setError('Failed to reject user');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Error rejecting user', { action: 'handleRejectUser', userId }, err as Error);
       setError('Failed to reject user');
     } finally {
@@ -190,23 +190,23 @@ export default function PendingUsersPage() {
     try {
       const userIds = Array.from(selectedUsers);
       
-      batchStart('bulk_approve', userIds.length, { action: 'handleBulkApprove', approvedBy: userProfile.id });
+      batchStart('bulk_approve', userIds.length, { action: 'handleBulkApprove', approvedBy: (userProfile as any).id });
       
       logger.info('Starting bulk approval', { 
         action: 'handleBulkApprove', 
         count: userIds.length,
-        approvedBy: userProfile.id
+        approvedBy: (userProfile as any).id
       });
       
       const results = await userApprovalService.bulkApproveUsers(
         userIds, 
-        userProfile.id, 
+        (userProfile as any).id, 
         'Bulk approved via admin panel'
       );
       
       if (results.successful.length > 0) {
         // Remove successful approvals from pending list
-        setPendingUsers(prev => prev.filter(user => !results.successful.includes(user.id)));
+        setPendingUsers(prev => prev.filter((user: any) => !results.successful.includes((user as any).id)));
         setSelectedUsers(new Set());
         await loadStats();
         
@@ -230,7 +230,7 @@ export default function PendingUsersPage() {
         });
         setError(`Failed to approve ${results.failed.length} users`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       batchError('bulk_approve', err as Error, { action: 'handleBulkApprove' });
       logger.error('Error in bulk approval', { action: 'handleBulkApprove' }, err as Error);
       setError('Failed to approve users');
@@ -253,7 +253,7 @@ export default function PendingUsersPage() {
     if (selectedUsers.size === pendingUsers.length) {
       setSelectedUsers(new Set());
     } else {
-      setSelectedUsers(new Set(pendingUsers.map(user => user.id)));
+      setSelectedUsers(new Set(pendingUsers.map((user: any) => (user as any).id)));
     }
   };
 
@@ -417,24 +417,24 @@ export default function PendingUsersPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {pendingUsers.map((user) => (
-            <Card key={user.id}>
+          {pendingUsers.map((user:any) => (
+            <Card key={(user as any).id}>
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={user.image || undefined} />
+                    <AvatarImage src={(user as any).image || undefined} />
                     <AvatarFallback>
-                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {(user as any).name.split(' ').map((n: any) => n[0]).join('').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-lg">{user.name}</h3>
+                        <h3 className="font-semibold text-lg">{(user as any).name}</h3>
                         <div className="flex items-center gap-2 mt-1">
                           <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{user.email}</span>
+                          <span className="text-sm text-muted-foreground">{(user as any).email}</span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -443,13 +443,13 @@ export default function PendingUsersPage() {
                           </span>
                         </div>
                         
-                        {user.bio && (
-                          <p className="text-sm text-muted-foreground mt-2">{user.bio}</p>
+                        {(user as any).bio && (
+                          <p className="text-sm text-muted-foreground mt-2">{(user as any).bio}</p>
                         )}
                         
-                        {user.skills && user.skills.length > 0 && (
+                        {(user as any).skills && (user as any).skills.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {user.skills.map((skill, index) => (
+                            {(user as any).skills.map((skill:any, index:any) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {skill}
                               </Badge>
@@ -461,8 +461,8 @@ export default function PendingUsersPage() {
                       <div className="flex items-center gap-2 ml-4">
                         <input
                           type="checkbox"
-                          checked={selectedUsers.has(user.id)}
-                          onChange={() => handleSelectUser(user.id)}
+                          checked={selectedUsers.has((user as any).id)}
+                          onChange={() => handleSelectUser((user as any).id)}
                           className="rounded"
                         />
                       </div>
@@ -470,12 +470,12 @@ export default function PendingUsersPage() {
                     
                     <div className="flex items-center gap-2 mt-4">
                       <Button
-                        onClick={() => handleApproveUser(user.id)}
-                        disabled={processingUsers.has(user.id)}
+                        onClick={() => handleApproveUser((user as any).id)}
+                        disabled={processingUsers.has((user as any).id)}
                         className="flex items-center gap-2"
                         size="sm"
                       >
-                        {processingUsers.has(user.id) ? (
+                        {processingUsers.has((user as any).id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <UserCheck className="h-4 w-4" />
@@ -484,13 +484,13 @@ export default function PendingUsersPage() {
                       </Button>
                       
                       <Button
-                        onClick={() => handleRejectUser(user.id)}
-                        disabled={processingUsers.has(user.id)}
+                        onClick={() => handleRejectUser((user as any).id)}
+                        disabled={processingUsers.has((user as any).id)}
                         variant="destructive"
                         className="flex items-center gap-2"
                         size="sm"
                       >
-                        {processingUsers.has(user.id) ? (
+                        {processingUsers.has((user as any).id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <UserX className="h-4 w-4" />

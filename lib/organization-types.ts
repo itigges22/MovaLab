@@ -17,7 +17,7 @@ export interface User {
   workload_sentiment: string;
   created_at: string;
   updated_at: string;
-  user_roles: any[];
+  user_roles: Record<string, unknown>[];
 }
 
 export interface Role {
@@ -27,7 +27,7 @@ export interface Role {
   department_id: string;
   hierarchy_level: number;
   is_system_role: boolean;
-  permissions: Record<string, any>;
+  permissions: Record<string, Record<string, unknown>>;
   created_at: string;
   updated_at: string;
 }

@@ -1,3 +1,4 @@
+
 import { notFound } from 'next/navigation';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { accountService } from '@/lib/account-service';
@@ -30,11 +31,21 @@ export default async function AccountPage({ params }: AccountPageProps) {
 
   // Create server-side Supabase client with auth
   const supabase = await createServerSupabase();
+  if (!supabase) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Database Error</h1>
+          <p className="text-gray-600 mt-2">Unable to connect to database.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Check if user has access to this specific account using permission checks
   const hasAllAccountsPermission = await hasPermission(userProfile, Permission.VIEW_ALL_ACCOUNTS);
   const hasAccountPermission = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS, { accountId });
-  const hasAccountAccessViaService = await accountService.canUserAccessAccount(userProfile.id, accountId, supabase);
+  const hasAccountAccessViaService = await accountService.canUserAccessAccount((userProfile as any).id, accountId, supabase);
   
   const hasAccountAccess = hasAllAccountsPermission || hasAccountPermission || hasAccountAccessViaService;
 
@@ -51,32 +62,33 @@ export default async function AccountPage({ params }: AccountPageProps) {
 
   // Check if user has FULL access (can edit) or READ-ONLY access (project stakeholder only)
   // Full access is granted if:
-  // 1. User has EDIT_ACCOUNT permission for this account, OR
-  // 2. User has VIEW_ALL_ACCOUNTS + EDIT_ACCOUNT permissions (override), OR
+  // 1. User has MANAGE_ACCOUNTS permission for this account (consolidated from EDIT_ACCOUNT), OR
+  // 2. User has VIEW_ALL_ACCOUNTS + MANAGE_ACCOUNTS permissions (override), OR
   // 3. User is account manager, OR
-  // 4. User has EDIT_ALL_PROJECTS permission (can edit all projects = full account access)
-  const [canEditAccount, hasViewAllAccounts, hasEditAllProjects, hasFullAccessViaService] = await Promise.all([
-    hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId }),
+  // 4. User has MANAGE_ALL_PROJECTS permission (can manage all projects = full account access)
+  const [canEditAccount, hasViewAllAccounts, hasManageAllProjects, hasFullAccessViaService] = await Promise.all([
+    hasPermission(userProfile, Permission.MANAGE_ACCOUNTS, { accountId }),
     hasPermission(userProfile, Permission.VIEW_ALL_ACCOUNTS),
-    hasPermission(userProfile, Permission.EDIT_ALL_PROJECTS),
-    accountService.hasFullAccountAccess(userProfile.id, accountId, supabase)
+    hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS),
+    accountService.hasFullAccountAccess((userProfile as any).id, accountId, supabase)
   ]);
-  
-  // If user has VIEW_ALL_ACCOUNTS, also check if they have base EDIT_ACCOUNT permission
-  const hasBaseEditAccount = hasViewAllAccounts ? await hasPermission(userProfile, Permission.EDIT_ACCOUNT) : false;
+
+  // If user has VIEW_ALL_ACCOUNTS, also check if they have base MANAGE_ACCOUNTS permission
+  const hasBaseEditAccount = hasViewAllAccounts ? await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS) : false;
   
   // Full access if user can edit this account OR has override permissions OR is account manager
-  const hasFullAccess = canEditAccount || 
+  const hasFullAccess = canEditAccount ||
                        (hasViewAllAccounts && hasBaseEditAccount) ||
-                       hasEditAllProjects ||
+                       hasManageAllProjects ||
                        hasFullAccessViaService;
 
   // Fetch account data - pass supabase client for proper auth
   // Don't pass userMap - let the service query the database for ALL assigned users
+   
   const [account, metrics, urgentItems] = await Promise.all([
-    accountService.getAccountById(accountId, undefined, supabase),
-    accountService.getAccountMetrics(accountId, supabase),
-    accountService.getUrgentItems(accountId, supabase),
+    accountService.getAccountById(accountId, undefined, supabase as any),
+    accountService.getAccountMetrics(accountId, supabase as any),
+    accountService.getUrgentItems(accountId, supabase as any),
   ]);
 
   if (!account) {

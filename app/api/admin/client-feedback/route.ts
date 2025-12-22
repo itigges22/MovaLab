@@ -31,15 +31,15 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check VIEW_CLIENT_FEEDBACK permission
-    const canView = await hasPermission(userProfile, Permission.VIEW_CLIENT_FEEDBACK, undefined, supabase);
+    // Phase 9: VIEW_CLIENT_FEEDBACK → MANAGE_CLIENT_INVITES (consolidated admin permission)
+    const canView = await hasPermission(userProfile, Permission.MANAGE_CLIENT_INVITES, undefined, supabase);
     if (!canView) {
       return NextResponse.json({ error: 'Insufficient permissions to view client feedback' }, { status: 403 });
     }
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const feedback = await getAllClientFeedback();
 
     return NextResponse.json({ success: true, feedback }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/admin/client-feedback:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

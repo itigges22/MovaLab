@@ -44,7 +44,7 @@ export default async function DepartmentAdminPage({ params }: DepartmentAdminPag
         )
       )
     `)
-    .eq('id', user.id)
+    .eq('id', (user as any).id)
     .single();
 
   if (profileError || !userProfile) {
@@ -55,7 +55,7 @@ export default async function DepartmentAdminPage({ params }: DepartmentAdminPag
   console.log('👤 Admin page: User profile loaded', { userProfile });
 
   // Check if user has admin privileges
-  const hasAdminPrivileges = isAdminLevel(userProfile as any);
+  const hasAdminPrivileges = isAdminLevel(userProfile as unknown as import('@/lib/rbac-types').UserWithRoles);
   console.log('🔑 Admin page: Admin privileges check', { hasAdminPrivileges, userRoles: userProfile.user_roles });
 
   if (!hasAdminPrivileges) {

@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { Button } from "@/components/ui/button"
 import { LoginForm } from "@/components/login-form"
 
 export default function Home() {

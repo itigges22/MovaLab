@@ -38,7 +38,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -100,7 +100,7 @@ export async function GET(
     }
 
     return NextResponse.json({ updates: updates || [] });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/projects/[projectId]/updates:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -141,16 +141,16 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check CREATE_UPDATE permission
-    const canCreateUpdate = await hasPermission(userProfile, Permission.CREATE_UPDATE, undefined, supabase);
-    if (!canCreateUpdate) {
+    // Check MANAGE_UPDATES permission (consolidated from CREATE_UPDATE)
+    const canManageUpdates = await hasPermission(userProfile, Permission.MANAGE_UPDATES, undefined, supabase);
+    if (!canManageUpdates) {
       return NextResponse.json({ error: 'Insufficient permissions to create updates' }, { status: 403 });
     }
 
@@ -180,7 +180,7 @@ export async function POST(
       .insert({
         project_id: projectId,
         content: content.trim(),
-        created_by: user.id
+        created_by: (user as any).id
       })
       .select(`
         *,
@@ -198,16 +198,16 @@ export async function POST(
       .from('project_assignments')
       .select('id, removed_at')
       .eq('project_id', projectId)
-      .eq('user_id', user.id)
+      .eq('user_id', (user as any).id)
       .single();
 
     if (!existingAssignment) {
       // Insert new assignment
       await supabase.from('project_assignments').insert({
         project_id: projectId,
-        user_id: user.id,
+        user_id: (user as any).id,
         role_in_project: 'collaborator',
-        assigned_by: user.id
+        assigned_by: (user as any).id
       });
     } else if (existingAssignment.removed_at) {
       // Reactivate removed assignment
@@ -218,7 +218,7 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true, update }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/projects/[projectId]/updates:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

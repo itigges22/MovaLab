@@ -123,7 +123,7 @@ export default function ClientPortalPage() {
       } else {
         toast.error('Failed to load accounts');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading accounts:', error);
       toast.error('Error loading accounts');
     } finally {
@@ -141,7 +141,7 @@ export default function ClientPortalPage() {
       } else {
         toast.error('Failed to load invitations');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading invitations:', error);
       toast.error('Error loading invitations');
     } finally {
@@ -160,7 +160,7 @@ export default function ClientPortalPage() {
       } else {
         toast.error('Failed to load feedback');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading feedback:', error);
       toast.error('Error loading feedback');
     } finally {
@@ -169,7 +169,7 @@ export default function ClientPortalPage() {
   }, []);
 
   const calculateStats = (feedbackData: ClientFeedback[]) => {
-    const withScores = feedbackData.filter(f => f.satisfaction_score !== null);
+    const withScores = feedbackData.filter((f: any) => f.satisfaction_score !== null);
 
     if (withScores.length === 0) {
       setStats({
@@ -180,7 +180,7 @@ export default function ClientPortalPage() {
       return;
     }
 
-    const scores = withScores.map(f => f.satisfaction_score as number);
+    const scores = withScores.map((f: any) => f.satisfaction_score as number);
     const averageSatisfaction = scores.reduce((sum, score) => sum + score, 0) / scores.length;
 
     const feedbackByScore: Record<number, number> = {};
@@ -235,7 +235,7 @@ export default function ClientPortalPage() {
       } else {
         toast.error(data.error || 'Failed to send invitation');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error sending invitation:', error);
       toast.error('Error sending invitation');
     } finally {
@@ -319,7 +319,7 @@ export default function ClientPortalPage() {
 
     try {
       return formatDistance(date, new Date(), { addSuffix: true });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error formatting date:', error);
       return 'Invalid date';
     }
@@ -352,7 +352,7 @@ export default function ClientPortalPage() {
               <p className="text-sm text-gray-500">No accounts found</p>
             ) : (
               <div className="space-y-2">
-                {accounts.map((account) => (
+                {accounts.map((account:any) => (
                   <button
                     key={account.id}
                     onClick={() => { setSelectedAccount(account); }}
@@ -446,7 +446,7 @@ export default function ClientPortalPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {invitations.map((invitation) => (
+                        {invitations.map((invitation:any) => (
                           <TableRow key={invitation.id}>
                             <TableCell className="font-medium">{invitation.email}</TableCell>
                             <TableCell>{getStatusBadge(invitation)}</TableCell>
@@ -545,7 +545,7 @@ export default function ClientPortalPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {feedback.map((item) => (
+                        {feedback.map((item: ClientFeedback) => (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.projects.name}</TableCell>
                             <TableCell>

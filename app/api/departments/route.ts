@@ -28,15 +28,15 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(departments || []);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication and permission
-    await requireAuthAndPermission(Permission.CREATE_DEPARTMENT, {}, request);
+    // Check authentication and permission (consolidated from CREATE_DEPARTMENT)
+    await requireAuthAndPermission(Permission.MANAGE_DEPARTMENTS, {}, request);
 
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

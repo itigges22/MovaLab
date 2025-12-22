@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // Verify user has access to the project if project_id is provided
     if (validation.data.project_id) {
-      const hasAccess = await isAssignedToProjectServer(supabase, user.id, validation.data.project_id);
+      const hasAccess = await isAssignedToProjectServer(supabase, (user as any).id, validation.data.project_id);
       if (!hasAccess) {
         return NextResponse.json({
           error: 'You do not have access to this project'
@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, instance }, { status: 201 });
-  } catch (error) {
-    console.error('Error in POST /api/workflows/instances/start:', error);
+  } catch (error: unknown) {
+console.error('Error in POST /api/workflows/instances/start:', error);
 
     // Return the actual error message for workflow validation errors
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { createClientSupabase } from '@/lib/supabase';
@@ -253,18 +254,10 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
   const [nextSteps, setNextSteps] = useState<NextStepInfo[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  useEffect(() => {
-    if (workflowInstanceId) {
-      loadWorkflowProgress();
-    } else {
-      setLoading(false);
-    }
-  }, [workflowInstanceId]);
-
   /**
    * Recursively find the actual actionable nodes, skipping sync/conditional nodes
    */
-  const findActionableNextNodes = (
+  const findActionableNextNodes = useCallback((
     startNodeId: string,
     connections: WorkflowConnection[],
     nodeMap: Map<string, WorkflowNode>,
@@ -326,12 +319,12 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
     }
 
     return results;
-  };
+  }, []);
 
-  const loadWorkflowProgress = async () => {
+  const loadWorkflowProgress = useCallback(async () => {
     try {
       setLoading(true);
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return;
 
       // Get workflow instance with snapshot
@@ -342,7 +335,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
           started_snapshot,
           workflow_templates(name)
         `)
-        .eq('id', workflowInstanceId)
+        .eq('id', workflowInstanceId!)
         .single();
 
       if (instanceError || !instance) {
@@ -350,17 +343,17 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
         return;
       }
 
-      setWorkflowInstance(instance);
-      setIsCompleted(instance.status === 'completed');
+      setWorkflowInstance(instance as WorkflowInstance);
+      setIsCompleted((instance as WorkflowInstance).status === 'completed');
 
       let allNodes: WorkflowNode[] = [];
       let connections: WorkflowConnection[] = [];
 
       // Use snapshot if available (this ensures deleted templates don't break projects)
-      if (instance.started_snapshot?.nodes && instance.started_snapshot?.connections) {
+      if ((instance as WorkflowInstance).started_snapshot?.nodes && (instance as WorkflowInstance).started_snapshot?.connections) {
         console.log('[WorkflowProgress] Using snapshot data');
-        allNodes = instance.started_snapshot.nodes;
-        connections = instance.started_snapshot.connections;
+        allNodes = (instance as WorkflowInstance).started_snapshot!.nodes;
+        connections = (instance as WorkflowInstance).started_snapshot!.connections;
       } else {
         // Fallback to live tables for older instances without snapshot
         console.log('[WorkflowProgress] Falling back to live table queries');
@@ -368,18 +361,18 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
         const { data: liveNodes, error: nodesError } = await supabase
           .from('workflow_nodes')
           .select('*')
-          .eq('workflow_template_id', instance.workflow_template_id);
+          .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (nodesError || !liveNodes) {
           console.error('Error loading workflow nodes:', nodesError);
           return;
         }
-        allNodes = liveNodes;
+        allNodes = liveNodes as WorkflowNode[];
 
         const { data: liveConnections, error: connectionsError } = await supabase
           .from('workflow_connections')
           .select('*')
-          .eq('workflow_template_id', instance.workflow_template_id);
+          .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (connectionsError) {
           console.error('Error loading connections:', connectionsError);
@@ -398,7 +391,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
       allNodes.forEach((node: WorkflowNode) => nodeMap.set(node.id, node));
 
       // If workflow is completed, show the end node
-      if (instance.status === 'completed') {
+      if ((instance as WorkflowInstance).status === 'completed') {
         const endNode = allNodes.find((n: WorkflowNode) => n.node_type === 'end');
         if (endNode) {
           setCurrentSteps([{ node: endNode, activeStep: null }]);
@@ -415,7 +408,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
           *,
           assigned_user:user_profiles!workflow_active_steps_assigned_user_id_fkey(name)
         `)
-        .eq('workflow_instance_id', workflowInstanceId)
+        .eq('workflow_instance_id', workflowInstanceId!)
         .in('status', ['active', 'waiting']);
 
       if (stepsError) {
@@ -436,8 +429,8 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
             });
           }
         });
-      } else if (instance.current_node_id) {
-        const node = nodeMap.get(instance.current_node_id);
+      } else if ((instance as WorkflowInstance).current_node_id) {
+        const node = nodeMap.get((instance as WorkflowInstance).current_node_id!);
         if (node) {
           currentStepInfos.push({ node, activeStep: null });
         }
@@ -457,7 +450,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
           null
         );
 
-        actionableSteps.forEach(step => {
+        actionableSteps.forEach((step: any) => {
           // Avoid duplicates
           if (!seenNextNodes.has(step.node.id)) {
             seenNextNodes.add(step.node.id);
@@ -468,12 +461,20 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
 
       setNextSteps(nextStepInfos);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow progress:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowInstanceId, findActionableNextNodes]);
+
+  useEffect(() => {
+    if (workflowInstanceId) {
+      loadWorkflowProgress();
+    } else {
+      setLoading(false);
+    }
+  }, [workflowInstanceId, loadWorkflowProgress]);
 
   const handleStepClick = (currentStep: CurrentStepInfo) => {
     if (currentStep.activeStep && onStepClick) {
@@ -537,7 +538,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
                 {isCompleted ? 'Completed' : 'Current Step'}
               </span>
               <div className="flex items-center gap-4">
-                {currentSteps.map((step) => (
+                {currentSteps.map((step:any) => (
                   <StepCard
                     key={step.node.id}
                     node={step.node}
@@ -573,7 +574,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
                   {nextSteps.length > 1 ? 'Possible Next' : 'Next Step'}
                 </span>
                 <div className="flex items-start gap-4">
-                  {nextSteps.map((step, index) => (
+                  {nextSteps.map((step:any, index:any) => (
                     <StepCard
                       key={`${step.node.id}-${index}`}
                       node={step.node}

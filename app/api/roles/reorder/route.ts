@@ -14,7 +14,7 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Check authentication and permission - reordering is editing
-    await requireAuthAndPermission(Permission.EDIT_ROLE, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -176,7 +176,7 @@ export async function PATCH(request: NextRequest) {
       success: true,
       updatedRole: updatedData && updatedData.length > 0 ? updatedData[0] : null
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

@@ -44,7 +44,6 @@ const getEdgeColors = (decision?: string) => {
 };
 
 export function LabeledEdge({
-  id,
   sourceX,
   sourceY,
   targetX,

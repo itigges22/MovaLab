@@ -11,7 +11,7 @@ export async function DELETE(
     const { roleId, userId } = await params;
     
     // Check authentication and permission
-    const userProfile = await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    const userProfile = await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -20,11 +20,11 @@ export async function DELETE(
 
     // PRIVILEGE ESCALATION PROTECTION: Prevent users from removing their own roles
     // (This is allowed but logged for audit purposes)
-    const isSelfRemoval = userId === userProfile.id;
+    const isSelfRemoval = userId === (userProfile as any).id;
     if (isSelfRemoval) {
       // Log self-removal attempt for audit
       console.warn('User attempted to remove their own role', {
-        userId: userProfile.id,
+        userId: (userProfile as any).id,
         roleId,
         timestamp: new Date().toISOString()
       });
@@ -65,7 +65,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'User does not have this role' }, { status: 400 });
     }
 
-    // Check if user has any other roles BEFORE attempting removal
+    // Check if user has Record<string, unknown> other roles BEFORE attempting removal
     const { data: otherRoles, error: otherRolesError } = await supabase
       .from('user_roles')
       .select('role_id, roles!user_roles_role_id_fkey(name)')
@@ -101,7 +101,7 @@ export async function DELETE(
         .insert({
           user_id: userId,
           role_id: fallbackRole.id,
-          assigned_by: userProfile.id,
+          assigned_by: (userProfile as any).id,
           assigned_at: new Date().toISOString()
         });
 
@@ -132,7 +132,7 @@ export async function DELETE(
     console.log(`✅ User ${targetUser.name} successfully removed from ${role.name}`);
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

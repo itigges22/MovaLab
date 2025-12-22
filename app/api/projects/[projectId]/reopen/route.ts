@@ -38,7 +38,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
@@ -62,8 +62,8 @@ export async function POST(
 
     // Check permissions - must be superadmin, have EDIT_ALL_PROJECTS, or be the project creator
     const userIsSuperadmin = isSuperadmin(userProfile)
-    const hasEditAllProjects = await hasPermission(userProfile, Permission.EDIT_ALL_PROJECTS, undefined, supabase)
-    const isProjectCreator = project.created_by === user.id
+    const hasEditAllProjects = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS, undefined, supabase)
+    const isProjectCreator = project.created_by === (user as any).id
 
     if (!userIsSuperadmin && !hasEditAllProjects && !isProjectCreator) {
       return NextResponse.json({
@@ -127,7 +127,7 @@ export async function POST(
           project_id: projectId,
           user_id: project.created_by,
           role_in_project: 'creator',
-          assigned_by: user.id
+          assigned_by: (user as any).id
         })
     }
 
@@ -136,7 +136,7 @@ export async function POST(
       message: 'Project reopened successfully. The project now operates without a workflow.'
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/projects/[projectId]/reopen:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

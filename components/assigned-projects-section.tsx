@@ -9,9 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   FolderOpen,
   AlertCircle,
-  Building2,
-  Users,
-  Calendar,
   Clock,
   ArrowRight,
   SortAsc,
@@ -20,7 +17,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import Link from 'next/link'
-import { hasPermission, canViewProject } from '@/lib/rbac'
+import { hasPermission, canViewProject, UserWithRoles } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { useProjects } from '@/lib/hooks/use-data'
 import { createClientSupabase } from '@/lib/supabase'
@@ -46,18 +43,18 @@ interface ProjectWithDetails {
     id: string;
     name: string;
   } | null;
-  departments: any[];
+  departments: Record<string, unknown>[];
   workflow_step?: string | null;
   daysUntilDeadline?: number | null;
 }
 
 interface AssignedProjectsSectionProps {
-  userProfile: any;
+  userProfile: UserWithRoles;
 }
 
 export function AssignedProjectsSection({ userProfile }: AssignedProjectsSectionProps) {
   // Use SWR hook for automatic caching and deduplication
-  const { projects: assignedProjects, isLoading: projectsLoading, error: projectsError } = useProjects(userProfile?.id, 10)
+  const { projects: assignedProjects, isLoading: projectsLoading, error: projectsError } = useProjects((userProfile as any)?.id as string | undefined, 10)
   const [visibleProjects, setVisibleProjects] = useState<ProjectWithDetails[]>([])
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('name')
@@ -120,7 +117,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     return () => {
       isMounted = false
     }
-  }, [projectIds, userProfile])
+  }, [projectIds, userProfile, assignedProjects])
 
   // Fetch workflow steps for visible projects
   useEffect(() => {
@@ -130,10 +127,10 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     }
 
     async function fetchWorkflowSteps() {
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (!supabase) return
 
-      const projectIds = visibleProjects.map(p => p.id)
+      const projectIds = visibleProjects.map((p: any) => p.id)
       const { data: workflowData, error } = await supabase
         .from('workflow_instances')
         .select(`
@@ -149,8 +146,11 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
       if (!error && workflowData) {
         const steps: { [key: string]: string | null } = {}
         workflowData.forEach((instance: any) => {
-          if (instance.project_id && instance.workflow_nodes?.label) {
-            steps[instance.project_id] = instance.workflow_nodes.label
+          const projectId = instance.project_id as string
+          const workflowNodes = instance.workflow_nodes as Record<string, unknown> | null | undefined
+          const label = workflowNodes?.label as string | null | undefined
+          if (projectId && label) {
+            steps[projectId] = label
           }
         })
         setWorkflowSteps(steps)
@@ -175,7 +175,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     }
   }
 
-  const formatDate = (dateString: string | null) => {
+  const _formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set'
     try {
       return format(new Date(dateString), 'MMM dd, yyyy')
@@ -186,12 +186,12 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
 
   // Filter and sort projects (use visibleProjects which are already permission-filtered)
   const filteredAndSortedProjects = visibleProjects
-    .filter(project => {
+    .filter((project: any) => {
       if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false
       return true
     })
     .sort((a, b) => {
-      let aValue: any, bValue: any
+      let aValue: string | number, bValue: string | number
 
       switch (sortBy) {
         case 'name':
@@ -215,7 +215,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
       return 0
     })
-    .map(project => ({
+    .map((project: any) => ({
       ...project,
       daysUntilDeadline: project.end_date
         ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -309,7 +309,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSortedProjects.map((project) => (
+                {filteredAndSortedProjects.map((project:any) => (
                   <tr key={project.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div>

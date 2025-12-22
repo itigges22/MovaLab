@@ -14,9 +14,9 @@ export async function PATCH(
   try {
     const { accountId } = await params;
 
-    // Require EDIT_ACCOUNT permission
+    // Require MANAGE_ACCOUNTS permission (consolidated from EDIT_ACCOUNT)
     await requireAuthAndPermission(
-      Permission.EDIT_ACCOUNT,
+      Permission.MANAGE_ACCOUNTS,
       { accountId },
       request
     );
@@ -76,10 +76,11 @@ export async function PATCH(
     }
 
     return NextResponse.json({ account: data });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in PATCH /api/accounts/[accountId]:', error);
-    if (error.status) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    const err = error as { status?: number; message?: string };
+    if (err.status) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -130,7 +130,7 @@ export function validateUser(data: Partial<UserValidationData>): ValidationResul
       warnings.push('User has many skills (over 20)');
     }
     
-    const invalidSkills = data.skills.filter(skill => 
+    const invalidSkills = data.skills.filter((skill: any) => 
       typeof skill !== 'string' || skill.trim().length === 0
     );
     
@@ -233,26 +233,26 @@ export function validateUserRoleAssignment(data: Partial<UserRoleAssignmentData>
 }
 
 // Generic validation helpers
-export function validateRequired(value: any, fieldName: string): string | null {
+export function validateRequired(value: unknown, fieldName: string): string | null {
   if (value === null || value === undefined || value === '') {
     return `${fieldName} is required`;
   }
   return null;
 }
 
-export function validateString(value: any, fieldName: string, maxLength?: number): string | null {
+export function validateString(value: unknown, fieldName: string, maxLength?: number): string | null {
   if (typeof value !== 'string') {
     return `${fieldName} must be a string`;
   }
-  
+
   if (value.trim().length === 0) {
     return `${fieldName} cannot be empty`;
   }
-  
+
   if (maxLength && value.length > maxLength) {
     return `${fieldName} must be ${maxLength} characters or less`;
   }
-  
+
   return null;
 }
 
@@ -286,7 +286,7 @@ export function validateUUID(uuid: string, fieldName: string): string | null {
   return null;
 }
 
-export function validateArray(value: any, fieldName: string, itemValidator?: (item: any) => string | null): string | null {
+export function validateArray(value: Record<string, unknown>, fieldName: string, itemValidator?: (item: any) => string | null): string | null {
   if (!Array.isArray(value)) {
     return `${fieldName} must be an array`;
   }
@@ -303,7 +303,7 @@ export function validateArray(value: any, fieldName: string, itemValidator?: (it
   return null;
 }
 
-export function validateObject(value: any, fieldName: string, requiredFields: string[]): string | null {
+export function validateObject(value: Record<string, unknown>, fieldName: string, requiredFields: string[]): string | null {
   if (typeof value !== 'object' || value === null) {
     return `${fieldName} must be an object`;
   }
@@ -318,7 +318,7 @@ export function validateObject(value: any, fieldName: string, requiredFields: st
 }
 
 // Form validation helpers
-export function validateFormData<T extends Record<string, any>>(
+export function validateFormData<T extends Record<string, Record<string, unknown>>>(
   data: T,
   validators: Record<keyof T, (value: any) => string | null>
 ): ValidationResult {
@@ -362,8 +362,8 @@ export function sanitizeEmail(email: string): string {
 
 export function sanitizeArray(array: string[]): string[] {
   return array
-    .map(item => sanitizeString(item))
-    .filter(item => item.length > 0);
+    .map((item: any) => sanitizeString(item))
+    .filter((item: any) => item.length > 0);
 }
 
 // Export validation schemas for common use cases

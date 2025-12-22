@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
 import { submitClientFeedback } from '@/lib/client-portal-service';
 import { validateRequestBody, submitClientFeedbackSchema } from '@/lib/validation-schemas';
 
@@ -37,22 +35,16 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check CLIENT_PROVIDE_FEEDBACK permission
-    const canProvideFeedback = await hasPermission(userProfile, Permission.CLIENT_PROVIDE_FEEDBACK, undefined, supabase);
-    if (!canProvideFeedback) {
-      return NextResponse.json({ error: 'Insufficient permissions to provide feedback' }, { status: 403 });
-    }
-
-    // Verify user is a client
-    if (!userProfile.is_client) {
-      return NextResponse.json({ error: 'Access denied. This endpoint is for client users only.' }, { status: 403 });
+    // Phase 9: Client permissions are hardcoded - verify user is a client with account access
+    if (!userProfile.is_client || !userProfile.client_account_id) {
+      return NextResponse.json({ error: 'Client access required' }, { status: 403 });
     }
 
     // Validate request body
@@ -65,7 +57,7 @@ export async function POST(
     // Submit feedback
     const feedback = await submitClientFeedback({
       projectId: id,
-      clientUserId: user.id,
+      clientUserId: (user as any).id,
       satisfactionScore: validation.data.satisfaction_score || undefined,
       whatWentWell: validation.data.what_went_well || undefined,
       whatNeedsImprovement: validation.data.what_needs_improvement || undefined,
@@ -77,7 +69,7 @@ export async function POST(
       message: 'Thank you for your feedback!',
       feedback
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/client/portal/projects/[id]/feedback:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

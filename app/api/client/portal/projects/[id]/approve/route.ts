@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
 import { clientApproveProject } from '@/lib/client-portal-service';
 import { z } from 'zod';
 import { validateRequestBody } from '@/lib/validation-schemas';
@@ -29,34 +27,18 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user profile with roles
+    // Get user profile
     const { data: userProfile } = await supabase
       .from('user_profiles')
-      .select(`
-        *,
-        user_roles!user_roles_user_id_fkey (
-          roles (
-            id,
-            name,
-            permissions,
-            department_id
-          )
-        )
-      `)
-      .eq('id', user.id)
+      .select('*')
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check CLIENT_APPROVE_PROJECTS permission
-    const canApprove = await hasPermission(userProfile, Permission.CLIENT_APPROVE_PROJECTS, undefined, supabase);
-    if (!canApprove) {
-      return NextResponse.json({ error: 'Insufficient permissions to approve projects' }, { status: 403 });
-    }
-
-    // Verify user is a client
+    // Verify user is a client (hardcoded check - client approval permissions are implicit)
     if (!userProfile.is_client) {
       return NextResponse.json({ error: 'Access denied. This endpoint is for client users only.' }, { status: 403 });
     }
@@ -72,7 +54,7 @@ export async function POST(
     const result = await clientApproveProject({
       projectId: id,
       workflowInstanceId: validation.data.workflow_instance_id,
-      clientUserId: user.id,
+      clientUserId: (user as any).id,
       notes: validation.data.notes || null
     });
 
@@ -80,7 +62,7 @@ export async function POST(
       ...result,
       message: 'Project approved successfully'
     }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/client/portal/projects/[id]/approve:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

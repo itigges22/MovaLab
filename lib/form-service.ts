@@ -455,7 +455,7 @@ export function isFieldVisible(field: FormField, formData: Record<string, any>):
  * Get visible fields based on current form data
  */
 export function getVisibleFields(fields: FormField[], formData: Record<string, any>): FormField[] {
-  return fields.filter(field => isFieldVisible(field, formData));
+  return fields.filter((field: any) => isFieldVisible(field, formData));
 }
 
 // Export alias for API route compatibility

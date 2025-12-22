@@ -1,6 +1,6 @@
 /**
  * Assignment Service
- * 
+ *
  * Manages user assignments to projects, accounts, and other resources.
  * This service handles the many-to-many relationships between users and projects
  * and provides context-aware access control checks.
@@ -71,7 +71,7 @@ export interface UserProjectSummary {
 // ================================================================================
 
 class AssignmentService {
-  private async getSupabase() {
+  private async getSupabase(): Promise<any> {
     return createClientSupabase();
   }
 
@@ -163,7 +163,7 @@ class AssignmentService {
   /**
    * Remove a user from a project (soft delete - sets removed_at)
    */
-  async removeUserFromProject(userId: string, projectId: string, removedBy: string): Promise<boolean> {
+  async removeUserFromProject(userId: string, projectId: string, _removedBy: string): Promise<boolean> {
     const startTime = Date.now();
     
     try {
@@ -570,8 +570,8 @@ class AssignmentService {
         if (!userMap.has(userId)) {
           userMap.set(userId, {
             user_id: userId,
-            user_name: user.name,
-            user_email: user.email,
+            user_name: (user as any).name,
+            user_email: (user as any).email,
             projects: [],
             accounts_accessible: new Set<string>(),
           });

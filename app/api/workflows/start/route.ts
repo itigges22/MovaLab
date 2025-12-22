@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Start the workflow
-    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, user.id);
+    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, (user as any).id);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       success: true,
       workflowInstanceId: result.workflowInstanceId,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/workflows/start:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

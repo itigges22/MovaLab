@@ -1,5 +1,5 @@
 import { createClientSupabase } from './supabase';
-import { Department, Project, UserProfile, UserRole, Role } from './supabase';
+import { Department, Project } from './supabase';
 
 // Client-side department service for managing department data and analytics
 
@@ -93,7 +93,7 @@ class ClientDepartmentService {
    */
   async getAllDepartments(): Promise<Department[]> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return [];
 
       const { data, error } = await supabase
@@ -107,7 +107,7 @@ class ClientDepartmentService {
       }
 
       return data || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAllDepartments:', error);
       return [];
     }
@@ -118,7 +118,7 @@ class ClientDepartmentService {
    */
   async getDepartmentById(id: string): Promise<Department | null> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return null;
@@ -155,7 +155,7 @@ class ClientDepartmentService {
 
       console.log('Successfully fetched department:', data.name);
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getDepartmentById:', {
         id,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -170,7 +170,7 @@ class ClientDepartmentService {
    */
   async getDepartmentMetrics(departmentId: string): Promise<DepartmentMetrics | null> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return null;
 
       // Get department info
@@ -218,7 +218,7 @@ class ClientDepartmentService {
       // Get user IDs who have roles in this department
       const userIds = Array.from(new Set(teamMembers?.map((tm: any) => tm.user_id) || []));
 
-      let projects: any[] = [];
+      let projects: Record<string, unknown>[] = [];
 
       if (userIds.length > 0) {
         // Get project IDs where users from this department are assigned
@@ -254,19 +254,19 @@ class ClientDepartmentService {
       }
 
       // Calculate metrics
-      const typedProjects = (projects as ProjectWithRelations[]) || [];
+      const typedProjects = (projects as unknown as ProjectWithRelations[]) || [];
       const typedTeamMembers = (teamMembers as unknown as TeamMemberWithRelations[]) || [];
 
-      const activeProjects = typedProjects.filter(p => 
+      const activeProjects = typedProjects.filter((p: any) => 
         p.status !== 'complete' && p.status !== 'on_hold'
       );
 
       // Deduplicate users by ID in case they have multiple roles in the same department
       const uniqueUsers = new Map();
-      typedTeamMembers.forEach(member => {
+      typedTeamMembers.forEach((member: any) => {
         const user = member.user_profiles;
-        if (user && !uniqueUsers.has(user.id)) {
-          uniqueUsers.set(user.id, user);
+        if (user && !uniqueUsers.has((user as any).id)) {
+          uniqueUsers.set((user as any).id, user);
         }
       });
       const teamSize = uniqueUsers.size;
@@ -279,7 +279,7 @@ class ClientDepartmentService {
         critical: 0
       };
 
-      activeProjects.forEach(project => {
+      activeProjects.forEach((project: any) => {
         if (!project.end_date) {
           projectHealth.healthy++;
           return;
@@ -298,7 +298,7 @@ class ClientDepartmentService {
       });
 
       // Calculate workload distribution based on actual project assignments
-      const workloadDistribution = Array.from(uniqueUsers.values()).map((user: any, index: number) => {
+      const workloadDistribution = Array.from(uniqueUsers.values()).map((user: Record<string, unknown>, _index: number) => {
         // For demonstration purposes, generate realistic workload data
         // In a real system, this would be calculated based on actual task assignments
         const baseWorkload = Math.floor(Math.random() * 40) + 20; // 20-60% workload
@@ -315,9 +315,9 @@ class ClientDepartmentService {
         }
 
         return {
-          userId: user.id,
-          userName: user.name,
-          userImage: user.image,
+          userId: (user as any).id as string,
+          userName: (user as any).name as string,
+          userImage: (user as any).image as string | null,
           workloadPercentage,
           workloadSentiment
         };
@@ -341,7 +341,7 @@ class ClientDepartmentService {
         workloadDistribution,
         recentProjects: activeProjects.slice(0, 5) as unknown as Project[] // Last 5 projects
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getDepartmentMetrics:', error);
       return null;
     }
@@ -352,7 +352,7 @@ class ClientDepartmentService {
    */
   async getDepartmentProjects(departmentId: string): Promise<DepartmentProject[]> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return [];
 
       // Get all roles for this department
@@ -452,7 +452,7 @@ class ClientDepartmentService {
       const typedAssignments = (assignments as unknown as TaskAssignmentWithRelations[]) || [];
 
       const now = new Date();
-      return typedProjects.map(project => {
+      return typedProjects.map((project: any) => {
         // Calculate health status
         let healthStatus: 'healthy' | 'at_risk' | 'critical' = 'healthy';
         let daysUntilDeadline: number | null = null;
@@ -469,11 +469,11 @@ class ClientDepartmentService {
         }
 
         // Get assigned users for this project
-        const projectAssignments = typedAssignments.filter(a => 
+        const projectAssignments = typedAssignments.filter((a: any) => 
           a.tasks?.project_id === project.id
         );
 
-        const assignedUsers = projectAssignments.map(a => ({
+        const assignedUsers = projectAssignments.map((a: any) => ({
           id: a.user_profiles?.id || '',
           name: a.user_profiles?.name || 'Unknown',
           image: a.user_profiles?.image || null
@@ -495,7 +495,7 @@ class ClientDepartmentService {
           daysUntilDeadline
         };
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getDepartmentProjects:', error);
       return [];
     }
@@ -506,7 +506,7 @@ class ClientDepartmentService {
    */
   async createDepartment(name: string, description?: string): Promise<Department | null> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return null;
 
       const { data, error } = await supabase
@@ -524,7 +524,7 @@ class ClientDepartmentService {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in createDepartment:', error);
       return null;
     }
@@ -535,7 +535,7 @@ class ClientDepartmentService {
    */
   async updateDepartment(id: string, updates: { name?: string; description?: string }): Promise<Department | null> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return null;
 
       const { data, error } = await supabase
@@ -554,7 +554,7 @@ class ClientDepartmentService {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateDepartment:', error);
       return null;
     }
@@ -565,7 +565,7 @@ class ClientDepartmentService {
    */
   async deleteDepartment(id: string): Promise<boolean> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return false;
 
       const { error } = await supabase
@@ -579,7 +579,7 @@ class ClientDepartmentService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in deleteDepartment:', error);
       return false;
     }

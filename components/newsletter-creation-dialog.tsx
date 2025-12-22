@@ -38,7 +38,7 @@ export default function NewsletterCreationDialog({
       setFormData({ title: '', content: '' })
       setOpen(false)
       onNewsletterCreated?.()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating newsletter:', error)
     } finally {
       setLoading(false)

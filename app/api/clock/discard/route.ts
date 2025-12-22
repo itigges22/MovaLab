@@ -6,6 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 /**
  * POST /api/clock/discard
  * Clock out without creating time entries
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from('clock_sessions')
       .select('*')
-      .eq('user_id', userProfile.id)
+      .eq('user_id', (userProfile as any).id)
       .eq('is_active', true)
       .single();
 
@@ -73,10 +79,11 @@ export async function POST(request: NextRequest) {
         is_active: false
       }
     });
-  } catch (error: any) {
-    console.error('Error in POST /api/clock/discard:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in POST /api/clock/discard:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

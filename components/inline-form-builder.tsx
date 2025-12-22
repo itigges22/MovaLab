@@ -22,7 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus,
   Trash2,
   ArrowUp,
   ArrowDown,
@@ -162,7 +161,7 @@ export function InlineFormBuilder({
   };
 
   const removeField = (index: number) => {
-    const newFields = fields.filter((_, i) => i !== index);
+    const newFields = fields.filter((_:any, i:any) => i !== index);
     onChange(newFields);
     if (selectedFieldIndex === index) {
       setSelectedFieldIndex(null);
@@ -226,8 +225,8 @@ export function InlineFormBuilder({
     // Support both comma-separated and newline-separated options
     const options = optionsText
       .split(/[,\n]+/) // Split by comma or newline
-      .map((opt) => opt.trim())
-      .filter((opt) => opt !== "");
+      .map((opt:any) => opt.trim())
+      .filter((opt:any) => opt !== "");
     updateField(index, { options });
   };
 
@@ -270,7 +269,7 @@ export function InlineFormBuilder({
           </Card>
         ) : (
           <div className="space-y-2">
-            {fields.map((field, index) => {
+            {fields.map((field:any, index:any) => {
               const isExpanded = expandedFieldIndex === index;
               const fieldTypeInfo = FIELD_TYPES.find(
                 (ft) => ft.value === field.type,
@@ -378,7 +377,7 @@ export function InlineFormBuilder({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {FIELD_TYPES.map((ft) => (
+                            {FIELD_TYPES.map((ft:any) => (
                               <SelectItem
                                 key={ft.value}
                                 value={ft.value}
@@ -631,7 +630,7 @@ export function InlineFormBuilder({
                 Add fields to see preview
               </div>
             ) : (
-              fields.map((field) => (
+              fields.map((field:any) => (
                 <div key={field.id} className="space-y-2">
                   <Label className="text-sm">
                     {field.label}
@@ -696,7 +695,7 @@ export function InlineFormBuilder({
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {(field.options ?? []).map((option, idx) => (
+                        {(field.options ?? []).map((option:any, idx:any) => (
                           <SelectItem key={idx} value={option}>
                             {option}
                           </SelectItem>
@@ -707,7 +706,7 @@ export function InlineFormBuilder({
 
                   {field.type === "multiselect" && (
                     <div className="space-y-2 p-3 border rounded-md bg-gray-50">
-                      {(field.options || []).map((option, idx) => (
+                      {(field.options || []).map((option:any, idx:any) => (
                         <div key={idx} className="flex items-center space-x-2">
                           <input type="checkbox" disabled className="rounded" />
                           <span className="text-sm">{option}</span>

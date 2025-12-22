@@ -6,7 +6,7 @@ import { WorkflowNodeType } from './workflow-node';
 interface NodeTypeConfig {
   type: WorkflowNodeType;
   label: string;
-  icon: any;
+  icon: React.ElementType;
   description: string;
   bgColor: string;
   borderColor: string;

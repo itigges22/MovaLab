@@ -36,7 +36,7 @@ const UnifiedProjectsSection = dynamic(
 )
 
 // Memoized Profile Card to prevent unnecessary re-renders
-const ProfileCard = memo(({ userProfile }: { userProfile: any }) => (
+const ProfileCard = memo(({ userProfile }: { userProfile: Record<string, unknown> }) => (
   <Card>
     <CardHeader>
       <CardTitle>Profile Information</CardTitle>
@@ -44,10 +44,20 @@ const ProfileCard = memo(({ userProfile }: { userProfile: any }) => (
     </CardHeader>
     <CardContent>
       <div className="space-y-2">
-        <p><strong>Name:</strong> {userProfile?.name || 'N/A'}</p>
-        <p><strong>Email:</strong> {userProfile?.email || 'N/A'}</p>
-        <p><strong>Roles:</strong> {userProfile?.user_roles?.map((ur: any) => ur.roles.name).join(', ') || 'None assigned'}</p>
-        <p><strong>Departments:</strong> {userProfile?.user_roles?.map((ur: any) => ur.roles.departments?.name).filter((name: any): name is string => Boolean(name)).join(', ') || 'None assigned'}</p>
+        <p><strong>Name:</strong> {((userProfile as any)?.name as string) || 'N/A'}</p>
+        <p><strong>Email:</strong> {((userProfile as any)?.email as string) || 'N/A'}</p>
+        <p><strong>Roles:</strong> {(userProfile?.user_roles as Record<string, unknown>[] | undefined)?.map((ur: any) => {
+          const roles = ur.roles as Record<string, unknown> | Record<string, unknown>[];
+          const role = Array.isArray(roles) ? roles[0] : roles;
+          return role?.name as string;
+        }).join(', ') || 'None assigned'}</p>
+        <p><strong>Departments:</strong> {(userProfile?.user_roles as Record<string, unknown>[] | undefined)?.map((ur: any) => {
+          const roles = ur.roles as Record<string, unknown> | Record<string, unknown>[];
+          const role = Array.isArray(roles) ? roles[0] : roles;
+          const departments = role?.departments as Record<string, unknown> | Record<string, unknown>[] | undefined;
+          const department = departments ? (Array.isArray(departments) ? departments[0] : departments) : undefined;
+          return department?.name as string | undefined;
+        }).filter((name): name is string => Boolean(name)).join(', ') || 'None assigned'}</p>
       </div>
     </CardContent>
   </Card>
@@ -108,7 +118,7 @@ export default function DashboardPage() {
   const [canAccessAnalytics, setCanAccessAnalytics] = useState(false)
   const [canViewAccounts, setCanViewAccounts] = useState(false)
   const [canViewDepartments, setCanViewDepartments] = useState(false)
-  const [permissionsLoading, setPermissionsLoading] = useState(true)
+  const [_permissionsLoading, setPermissionsLoading] = useState(true)
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false)
   const [capacityRefreshKey, setCapacityRefreshKey] = useState(0)
 
@@ -128,40 +138,35 @@ export default function DashboardPage() {
         
         // OPTIMIZED: Batch all permission checks in parallel instead of sequential
         const [
-          viewRoles, createRole, editRole, deleteRole, viewAccountsTab,
-          assignUsers, removeUsers, createDept, createAccount, manageUsers,
-          viewAllAnalytics, viewAnalytics, viewDeptAnalytics,
+          manageUserRoles, manageUsersInAccounts, manageUsersInDepartments,
+          createDept, createAccount, manageUsers,
+          viewAllAnalytics,
           viewAccounts, viewAllAccounts,
           viewDepartments, viewAllDepartments
         ] = await Promise.all([
-          hasPermission(userProfile, Permission.VIEW_ROLES),
-          hasPermission(userProfile, Permission.CREATE_ROLE),
-          hasPermission(userProfile, Permission.EDIT_ROLE),
-          hasPermission(userProfile, Permission.DELETE_ROLE),
-          hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB),
-          hasPermission(userProfile, Permission.ASSIGN_USERS_TO_ROLES),
-          hasPermission(userProfile, Permission.REMOVE_USERS_FROM_ROLES),
-          hasPermission(userProfile, Permission.CREATE_DEPARTMENT),
-          hasPermission(userProfile, Permission.CREATE_ACCOUNT),
+          hasPermission(userProfile, Permission.MANAGE_USER_ROLES),
+          hasPermission(userProfile, Permission.MANAGE_USERS_IN_ACCOUNTS),
+          hasPermission(userProfile, Permission.MANAGE_USERS_IN_DEPARTMENTS),
+          hasPermission(userProfile, Permission.MANAGE_DEPARTMENTS),
+          hasPermission(userProfile, Permission.MANAGE_ACCOUNTS),
           hasPermission(userProfile, Permission.MANAGE_USERS),
           hasPermission(userProfile, Permission.VIEW_ALL_ANALYTICS),
-          hasPermission(userProfile, Permission.VIEW_ANALYTICS),
-          hasPermission(userProfile, Permission.VIEW_DEPARTMENT_ANALYTICS),
           hasPermission(userProfile, Permission.VIEW_ACCOUNTS),
           hasPermission(userProfile, Permission.VIEW_ALL_ACCOUNTS),
           hasPermission(userProfile, Permission.VIEW_DEPARTMENTS),
           hasPermission(userProfile, Permission.VIEW_ALL_DEPARTMENTS),
         ]);
-        
-        const hasRoleManagementAccess = viewRoles || createRole || editRole || deleteRole || 
-                                       viewAccountsTab || assignUsers || removeUsers || 
-                                       createDept || createAccount || manageUsers;
-        
+
+        const hasRoleManagementAccess = manageUserRoles || manageUsersInAccounts ||
+                                       manageUsersInDepartments || createDept ||
+                                       createAccount || manageUsers;
+
         // Admin page access: role management permissions OR VIEW_ALL_ANALYTICS
         const hasAdminAccess = hasRoleManagementAccess || viewAllAnalytics;
-        
-        // Analytics page access: any analytics permission
-        const canViewAnalytics = viewAnalytics || viewAllAnalytics || viewDeptAnalytics;
+
+        // Analytics page access: users can always view their own analytics (implicit)
+        // Only check for override permissions (VIEW_ALL_ANALYTICS)
+        const canViewAnalytics = viewAllAnalytics;
         
         // Check accounts and departments permissions
         const canViewAccts = viewAccounts || viewAllAccounts;
@@ -171,7 +176,7 @@ export default function DashboardPage() {
         setCanAccessAnalytics(canViewAnalytics);
         setCanViewAccounts(canViewAccts);
         setCanViewDepartments(canViewDepts);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error checking permissions:', error);
         setCanAccessAdmin(false);
         setCanAccessAnalytics(false);
@@ -196,7 +201,7 @@ export default function DashboardPage() {
         {/* Unified Projects Section - combines workflow inbox and assigned projects */}
         <div className="mb-8">
           <Suspense fallback={<ComponentSkeleton />}>
-            <UnifiedProjectsSection userProfile={userProfile} />
+            <UnifiedProjectsSection userProfile={userProfile as any} />
           </Suspense>
         </div>
 
@@ -238,7 +243,7 @@ export default function DashboardPage() {
 
         {/* User Info and Quick Actions - Memoized to prevent unnecessary re-renders */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 mt-8">
-          {userProfile && <ProfileCard userProfile={userProfile} />}
+          {userProfile && <ProfileCard userProfile={userProfile as unknown as Record<string, unknown>} />}
           <QuickActionsCard
             canViewAccounts={canViewAccounts}
             canViewDepartments={canViewDepartments}

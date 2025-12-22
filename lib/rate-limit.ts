@@ -72,7 +72,7 @@ function isAuthEndpoint(pathname: string): boolean {
     '/api/reset',
   ];
 
-  return authPaths.some(path => pathname.startsWith(path));
+  return authPaths.some((path: any) => pathname.startsWith(path));
 }
 
 /**
@@ -99,7 +99,7 @@ export async function applyRateLimit(request: NextRequest): Promise<NextResponse
   const limiterType = isAuthEndpoint(pathname) ? 'auth' : 'general';
 
   try {
-    const { success, limit, remaining, reset, pending } = await limiter.limit(ip);
+    const { success, limit, remaining, reset } = await limiter.limit(ip);
 
     // Log rate limit check
     logger.debug(`Rate limit check: ${success ? 'allowed' : 'blocked'}`, {
@@ -143,7 +143,7 @@ export async function applyRateLimit(request: NextRequest): Promise<NextResponse
     request.headers.set('X-RateLimit-Reset', reset.toString());
 
     return null; // Request is allowed
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Rate limit check failed', { action: 'rate_limit', pathname, ip }, error as Error);
     // Allow request on error (fail open)
     return null;

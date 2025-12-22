@@ -24,12 +24,12 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
 
-    let projects: any[] = [];
+    let projects: Record<string, unknown>[] = [];
 
     if (isSuperadmin) {
       // Superadmins see ALL active projects with their assigned users
@@ -57,25 +57,32 @@ export async function GET(request: NextRequest) {
 
       // Filter out completed projects and add assigned_user info
       projects = (allAssignments || [])
-        .filter((p: any) => p.projects && p.projects.status !== 'complete')
-        .map((p: any) => ({
-          ...p,
-          assigned_user: p.user_profiles ? {
-            id: p.user_profiles.id,
-            name: p.user_profiles.name,
-            email: p.user_profiles.email
-          } : undefined
-        }));
+        .filter((p: any) => {
+          const projects = p.projects as Record<string, unknown> | Record<string, unknown>[];
+          const project = Array.isArray(projects) ? projects[0] : projects;
+          return project && (project.status as string) !== 'complete';
+        })
+        .map((p: any) => {
+          const userProfiles = p.user_profiles as Record<string, unknown> | undefined;
+          return {
+            ...p,
+            assigned_user: userProfiles ? {
+              id: userProfiles.id,
+              name: userProfiles.name,
+              email: userProfiles.email
+            } : undefined
+          };
+        });
     } else {
       // Regular users see only their assigned active projects
-      projects = await getUserActiveProjects(supabase, user.id);
+      projects = await getUserActiveProjects(supabase, (user as any).id);
     }
 
     return NextResponse.json({
       success: true,
       projects,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/my-projects:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

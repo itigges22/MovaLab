@@ -37,7 +37,7 @@ export async function PATCH(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -65,7 +65,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, node }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in PATCH /api/admin/workflows/nodes/[nodeId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -103,7 +103,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -120,7 +120,7 @@ export async function DELETE(
     await deleteWorkflowNode(nodeId);
 
     return NextResponse.json({ success: true, message: 'Workflow node deleted successfully' }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/admin/workflows/nodes/[nodeId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -1,3 +1,5 @@
+ 
+
 /**
  * Migration Script: Create Active Steps for Existing Workflows
  *
@@ -86,7 +88,7 @@ async function migrateExistingWorkflows() {
     }
 
     // Get the current node to find assigned user from history
-    const { data: latestHistory, error: historyError } = await supabase
+    const { data: latestHistory, error: _historyError } = await supabase
       .from('workflow_history')
       .select('assigned_user_id, acted_by_user_id')
       .eq('workflow_instance_id', instance.id)

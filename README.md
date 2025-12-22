@@ -139,15 +139,22 @@ Two flexible options:
 
 **Manual Entry** - Log hours directly on specific tasks with descriptions. Quick and straightforward for focused work sessions.
 
+**User-Facing Dashboard** (`/time-entries`) - Comprehensive time tracking visibility:
+- Summary statistics: weekly hours, monthly hours, daily average, total entries
+- Filterable list view with date range, project, and task filters
+- Visual charts: daily trend line, hours by project bar chart, project distribution pie chart
+- Edit/delete actions with 14-day edit window
+- Direct access from clock widget "View All Entries" button
+
 **Safety Features:**
 - Sessions auto-close after 16 hours (catches "forgot to clock out" scenarios)
-- Edit and delete your own entries
+- Edit and delete your own entries (14-day window)
 - Managers can view and adjust team entries
 - Complete audit trail linking time to projects and tasks
 
 ### Permissions That Match Your Organization
 
-**136 unique permissions across 15 categories** provide enterprise-grade access control:
+**~40 consolidated permissions across ~15 categories** (reduced from 136 via Phase 8-9 RBAC refactoring) provide enterprise-grade access control:
 
 - **Project Permissions** - Who can create, edit, delete projects?
 - **Task Permissions** - Who can assign tasks, update status, log time?
@@ -361,7 +368,7 @@ Clients deserve visibility without pestering your team. MovaLab's Client Portal 
 
 **Security-First Architecture**
 - **Row Level Security** on every database table—data access controlled at the PostgreSQL level
-- **136 unique permissions** providing fine-grained access control
+- **~40 consolidated permissions** providing fine-grained access control (MANAGE pattern: CREATE/EDIT/DELETE merged)
 - **Rate limiting** to prevent abuse and DDoS attacks
 - **Input validation** on all API endpoints with Zod schemas
 - **Audit logging** for critical organizational changes
@@ -593,7 +600,7 @@ MovaLab/
 │   ├── supabase-*.ts            # Supabase client configurations
 │   ├── *-service.ts             # Business logic services
 │   ├── rbac.ts                  # Role-based access control logic
-│   ├── permissions.ts           # Permission definitions (136 permissions)
+│   ├── permissions.ts           # Permission definitions (~40 consolidated permissions)
 │   ├── validation-schemas.ts    # Zod input validation schemas
 │   ├── rate-limit.ts            # Rate limiting with Upstash Redis
 │   └── config.ts                # Application configuration
@@ -661,8 +668,9 @@ MovaLab/
 MovaLab is built with enterprise-grade security:
 
 - **Row Level Security (RLS)** - All data access controlled at the PostgreSQL database level, not just application logic
-- **136 Granular Permissions** - Fine-grained control over who can do what, organized across 15 permission categories
+- **~40 Consolidated Permissions** - Fine-grained control using MANAGE pattern (CREATE/EDIT/DELETE merged), organized across ~15 categories
 - **Context-Aware Access** - Permissions adapt based on project assignments, account management, and organizational hierarchy
+- **User Time Entries Dashboard** - Users can view, filter, and analyze their logged time with charts and 14-day edit window
 - **Secure Authentication** - Industry-standard OAuth with Supabase, HTTP-only cookies, secure session management
 - **Rate Limiting** - Protect against abuse and DDoS attacks with Upstash Redis
 - **Input Validation** - All API inputs validated with Zod schemas before processing

@@ -6,22 +6,51 @@ import { logger, apiCall, apiResponse, databaseQuery, databaseError } from '@/li
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 
+// Type definitions
+// Type definitions for roles API
+interface RoleData {
+  id: string;
+  name: string;
+  description: string | null;
+  department_id: string | null;
+  hierarchy_level: number;
+  display_order: number;
+  reporting_role_id: string | null;
+  is_system_role: boolean;
+  permissions: Record<string, boolean>;
+  created_at: string;
+  updated_at: string;
+  department: { id: string; name: string } | null;
+}
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+}
+
+interface UserRoleData {
+  user_id: string;
+  user_profiles: UserProfile | null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Check authentication and permission - use standard guard pattern
     // Must pass request to parse cookies manually (cookies() doesn't work in Route Handlers)
-    await requireAuthAndPermission(Permission.VIEW_ROLES, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     // Get Supabase configuration
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    if (!supabaseUrl || !anonKey) {
-      logger.error('Supabase not configured', { 
+    const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+
+    if (!supabaseUrl || !publishableKey) {
+      logger.error('Supabase not configured', {
         action: 'getRoles',
         hasUrl: !!supabaseUrl,
-        hasAnonKey: !!anonKey
+        hasPublishableKey: !!publishableKey
       });
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
@@ -143,7 +172,7 @@ export async function GET(request: NextRequest) {
           console.log('[GET /api/roles] Fallback query succeeded, got', fallbackRoles?.length || 0, 'roles');
         }
         // Use fallback results
-        return await processRolesData(serviceSupabase, fallbackRoles || []);
+        return await processRolesData(serviceSupabase, fallbackRoles as unknown as RoleData[] || []);
       }
       
       return NextResponse.json({ 
@@ -165,14 +194,14 @@ export async function GET(request: NextRequest) {
     });
 
     // Process and return roles data
-    return await processRolesData(supabase, roles || []);
-  } catch (error) {
-    return handleGuardError(error);
+    return await processRolesData(supabase, roles as unknown as RoleData[] || []);
+  } catch (error: unknown) {
+return handleGuardError(error);
   }
 }
 
 // Helper function to process roles data (shared between main query and fallback)
-async function processRolesData(supabase: any, roles: any[]) {
+async function processRolesData(supabase: any, roles: RoleData[]) {
   // If no roles returned, could be RLS blocking or empty database
   if (!roles || roles.length === 0) {
     logger.warn('No roles found - may be RLS policy blocking access or empty database', { action: 'getRoles' });
@@ -185,11 +214,11 @@ async function processRolesData(supabase: any, roles: any[]) {
   }
 
   // Create a map of role IDs to roles for quick lookup of reporting roles
-  const rolesMap = new Map(roles.map((r: any) => [r.id, r]));
+  const rolesMap = new Map(roles.map((r: RoleData) => [r.id, r]));
 
   // Get user counts for each role and enrich with reporting_role data
   const rolesWithData = await Promise.all(
-    roles.map(async (role: any) => {
+    roles.map(async (role: RoleData) => {
       const { data: userRoles, error: userError } = await supabase
         .from('user_roles')
         .select(`
@@ -203,7 +232,7 @@ async function processRolesData(supabase: any, roles: any[]) {
         `)
         .eq('role_id', role.id);
 
-      const users = userError ? [] : userRoles?.map((ur: any) => ur.user_profiles).filter(Boolean) || [];
+      const users = userError ? [] : (userRoles as unknown as UserRoleData[] | null)?.map((ur:any) => ur.user_profiles).filter(Boolean) || [];
 
       // Fetch reporting_role separately if reporting_role_id exists
       let reporting_role = null;
@@ -245,7 +274,7 @@ async function processRolesData(supabase: any, roles: any[]) {
 
   // Group roles by hierarchy level for container approach
   const levelGroups = new Map<number, typeof rolesWithData>();
-  rolesWithData.forEach(role => {
+  rolesWithData.forEach((role: any) => {
     const level = role.hierarchy_level || 0;
     if (!levelGroups.has(level)) {
       levelGroups.set(level, []);
@@ -259,7 +288,7 @@ async function processRolesData(supabase: any, roles: any[]) {
     roles,
     roleCount: roles.length,
     totalUsers: roles.reduce((sum, role) => sum + (role.user_count || 0), 0),
-    departments: [...new Set(roles.map(role => role.department_name).filter(Boolean))]
+    departments: [...new Set(roles.map((role: any) => role.department_name).filter(Boolean))]
   }));
 
   // Sort containers by hierarchy level (highest to lowest)
@@ -277,8 +306,8 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    // Require CREATE_ROLE permission
-    await requireAuthAndPermission(Permission.CREATE_ROLE, {}, request);
+    // Require MANAGE_USER_ROLES permission
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     // Use authenticated user's Supabase client - RLS policies will control access
     // Users with CREATE_ROLE permission should be able to create roles based on RLS policies
@@ -328,7 +357,7 @@ export async function POST(request: NextRequest) {
     const isSystemRole = name === 'No Assigned Role' || name === 'Superadmin';
     
     // Get current maximum hierarchy level to ensure Superadmin stays at top
-    const { data: maxLevelData, error: maxLevelError } = await supabase
+    const { data: maxLevelData, error: _maxLevelError } = await supabase
       .from('roles')
       .select('hierarchy_level')
       .order('hierarchy_level', { ascending: false })
@@ -494,7 +523,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ role });
-  } catch (error) {
-    return handleGuardError(error);
+  } catch (error: unknown) {
+return handleGuardError(error);
   }
 }

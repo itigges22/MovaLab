@@ -6,7 +6,16 @@
  * to maintain authentication context from API routes
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
+
+
+// Type guard helpers
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export interface WorkflowNode {
   id: string;
@@ -14,7 +23,7 @@ export interface WorkflowNode {
   node_type: 'start' | 'department' | 'role' | 'approval' | 'form' | 'conditional' | 'sync' | 'end';
   entity_id: string | null;
   label: string;
-  settings: any;
+  settings: Record<string, unknown>;
   form_template_id: string | null;
 }
 
@@ -35,7 +44,7 @@ export interface WorkflowConnection {
   id: string;
   from_node_id: string;
   to_node_id: string;
-  condition: any;
+  condition: Record<string, unknown>;
 }
 
 export interface WorkflowInstance {
@@ -50,15 +59,15 @@ export interface WorkflowInstance {
   // Snapshot of the workflow at the time the instance was created
   // This ensures changes to the template don't affect in-progress workflows
   started_snapshot?: {
-    nodes: any[];
-    connections: any[];
+    nodes: Record<string, unknown>[];
+    connections: Record<string, unknown>[];
     template_name?: string;
     captured_at?: string;
   } | null;
   // Snapshot saved when workflow completes
   completed_snapshot?: {
-    nodes: any[];
-    connections: any[];
+    nodes: Record<string, unknown>[];
+    connections: Record<string, unknown>[];
   } | null;
 }
 
@@ -68,10 +77,10 @@ export interface WorkflowInstance {
  * Now also includes workflow history with user assignments per node
  */
 async function captureWorkflowSnapshot(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowTemplateId: string,
   workflowInstanceId: string
-): Promise<{ nodes: any[]; connections: any[]; history?: any[]; nodeAssignments?: Record<string, { userId: string; userName: string }> } | null> {
+): Promise<{ nodes: Record<string, unknown>[]; connections: Record<string, unknown>[]; history?: Record<string, unknown>[]; nodeAssignments?: Record<string, { userId: string; userName: string }> } | null> {
   try {
     // Get all nodes for this workflow template
     const { data: nodes, error: nodesError } = await supabase
@@ -114,8 +123,8 @@ async function captureWorkflowSnapshot(
       // Get unique user IDs from history
       const userIds = new Set<string>();
       history.forEach((h: any) => {
-        if (h.handed_off_by) userIds.add(h.handed_off_by);
-        if (h.handed_off_to) userIds.add(h.handed_off_to);
+        if (isString(h.handed_off_by)) userIds.add(h.handed_off_by);
+        if (isString(h.handed_off_to)) userIds.add(h.handed_off_to);
       });
 
       // Fetch user names
@@ -124,14 +133,19 @@ async function captureWorkflowSnapshot(
         .select('id, name')
         .in('id', Array.from(userIds));
 
-      const userMap = new Map((users || []).map((u: any) => [u.id, u.name]));
+      const userMap = new Map((users || []).map((u: any) => [
+        isString(u.id) ? u.id : '',
+        isString(u.name) ? u.name : 'Unknown User'
+      ]));
 
       // Map each node to the user who handled it (handed_off_by for the to_node_id)
       history.forEach((h: any) => {
-        if (h.to_node_id && h.handed_off_by) {
-          nodeAssignments[h.to_node_id] = {
-            userId: h.handed_off_by,
-            userName: userMap.get(h.handed_off_by) || 'Unknown User'
+        const toNodeId = h.to_node_id;
+        const handedOffBy = h.handed_off_by;
+        if (isString(toNodeId) && isString(handedOffBy)) {
+          nodeAssignments[toNodeId] = {
+            userId: handedOffBy,
+            userName: (userMap.get(handedOffBy) as string) || 'Unknown User'
           };
         }
       });
@@ -143,7 +157,7 @@ async function captureWorkflowSnapshot(
       history: history || [],
       nodeAssignments
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error capturing workflow snapshot:', error);
     return null;
   }
@@ -153,7 +167,7 @@ async function captureWorkflowSnapshot(
  * Start a new workflow instance for a project
  */
 export async function startWorkflowForProject(
-  supabase: SupabaseClient,
+  supabase: any,
   projectId: string,
   workflowTemplateId: string,
   startedBy: string
@@ -296,7 +310,7 @@ export async function startWorkflowForProject(
     }
 
     return { success: true, workflowInstanceId: instance.id };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error starting workflow:', error);
     return { success: false, error: 'Internal server error' };
   }
@@ -305,7 +319,7 @@ export async function startWorkflowForProject(
 /**
  * Check if a user has a specific role
  */
-async function userHasRole(supabase: SupabaseClient, userId: string, roleId: string): Promise<boolean> {
+async function userHasRole(supabase: any, userId: string, roleId: string): Promise<boolean> {
   const { data: userRoles } = await supabase
     .from('user_roles')
     .select('role_id')
@@ -320,7 +334,7 @@ async function userHasRole(supabase: SupabaseClient, userId: string, roleId: str
  * NOTE: created_by and assigned_user_id on the project do NOT grant workflow progression rights
  * Only explicit project_assignments (created by workflow progression) count
  */
-async function isUserAssignedToProject(supabase: SupabaseClient, userId: string, projectId: string): Promise<boolean> {
+async function isUserAssignedToProject(supabase: any, userId: string, projectId: string): Promise<boolean> {
   // Only check project_assignments table - this is populated by workflow progression
   const { data: assignments } = await supabase
     .from('project_assignments')
@@ -335,7 +349,7 @@ async function isUserAssignedToProject(supabase: SupabaseClient, userId: string,
 /**
  * Check if user is superadmin (bypasses role checks)
  */
-async function isUserSuperadmin(supabase: SupabaseClient, userId: string): Promise<boolean> {
+async function isUserSuperadmin(supabase: any, userId: string): Promise<boolean> {
   const { data: user } = await supabase
     .from('users')
     .select('is_superadmin')
@@ -362,15 +376,15 @@ async function isUserSuperadmin(supabase: SupabaseClient, userId: string): Promi
  * Progress workflow to next step
  */
 export async function progressWorkflow(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string,
   currentUserId: string,
   decision?: 'approved' | 'rejected',
   feedback?: string,
   formResponseId?: string,
   assignedUserId?: string,
-  inlineFormData?: Record<string, any>
-): Promise<{ success: boolean; nextNode?: any; error?: string }> {
+  inlineFormData?: Record<string, Record<string, unknown>>
+): Promise<{ success: boolean; nextNode?: Record<string, unknown>; error?: string }> {
   if (!supabase) {
     return { success: false, error: 'Database connection failed' };
   }
@@ -389,8 +403,8 @@ export async function progressWorkflow(
 
     // Use snapshot data if available (for workflow independence from template changes)
     // Fall back to querying live tables for backwards compatibility with older instances
-    let nodes: any[];
-    let connections: any[];
+    let nodes: Record<string, unknown>[];
+    let connections: Record<string, unknown>[];
 
     if (instance.started_snapshot?.nodes && instance.started_snapshot?.connections) {
       // Use the snapshot - this ensures template changes don't affect in-progress workflows
@@ -436,17 +450,19 @@ export async function progressWorkflow(
       }
 
       // 2. ENTITY VALIDATION: Check based on node type
-      if (currentNode.entity_id) {
-        if (currentNode.node_type === 'role' || currentNode.node_type === 'approval') {
+      const entityId = currentNode.entity_id;
+      const nodeType = currentNode.node_type;
+      if (isString(entityId)) {
+        if (nodeType === 'role' || nodeType === 'approval') {
           // For role and approval nodes, entity_id is a role_id
-          const hasRequiredRole = await userHasRole(supabase, currentUserId, currentNode.entity_id);
+          const hasRequiredRole = await userHasRole(supabase, currentUserId, entityId);
 
           if (!hasRequiredRole) {
             // Get the role name for a better error message
             const { data: requiredRole } = await supabase
               .from('roles')
               .select('name')
-              .eq('id', currentNode.entity_id)
+              .eq('id', entityId)
               .single();
 
             const roleName = requiredRole?.name || 'the required role';
@@ -455,21 +471,21 @@ export async function progressWorkflow(
               error: `Only users with the "${roleName}" role can advance this workflow step`
             };
           }
-        } else if (currentNode.node_type === 'department') {
+        } else if (nodeType === 'department') {
           // For department nodes, entity_id is a department_id
-          // Check if user has any role in this department
+          // Check if user has a role in this department
           const { data: userDeptRoles } = await supabase
             .from('user_roles')
             .select('roles!inner(department_id)')
             .eq('user_id', currentUserId)
-            .eq('roles.department_id', currentNode.entity_id);
+            .eq('roles.department_id', entityId);
 
           if (!userDeptRoles || userDeptRoles.length === 0) {
             // Get department name for error message
             const { data: dept } = await supabase
               .from('departments')
               .select('name')
-              .eq('id', currentNode.entity_id)
+              .eq('id', entityId)
               .single();
 
             const deptName = dept?.name || 'the required department';
@@ -484,7 +500,8 @@ export async function progressWorkflow(
     }
 
     // Determine next node based on node type and decision
-    let nextNode;
+    let nextNode: Record<string, unknown> | null;
+    const currentNodeId = isString(currentNode.id) ? currentNode.id : '';
     if (currentNode.node_type === 'conditional') {
       // Legacy support for existing workflows with conditional nodes
       nextNode = findConditionalNextNode(currentNode, decision, connections, nodes);
@@ -492,7 +509,7 @@ export async function progressWorkflow(
       // Approval nodes can have multiple outgoing paths based on decision
       nextNode = findDecisionBasedNextNode(currentNode, decision, connections, nodes);
     } else {
-      nextNode = findNextNode(currentNode.id, connections, nodes);
+      nextNode = findNextNode(currentNodeId, connections, nodes);
     }
 
     // If approval node, record the approval
@@ -634,8 +651,8 @@ export async function progressWorkflow(
       await assignProjectToNode(supabase, instance.project_id, nextNode, currentUserId, assignedUserId);
     }
 
-    return { success: true, nextNode };
-  } catch (error) {
+    return { success: true, nextNode: nextNode || undefined };
+  } catch (error: unknown) {
     console.error('Error progressing workflow:', error);
     return { success: false, error: 'Internal server error' };
   }
@@ -646,45 +663,49 @@ export async function progressWorkflow(
  */
 function findNextNode(
   currentNodeId: string,
-  connections: any[] | null,
-  nodes: any[] | null
-): any | null {
+  connections: Record<string, unknown>[] | null,
+  nodes: Record<string, unknown>[] | null
+): Record<string, unknown> | null {
   if (!connections || !nodes) return null;
 
-  const connection = connections.find((c) => c.from_node_id === currentNodeId);
+  const connection = connections.find((c:any) => c.from_node_id === currentNodeId);
   if (!connection) return null;
 
-  return nodes.find((n) => n.id === connection.to_node_id);
+  const toNodeId = connection.to_node_id;
+  return nodes.find((n:any) => n.id === toNodeId) || null;
 }
 
 /**
  * Find next node for conditional routing (legacy support)
  */
 function findConditionalNextNode(
-  conditionalNode: any,
+  conditionalNode: Record<string, unknown>,
   decision: string | undefined,
-  connections: any[] | null,
-  nodes: any[] | null
-): any | null {
+  connections: Record<string, unknown>[] | null,
+  nodes: Record<string, unknown>[] | null
+): Record<string, unknown> | null {
+  const conditionalNodeId = isString(conditionalNode.id) ? conditionalNode.id : '';
   if (!connections || !nodes || !decision) {
-    return findNextNode(conditionalNode.id, connections, nodes);
+    return findNextNode(conditionalNodeId, connections, nodes);
   }
 
   // Find connection that matches the decision
   // Check both condition.decision AND condition.conditionValue for compatibility
   // (database stores conditionValue, but some code may use decision)
-  const matchingConnection = connections.find(
-    (c) =>
-      c.from_node_id === conditionalNode.id &&
-      (c.condition?.decision === decision || c.condition?.conditionValue === decision)
-  );
+  const matchingConnection = connections.find((c:any) => {
+    if (c.from_node_id !== conditionalNodeId) return false;
+    const condition = c.condition;
+    if (!isRecord(condition)) return false;
+    return condition.decision === decision || condition.conditionValue === decision;
+  });
 
   if (!matchingConnection) {
     // Fall back to default path
-    return findNextNode(conditionalNode.id, connections, nodes);
+    return findNextNode(conditionalNodeId, connections, nodes);
   }
 
-  return nodes.find((n) => n.id === matchingConnection.to_node_id);
+  const toNodeId = matchingConnection.to_node_id;
+  return nodes.find((n:any) => n.id === toNodeId) || null;
 }
 
 /**
@@ -692,41 +713,46 @@ function findConditionalNextNode(
  * This is the new pattern where approval nodes directly have multiple outgoing edges
  */
 function findDecisionBasedNextNode(
-  approvalNode: any,
+  approvalNode: Record<string, unknown>,
   decision: string,
-  connections: any[] | null,
-  nodes: any[] | null
-): any | null {
+  connections: Record<string, unknown>[] | null,
+  nodes: Record<string, unknown>[] | null
+): Record<string, unknown> | null {
   if (!connections || !nodes) {
     return null;
   }
 
+  const approvalNodeId = isString(approvalNode.id) ? approvalNode.id : '';
+
   // Find connection from this approval node with matching decision
   // Check both condition.decision and condition.conditionValue for compatibility
-  const matchingConnection = connections.find(
-    (c) =>
-      c.from_node_id === approvalNode.id &&
-      (c.condition?.decision === decision || c.condition?.conditionValue === decision)
-  );
+  const matchingConnection = connections.find((c:any) => {
+    if (c.from_node_id !== approvalNodeId) return false;
+    const condition = c.condition;
+    if (!isRecord(condition)) return false;
+    return condition.decision === decision || condition.conditionValue === decision;
+  });
 
   if (matchingConnection) {
-    return nodes.find((n) => n.id === matchingConnection.to_node_id) || null;
+    const toNodeId = matchingConnection.to_node_id;
+    return nodes.find((n:any) => n.id === toNodeId) || null;
   }
 
   // Fall back to default path (connection without decision label)
-  const defaultConnection = connections.find(
-    (c) =>
-      c.from_node_id === approvalNode.id &&
-      !c.condition?.decision &&
-      !c.condition?.conditionValue
-  );
+  const defaultConnection = connections.find((c:any) => {
+    if (c.from_node_id !== approvalNodeId) return false;
+    const condition = c.condition;
+    if (!isRecord(condition)) return true; // No condition = default
+    return !condition.decision && !condition.conditionValue;
+  });
 
   if (defaultConnection) {
-    return nodes.find((n) => n.id === defaultConnection.to_node_id) || null;
+    const toNodeId = defaultConnection.to_node_id;
+    return nodes.find((n:any) => n.id === toNodeId) || null;
   }
 
   // If no matching or default path, just follow the first connection
-  return findNextNode(approvalNode.id, connections, nodes);
+  return findNextNode(approvalNodeId, connections, nodes);
 }
 
 /**
@@ -740,7 +766,7 @@ function evaluateFormCondition(
     value?: string;
     value2?: string;
   },
-  formData: Record<string, any>
+  formData: Record<string, unknown>
 ): boolean {
   if (!condition.sourceFormFieldId || !condition.conditionType) {
     return false;
@@ -795,10 +821,10 @@ function evaluateFormCondition(
 
     // Date conditions
     case 'before':
-      return new Date(fieldValue) < new Date(conditionValue!);
+      return new Date(String(fieldValue)) < new Date(conditionValue!);
 
     case 'after':
-      return new Date(fieldValue) > new Date(conditionValue!);
+      return new Date(String(fieldValue)) > new Date(conditionValue!);
 
     // Checkbox conditions
     case 'is_checked':
@@ -818,17 +844,17 @@ function evaluateFormCondition(
  * Evaluates conditions defined in the connection's condition object
  */
 function findConditionalNextNodeWithFormData(
-  conditionalNode: any,
-  formData: Record<string, any>,
-  connections: any[] | null,
-  nodes: any[] | null
-): any | null {
+  conditionalNode: Record<string, unknown>,
+  formData: Record<string, Record<string, unknown>>,
+  connections: Record<string, unknown>[] | null,
+  nodes: Record<string, unknown>[] | null
+): Record<string, unknown> | null {
   if (!connections || !nodes) {
     return null;
   }
 
   // Get all outgoing connections from this conditional node
-  const outgoingConnections = connections.filter(c => c.from_node_id === conditionalNode.id);
+  const outgoingConnections = connections.filter((c: any) => c.from_node_id === conditionalNode.id);
 
   console.log('[findConditionalNextNodeWithFormData] Evaluating conditional routing:', {
     conditionalNodeId: conditionalNode.id,
@@ -836,35 +862,56 @@ function findConditionalNextNodeWithFormData(
     formDataKeys: Object.keys(formData),
     formDataValues: formData, // Log actual values for debugging
     outgoingConnectionCount: outgoingConnections.length,
-    connectionConditions: outgoingConnections.map(c => ({
-      toNodeId: c.to_node_id,
-      hasCondition: !!c.condition,
-      conditionType: c.condition?.conditionType,
-      sourceFormFieldId: c.condition?.sourceFormFieldId,
-      value: c.condition?.value
-    }))
+    connectionConditions: outgoingConnections.map((c: any) => {
+      const condition = c.condition;
+      return {
+        toNodeId: c.to_node_id,
+        hasCondition: !!condition,
+        conditionType: isRecord(condition) ? condition.conditionType : undefined,
+        sourceFormFieldId: isRecord(condition) ? condition.sourceFormFieldId : undefined,
+        value: isRecord(condition) ? condition.value : undefined
+      };
+    })
   });
+
+  // Flatten formData for evaluation (convert nested structure to flat)
+  const flatFormData: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(formData)) {
+    if (isRecord(value)) {
+      // If value is a record, merge its contents
+      Object.assign(flatFormData, value);
+    } else {
+      flatFormData[key] = value;
+    }
+  }
 
   // Try each connection's condition
   for (const connection of outgoingConnections) {
     const condition = connection.condition;
 
     // Skip if no condition defined
-    if (!condition) continue;
+    if (!isRecord(condition)) continue;
 
     // Check if this is a form-based condition (has sourceFormFieldId)
-    if (condition.sourceFormFieldId && condition.conditionType) {
-      const matches = evaluateFormCondition(condition, formData);
+    const sourceFormFieldId = condition.sourceFormFieldId;
+    const conditionType = condition.conditionType;
+    const value = condition.value;
+
+    if (isString(sourceFormFieldId) && isString(conditionType)) {
+      const matches = evaluateFormCondition(
+        { sourceFormFieldId, conditionType, value: isString(value) ? value : undefined },
+        flatFormData
+      );
       console.log('[findConditionalNextNodeWithFormData] Condition evaluation:', {
-        fieldId: condition.sourceFormFieldId,
-        conditionType: condition.conditionType,
-        expectedValue: condition.value,
-        actualValue: formData[condition.sourceFormFieldId],
+        fieldId: sourceFormFieldId,
+        conditionType,
+        expectedValue: value,
+        actualValue: flatFormData[sourceFormFieldId],
         matches
       });
 
       if (matches) {
-        const targetNode = nodes.find(n => n.id === connection.to_node_id);
+        const targetNode = nodes.find((n: any) => n.id === connection.to_node_id);
         console.log('[findConditionalNextNodeWithFormData] Found matching condition path:', targetNode?.label);
         return targetNode || null;
       }
@@ -873,20 +920,21 @@ function findConditionalNextNodeWithFormData(
 
   // No form-based condition matched - look for default path
   // Default path is a connection without form condition (no sourceFormFieldId)
-  const defaultConnection = outgoingConnections.find(c =>
-    !c.condition ||
-    (!c.condition.sourceFormFieldId && !c.condition.decision && !c.condition.conditionValue)
-  );
+  const defaultConnection = outgoingConnections.find((c: any) => {
+    const condition = c.condition;
+    if (!isRecord(condition)) return true;
+    return !condition.sourceFormFieldId && !condition.decision && !condition.conditionValue;
+  });
 
   if (defaultConnection) {
-    const defaultNode = nodes.find(n => n.id === defaultConnection.to_node_id);
+    const defaultNode = nodes.find((n: any) => n.id === defaultConnection.to_node_id);
     console.log('[findConditionalNextNodeWithFormData] Using default path:', defaultNode?.label);
     return defaultNode || null;
   }
 
   // Last resort - use first connection
   if (outgoingConnections.length > 0) {
-    const fallbackNode = nodes.find(n => n.id === outgoingConnections[0].to_node_id);
+    const fallbackNode = nodes.find((n: any) => n.id === outgoingConnections[0].to_node_id);
     console.log('[findConditionalNextNodeWithFormData] Using fallback (first connection):', fallbackNode?.label);
     return fallbackNode || null;
   }
@@ -899,9 +947,9 @@ function findConditionalNextNodeWithFormData(
  * Also handles removing previous assignments (except project creator)
  */
 async function assignProjectToNode(
-  supabase: SupabaseClient,
+  supabase: any,
   projectId: string,
-  node: any,
+  node: Record<string, unknown>,
   assignedBy: string,
   specificUserId?: string
 ): Promise<void> {
@@ -939,7 +987,10 @@ async function assignProjectToNode(
         .select('user_id')
         .eq('role_id', node.entity_id);
 
-      userIds = userRoles?.map((ur: any) => ur.user_id) || [];
+      userIds = userRoles?.map((ur: any) => {
+        const userId = ur.user_id;
+        return isString(userId) ? userId : '';
+      }).filter((id: any) => id !== '') || [];
     }
 
     // Create project assignments for each user (including re-adding creator if needed)
@@ -1002,7 +1053,7 @@ async function assignProjectToNode(
           .upsert(accountMembers, { onConflict: 'user_id,account_id', ignoreDuplicates: true });
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error assigning project to node:', error);
   }
 }
@@ -1013,9 +1064,9 @@ async function assignProjectToNode(
  * We remove old assignments ONCE, then add all new assignments together
  */
 async function assignProjectToParallelNodes(
-  supabase: SupabaseClient,
+  supabase: any,
   projectId: string,
-  assignments: Array<{ node: any; userId: string | null }>,
+  assignments: Array<{ node: Record<string, unknown>; userId: string | null }>,
   assignedBy: string
 ): Promise<void> {
   if (!supabase || assignments.length === 0) return;
@@ -1046,14 +1097,22 @@ async function assignProjectToParallelNodes(
       if (assignment.userId) {
         // Specific user assigned
         allUserIds.add(assignment.userId);
-      } else if (assignment.node.entity_id) {
-        // Get all users with this role
-        const { data: userRoles } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role_id', assignment.node.entity_id);
+      } else {
+        const entityId = assignment.node.entity_id;
+        if (isString(entityId)) {
+          // Get all users with this role
+          const { data: userRoles } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role_id', entityId);
 
-        userRoles?.forEach((ur: any) => allUserIds.add(ur.user_id));
+          userRoles?.forEach((ur: any) => {
+            const userId = ur.user_id;
+            if (isString(userId)) {
+              allUserIds.add(userId);
+            }
+          });
+        }
       }
     }
 
@@ -1123,7 +1182,7 @@ async function assignProjectToParallelNodes(
       userCount: allUserIds.size,
       nodeCount: assignments.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error assigning project to parallel nodes:', error);
   }
 }
@@ -1132,7 +1191,7 @@ async function assignProjectToParallelNodes(
  * Mark project as completed - removes from all active dashboards
  */
 async function completeProject(
-  supabase: SupabaseClient,
+  supabase: any,
   projectId: string
 ): Promise<void> {
   if (!supabase) return;
@@ -1172,20 +1231,19 @@ async function completeProject(
       projectId,
       resolvedIssuesCount: resolvedCount
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error completing project:', error);
   }
 }
 
 /**
- * Get user's pending workflow tasks (approvals and forms)
- * Note: Function name kept as "getUserPendingApprovals" for backwards compatibility,
- * but now returns both approval nodes AND form nodes
+ * Get user's pending workflow approvals
+ * Returns only approval nodes that the user can act on
  *
  * IMPORTANT: This now queries workflow_active_steps to support parallel workflows
- * where multiple approval/form nodes can be active simultaneously
+ * where multiple approval nodes can be active simultaneously
  */
-export async function getUserPendingApprovals(supabase: SupabaseClient, userId: string): Promise<any[]> {
+export async function getUserPendingApprovals(supabase: any, userId: string): Promise<Record<string, unknown>[]> {
   if (!supabase) return [];
 
   try {
@@ -1195,7 +1253,7 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
       .select('role_id')
       .eq('user_id', userId);
 
-    const roleIds = userRoles?.map((ur) => ur.role_id) || [];
+    const roleIds = userRoles?.map((ur:any) => ur.role_id) || [];
     // Note: Don't return early if roleIds is empty - user may still have direct assignments via assigned_user_id
 
     // Query workflow_active_steps to get ALL active steps (supports parallel workflows)
@@ -1245,19 +1303,29 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
 
     // Create a set of "instanceId:nodeId" keys for quick lookup
     const assignedNodeKeys = new Set<string>(
-      (nodeAssignments || []).map((na: any) => `${na.workflow_instance_id}:${na.node_id}`)
+      (nodeAssignments || []).map((na: any) => {
+        const instanceId = na.workflow_instance_id;
+        const nodeId = na.node_id;
+        return `${instanceId}:${nodeId}`;
+      })
     );
 
-    // Filter to only approval/form nodes where the user is assigned or has the required role
+    // Filter to only approval nodes where the user is assigned or has the required role
     const filteredSteps = (activeSteps || []).filter((step: any) => {
       const instance = step.workflow_instances;
-      if (!instance) return false;
+      if (!isRecord(instance)) return false;
 
       // Only include active workflow instances
       if (instance.status !== 'active') return false;
 
       // Get node data from snapshot (we don't join workflow_nodes because FK may not exist)
-      const node = instance.started_snapshot?.nodes?.find((n: any) => n.id === step.node_id);
+      const startedSnapshot = instance.started_snapshot;
+      if (!isRecord(startedSnapshot)) return false;
+
+      const nodes = startedSnapshot.nodes;
+      if (!Array.isArray(nodes)) return false;
+
+      const node = nodes.find((n: unknown) => isRecord(n) && n.id === step.node_id);
 
       if (!node) {
         console.warn('Could not find node data for active step:', {
@@ -1268,8 +1336,9 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
         return false;
       }
 
-      // Check if node is approval or form type
-      if (!['approval', 'form'].includes(node.node_type)) return false;
+      // Check if node is approval type
+      const nodeType = node.node_type;
+      if (!isString(nodeType) || nodeType !== 'approval') return false;
 
       // CHECK 1: User is specifically assigned to this step (e.g., sync leader, manual assignment)
       if (step.assigned_user_id === userId) {
@@ -1285,8 +1354,9 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
       }
 
       // CHECK 3: User has the required role for this node
-      if (node.entity_id && roleIds.includes(node.entity_id)) {
-        console.log('Pending approval matched via role:', { stepId: step.id, nodeLabel: node.label, entityId: node.entity_id });
+      const entityId = node.entity_id;
+      if (isString(entityId) && roleIds.includes(entityId)) {
+        console.log('Pending approval matched via role:', { stepId: step.id, nodeLabel: node.label, entityId });
         return true;
       }
 
@@ -1297,12 +1367,21 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
     // Transform to match expected format (for backwards compatibility)
     const result = filteredSteps.map((step: any) => {
       // Get node data from snapshot (always use snapshot since we don't join workflow_nodes)
-      const nodeData = step.workflow_instances.started_snapshot?.nodes?.find((n: any) => n.id === step.node_id);
+      const instance = step.workflow_instances;
+      if (!isRecord(instance)) return { ...step, workflow_nodes: null };
+
+      const startedSnapshot = instance.started_snapshot;
+      if (!isRecord(startedSnapshot)) return { ...step, workflow_nodes: null };
+
+      const nodes = startedSnapshot.nodes;
+      if (!Array.isArray(nodes)) return { ...step, workflow_nodes: null };
+
+      const nodeData = nodes.find((n: unknown) => isRecord(n) && n.id === step.node_id);
 
       return {
-        ...step.workflow_instances,
+        ...(isRecord(instance) ? instance : {}),
         workflow_nodes: nodeData,
-        projects: step.workflow_instances.projects,
+        projects: isRecord(instance) ? instance.projects : undefined,
         active_step_id: step.id,
         current_node_id: step.node_id, // Override with this specific step's node
         assigned_user_id: step.assigned_user_id // Include for debugging
@@ -1318,7 +1397,7 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
     });
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching pending workflow tasks:', error);
     return [];
   }
@@ -1329,7 +1408,7 @@ export async function getUserPendingApprovals(supabase: SupabaseClient, userId: 
  * @param supabase - Authenticated Supabase client
  * @param userId - User ID to get projects for
  */
-export async function getUserActiveProjects(supabase: SupabaseClient, userId: string): Promise<any[]> {
+export async function getUserActiveProjects(supabase: any, userId: string): Promise<Record<string, unknown>[]> {
   if (!supabase) return [];
 
   try {
@@ -1344,12 +1423,14 @@ export async function getUserActiveProjects(supabase: SupabaseClient, userId: st
       .is('removed_at', null);
 
     // Filter out completed projects - they should only appear in "Finished Projects" section
-    const activeProjects = (projects || []).filter((p: any) =>
-      p.projects && p.projects.status !== 'complete'
-    );
+    const activeProjects = (projects || []).filter((p: any) => {
+      const projectData = p.projects;
+      if (!isRecord(projectData)) return false;
+      return projectData.status !== 'complete';
+    });
 
     return activeProjects;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching active projects:', error);
     return [];
   }
@@ -1363,7 +1444,7 @@ export async function getUserActiveProjects(supabase: SupabaseClient, userId: st
  * Get all active steps for a workflow instance
  */
 export async function getActiveSteps(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string
 ): Promise<WorkflowActiveStep[]> {
   if (!supabase) return [];
@@ -1387,7 +1468,7 @@ export async function getActiveSteps(
  * Get all active steps (including waiting) for a workflow instance
  */
 export async function getAllActiveAndWaitingSteps(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string
 ): Promise<WorkflowActiveStep[]> {
   if (!supabase) return [];
@@ -1417,7 +1498,7 @@ export async function getAllActiveAndWaitingSteps(
  * 2. Also cancel orphaned steps that progressed past the sync (e.g., Videographer)
  */
 async function cancelParallelSiblingsAndSyncNodes(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string,
   currentBranchId: string,
   currentStepId?: string
@@ -1458,7 +1539,8 @@ async function cancelParallelSiblingsAndSyncNodes(
     if (step.status === 'waiting') {
       // If we have a flow ID, only cancel same-flow waiting steps
       if (currentFlowId) {
-        const stepFlowId = extractFlowId(step.branch_id);
+        const branchId = step.branch_id;
+        const stepFlowId = isString(branchId) ? extractFlowId(branchId) : null;
         return stepFlowId === currentFlowId;
       }
       // No flow ID - cancel all waiting steps (backwards compatibility)
@@ -1466,9 +1548,10 @@ async function cancelParallelSiblingsAndSyncNodes(
     }
 
     // For active steps, check if they're siblings from the same flow
-    if (step.branch_id) {
-      const stepFlowId = extractFlowId(step.branch_id);
-      const stepForkPoint = extractForkPointBranch(step.branch_id);
+    const branchId = step.branch_id;
+    if (isString(branchId)) {
+      const stepFlowId = extractFlowId(branchId);
+      const stepForkPoint = extractForkPointBranch(branchId);
 
       // If we have flow IDs, only cancel same-flow steps
       if (currentFlowId && stepFlowId && stepFlowId !== currentFlowId) {
@@ -1544,13 +1627,16 @@ async function cancelParallelSiblingsAndSyncNodes(
 
         const outgoing = safeConnections.filter((c: any) => c.from_node_id === nodeId);
         for (const conn of outgoing) {
-          downstreamNodeIds.add(conn.to_node_id);
-          findDownstream(conn.to_node_id, visited);
+          const toNodeId = conn.to_node_id;
+          if (isString(toNodeId)) {
+            downstreamNodeIds.add(toNodeId);
+            findDownstream(toNodeId, visited);
+          }
         }
       }
 
       // Find downstream from each cancelled node
-      cancelledNodeIds.forEach((nodeId: string) => findDownstream(nodeId));
+      cancelledNodeIds.forEach((nodeId: string) => findDownstream(nodeId, new Set()));
 
       if (downstreamNodeIds.size > 0) {
         // Cancel any active/waiting steps at downstream nodes (same flow)
@@ -1563,10 +1649,12 @@ async function cancelParallelSiblingsAndSyncNodes(
 
         const orphanedDownstreamSteps = (downstreamSteps || []).filter((step: any) => {
           // Skip steps we already cancelled
-          if (stepIds.includes(step.id)) return false;
+          const stepId = step.id;
+          if (isString(stepId) && stepIds.includes(stepId)) return false;
           // If we have a flow ID, only cancel same-flow steps
           if (currentFlowId) {
-            const stepFlowId = extractFlowId(step.branch_id);
+            const branchId = step.branch_id;
+            const stepFlowId = isString(branchId) ? extractFlowId(branchId) : null;
             return stepFlowId === currentFlowId || stepFlowId === null;
           }
           return true;
@@ -1603,31 +1691,36 @@ async function cancelParallelSiblingsAndSyncNodes(
  */
 function findNextNodes(
   currentNodeId: string,
-  connections: any[] | null,
-  nodes: any[] | null
-): any[] {
+  connections: Record<string, unknown>[] | null,
+  nodes: Record<string, unknown>[] | null
+): Record<string, unknown>[] {
   if (!connections || !nodes) return [];
 
-  const outgoingConnections = connections.filter((c) => c.from_node_id === currentNodeId);
+  const outgoingConnections = connections.filter((c:any) => c.from_node_id === currentNodeId);
   return outgoingConnections
-    .map((c) => nodes.find((n) => n.id === c.to_node_id))
-    .filter(Boolean);
+    .map((c:any) => {
+      const toNodeId = c.to_node_id;
+      return nodes.find((n:any) => n.id === toNodeId);
+    })
+    .filter((n): n is Record<string, unknown> => n !== undefined);
 }
 
 /**
  * Check if a node is a fork point (multiple outgoing connections without decision conditions)
  */
-function isForkPoint(nodeId: string, connections: any[] | null): boolean {
+function _isForkPoint(nodeId: string, connections: Record<string, unknown>[] | null): boolean {
   if (!connections) return false;
 
   // Get all outgoing connections
-  const outgoing = connections.filter((c) => c.from_node_id === nodeId);
+  const outgoing = connections.filter((c:any) => c.from_node_id === nodeId);
 
   // A fork point has multiple outgoing connections that are NOT decision-based
   // Decision-based edges have condition.decision or condition.conditionValue set
-  const nonDecisionOutgoing = outgoing.filter(
-    (c) => !c.condition?.decision && !c.condition?.conditionValue
-  );
+  const nonDecisionOutgoing = outgoing.filter((c:any) => {
+    const condition = c.condition;
+    if (!isRecord(condition)) return true;
+    return !condition.decision && !condition.conditionValue;
+  });
 
   return nonDecisionOutgoing.length > 1;
 }
@@ -1679,7 +1772,7 @@ function extractForkPointBranch(branchId: string): string {
   if (!branchId || branchId === 'main') return 'main';
 
   // Remove timestamp suffixes (after underscore) for new format
-  let cleaned = branchId.replace(/_[a-z0-9]+/g, '');
+  const cleaned = branchId.replace(/_[a-z0-9]+/g, '');
 
   // Now extract the parent before the fork indices
   const parts = cleaned.split('-');
@@ -1724,9 +1817,9 @@ function generateBranchId(parentBranchId: string, index: number, flowId?: string
  */
 function findDownstreamSyncNode(
   currentNodeId: string,
-  connections: any[] | null,
-  nodes: any[] | null
-): any | null {
+  connections: Record<string, unknown>[] | null,
+  nodes: Record<string, unknown>[] | null
+): Record<string, unknown> | null {
   if (!connections || !nodes) return null;
 
   const visited = new Set<string>();
@@ -1738,10 +1831,11 @@ function findDownstreamSyncNode(
     visited.add(nodeId);
 
     // Find all outgoing connections from this node
-    const outgoing = connections.filter(c => c.from_node_id === nodeId);
+    const outgoing = connections.filter((c: any) => c.from_node_id === nodeId);
 
     for (const conn of outgoing) {
-      const targetNode = nodes.find(n => n.id === conn.to_node_id);
+      const toNodeId = conn.to_node_id;
+      const targetNode = nodes.find((n: any) => n.id === toNodeId);
       if (!targetNode) continue;
 
       // Found sync node!
@@ -1750,8 +1844,9 @@ function findDownstreamSyncNode(
       }
 
       // Continue searching (don't go past end nodes)
-      if (targetNode.node_type !== 'end') {
-        queue.push(targetNode.id);
+      const targetNodeId = targetNode.id;
+      if (targetNode.node_type !== 'end' && isString(targetNodeId)) {
+        queue.push(targetNodeId);
       }
     }
   }
@@ -1765,16 +1860,16 @@ function findDownstreamSyncNode(
  */
 function syncHasRejectionPath(
   syncNodeId: string,
-  connections: any[] | null
+  connections: Record<string, unknown>[] | null
 ): boolean {
   if (!connections) return false;
 
   // Look for outgoing connections from sync with rejection conditions
-  const outgoingFromSync = connections.filter(c => c.from_node_id === syncNodeId);
+  const outgoingFromSync = connections.filter((c: any) => c.from_node_id === syncNodeId);
 
-  return outgoingFromSync.some(conn => {
+  return outgoingFromSync.some((conn: any) => {
     const condition = conn.condition;
-    if (!condition) return false;
+    if (!isRecord(condition)) return false;
 
     // Check for any_rejected decision (sync aggregate decision)
     return condition.decision === 'any_rejected' ||
@@ -1791,7 +1886,7 @@ function syncHasRejectionPath(
  * - siblingsAtStart: branches still at their first step (can be safely cancelled)
  */
 async function checkSiblingProgress(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string,
   currentBranchId: string,
   currentActiveStepId: string | undefined
@@ -1800,7 +1895,7 @@ async function checkSiblingProgress(
   siblingsAtStart: string[];
   totalSiblings: number;
 }> {
-  const safeConnections: any[] = [];
+  const _safeConnections: Record<string, unknown>[] = [];
 
   // Extract flow ID from current branch
   const flowId = extractFlowId(currentBranchId);
@@ -1815,7 +1910,7 @@ async function checkSiblingProgress(
     .in('status', ['active', 'waiting']);
 
   // Filter to only sibling branches (same parent, same flow ID)
-  const siblings = (siblingSteps || []).filter(step => {
+  const siblings = (siblingSteps || []).filter((step: any) => {
     if (!step.branch_id) return false;
     const stepForkPoint = extractForkPointBranch(step.branch_id);
     const stepFlowId = extractFlowId(step.branch_id);
@@ -1867,7 +1962,7 @@ async function checkSiblingProgress(
  * Check if all branches have reached completion (End nodes or waiting at Sync)
  */
 export async function isWorkflowComplete(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string
 ): Promise<boolean> {
   if (!supabase) return false;
@@ -1893,10 +1988,10 @@ export async function isWorkflowComplete(
  */
 function getSyncNodeExpectedBranches(
   syncNodeId: string,
-  connections: any[] | null
+  connections: Record<string, unknown>[] | null
 ): number {
   if (!connections) return 0;
-  return connections.filter((c) => c.to_node_id === syncNodeId).length;
+  return connections.filter((c:any) => c.to_node_id === syncNodeId).length;
 }
 
 /**
@@ -1912,11 +2007,11 @@ function getSyncNodeExpectedBranches(
  * complete simultaneously.
  */
 async function handleSyncNode(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string,
   syncNodeId: string,
   completingBranchId: string,
-  connections: any[] | null
+  connections: Record<string, unknown>[] | null
 ): Promise<{
   allArrived: boolean;
   canProgress: boolean;
@@ -1969,7 +2064,10 @@ async function handleSyncNode(
   // This ensures we only count steps from the current parallel iteration,
   // not stale steps from previous rejection cycles
   const sameFlowWaiting = currentFlowId
-    ? (waitingSteps || []).filter((s: any) => extractFlowId(s.branch_id) === currentFlowId)
+    ? (waitingSteps || []).filter((s: any) => {
+        const branchId = s.branch_id;
+        return isString(branchId) && extractFlowId(branchId) === currentFlowId;
+      })
     : waitingSteps || [];
 
   // Current branch will become waiting, so total waiting will be sameFlowWaiting + 1
@@ -1980,7 +2078,7 @@ async function handleSyncNode(
   // Aggregate approval decisions from parallel branches
   // Find the node IDs that connect TO this sync node (the parallel branches)
   const incomingNodeIds = connections
-    ? connections.filter(c => c.to_node_id === syncNodeId).map(c => c.from_node_id)
+    ? connections.filter((c: any) => c.to_node_id === syncNodeId).map((c: any) => c.from_node_id)
     : [];
 
   // Query workflow_approvals for decisions from these nodes in this workflow instance
@@ -2010,8 +2108,8 @@ async function handleSyncNode(
       }));
 
       // Determine aggregate decision
-      const hasRejection = branchDecisions.some(d => d.decision === 'rejected');
-      const allApproved = branchDecisions.length > 0 && branchDecisions.every(d => d.decision === 'approved');
+      const hasRejection = branchDecisions.some((d: any) => d.decision === 'rejected');
+      const allApproved = branchDecisions.length > 0 && branchDecisions.every((d: any) => d.decision === 'approved');
 
       if (hasRejection) {
         aggregateDecision = 'any_rejected';
@@ -2051,7 +2149,7 @@ async function handleSyncNode(
  * This is the main entry point for advancing parallel workflows
  */
 export async function progressWorkflowStep(
-  supabase: SupabaseClient,
+  supabase: any,
   workflowInstanceId: string,
   activeStepId: string | null, // Can be null for backward compatibility
   currentUserId: string,
@@ -2059,9 +2157,9 @@ export async function progressWorkflowStep(
   feedback?: string,
   formResponseId?: string,
   assignedUserId?: string,
-  inlineFormData?: Record<string, any>,
+  inlineFormData?: Record<string, Record<string, unknown>>,
   assignedUsersPerNode?: Record<string, string> // NEW: map of nodeId -> userId for parallel branches
-): Promise<{ success: boolean; nextNode?: any; newActiveSteps?: WorkflowActiveStep[]; error?: string }> {
+): Promise<{ success: boolean; nextNode?: Record<string, unknown>; newActiveSteps?: WorkflowActiveStep[]; error?: string }> {
   if (!supabase) {
     return { success: false, error: 'Database connection failed' };
   }
@@ -2080,8 +2178,8 @@ export async function progressWorkflowStep(
 
     // Get nodes and connections - prefer snapshot over live tables
     // This ensures deleted/modified templates don't break in-progress workflows
-    let nodes: any[] = [];
-    let connections: any[] = [];
+    let nodes: Record<string, unknown>[] = [];
+    let connections: Record<string, unknown>[] = [];
 
     if (instance.started_snapshot?.nodes && instance.started_snapshot?.connections) {
       // Use snapshot data (protects against template deletion/modification)
@@ -2106,7 +2204,7 @@ export async function progressWorkflowStep(
     }
 
     // Determine current node based on whether we're using parallel or legacy mode
-    let currentNode: any;
+    let currentNode: Record<string, unknown> | null = null;
     let currentBranchId = 'main';
     let activeStep: WorkflowActiveStep | null = null;
 
@@ -2124,11 +2222,11 @@ export async function progressWorkflowStep(
 
       activeStep = step;
       currentBranchId = step.branch_id;
-      currentNode = nodes?.find((n: any) => n.id === step.node_id);
+      currentNode = nodes?.find((n: any) => n.id === step.node_id) || null;
     } else {
       // Legacy mode: Use current_node_id
       if (instance.current_node_id) {
-        currentNode = nodes?.find((n: any) => n.id === instance.current_node_id);
+        currentNode = nodes?.find((n: any) => n.id === instance.current_node_id) || null;
 
         // Also try to find the active step for this node (needed to mark it as completed)
         const { data: legacyStep } = await supabase
@@ -2146,7 +2244,7 @@ export async function progressWorkflowStep(
       } else {
         // Workflow hasn't started yet - current_node_id is null
         // Find the start node and use it as the current node
-        currentNode = nodes?.find((n: any) => n.node_type === 'start');
+        currentNode = nodes?.find((n: any) => n.node_type === 'start') || null;
       }
     }
 
@@ -2196,7 +2294,7 @@ export async function progressWorkflowStep(
       // 2. ENTITY VALIDATION (skip if user has explicit node assignment)
       if (!hasNodeAssignment && currentNode.entity_id) {
         if (currentNode.node_type === 'role' || currentNode.node_type === 'approval') {
-          const hasRequiredRole = await userHasRole(supabase, currentUserId, currentNode.entity_id);
+          const hasRequiredRole = await userHasRole(supabase, currentUserId, currentNode.entity_id as string);
           if (!hasRequiredRole) {
             const { data: requiredRole } = await supabase
               .from('roles')
@@ -2233,7 +2331,7 @@ export async function progressWorkflowStep(
     }
 
     // Determine next nodes based on node type and decision
-    let nextNodes: any[] = [];
+    let nextNodes: Record<string, unknown>[] = [];
 
     if (currentNode.node_type === 'conditional') {
       // Legacy conditional node support
@@ -2261,7 +2359,7 @@ export async function progressWorkflowStep(
         // Look for a rejection edge (condition contains 'rejected' or 'any_rejected')
         const rejectionEdge = outgoingFromSync.find((c: any) => {
           const condition = c.condition;
-          if (!condition) return false;
+          if (!isRecord(condition)) return false;
           const condVal = condition.conditionValue || condition.decision;
           return condVal === 'rejected' || condVal === 'any_rejected';
         });
@@ -2283,7 +2381,7 @@ export async function progressWorkflowStep(
         // all_approved or no_approvals - route to approved/default path
         const approvedEdge = outgoingFromSync.find((c: any) => {
           const condition = c.condition;
-          if (!condition) return false;
+          if (!isRecord(condition)) return false;
           const condVal = condition.conditionValue || condition.decision;
           return condVal === 'approved' || condVal === 'all_approved';
         });
@@ -2304,7 +2402,7 @@ export async function progressWorkflowStep(
       }
     } else {
       // Check if this is a fork point
-      nextNodes = findNextNodes(currentNode.id, connections, nodes);
+      nextNodes = findNextNodes(currentNode.id as string, connections, nodes);
     }
 
     // AUTO-ROUTE THROUGH CONDITIONAL NODES
@@ -2312,14 +2410,14 @@ export async function progressWorkflowStep(
     // This allows forms to directly branch based on their responses without user interaction
     if (nextNodes.length > 0) {
       // Build accumulated form data from various sources
-      let accumulatedFormData: Record<string, any> = {};
+      let accumulatedFormData: Record<string, Record<string, unknown>> = {};
 
       // Add inline form data if provided (highest priority - most recent submission)
       if (inlineFormData && Object.keys(inlineFormData).length > 0) {
         // For inline forms, the actual responses are nested under 'responses' key
         // Extract them to the top level for conditional evaluation
         if (inlineFormData.responses && typeof inlineFormData.responses === 'object') {
-          accumulatedFormData = { ...accumulatedFormData, ...inlineFormData.responses };
+          accumulatedFormData = { ...accumulatedFormData, ...(inlineFormData.responses as Record<string, Record<string, unknown>>) };
           console.log('[progressWorkflowStep] Extracted inline form responses for conditional routing:', Object.keys(inlineFormData.responses));
         } else {
           // Fallback: spread as-is (for non-nested form data)
@@ -2362,7 +2460,7 @@ export async function progressWorkflowStep(
           ? formResponsesData[0]?.response_data
           : (formResponsesData as unknown as { response_data?: unknown } | null)?.response_data;
         if (formResponseData && typeof formResponseData === 'object') {
-          accumulatedFormData = { ...formResponseData as Record<string, unknown> };
+          accumulatedFormData = { ...(formResponseData as any) };
           console.log('[progressWorkflowStep] Fetched recent form data from history for conditional routing');
         }
       }
@@ -2497,8 +2595,8 @@ export async function progressWorkflowStep(
 
         // SMART REJECTION: Check if we should route through sync instead
         // This preserves work in progress on other branches
-        const downstreamSync = findDownstreamSyncNode(currentNode.id, connections, nodes);
-        const syncHasRejectionRoute = downstreamSync ? syncHasRejectionPath(downstreamSync.id, connections) : false;
+        const downstreamSync = findDownstreamSyncNode(String(currentNode.id), connections, nodes);
+        const syncHasRejectionRoute = downstreamSync ? syncHasRejectionPath(downstreamSync.id as string, connections) : false;
         const siblingProgress = await checkSiblingProgress(
           supabase,
           workflowInstanceId,
@@ -2578,9 +2676,8 @@ export async function progressWorkflowStep(
 
     // Process each next node
     const newActiveSteps: WorkflowActiveStep[] = [];
-    let anyEndReached = false;
     // Not a new parallel fork if we're routing back OR routing a rejection to sync
-    let isParallel = nextNodes.length > 1 && !rejectionRoutingBack && !rejectionRoutingToSync;
+    const isParallel = nextNodes.length > 1 && !rejectionRoutingBack && !rejectionRoutingToSync;
 
     // Generate a flow ID for this parallel iteration (if forking)
     // This allows us to track and cancel steps from the same parallel "generation"
@@ -2588,10 +2685,10 @@ export async function progressWorkflowStep(
 
     // Collect all user assignments for parallel branches
     // We'll apply them all at once to avoid removing assignments between branches
-    const parallelAssignments: Array<{ node: any; userId: string | null }> = [];
+    const parallelAssignments: Array<{ node: Record<string, unknown>; userId: string | null }> = [];
 
     for (let i = 0; i < nextNodes.length; i++) {
-      let nextNode = nextNodes[i];
+      const nextNode = nextNodes[i];
       // When rejection routes back past fork, use the parent branch (e.g., 'main')
       // When rejection routes to sync, keep the current branch ID for proper tracking
       // Otherwise use normal branching logic
@@ -2604,7 +2701,7 @@ export async function progressWorkflowStep(
         const syncResult = await handleSyncNode(
           supabase,
           workflowInstanceId,
-          nextNode.id,
+          nextNode.id as string,
           newBranchId,
           connections
         );
@@ -2683,7 +2780,7 @@ export async function progressWorkflowStep(
 
             // Pick highest, or random among ties
             const highestLevel = userMaxLevels[0]?.maxLevel ?? 0;
-            const topUsers = userMaxLevels.filter(u => u.maxLevel === highestLevel);
+            const topUsers = userMaxLevels.filter((u: any) => u.maxLevel === highestLevel);
 
             if (topUsers.length === 1) {
               syncLeaderId = topUsers[0].userId;
@@ -2770,14 +2867,13 @@ export async function progressWorkflowStep(
 
       // Handle end nodes
       if (nextNode.node_type === 'end') {
-        anyEndReached = true;
         // Mark this branch as completed (no new active step needed)
         continue;
       }
 
       // For regular nodes, create new active step
       // Use per-node assignment if available (for parallel branches), otherwise fall back to single assignedUserId
-      const nodeAssignedUserId = assignedUsersPerNode?.[nextNode.id] || assignedUserId || null;
+      const nodeAssignedUserId = assignedUsersPerNode?.[nextNode.id as string] || assignedUserId || null;
 
       // CRITICAL: Validate that role/department nodes have users available
       // This prevents creating orphaned steps that no one can act on
@@ -2831,8 +2927,8 @@ export async function progressWorkflowStep(
         }
       }
 
-      let newStep: any = null;
-      let stepCreationError: any = null;
+      let newStep: unknown = null;
+      let stepCreationError: unknown = null;
 
       // First, try to insert a new active step
       const { data: insertedStep, error: insertError } = await supabase
@@ -2917,12 +3013,12 @@ export async function progressWorkflowStep(
       if (!newStep && stepCreationError) {
         return {
           success: false,
-          error: `Failed to create workflow step for "${nextNode.label}": ${stepCreationError.message || 'Unknown error'}`
+          error: `Failed to create workflow step for "${nextNode.label}": ${(stepCreationError as Error).message || 'Unknown error'}`
         };
       }
 
       if (newStep) {
-        newActiveSteps.push(newStep);
+        newActiveSteps.push(newStep as WorkflowActiveStep);
       }
 
       // Collect assignment for batch processing
@@ -3015,7 +3111,7 @@ export async function progressWorkflowStep(
     console.log('Workflow completion check:', {
       workflowInstanceId,
       newActiveStepsCount: newActiveSteps.length,
-      newActiveStepNodes: newActiveSteps.map(s => s.node_id),
+      newActiveStepNodes: newActiveSteps.map((s: any) => s.node_id),
       workflowComplete,
       decision
     });
@@ -3073,10 +3169,10 @@ export async function progressWorkflowStep(
 
     return {
       success: true,
-      nextNode: primaryNextNode,
+      nextNode: primaryNextNode ?? undefined,
       newActiveSteps
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error progressing workflow step:', error);
     return { success: false, error: 'Internal server error' };
   }

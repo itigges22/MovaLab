@@ -1,23 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Clock, Play, Square, Timer } from 'lucide-react'
+import { Clock, Play, Square, Timer, List } from 'lucide-react'
 import { ClockOutDialog } from './clock-out-dialog'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { isUnassigned } from '@/lib/rbac'
 import { useClockStatus } from '@/lib/hooks/use-data'
-
-interface ClockSession {
-  id: string
-  user_id: string
-  clock_in_time: string
-  clock_out_time: string | null
-  is_active: boolean
-  is_auto_clock_out: boolean
-}
 
 export function ClockWidget() {
   const { userProfile, loading: authLoading } = useAuth()
@@ -84,7 +76,7 @@ export function ClockWidget() {
       } else {
         toast.error(data.error || 'Failed to clock in')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error clocking in:', error)
       toast.error('Failed to clock in')
     } finally {
@@ -162,6 +154,16 @@ export function ClockWidget() {
                     <Square className="w-4 h-4 mr-2" />
                     Clock Out
                   </Button>
+                  <Link href="/time-entries" className="block">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      size="sm"
+                    >
+                      <List className="w-4 h-4 mr-2" />
+                      View All Entries
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 // Clocked out state
@@ -187,6 +189,16 @@ export function ClockWidget() {
                       </>
                     )}
                   </Button>
+                  <Link href="/time-entries" className="block">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      size="sm"
+                    >
+                      <List className="w-4 h-4 mr-2" />
+                      View All Entries
+                    </Button>
+                  </Link>
                 </div>
               )}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
@@ -32,8 +33,8 @@ interface WorkflowInstance {
     name: string;
   };
   started_snapshot?: {
-    nodes?: any[];
-    connections?: any[];
+    nodes?: Record<string, unknown>[];
+    connections?: Record<string, unknown>[];
     template_name?: string;
   } | null;
 }
@@ -44,18 +45,10 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
   const [orderedNodes, setOrderedNodes] = useState<WorkflowNode[]>([]);
   const [currentNodeIndex, setCurrentNodeIndex] = useState<number>(-1);
 
-  useEffect(() => {
-    if (workflowInstanceId) {
-      loadWorkflowTimeline();
-    } else {
-      setLoading(false);
-    }
-  }, [workflowInstanceId]);
-
-  const loadWorkflowTimeline = async () => {
+  const loadWorkflowTimeline = useCallback(async () => {
     try {
       setLoading(true);
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return;
 
       // Get workflow instance with snapshot
@@ -66,7 +59,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
           started_snapshot,
           workflow_templates(name)
         `)
-        .eq('id', workflowInstanceId)
+        .eq('id', workflowInstanceId!)
         .single();
 
       if (instanceError || !instance) {
@@ -81,17 +74,17 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
         return;
       }
 
-      setWorkflowInstance(instance);
+      setWorkflowInstance(instance as WorkflowInstance);
 
       // Get nodes and connections - prefer snapshot over live tables
       // This ensures deleted/modified templates don't break in-progress workflows
-      let nodes: any[] = [];
-      let connections: any[] = [];
+      let nodes: Record<string, unknown>[] = [];
+      let connections: Record<string, unknown>[] = [];
 
-      if (instance.started_snapshot?.nodes && instance.started_snapshot?.connections) {
+      if ((instance as WorkflowInstance).started_snapshot?.nodes && (instance as WorkflowInstance).started_snapshot?.connections) {
         // Use snapshot data (protects against template deletion/modification)
-        nodes = instance.started_snapshot.nodes;
-        connections = instance.started_snapshot.connections;
+        nodes = (instance as WorkflowInstance).started_snapshot!.nodes!;
+        connections = (instance as WorkflowInstance).started_snapshot!.connections!;
         console.log('[WorkflowTimeline] Using snapshot data');
       } else {
         // Fallback to live tables for older instances without snapshot
@@ -99,7 +92,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
         const { data: liveNodes, error: nodesError } = await supabase
           .from('workflow_nodes')
           .select('*')
-          .eq('workflow_template_id', instance.workflow_template_id)
+          .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id)
           .order('position_y');
 
         if (nodesError || !liveNodes) {
@@ -110,7 +103,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
         const { data: liveConnections, error: connectionsError } = await supabase
           .from('workflow_connections')
           .select('*')
-          .eq('workflow_template_id', instance.workflow_template_id);
+          .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (connectionsError) {
           console.error('Error loading connections:', connectionsError);
@@ -122,27 +115,35 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
       }
 
       // Build ordered node list by following connections from start node
-      const ordered = buildOrderedNodeList(nodes, connections);
+      const ordered = buildOrderedNodeList(nodes as unknown as WorkflowNode[], connections as unknown as WorkflowConnection[]);
       setOrderedNodes(ordered);
 
       // Find current node index
-      const currentIndex = ordered.findIndex(n => n.id === instance.current_node_id);
+      const currentIndex = ordered.findIndex(n => n.id === (instance as WorkflowInstance).current_node_id);
       setCurrentNodeIndex(currentIndex);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow timeline:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowInstanceId]);
+
+  useEffect(() => {
+    if (workflowInstanceId) {
+      loadWorkflowTimeline();
+    } else {
+      setLoading(false);
+    }
+  }, [workflowInstanceId, loadWorkflowTimeline]);
 
   const buildOrderedNodeList = (nodes: WorkflowNode[], connections: WorkflowConnection[]): WorkflowNode[] => {
     // Find start node
-    const startNode = nodes.find(n => n.node_type === 'start');
+    const startNode = nodes.find((n: any) => n.node_type === 'start');
     if (!startNode) {
       // Fallback: sort by position_y, excluding conditional nodes
       return nodes
-        .filter(n => n.node_type !== 'conditional')
+        .filter((n: any) => n.node_type !== 'conditional')
         .sort((a, b) => a.position_y - b.position_y);
     }
 
@@ -150,17 +151,17 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
     const visited = new Set<string>([startNode.id]);
 
     let currentNode = startNode;
-    let maxIterations = nodes.length * 2; // Allow extra iterations for skipping conditionals
+    const maxIterations = nodes.length * 2; // Allow extra iterations for skipping conditionals
     let iterations = 0;
 
     while (iterations < maxIterations) {
       iterations++;
 
       // Find next node from connections
-      const connection = connections.find(c => c.from_node_id === currentNode.id);
+      const connection = connections.find((c: any) => c.from_node_id === currentNode.id);
       if (!connection) break;
 
-      const nextNode = nodes.find(n => n.id === connection.to_node_id);
+      const nextNode = nodes.find((n: any) => n.id === connection.to_node_id);
       if (!nextNode || visited.has(nextNode.id)) break;
 
       visited.add(nextNode.id);
@@ -233,7 +234,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
         <div className="relative">
           {/* Timeline */}
           <div className="flex items-center justify-between gap-2 overflow-x-auto pb-4">
-            {orderedNodes.map((node, index) => {
+            {orderedNodes.map((node:any, index:any) => {
               const isPast = index < currentNodeIndex;
               const isCurrent = index === currentNodeIndex;
               const isFuture = index > currentNodeIndex;

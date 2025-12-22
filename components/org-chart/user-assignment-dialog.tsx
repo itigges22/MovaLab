@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,39 @@ export function UserAssignmentDialog({
   const [assignedUserIds, setAssignedUserIds] = useState<Set<string>>(new Set());
   const [assigning, setAssigning] = useState(false);
 
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/users');
+      if (!response.ok) throw new Error('Failed to load users');
+      const data = await response.json();
+      // API returns { users: [...] }, so extract the users array
+      setUsers(Array.isArray(data.users) ? data.users : (Array.isArray(data) ? data : []));
+    } catch (error: unknown) {
+      console.error('Error loading users:', error);
+      toast.error('Failed to load users');
+      setUsers([]); // Ensure users is always an array
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadAssignedUsers = useCallback(async () => {
+    if (!role) return;
+
+    try {
+      const response = await fetch(`/api/roles/${role.id}/users`);
+      if (!response.ok) throw new Error('Failed to load assigned users');
+      const data = await response.json();
+      // Ensure data is an array before mapping
+      const usersArray = Array.isArray(data) ? data : [];
+      setAssignedUserIds(new Set(usersArray.map((u: User) => u.id)));
+    } catch (error: unknown) {
+      console.error('Error loading assigned users:', error);
+      setAssignedUserIds(new Set()); // Ensure it's always a Set
+    }
+  }, [role]);
+
   useEffect(() => {
     if (open && role) {
       void loadUsers();
@@ -50,54 +84,21 @@ export function UserAssignmentDialog({
       setUsers([]);
       setAssignedUserIds(new Set());
     }
-  }, [open, role]);
-
-  async function loadUsers() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/users');
-      if (!response.ok) throw new Error('Failed to load users');
-      const data = await response.json();
-      // API returns { users: [...] }, so extract the users array
-      setUsers(Array.isArray(data.users) ? data.users : (Array.isArray(data) ? data : []));
-    } catch (error) {
-      console.error('Error loading users:', error);
-      toast.error('Failed to load users');
-      setUsers([]); // Ensure users is always an array
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadAssignedUsers() {
-    if (!role) return;
-    
-    try {
-      const response = await fetch(`/api/roles/${role.id}/users`);
-      if (!response.ok) throw new Error('Failed to load assigned users');
-      const data = await response.json();
-      // Ensure data is an array before mapping
-      const usersArray = Array.isArray(data) ? data : [];
-      setAssignedUserIds(new Set(usersArray.map((u: User) => u.id)));
-    } catch (error) {
-      console.error('Error loading assigned users:', error);
-      setAssignedUserIds(new Set()); // Ensure it's always a Set
-    }
-  }
+  }, [open, role, loadUsers, loadAssignedUsers]);
 
   async function assignUser(userId: string) {
     if (!role) return;
 
-    const user = users.find(u => u.id === userId);
+    const user = users.find((u: any) => u.id === userId);
     if (!user) return;
 
     // If in Edit Mode, just queue the assignment locally
     if (isEditMode && onLocalAssign) {
-      console.log('🎯 Edit Mode: Queueing user assignment locally', { roleId: role.id, userId, userName: user.name });
-      onLocalAssign(role.id, userId, user.name);
+      console.log('🎯 Edit Mode: Queueing user assignment locally', { roleId: role.id, userId, userName: (user as any).name });
+      onLocalAssign(role.id, userId, (user as any).name);
       setAssignedUserIds(prev => new Set([...prev, userId]));
       toast.success('Assignment queued. Click "Save Changes" to apply.', {
-        description: `${user.name} will be assigned to "${role.name}" when you save.`
+        description: `${(user as any).name} will be assigned to "${role.name}" when you save.`
       });
       return;
     }
@@ -119,9 +120,10 @@ export function UserAssignmentDialog({
       toast.success('User assigned successfully');
       setAssignedUserIds(prev => new Set([...prev, userId]));
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error assigning user:', error);
-      toast.error(error.message || 'Failed to assign user');
+      const err = error as { message?: string };
+      toast.error(err.message || 'Failed to assign user');
     } finally {
       setAssigning(false);
     }
@@ -148,9 +150,10 @@ export function UserAssignmentDialog({
         return next;
       });
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error removing user:', error);
-      toast.error(error.message || 'Failed to remove user');
+      const err = error as { message?: string };
+      toast.error(err.message || 'Failed to remove user');
     } finally {
       setAssigning(false);
     }
@@ -158,13 +161,13 @@ export function UserAssignmentDialog({
 
   // Safety check: ensure users is always an array
   const usersArray = Array.isArray(users) ? users : [];
-  const filteredUsers = usersArray.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = usersArray.filter((user: any) =>
+    (user as any).name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (user as any).email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const assignedUsers = filteredUsers.filter(u => assignedUserIds.has(u.id));
-  const unassignedUsers = filteredUsers.filter(u => !assignedUserIds.has(u.id));
+  const assignedUsers = filteredUsers.filter((u: any) => assignedUserIds.has(u.id));
+  const unassignedUsers = filteredUsers.filter((u: any) => !assignedUserIds.has(u.id));
 
   if (!role) return null;
 
@@ -205,30 +208,30 @@ export function UserAssignmentDialog({
                   </h3>
                   <ScrollArea className="h-48 border rounded-lg">
                     <div className="p-2 space-y-1">
-                      {assignedUsers.map(user => (
+                      {assignedUsers.map((user: any) => (
                         <div
-                          key={user.id}
+                          key={(user as any).id}
                           className="flex items-center justify-between p-2 rounded hover:bg-gray-50"
                         >
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
-                              {user.image ? (
-                                <img src={user.image} alt={user.name} />
+                              {(user as any).image ? (
+                                <Image src={(user as any).image} alt={(user as any).name} width={32} height={32} className="rounded-full" />
                               ) : (
                                 <div className="flex items-center justify-center h-full w-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-medium">
-                                  {user.name.charAt(0)}
+                                  {(user as any).name.charAt(0)}
                                 </div>
                               )}
                             </Avatar>
                             <div>
-                              <div className="text-sm font-medium">{user.name}</div>
-                              <div className="text-xs text-gray-500">{user.email}</div>
+                              <div className="text-sm font-medium">{(user as any).name}</div>
+                              <div className="text-xs text-gray-500">{(user as any).email}</div>
                             </div>
                           </div>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => removeUser(user.id)}
+                            onClick={() => removeUser((user as any).id)}
                             disabled={assigning}
                             className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
@@ -250,30 +253,30 @@ export function UserAssignmentDialog({
                   </h3>
                   <ScrollArea className="h-48 border rounded-lg">
                     <div className="p-2 space-y-1">
-                      {unassignedUsers.map(user => (
+                      {unassignedUsers.map((user: any) => (
                         <div
-                          key={user.id}
+                          key={(user as any).id}
                           className="flex items-center justify-between p-2 rounded hover:bg-gray-50"
                         >
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
-                              {user.image ? (
-                                <img src={user.image} alt={user.name} />
+                              {(user as any).image ? (
+                                <Image src={(user as any).image} alt={(user as any).name} width={32} height={32} className="rounded-full" />
                               ) : (
                                 <div className="flex items-center justify-center h-full w-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-medium">
-                                  {user.name.charAt(0)}
+                                  {(user as any).name.charAt(0)}
                                 </div>
                               )}
                             </Avatar>
                             <div>
-                              <div className="text-sm font-medium">{user.name}</div>
-                              <div className="text-xs text-gray-500">{user.email}</div>
+                              <div className="text-sm font-medium">{(user as any).name}</div>
+                              <div className="text-xs text-gray-500">{(user as any).email}</div>
                             </div>
                           </div>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => assignUser(user.id)}
+                            onClick={() => assignUser((user as any).id)}
                             disabled={assigning}
                             className="h-7"
                           >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { userApprovalService } from '@/lib/user-approval-service';
@@ -27,6 +27,42 @@ export default function PendingApprovalPage() {
   const [checkingApproval, setCheckingApproval] = useState(true);
   const [approvalRequested, setApprovalRequested] = useState(false);
 
+  const checkApprovalStatus = useCallback(async () => {
+    if (!userProfile) return;
+
+    try {
+      setCheckingApproval(true);
+
+      logger.debug('Checking user approval status', {
+        action: 'checkApprovalStatus',
+        userId: (userProfile as any).id
+      });
+
+      const approved = await userApprovalService.isUserApproved((userProfile as any).id);
+      setIsApproved(approved);
+
+      if (approved) {
+        logger.info('User is approved, redirecting to dashboard', {
+          action: 'checkApprovalStatus',
+          userId: (userProfile as any).id
+        });
+        router.push('/dashboard');
+      } else {
+        logger.info('User is not approved, showing pending screen', {
+          action: 'checkApprovalStatus',
+          userId: (userProfile as any).id
+        });
+      }
+    } catch (error: unknown) {
+      logger.error('Error checking approval status', {
+        action: 'checkApprovalStatus',
+        userId: (userProfile as any)?.id
+      }, error as Error);
+    } finally {
+      setCheckingApproval(false);
+    }
+  }, [userProfile, router]);
+
   useEffect(() => {
     if (loading) return;
 
@@ -40,43 +76,7 @@ export default function PendingApprovalPage() {
     }
 
     checkApprovalStatus();
-  }, [user, userProfile, loading, router]);
-
-  const checkApprovalStatus = async () => {
-    if (!userProfile) return;
-
-    try {
-      setCheckingApproval(true);
-      
-      logger.debug('Checking user approval status', { 
-        action: 'checkApprovalStatus', 
-        userId: userProfile.id 
-      });
-
-      const approved = await userApprovalService.isUserApproved(userProfile.id);
-      setIsApproved(approved);
-      
-      if (approved) {
-        logger.info('User is approved, redirecting to dashboard', { 
-          action: 'checkApprovalStatus', 
-          userId: userProfile.id 
-        });
-        router.push('/dashboard');
-      } else {
-        logger.info('User is not approved, showing pending screen', { 
-          action: 'checkApprovalStatus', 
-          userId: userProfile.id 
-        });
-      }
-    } catch (error) {
-      logger.error('Error checking approval status', { 
-        action: 'checkApprovalStatus', 
-        userId: userProfile?.id 
-      }, error as Error);
-    } finally {
-      setCheckingApproval(false);
-    }
-  };
+  }, [user, userProfile, loading, router, checkApprovalStatus]);
 
   const handleRequestApproval = async () => {
     if (!userProfile) return;
@@ -86,27 +86,27 @@ export default function PendingApprovalPage() {
       
       logger.info('User requesting approval', { 
         action: 'handleRequestApproval', 
-        userId: userProfile.id 
+        userId: (userProfile as any).id 
       });
 
-      const success = await userApprovalService.requestApproval(userProfile.id);
+      const success = await userApprovalService.requestApproval((userProfile as any).id);
       
       if (success) {
-        userAction('approval_requested', userProfile.id, { action: 'handleRequestApproval' });
+        userAction('approval_requested', (userProfile as any).id, { action: 'handleRequestApproval' });
         logger.info('Approval request submitted successfully', { 
           action: 'handleRequestApproval', 
-          userId: userProfile.id 
+          userId: (userProfile as any).id 
         });
       } else {
         logger.error('Failed to submit approval request', { 
           action: 'handleRequestApproval', 
-          userId: userProfile.id 
+          userId: (userProfile as any).id 
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error requesting approval', { 
         action: 'handleRequestApproval', 
-        userId: userProfile.id 
+        userId: (userProfile as any).id 
       }, error as Error);
     } finally {
       setApprovalRequested(false);
@@ -115,10 +115,10 @@ export default function PendingApprovalPage() {
 
   const handleSignOut = async () => {
     try {
-      userAction('signed_out', userProfile?.id || '', { action: 'handleSignOut' });
+      userAction('signed_out', (userProfile as any)?.id || '', { action: 'handleSignOut' });
       await signOut();
       router.push('/login');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error signing out', { action: 'handleSignOut' }, error as Error);
     }
   };
@@ -177,20 +177,20 @@ export default function PendingApprovalPage() {
             {userProfile && (
               <div className="flex items-center gap-4 p-4 bg-muted/20 rounded-lg">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={userProfile.image || undefined} />
+                  <AvatarImage src={(userProfile as any).image || undefined} />
                   <AvatarFallback>
-                    {userProfile.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    {(userProfile as any).name.split(' ').map((n: any) => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h3 className="font-semibold">{userProfile.name}</h3>
+                  <h3 className="font-semibold">{(userProfile as any).name}</h3>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Mail className="h-4 w-4" />
-                    <span>{userProfile.email}</span>
+                    <span>{(userProfile as any).email}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Joined: {formatDate(userProfile.created_at)}</span>
+                    <span>Joined: {formatDate((userProfile as any).created_at)}</span>
                   </div>
                 </div>
               </div>

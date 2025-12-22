@@ -17,13 +17,13 @@
 **MovaLab** (Professional Service Automation) is an enterprise-grade project and resource management platform designed for professional services organizations. It provides comprehensive tools for managing client accounts, projects, departments, teams, capacity planning, time tracking, and organizational structure through a sophisticated role-based permission system.
 
 ### Key Value Propositions
-- **Granular Permission Control**: 136 unique permissions across 15 categories
+- **Granular Permission Control**: ~40 consolidated permissions across ~15 categories (reduced from 136 via Phase 8-9 RBAC refactoring)
 - **Multi-Dimensional Resource Planning**: Track capacity at user, department, and organization levels
 - **Real-Time Capacity Management**: Week-by-week availability and utilization tracking
 - **Flexible Organizational Structure**: Support for complex hierarchies with reporting relationships
-- **Time Tracking & Clock Sessions**: Built-in time tracking with automatic clock-out protection
+- **Time Tracking & Clock Sessions**: Built-in time tracking with automatic clock-out protection, user-facing time entries dashboard
 - **Client & Project Management**: Complete lifecycle management from planning to completion
-- **Visual Project Management**: Kanban boards, Gantt charts, and table views
+- **Visual Workflow Management**: Node-based workflow builder with inline forms, Kanban boards for tasks
 
 ---
 
@@ -250,10 +250,24 @@ The RBAC system uses a **hybrid approach** combining:
 2. **Override Permissions**: Special permissions that bypass contextual restrictions
 3. **Context-Aware Checks**: Permissions evaluated with specific context (department, account, project)
 
-### Total Permissions: 136
-Organized into 15 categories across the platform.
+### Total Permissions: ~40 (Post-Phase 9 Consolidation)
+Reduced from 136 → 58 → ~40 through aggressive consolidation (Dec 2025).
+Organized into ~15 categories across the platform using MANAGE pattern.
 
 ### Permission Categories
+
+**IMPORTANT - Phase 9 Update (Dec 2025)**: The permission list below reflects the original 136-permission system. After Phase 8-9 RBAC refactoring, permissions have been consolidated to ~40 using the MANAGE pattern (CREATE/EDIT/DELETE merged into MANAGE_*). See `CLAUDE.md` "Permission System Deep Dive" section for the current consolidated permission list.
+
+**Key Consolidations:**
+- Role Management: 10 → 2 permissions (MANAGE_USER_ROLES consolidates 6 permissions)
+- Forms: 4 → 0 permissions (forms now inline-only in workflows)
+- Table View: 2 → 0 permissions (deprecated, replaced by project list)
+- Implicit Permissions Removed: VIEW_OWN_PROFILE, VIEW_ANALYTICS, VIEW_OWN_CAPACITY (access is inherent)
+- CRUD → MANAGE pattern: CREATE/EDIT/DELETE merged across all categories
+
+---
+
+#### Original Permission Categories (Pre-Phase 9, for reference)
 
 #### 1. Role Management (10 permissions)
 | Permission | Description | Use Case |
@@ -455,9 +469,10 @@ All permissions with `isOverride: true`:
 ### System Roles
 
 **Pre-configured system roles** (marked with `is_system_role = true`):
-1. **Superadmin**: Has all 136 permissions
-2. **Executive**: Has all 136 permissions (same as Superadmin)
-3. **Unassigned** / **No Assigned Role**: Has zero permissions, used for pending approvals
+1. **Superadmin**: Has all ~40 permissions, bypasses all permission checks
+2. **Unassigned** / **No Assigned Role**: Has zero permissions, used for pending approvals
+
+**Note**: The "Executive" role was removed in Phase 9 as it was redundant with Superadmin. Organizations can create custom executive-level roles with granular permissions as needed.
 
 ---
 
@@ -1221,14 +1236,14 @@ POLICY "Admins can view all clock sessions" ON clock_sessions
 
 **MovaLab** is a comprehensive professional services automation platform built on:
 
-1. **Sophisticated RBAC**: 136 permissions, hybrid permission system, context-aware checks
+1. **Sophisticated RBAC**: ~40 consolidated permissions (reduced from 136), hybrid permission system, context-aware checks
 2. **Complete Capacity Management**: Weekly planning, real-time utilization, multi-level aggregation
 3. **Flexible Organizational Structure**: Departments, roles, reporting hierarchies, org charts
 4. **Full Project Lifecycle**: From planning to completion with updates, issues, and tasks
-5. **Time Tracking**: Manual and clock-based time entry with admin oversight
-6. **Visual Management**: Kanban, Gantt, and table views for different work styles
+5. **Time Tracking**: Manual and clock-based time entry with admin oversight, user-facing dashboard with charts
+6. **Visual Workflow Management**: Node-based workflow builder with inline forms, Kanban boards for tasks
 7. **Security-First**: RLS policies + application-level permission checks
-8. **Data-Driven**: Comprehensive analytics at personal, department, and org levels
+8. **Data-Driven**: Comprehensive analytics at personal, department, account, and org levels
 
 The platform's architecture enables:
 - **Scalability**: Handles complex org structures with many users, departments, and projects

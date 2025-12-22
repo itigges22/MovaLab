@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 declare module 'd3-org-chart' {
   export class OrgChart<T = unknown> {
     constructor();

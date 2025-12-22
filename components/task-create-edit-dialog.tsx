@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { taskServiceDB, Task, CreateTaskData, UpdateTaskData } from '@/lib/task-service-db';
+import { Task } from '@/lib/task-service-db';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { createClientSupabase } from '@/lib/supabase';
+
 
 interface TaskCreateEditDialogProps {
   open: boolean;
@@ -51,50 +53,19 @@ export default function TaskCreateEditDialog({
 
   const isEditMode = !!task;
 
-  // Load users and project details
   // Task permissions are now inherited from project access - if user can view the project page, they can manage tasks
-  useEffect(() => {
-    if (open && userProfile) {
-      loadUsers();
-      loadProject();
-    }
-  }, [open, userProfile, projectId]);
-
-  // Populate form when task changes (edit mode)
-  useEffect(() => {
-    if (task) {
-      setFormData({
-        name: task.name || '',
-        description: task.description || '',
-        status: task.status,
-        priority: task.priority,
-        start_date: task.start_date ? new Date(task.start_date).toISOString().split('T')[0] : '',
-        due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
-        estimated_hours: task.estimated_hours?.toString() || '',
-        assigned_to: task.assigned_to || 'unassigned', // Use 'unassigned' instead of empty string
-      });
-    } else {
-      // Reset form for create mode
-      setFormData({
-        name: '',
-        description: '',
-        status: 'backlog',
-        priority: 'medium',
-        start_date: '',
-        due_date: '',
-        estimated_hours: '',
-        assigned_to: 'unassigned', // Use 'unassigned' instead of empty string
-      });
-    }
-  }, [task, open]);
-
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     try {
       setLoadingUsers(true);
       // Load users directly from Supabase - task assignment doesn't require MANAGE_USERS permission
       // Only load users who have roles assigned (team members)
-      const { createClientSupabase } = await import('@/lib/supabase');
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
+
+      if (!supabase) {
+        console.error('Failed to create Supabase client');
+        setUsers([]);
+        return;
+      }
 
       // Get users with roles through user_roles table
       const { data: userRolesData, error: rolesError } = await supabase
@@ -122,9 +93,12 @@ export default function TaskCreateEditDialog({
         // Aggregate all roles per user
         const uniqueUsersMap = new Map<string, { id: string; name: string; roles: string[] }>();
         userRolesData.forEach((ur: any) => {
-          if (ur.user_profiles && ur.user_profiles.id) {
-            const userId = ur.user_profiles.id;
-            const roleName = ur.roles?.name || 'No Role';
+          const userProfile = ur.user_profiles as Record<string, unknown> | undefined;
+          const role = ur.roles as Record<string, unknown> | undefined;
+
+          if (userProfile && (userProfile as any).id) {
+            const userId = (userProfile as any).id as string;
+            const roleName = (role?.name as string | undefined) || 'No Role';
 
             if (uniqueUsersMap.has(userId)) {
               // Add role to existing user if not already present
@@ -136,7 +110,7 @@ export default function TaskCreateEditDialog({
               // Create new user entry
               uniqueUsersMap.set(userId, {
                 id: userId,
-                name: ur.user_profiles.name || 'Unknown',
+                name: ((userProfile as any).name as string | undefined) || 'Unknown',
                 roles: [roleName]
               });
             }
@@ -148,15 +122,15 @@ export default function TaskCreateEditDialog({
       } else {
         setUsers([]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading users:', error);
       setUsers([]); // Set to empty array on error
     } finally {
       setLoadingUsers(false);
     }
-  }
+  }, []);
 
-  async function loadProject() {
+  const loadProject = useCallback(async () => {
     try {
       const response = await fetch(`/api/projects/${projectId}`);
       if (!response.ok) throw new Error('Failed to load project');
@@ -165,11 +139,46 @@ export default function TaskCreateEditDialog({
         start_date: data.project?.start_date || null,
         end_date: data.project?.end_date || null,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading project:', error);
       setProject(null);
     }
-  }
+  }, [projectId]);
+
+  useEffect(() => {
+    if (open && userProfile) {
+      loadUsers();
+      loadProject();
+    }
+  }, [open, userProfile, projectId, loadUsers, loadProject]);
+
+  // Populate form when task changes (edit mode)
+  useEffect(() => {
+    if (task) {
+      setFormData({
+        name: task.name || '',
+        description: task.description || '',
+        status: task.status,
+        priority: task.priority,
+        start_date: task.start_date ? new Date(task.start_date).toISOString().split('T')[0] : '',
+        due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+        estimated_hours: task.estimated_hours?.toString() || '',
+        assigned_to: task.assigned_to || 'unassigned',
+      });
+    } else {
+      // Reset form for create mode
+      setFormData({
+        name: '',
+        description: '',
+        status: 'backlog',
+        priority: 'medium',
+        start_date: '',
+        due_date: '',
+        estimated_hours: '',
+        assigned_to: 'unassigned',
+      });
+    }
+  }, [task, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,7 +188,7 @@ export default function TaskCreateEditDialog({
       return;
     }
 
-    if (!userProfile?.id) {
+    if (!(userProfile as any)?.id) {
       toast.error('You must be logged in to create/edit tasks');
       return;
     }
@@ -283,15 +292,16 @@ export default function TaskCreateEditDialog({
           toast.error('Failed to create task. Please check the console for details.');
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Record<string, unknown> | undefined;
       console.error('Error saving task:', {
         error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+        code: err?.code
       });
-      toast.error(`An error occurred while saving the task: ${error?.message || 'Unknown error'}`);
+      toast.error(`An error occurred while saving the task: ${String(err?.message) || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -340,7 +350,7 @@ export default function TaskCreateEditDialog({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}
+                onValueChange={(value: string) => setFormData(prev => ({ ...prev, status: value as 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'blocked' }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -361,7 +371,7 @@ export default function TaskCreateEditDialog({
               <Label htmlFor="priority">Priority</Label>
               <Select
                 value={formData.priority}
-                onValueChange={(value: any) => setFormData(prev => ({ ...prev, priority: value }))}
+                onValueChange={(value: string) => setFormData(prev => ({ ...prev, priority: value as 'low' | 'medium' | 'high' | 'urgent' }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -428,10 +438,10 @@ export default function TaskCreateEditDialog({
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
                   {users && users.length > 0 && users
-                    .filter((user) => user && user.id && typeof user.id === 'string' && user.id.trim() !== '')
-                    .map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.roles.join(', ')} - {user.name || 'Unknown'}
+                    .filter((user:any) => user && (user as any).id && typeof (user as any).id === 'string' && (user as any).id.trim() !== '')
+                    .map((user:any) => (
+                      <SelectItem key={(user as any).id} value={(user as any).id}>
+                        {user.roles.join(', ')} - {(user as any).name || 'Unknown'}
                       </SelectItem>
                     ))}
                 </SelectContent>

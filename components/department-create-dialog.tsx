@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PlusIcon } from 'lucide-react';
 import { createClientSupabase } from '@/lib/supabase';
+
 import { useAuth } from '@/lib/hooks/useAuth';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
@@ -40,7 +41,7 @@ export default function DepartmentCreateDialog({
     if (!userProfile) return;
     
     async function checkPermissions() {
-      const canCreate = await hasPermission(userProfile, Permission.CREATE_DEPARTMENT);
+      const canCreate = await hasPermission(userProfile, Permission.MANAGE_DEPARTMENTS);
       setCanCreateDepartment(canCreate);
     }
     
@@ -64,12 +65,12 @@ export default function DepartmentCreateDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('departments')
         .insert({
           name: formData.name,
@@ -87,7 +88,7 @@ export default function DepartmentCreateDialog({
       onDepartmentCreated?.(data);
       setOpen(false);
       setFormData({ name: '', description: '' });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating department:', error);
       toast.error('An error occurred. Please try again.');
     } finally {

@@ -1,3 +1,4 @@
+
 import { createClientSupabase } from './supabase'
 
 interface SuperadminResult {
@@ -12,7 +13,7 @@ interface SuperadminResult {
  */
 export async function assignSuperadminRole() {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -23,7 +24,7 @@ export async function assignSuperadminRole() {
       throw new Error('User not authenticated')
     }
 
-    console.log('Assigning superadmin role to user:', user.id)
+    console.log('Assigning superadmin role to user:', (user as any).id)
 
     // First, ensure the System department exists
     console.log('Step 1: Creating/checking System Administration department...')
@@ -184,16 +185,16 @@ export async function assignSuperadminRole() {
 
     // Assign the superadmin role to the current user
     console.log('Step 5: Assigning Superadmin role to user...')
-    console.log('User ID:', user.id)
+    console.log('User ID:', (user as any).id)
     console.log('Role ID:', roleData.id)
     
     const { error: assignError } = await supabase
       .from('user_roles')
       .insert({
-        user_id: user.id,
+        user_id: (user as any).id,
         role_id: roleData.id,
         assigned_at: new Date().toISOString(),
-        assigned_by: user.id // Use the current user's ID as the assigner
+        assigned_by: (user as any).id // Use the current user's ID as the assigner
       })
 
     if (assignError) {
@@ -216,7 +217,7 @@ export async function assignSuperadminRole() {
     console.log('Superadmin role assigned successfully')
     return { success: true, message: 'Superadmin role assigned successfully' }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error assigning superadmin role:', error)
     throw error
   }
@@ -228,7 +229,7 @@ export async function assignSuperadminRole() {
  */
 export async function checkSuperadminRole() {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       return false
     }
@@ -247,7 +248,7 @@ export async function checkSuperadminRole() {
           name
         )
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', (user as any).id)
       .eq('roles.name', 'Superadmin')
 
     if (error) {
@@ -257,7 +258,7 @@ export async function checkSuperadminRole() {
 
     return data && data.length > 0
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error checking superadmin role:', error)
     return false
   }
@@ -269,7 +270,7 @@ export async function checkSuperadminRole() {
  */
 export async function removeSuperadminRole() {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -293,7 +294,7 @@ export async function removeSuperadminRole() {
     const { error } = await supabase
       .from('user_roles')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', (user as any).id)
       .eq('role_id', roleData.id)
 
     if (error) {
@@ -303,7 +304,7 @@ export async function removeSuperadminRole() {
     console.log('Superadmin role removed successfully')
     return { success: true, message: 'Superadmin role removed successfully' }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing superadmin role:', error)
     throw error
   }
@@ -316,7 +317,7 @@ export async function removeSuperadminRole() {
  */
 export async function assignSuperadminRoleByEmail(email: string): Promise<SuperadminResult> {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -359,7 +360,7 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
     }
 
     // Check if user already has superadmin role
-    const { data: existingRole, error: checkError } = await supabase
+    const { data: existingRole, error: _checkError } = await supabase
       .from('user_roles')
       .select('id')
       .eq('user_id', userData.id)
@@ -388,7 +389,7 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
     console.log('Superadmin role assigned successfully to:', email)
     return { success: true, message: `Superadmin role assigned successfully to ${email}` }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error assigning superadmin role:', error)
     return { 
       success: false, 
@@ -404,7 +405,7 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
  */
 export async function checkSuperadminRoleByEmail(email: string): Promise<SuperadminResult> {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -437,7 +438,7 @@ export async function checkSuperadminRoleByEmail(email: string): Promise<Superad
 
     return { success: true, message: `${email} has superadmin role` }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error checking superadmin role:', error)
     return { 
       success: false, 
@@ -453,7 +454,7 @@ export async function checkSuperadminRoleByEmail(email: string): Promise<Superad
  */
 export async function removeSuperadminRoleByEmail(email: string): Promise<SuperadminResult> {
   try {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -495,7 +496,7 @@ export async function removeSuperadminRoleByEmail(email: string): Promise<Supera
     console.log('Superadmin role removed successfully from:', email)
     return { success: true, message: `Superadmin role removed successfully from ${email}` }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing superadmin role:', error)
     return { 
       success: false, 

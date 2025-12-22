@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
@@ -117,12 +118,12 @@ async function calculateElkLayout(
       'elk.layered.mergeEdges': 'true',
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
     },
-    children: nodes.map(node => ({
+    children: nodes.map((node: any) => ({
       id: node.id,
       width: LAYOUT.NODE_WIDTH,
       height: LAYOUT.NODE_HEIGHT,
     })),
-    edges: connections.map(conn => ({
+    edges: connections.map((conn: any) => ({
       id: conn.id,
       sources: [conn.from_node_id],
       targets: [conn.to_node_id],
@@ -133,13 +134,13 @@ async function calculateElkLayout(
     const layoutedGraph = await elk.layout(elkGraph);
 
     // Extract positions from layouted graph
-    layoutedGraph.children?.forEach(node => {
+    layoutedGraph.children?.forEach((node: any) => {
       positions.set(node.id, {
         x: node.x ?? 0,
         y: node.y ?? 0,
       });
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('ELK layout error, falling back to simple layout:', error);
     // Fallback to simple layout
     return calculateSimpleLayout(nodes, connections);
@@ -163,20 +164,20 @@ function calculateSimpleLayout(
   const outgoing = new Map<string, string[]>();
   const incoming = new Map<string, string[]>();
 
-  nodes.forEach(n => {
+  nodes.forEach((n: any) => {
     outgoing.set(n.id, []);
     incoming.set(n.id, []);
   });
 
-  connections.forEach(c => {
+  connections.forEach((c: any) => {
     outgoing.get(c.from_node_id)?.push(c.to_node_id);
     incoming.get(c.to_node_id)?.push(c.from_node_id);
   });
 
   // Find start node
-  let startNode = nodes.find(n => n.node_type === 'start');
+  let startNode = nodes.find((n: any) => n.node_type === 'start');
   if (!startNode) {
-    startNode = nodes.find(n => (incoming.get(n.id)?.length || 0) === 0) || nodes[0];
+    startNode = nodes.find((n: any) => (incoming.get(n.id)?.length || 0) === 0) || nodes[0];
   }
 
   // BFS to assign levels
@@ -207,7 +208,7 @@ function calculateSimpleLayout(
   }
 
   // Handle disconnected nodes
-  nodes.forEach(n => {
+  nodes.forEach((n: any) => {
     if (!levels.has(n.id)) {
       levels.set(n.id, 0);
     }
@@ -251,29 +252,14 @@ function WorkflowVisualizationInner({
   const [workflowInstance, setWorkflowInstance] = useState<WorkflowInstance | null>(null);
   const [nodes, setNodes] = useState<Node<VisualizationNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [activeSteps, setActiveSteps] = useState<ActiveStep[]>([]);
-  const [completedNodeIds, setCompletedNodeIds] = useState<Set<string>>(new Set());
+  const [_activeSteps, setActiveSteps] = useState<ActiveStep[]>([]);
+  const [_completedNodeIds, setCompletedNodeIds] = useState<Set<string>>(new Set());
   const { fitView } = useReactFlow();
 
-  useEffect(() => {
-    if (workflowInstanceId) {
-      loadWorkflowVisualization();
-    } else {
-      setLoading(false);
-    }
-  }, [workflowInstanceId]);
-
-  // Fit view when nodes change - use compact settings
-  useEffect(() => {
-    if (nodes.length > 0) {
-      setTimeout(() => fitView({ padding: 0.15, minZoom: 0.8, maxZoom: 1.2 }), 100);
-    }
-  }, [nodes, fitView]);
-
-  const loadWorkflowVisualization = async () => {
+  const loadWorkflowVisualization = useCallback(async () => {
     try {
       setLoading(true);
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return;
 
       // Get workflow instance
@@ -285,7 +271,7 @@ function WorkflowVisualizationInner({
           completed_snapshot,
           workflow_templates(name)
         `)
-        .eq('id', workflowInstanceId)
+        .eq('id', workflowInstanceId!)
         .single();
 
       if (instanceError || !instance) {
@@ -293,27 +279,27 @@ function WorkflowVisualizationInner({
         return;
       }
 
-      setWorkflowInstance(instance);
+      setWorkflowInstance(instance as WorkflowInstance);
 
       // For workflows, use snapshot data if available
       // This ensures the visualization remains unchanged even if the template is deleted or modified
       let workflowNodes: WorkflowNode[];
       let connections: WorkflowConnection[];
 
-      if (instance.status === 'completed' && instance.completed_snapshot) {
+      if ((instance as WorkflowInstance).status === 'completed' && (instance as WorkflowInstance).completed_snapshot) {
         // Use completed_snapshot data for completed workflows
-        workflowNodes = instance.completed_snapshot.nodes;
-        connections = instance.completed_snapshot.connections;
-      } else if (instance.started_snapshot?.nodes && instance.started_snapshot?.connections) {
+        workflowNodes = (instance as WorkflowInstance).completed_snapshot!.nodes;
+        connections = (instance as WorkflowInstance).completed_snapshot!.connections;
+      } else if ((instance as WorkflowInstance).started_snapshot?.nodes && (instance as WorkflowInstance).started_snapshot?.connections) {
         // Use started_snapshot for in-progress workflows (protects against template deletion)
-        workflowNodes = instance.started_snapshot.nodes as WorkflowNode[];
-        connections = instance.started_snapshot.connections as WorkflowConnection[];
+        workflowNodes = (instance as WorkflowInstance).started_snapshot!.nodes as unknown as WorkflowNode[];
+        connections = (instance as WorkflowInstance).started_snapshot!.connections as unknown as WorkflowConnection[];
       } else {
         // Fallback to live tables for older instances without snapshot
         const { data: liveNodes, error: nodesError } = await supabase
           .from('workflow_nodes')
           .select('*')
-          .eq('workflow_template_id', instance.workflow_template_id);
+          .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (nodesError || !liveNodes) {
           console.error('Error loading workflow nodes:', nodesError);
@@ -324,7 +310,7 @@ function WorkflowVisualizationInner({
         const { data: liveConnections, error: connectionsError } = await supabase
           .from('workflow_connections')
           .select('*')
-          .eq('workflow_template_id', instance.workflow_template_id);
+          .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (connectionsError) {
           console.error('Error loading connections:', connectionsError);
@@ -339,7 +325,7 @@ function WorkflowVisualizationInner({
       const { data: steps } = await supabase
         .from('workflow_active_steps')
         .select('*')
-        .eq('workflow_instance_id', workflowInstanceId)
+        .eq('workflow_instance_id', workflowInstanceId!)
         .in('status', ['active', 'waiting']);
 
       setActiveSteps(steps || []);
@@ -348,7 +334,7 @@ function WorkflowVisualizationInner({
       const { data: history } = await supabase
         .from('workflow_history')
         .select('from_node_id, to_node_id')
-        .eq('workflow_instance_id', workflowInstanceId);
+        .eq('workflow_instance_id', workflowInstanceId!);
 
       // Build set of completed node IDs
       const completed = new Set<string>();
@@ -362,12 +348,27 @@ function WorkflowVisualizationInner({
       // Build React Flow nodes and edges (async for ELK layout)
       await buildVisualization(workflowNodes, connections || [], steps || [], completed, instance);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow visualization:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowInstanceId]);
+
+  useEffect(() => {
+    if (workflowInstanceId) {
+      loadWorkflowVisualization();
+    } else {
+      setLoading(false);
+    }
+  }, [workflowInstanceId, loadWorkflowVisualization]);
+
+  // Fit view when nodes change - use compact settings
+  useEffect(() => {
+    if (nodes.length > 0) {
+      setTimeout(() => fitView({ padding: 0.15, minZoom: 0.8, maxZoom: 1.2 }), 100);
+    }
+  }, [nodes, fitView]);
 
   const buildVisualization = async (
     workflowNodes: WorkflowNode[],
@@ -383,12 +384,12 @@ function WorkflowVisualizationInner({
     const isWorkflowCompleted = instance.status === 'completed';
 
     // Convert workflow nodes to React Flow nodes
-    const flowNodes: Node<VisualizationNodeData>[] = workflowNodes.map((node) => {
+    const flowNodes: Node<VisualizationNodeData>[] = workflowNodes.map((node:any) => {
       // Determine execution status
       let executionStatus: 'completed' | 'active' | 'waiting' | 'pending' = 'pending';
 
       // Find active step for this node (needed for both status and data)
-      const activeStep = steps.find(s => s.node_id === node.id);
+      const activeStep = steps.find((s: any) => s.node_id === node.id);
 
       // If workflow is completed, all nodes are completed
       if (isWorkflowCompleted) {
@@ -433,10 +434,10 @@ function WorkflowVisualizationInner({
     });
 
     // Convert connections to React Flow edges
-    const flowEdges: Edge[] = connections.map((conn) => {
+    const flowEdges: Edge[] = connections.map((conn:any) => {
       // Determine edge status based on source node
       const sourceCompleted = isWorkflowCompleted || completed.has(conn.from_node_id);
-      const sourceActive = !isWorkflowCompleted && steps.some(s => s.node_id === conn.from_node_id && s.status === 'active');
+      const sourceActive = !isWorkflowCompleted && steps.some((s: any) => s.node_id === conn.from_node_id && s.status === 'active');
 
       // Get edge label from condition if exists
       const conditionObj = conn.condition as { label?: string; decision?: string } | null;
@@ -485,9 +486,9 @@ function WorkflowVisualizationInner({
   // Calculate stats
   const stats = useMemo(() => {
     const total = nodes.length;
-    const completed = nodes.filter(n => n.data.executionStatus === 'completed').length;
-    const active = nodes.filter(n => n.data.executionStatus === 'active').length;
-    const waiting = nodes.filter(n => n.data.executionStatus === 'waiting').length;
+    const completed = nodes.filter((n: any) => n.data.executionStatus === 'completed').length;
+    const active = nodes.filter((n: any) => n.data.executionStatus === 'active').length;
+    const waiting = nodes.filter((n: any) => n.data.executionStatus === 'waiting').length;
     return { total, completed, active, waiting };
   }, [nodes]);
 

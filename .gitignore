@@ -65,6 +65,7 @@ performance-test.js
 
 # Claude Code configuration (local only)
 .claude/
+.claude.json
 
 # Codacy CLI configuration and logs (local only)
 .codacy/
@@ -89,7 +90,35 @@ ehthumbs.db
 # Temporary files
 *.temp
 *.cache
+*.tmp
+*.auto
+
+# Backup files
+*.bak*
+*.backup*
+
+# Log files
+*.log
+
+# Development/debugging artifacts
+TESTING.md
+LINT_*.md
+*_STATUS.md
+*_WARNINGS.txt
+phase*.md
+
+# Script outputs
+scripts/*.output
+scripts/*.log
+
+# Temporary test data
+*.test.json
+test-results/
+
 # Bun lockfile (using npm for CI)
 bun.lock
 bun.lockb
-CLAUDE.md
+
+# Local documentation (keep main docs/)
+docs/phase*.md
+docs/*-status.md

@@ -1,26 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  X, 
-  Users, 
-  Shield, 
-  Building2, 
-  Edit, 
-  UserPlus, 
-  Settings,
-  ArrowUpRight,
-  ArrowDownRight
+import {
+  X,
+  Users,
+  Shield,
+  Building2,
+  Edit,
+  UserPlus,
+  ArrowUpRight
 } from 'lucide-react';
 import { RoleEditDialog } from './role-edit-dialog';
 import { roleManagementService, RoleWithDetails } from '@/lib/role-management-service';
-import { organizationService } from '@/lib/organization-service';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { logger, componentRender, componentError } from '@/lib/debug-logger';
 
@@ -35,8 +31,7 @@ interface RoleDetailPanelProps {
 // Define the expected node data structure
 interface NodeData {
   type?: 'department' | 'role' | 'user';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  role?: any;
+  role?: Record<string, unknown>;
   name?: string;
   description?: string;
   userCount?: number;
@@ -55,7 +50,7 @@ export function RoleDetailPanel({
   isReadOnly = false,
 }: RoleDetailPanelProps) {
   const [roleDetails, setRoleDetails] = useState<RoleWithDetails | null>(null);
-  const [roleUsers, setRoleUsers] = useState<any[]>([]);
+  const [roleUsers, setRoleUsers] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +59,44 @@ export function RoleDetailPanel({
   const isDepartment = nodeData.type === 'department';
   const isUser = nodeData.type === 'user';
   const role = nodeData.role;
+
+  const loadRoleDetails = useCallback(async () => {
+    if (!role?.id) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      componentRender('RoleDetailPanel', { action: 'loadRoleDetails', roleId: role.id as string });
+
+      const [details, users] = await Promise.all([
+        roleManagementService.getRoleById(role.id as string),
+        roleManagementService.getRoleUsers(role.id as string),
+      ]);
+
+      if (details) {
+        setRoleDetails(details);
+        logger.debug('Role details loaded', {
+          action: 'loadRoleDetails',
+          roleId: role.id as string,
+          userCount: users.length
+        });
+      }
+      setRoleUsers(users || []);
+    } catch (error: unknown) {
+      componentError('RoleDetailPanel', error as Error, {
+        action: 'loadRoleDetails',
+        roleId: role.id as string
+      });
+      logger.error('Error loading role details', {
+        action: 'loadRoleDetails',
+        roleId: role.id as string
+      }, error as Error);
+      setError('Failed to load role details');
+    } finally {
+      setLoading(false);
+    }
+  }, [role?.id]);
 
   useEffect(() => {
     if (role?.id) {
@@ -74,49 +107,11 @@ export function RoleDetailPanel({
       setRoleUsers([]);
       setError(null);
     }
-  }, [role?.id]);
+  }, [role?.id, loadRoleDetails]);
 
-  const loadRoleDetails = async () => {
-    if (!role?.id) return;
-
-    setLoading(true);
-    setError(null);
-    
-    try {
-      componentRender('RoleDetailPanel', { action: 'loadRoleDetails', roleId: role.id });
-
-      const [details, users] = await Promise.all([
-        roleManagementService.getRoleById(role.id),
-        roleManagementService.getRoleUsers(role.id),
-      ]);
-
-      if (details) {
-        setRoleDetails(details);
-        logger.debug('Role details loaded', { 
-          action: 'loadRoleDetails', 
-          roleId: role.id,
-          userCount: users.length
-        });
-      }
-      setRoleUsers(users || []);
-    } catch (error) {
-      componentError('RoleDetailPanel', error as Error, { 
-        action: 'loadRoleDetails',
-        roleId: role.id
-      });
-      logger.error('Error loading role details', { 
-        action: 'loadRoleDetails', 
-        roleId: role.id 
-      }, error as Error);
-      setError('Failed to load role details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUserAssign = async (userId: string) => {
+  const _handleUserAssign = async (userId: string) => {
     if (role?.id && onUserAssign) {
-      onUserAssign(userId, role.id);
+      onUserAssign(userId, role.id as string);
       // Reload role details to show updated user count
       await loadRoleDetails();
     }
@@ -124,7 +119,7 @@ export function RoleDetailPanel({
 
   const handleRoleUpdate = async () => {
     if (onRoleUpdate) {
-      onRoleUpdate(role?.id || '');
+      onRoleUpdate((role?.id as string) || '');
       // Reload role details
       await loadRoleDetails();
     }
@@ -135,14 +130,14 @@ export function RoleDetailPanel({
 
     try {
       const success = await roleManagementService.removeUserFromRole(
-        roleUsers.find(u => u.user_id === userRoleId)?.user_id || '',
-        role.id
+        (roleUsers.find((u: any) => u.user_id === userRoleId)?.user_id as string) || '',
+        role.id as string
       );
-      
+
       if (success) {
         await loadRoleDetails();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing user from role:', error);
     }
   };
@@ -256,13 +251,13 @@ export function RoleDetailPanel({
                     ) : (
                       <Users className="h-5 w-5 text-blue-500" />
                     )}
-                    {role.name}
+                    {String(role.name)}
                   </CardTitle>
                   {!isReadOnly && (
                     <RoleEditDialog
                       open={false}
                       onOpenChange={() => {}}
-                      role={roleDetails || role}
+                      role={roleDetails || (role as unknown as RoleWithDetails)}
                       onSuccess={handleRoleUpdate}
                     >
                       <Button variant="outline" size="sm">
@@ -273,7 +268,7 @@ export function RoleDetailPanel({
                   )}
                 </div>
                 <CardDescription>
-                  {role.department_name} • Level {role.hierarchy_level}
+                  {String(role.department_name)} • Level {String(role.hierarchy_level)}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -283,7 +278,7 @@ export function RoleDetailPanel({
                       {role.is_system_role ? 'System Role' : 'Custom Role'}
                     </Badge>
                     <Badge variant="outline">
-                      {role.user_count} users
+                      {String(role.user_count)} users
                     </Badge>
                   </div>
                   
@@ -349,31 +344,34 @@ export function RoleDetailPanel({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {roleUsers.map((userRole) => (
-                      <div key={userRole.user_id} className="flex items-center justify-between">
+                    {roleUsers.map((userRole) => {
+                      const user = userRole.user as Record<string, unknown> | undefined;
+                      return (
+                      <div key={userRole.user_id as string} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={userRole.user?.image || undefined} />
+                            <AvatarImage src={((user as any)?.image as string | null) || undefined} />
                             <AvatarFallback>
-                              {userRole.user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                              {((user as any)?.name as string | undefined)?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium">{userRole.user?.name}</p>
-                            <p className="text-xs text-muted-foreground">{userRole.user?.email}</p>
+                            <p className="text-sm font-medium">{String((user as any)?.name)}</p>
+                            <p className="text-xs text-muted-foreground">{String((user as any)?.email)}</p>
                           </div>
                         </div>
                         {!isReadOnly && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRemoveUser(userRole.user_id)}
+                            onClick={() => handleRemoveUser(userRole.user_id as string)}
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

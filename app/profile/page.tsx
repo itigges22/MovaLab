@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, Mail, Building2, Shield, Save, Edit3, AlertCircle, Lock, Bell, Palette } from 'lucide-react'
 import { updateUserProfile, updatePassword } from '@/lib/auth'
 import { RoleGuard } from '@/components/role-guard'
-import { Permission } from '@/lib/permissions'
 
 export default function ProfilePage() {
   const { user, userProfile, loading, refreshProfile } = useAuth()
@@ -21,9 +20,6 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [canViewProfile, setCanViewProfile] = useState(true)
-  const [canEditProfile, setCanEditProfile] = useState(true)
-  const [permissionsLoading, setPermissionsLoading] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -48,43 +44,21 @@ export default function ProfilePage() {
     }
   }, [user, loading, router])
 
-  // Check permissions
-  useEffect(() => {
-    if (loading || !userProfile) {
-      setPermissionsLoading(true)
-      return
-    }
-
-    async function checkPermissions() {
-      try {
-        // Everyone can view and edit their own profile, regardless of role status
-        // This ensures unassigned users can still access their profile
-        setCanViewProfile(true)
-        setCanEditProfile(true)
-      } catch (error) {
-        console.error('Error checking permissions:', error)
-        setCanViewProfile(true)
-        setCanEditProfile(true)
-      } finally {
-        setPermissionsLoading(false)
-      }
-    }
-
-    void checkPermissions()
-  }, [userProfile, loading, router])
+  // Everyone can view and edit their own profile (implicit permission)
+  // No permission checks needed - access is inherent
 
   useEffect(() => {
     if (userProfile) {
       setFormData({
-        name: userProfile.name || '',
-        email: userProfile.email || '',
-        bio: userProfile.bio || '',
-        skills: userProfile.skills || [],
+        name: (userProfile as any).name || '',
+        email: (userProfile as any).email || '',
+        bio: (userProfile as any).bio || '',
+        skills: (userProfile as any).skills || [],
       })
     }
   }, [userProfile])
 
-  if (loading || permissionsLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -95,8 +69,8 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user || !userProfile || !canViewProfile) {
-    return null // Will redirect to login or welcome
+  if (!user || !userProfile) {
+    return null // Will redirect to login
   }
 
   const handleSave = async () => {
@@ -123,7 +97,7 @@ export default function ProfilePage() {
       // Clear success message after 3 seconds
       setTimeout(() => { setSaveSuccess(false); }, 3000)
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving profile:', error)
       setSaveError(error instanceof Error ? error.message : 'Failed to save profile')
     } finally {
@@ -144,7 +118,7 @@ export default function ProfilePage() {
   const handleRemoveSkill = (skillToRemove: string) => {
     setFormData(prev => ({
       ...prev,
-      skills: prev.skills.filter(skill => skill !== skillToRemove)
+      skills: prev.skills.filter((skill: any) => skill !== skillToRemove)
     }))
   }
 
@@ -180,7 +154,7 @@ export default function ProfilePage() {
       // Clear success message after 3 seconds
       setTimeout(() => { setPasswordSuccess(false); }, 3000)
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error changing password:', error)
       setPasswordError(error instanceof Error ? error.message : 'Failed to change password')
     } finally {
@@ -191,14 +165,14 @@ export default function ProfilePage() {
   const getUserInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word.charAt(0))
+      .map((word: any) => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2)
   }
 
   return (
-    <RoleGuard requirePermission={Permission.VIEW_OWN_PROFILE} allowUnassigned={true}>
+    <RoleGuard allowUnassigned={true}>
       <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
@@ -268,14 +242,14 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={userProfile.image || ''} alt={userProfile.name} />
+                  <AvatarImage src={(userProfile as any).image || ''} alt={(userProfile as any).name} />
                   <AvatarFallback className="bg-blue-100 text-blue-700 text-xl">
-                    {getUserInitials(userProfile.name)}
+                    {getUserInitials((userProfile as any).name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold">{userProfile.name}</h3>
-                  <p className="text-sm text-gray-600">{userProfile.email}</p>
+                  <h3 className="text-lg font-semibold">{(userProfile as any).name}</h3>
+                  <p className="text-sm text-gray-600">{(userProfile as any).email}</p>
                 </div>
               </div>
               
@@ -367,7 +341,7 @@ export default function ProfilePage() {
               <div className="space-y-2">
                 <Label>Skills</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
-                  {formData.skills.map((skill, index) => (
+                  {formData.skills.map((skill:any, index:any) => (
                     <span
                       key={index}
                       className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
@@ -436,7 +410,7 @@ export default function ProfilePage() {
                 <User className="w-5 h-5 text-gray-500" />
                 <div>
                   <p className="text-sm font-medium">User ID</p>
-                  <p className="text-sm text-gray-600">{user.id}</p>
+                  <p className="text-sm text-gray-600">{(user as any).id}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -444,7 +418,7 @@ export default function ProfilePage() {
                 <div>
                   <p className="text-sm font-medium">Email Verified</p>
                   <p className="text-sm text-gray-600">
-                    {user.email_confirmed_at ? 'Yes' : 'No'}
+                    {(user as any).email_confirmed_at ? 'Yes' : 'No'}
                   </p>
                 </div>
               </div>
@@ -455,7 +429,7 @@ export default function ProfilePage() {
                 <div>
                   <p className="text-sm font-medium">Account Created</p>
                   <p className="text-sm text-gray-600">
-                    {new Date(user.created_at).toLocaleDateString()}
+                    {new Date((user as any).created_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>

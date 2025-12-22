@@ -7,19 +7,17 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit, Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PermissionEditor } from './permission-editor';
 import { Permission, getAllPermissions } from '@/lib/permissions';
 import { roleManagementService, UpdateRoleData, RoleWithDetails } from '@/lib/role-management-service';
-import { organizationService } from '@/lib/organization-service';
 
 interface Department {
   id: string;
@@ -38,27 +36,26 @@ interface RoleEditDialogProps {
   onLocalUpdate?: (roleId: string, updates: Partial<RoleWithDetails>) => void; // NEW: For local updates in Edit Mode
 }
 
-export function RoleEditDialog({ 
+export function RoleEditDialog({
   open,
   onOpenChange,
   role,
   onSuccess,
   departments: externalDepartments,
-  children,
   isEditMode = false,
   onLocalUpdate
 }: RoleEditDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState<Department[]>(externalDepartments ?? []);
+  const [_departments, setDepartments] = useState<Department[]>(externalDepartments ?? []);
   const [formData, setFormData] = useState({
     name: role?.name || '',
     description: role?.description || '',
   });
   const [permissions, setPermissions] = useState<Record<Permission, boolean>>(() => {
     const initialPermissions = {} as Record<Permission, boolean>;
-    getAllPermissions().forEach(permission => {
+    getAllPermissions().forEach((permission: any) => {
       // Add null check for role.permissions
-      initialPermissions[permission] = (role?.permissions?.[permission]) || false;
+      (initialPermissions as any)[permission] = ((role?.permissions as any)?.[permission]) || false;
     });
     return initialPermissions;
   });
@@ -79,8 +76,8 @@ export function RoleEditDialog({
         description: role.description || '',
       });
       const newPermissions = {} as Record<Permission, boolean>;
-      getAllPermissions().forEach(permission => {
-        newPermissions[permission] = role.permissions?.[permission] || false;
+      getAllPermissions().forEach((permission: any) => {
+        (newPermissions as any)[permission] = (role.permissions as any)?.[permission] || false;
       });
       setPermissions(newPermissions);
     }
@@ -129,7 +126,7 @@ export function RoleEditDialog({
         console.error('❌ Failed to update role - no data returned');
         toast.error('Failed to update role. Please try again.');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Error updating role:', error);
       toast.error(`An error occurred while updating the role: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {

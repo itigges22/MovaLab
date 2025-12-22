@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { createClientSupabase } from '@/lib/supabase';
+
 
 interface ProjectHoursSliderProps {
   projectId: string;
@@ -87,12 +88,16 @@ export default function ProjectHoursSlider({
   const saveHours = async (newHours: number) => {
     setSaving(true);
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
+      if (!supabase) {
+        console.error('Failed to create Supabase client');
+        return;
+      }
 
       // Clamp to valid range
       const finalHours = Math.max(0, Math.min(newHours, maxHours));
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('projects')
         .update({
           remaining_hours: finalHours,
@@ -109,7 +114,7 @@ export default function ProjectHoursSlider({
         }
         onHoursChange?.(finalHours);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving project remaining hours:', error);
     } finally {
       setSaving(false);

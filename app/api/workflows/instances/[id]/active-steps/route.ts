@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { getActiveSteps, getAllActiveAndWaitingSteps, isWorkflowComplete, WorkflowActiveStep } from '@/lib/workflow-execution-service';
+import { getActiveSteps, getAllActiveAndWaitingSteps, isWorkflowComplete } from '@/lib/workflow-execution-service';
 
 /**
  * GET /api/workflows/instances/[id]/active-steps
@@ -45,7 +45,7 @@ export async function GET(
     const completedBranches = new Set(completedSteps?.map((s: { branch_id: string }) => s.branch_id) || []).size;
 
     // Count waiting branches
-    const waitingBranches = allSteps.filter(s => s.status === 'waiting').length;
+    const waitingBranches = allSteps.filter((s: any) => s.status === 'waiting').length;
 
     // Enrich active steps with node information
     const enrichedSteps = await Promise.all(
@@ -73,8 +73,8 @@ export async function GET(
     );
 
     return NextResponse.json({
-      activeSteps: enrichedSteps.filter(s => s.status === 'active'),
-      waitingSteps: enrichedSteps.filter(s => s.status === 'waiting'),
+      activeSteps: enrichedSteps.filter((s: any) => s.status === 'active'),
+      waitingSteps: enrichedSteps.filter((s: any) => s.status === 'waiting'),
       allSteps: enrichedSteps,
       isComplete: complete,
       hasParallelPaths: instance?.has_parallel_paths || false,
@@ -82,7 +82,7 @@ export async function GET(
       waitingBranches,
       activeBranches: activeSteps.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching active steps:', error);
     return NextResponse.json(
       { error: 'Failed to fetch active steps' },

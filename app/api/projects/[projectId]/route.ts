@@ -38,7 +38,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -70,19 +70,19 @@ export async function GET(
         const { data: assignment } = await supabase
           .from('project_assignments')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('user_id', (user as any).id)
           .eq('project_id', projectId)
           .is('removed_at', null)
           .single();
 
-        if (!assignment && project.created_by !== user.id && project.assigned_user_id !== user.id) {
+        if (!assignment && project.created_by !== (user as any).id && project.assigned_user_id !== (user as any).id) {
           return NextResponse.json({ error: 'Insufficient permissions to view project' }, { status: 403 });
         }
       }
     }
 
     return NextResponse.json({ success: true, project });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/projects/[projectId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -123,7 +123,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -141,13 +141,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Check EDIT_PROJECT permission with project context
-    const canEditProject = await hasPermission(userProfile, Permission.EDIT_PROJECT, {
+    // Check MANAGE_PROJECTS permission with project context (consolidated from EDIT_PROJECT)
+    const canManageProjects = await hasPermission(userProfile, Permission.MANAGE_PROJECTS, {
       projectId,
       accountId: project.account_id
     }, supabase);
 
-    if (!canEditProject) {
+    if (!canManageProjects) {
       return NextResponse.json({ error: 'Insufficient permissions to edit project' }, { status: 403 });
     }
 
@@ -157,7 +157,7 @@ export async function PUT(
     // Status changes are now controlled by EDIT_PROJECT permission which was already checked above
 
     // Build update object with only provided fields
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.status !== undefined) updates.status = body.status;
@@ -186,16 +186,16 @@ export async function PUT(
         .from('project_assignments')
         .select('id, removed_at')
         .eq('project_id', projectId)
-        .eq('user_id', user.id)
+        .eq('user_id', (user as any).id)
         .single();
 
       if (!existingAssignment) {
         // Insert new assignment
         await supabase.from('project_assignments').insert({
           project_id: projectId,
-          user_id: user.id,
+          user_id: (user as any).id,
           role_in_project: 'collaborator',
-          assigned_by: user.id
+          assigned_by: (user as any).id
         });
       } else if (existingAssignment.removed_at) {
         // Reactivate removed assignment
@@ -207,7 +207,7 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, project: updatedProject });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/projects/[projectId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -260,7 +260,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -278,13 +278,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Check DELETE_PROJECT permission with project context
-    const canDeleteProject = await hasPermission(userProfile, Permission.DELETE_PROJECT, {
+    // Check MANAGE_PROJECTS permission with project context (consolidated from DELETE_PROJECT)
+    const canManageProjects = await hasPermission(userProfile, Permission.MANAGE_PROJECTS, {
       projectId,
       accountId: project.account_id
     }, supabase);
 
-    if (!canDeleteProject) {
+    if (!canManageProjects) {
       return NextResponse.json({ error: 'Insufficient permissions to delete project' }, { status: 403 });
     }
 
@@ -300,7 +300,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/projects/[projectId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

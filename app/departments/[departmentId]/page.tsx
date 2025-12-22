@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { serverDepartmentService } from '@/lib/department-service';
-import { isAdminLevel, canViewDepartment, canManageDepartment, hasPermission } from '@/lib/rbac';
+import { canViewDepartment, canManageDepartment, hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { DepartmentOverview } from '@/components/department-overview';
 

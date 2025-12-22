@@ -7,14 +7,13 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger,
-  DropdownMenuGroup
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from './ui/dropdown-menu'
 import {
   LayoutDashboard,
@@ -24,7 +23,6 @@ import {
   Menu,
   X,
   LogOut,
-  BarChart3,
   ChevronDown,
   Settings,
   GitBranch,
@@ -79,7 +77,7 @@ export function ClientNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [visibleItems, setVisibleItems] = useState<NavigationItem[]>(
-    navigationItems.filter(item => item.allowUnassigned === true)
+    navigationItems.filter((item: any) => item.allowUnassigned === true)
   )
   const [permissionsChecked, setPermissionsChecked] = useState(false)
   const { userProfile, signOut, loading } = useAuth()
@@ -95,7 +93,7 @@ export function ClientNavigation() {
       await signOut()
       // Redirect to home page after logout
       window.location.href = '/'
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error signing out:', error)
     }
   }
@@ -103,7 +101,7 @@ export function ClientNavigation() {
   const getUserInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word.charAt(0))
+      .map((word: any) => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2)
@@ -115,7 +113,7 @@ export function ClientNavigation() {
       // Use a Map to deduplicate departments by ID
       const deptMap = new Map<string, { id: string; name: string }>();
 
-      userProfile.user_roles.forEach(ur => {
+      userProfile.user_roles.forEach((ur: any) => {
         const dept = ur.roles?.departments;
         if (dept?.id && !deptMap.has(dept.id)) {
           deptMap.set(dept.id, {
@@ -126,7 +124,7 @@ export function ClientNavigation() {
       });
 
       return Array.from(deptMap.values());
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting user departments:', error)
       return []
     }
@@ -135,7 +133,7 @@ export function ClientNavigation() {
   // Check permissions for navigation items
   useEffect(() => {
     if (!isMounted || loading || !userProfile) {
-      setVisibleItems(navigationItems.filter(item => item.allowUnassigned === true))
+      setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true))
       setPermissionsChecked(false)
       return
     }
@@ -147,8 +145,8 @@ export function ClientNavigation() {
       const userIsSuperadmin = isSuperadmin(userProfile)
 
       console.log('🔍 ClientNavigation Debug:', {
-        userEmail: userProfile?.email,
-        userId: userProfile?.id,
+        userEmail: (userProfile as any)?.email,
+        userId: (userProfile as any)?.id,
         isActuallyUnassigned,
         userIsSuperadmin,
       })
@@ -162,7 +160,7 @@ export function ClientNavigation() {
 
       // Unassigned users ONLY see items with allowUnassigned === true
       if (isActuallyUnassigned) {
-        const allowedItems = navigationItems.filter(item => item.allowUnassigned === true)
+        const allowedItems = navigationItems.filter((item: any) => item.allowUnassigned === true)
         console.log('✅ ClientNavigation: Unassigned user - showing only Welcome')
         setVisibleItems(allowedItems)
         setPermissionsChecked(true)
@@ -208,15 +206,15 @@ export function ClientNavigation() {
 
       // Ensure Welcome is always included if no other items are visible
       if (filtered.length === 0) {
-        const welcomeItem = navigationItems.find(item => item.allowUnassigned === true)
+        const welcomeItem = navigationItems.find((item: any) => item.allowUnassigned === true)
         if (welcomeItem) {
           filtered.push(welcomeItem)
         }
       }
 
       console.log('✅ ClientNavigation filter complete:', {
-        userId: userProfile?.id,
-        visibleItems: filtered.map(i => i.name),
+        userId: (userProfile as any)?.id,
+        visibleItems: filtered.map((i: any) => i.name),
         filteredCount: filtered.length
       })
 
@@ -226,7 +224,7 @@ export function ClientNavigation() {
 
     filterItems().catch((err: any) => {
       console.error('Error filtering ClientNavigation items:', err)
-      setVisibleItems(navigationItems.filter(item => item.allowUnassigned === true))
+      setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true))
       setPermissionsChecked(true)
     })
   }, [isMounted, loading, userProfile])
@@ -289,7 +287,7 @@ export function ClientNavigation() {
               <div className="hidden lg:flex items-center space-x-4">
                 {(!isMounted || loading || !userProfile || !permissionsChecked) ? (
                   // Show loading state
-                  navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                  navigationItems.filter((item: any) => item.allowUnassigned === true).map((item: NavigationItem) => {
                     const Icon = item.icon
                     return (
                       <Link
@@ -303,7 +301,7 @@ export function ClientNavigation() {
                     )
                   })
                 ) : (
-                  visibleItems.slice(0, 6).map((item) => {
+                  visibleItems.slice(0, 6).map((item: NavigationItem) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href ||
                       (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -332,7 +330,7 @@ export function ClientNavigation() {
                             <DropdownMenuLabel>Your Departments</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {userDepartments.length > 0 ? (
-                              userDepartments.map((dept) => (
+                              userDepartments.map((dept:any) => (
                                 <DropdownMenuItem key={dept.id} asChild>
                                   <Link href={`/departments/${dept.id}`} className="flex items-center">
                                     <Building2 className="mr-2 h-4 w-4" />
@@ -429,7 +427,7 @@ export function ClientNavigation() {
               <div className="hidden md:flex lg:hidden items-center space-x-3">
                 {(!isMounted || loading || !userProfile || !permissionsChecked) ? (
                   // Show loading state
-                  navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                  navigationItems.filter((item: any) => item.allowUnassigned === true).map((item: NavigationItem) => {
                     const Icon = item.icon
                     return (
                       <Link
@@ -443,7 +441,7 @@ export function ClientNavigation() {
                     )
                   })
                 ) : (
-                  visibleItems.slice(0, 4).map((item) => {
+                  visibleItems.slice(0, 4).map((item: NavigationItem) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href ||
                       (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -476,7 +474,7 @@ export function ClientNavigation() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {visibleItems.slice(4).map((item) => {
+                      {visibleItems.slice(4).map((item: NavigationItem) => {
                         const Icon = item.icon
                         return (
                           <DropdownMenuItem key={item.name} asChild>
@@ -499,9 +497,9 @@ export function ClientNavigation() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={userProfile.image || ''} alt={userProfile.name} />
+                      <AvatarImage src={(userProfile as any).image || ''} alt={(userProfile as any).name} />
                       <AvatarFallback className="bg-blue-100 text-blue-700">
-                        {getUserInitials(userProfile.name)}
+                        {getUserInitials((userProfile as any).name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -509,12 +507,12 @@ export function ClientNavigation() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userProfile.name}</p>
+                      <p className="text-sm font-medium leading-none">{(userProfile as any).name}</p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {userProfile.email}
+                        {(userProfile as any).email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {userProfile.user_roles?.map(ur => ur.roles.name).join(', ') || 'No roles'}
+                        {userProfile.user_roles?.map((ur: any) => ur.roles.name).join(', ') || 'No roles'}
                       </p>
                     </div>
                   </DropdownMenuLabel>
@@ -557,7 +555,7 @@ export function ClientNavigation() {
                   <div className="grid grid-cols-2 gap-2">
                     {(!isMounted || loading || !userProfile || !permissionsChecked) ? (
                       // Show loading state
-                      navigationItems.filter(item => item.allowUnassigned === true).map((item) => {
+                      navigationItems.filter((item: any) => item.allowUnassigned === true).map((item: NavigationItem) => {
                         const Icon = item.icon
                         return (
                           <Link
@@ -572,7 +570,7 @@ export function ClientNavigation() {
                         )
                       })
                     ) : (
-                      visibleItems.slice(0, 6).map((item) => {
+                      visibleItems.slice(0, 6).map((item: NavigationItem) => {
                         const Icon = item.icon
                         const isActive = pathname === item.href ||
                           (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -597,7 +595,7 @@ export function ClientNavigation() {
                             </Link>
                             {userDepartments.length > 0 && (
                               <div className="ml-4 space-y-1">
-                                {userDepartments.map((dept) => (
+                                {userDepartments.map((dept:any) => (
                                   <Link
                                     key={dept.id}
                                     href={`/departments/${dept.id}`}
@@ -638,7 +636,7 @@ export function ClientNavigation() {
                   {permissionsChecked && visibleItems.length > 6 && (
                     <div className="pt-2 border-t">
                       <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">More</p>
-                      {visibleItems.slice(6).map((item) => {
+                      {visibleItems.slice(6).map((item: NavigationItem) => {
                         const Icon = item.icon
                         const isActive = pathname === item.href ||
                           (item.href !== '/dashboard' && pathname.startsWith(item.href))

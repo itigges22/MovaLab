@@ -11,7 +11,7 @@ export async function POST(
     const { roleId } = await params;
     
     // Check authentication and permission
-    const userProfile = await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    const userProfile = await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -27,7 +27,7 @@ export async function POST(
     }
 
     // PRIVILEGE ESCALATION PROTECTION: Prevent users from assigning roles to themselves
-    if (userId === userProfile.id) {
+    if (userId === (userProfile as any).id) {
       return NextResponse.json({ 
         error: 'You cannot assign roles to yourself. Please contact an administrator.' 
       }, { status: 403 });
@@ -91,8 +91,14 @@ export async function POST(
     };
 
     // Check if user is only in "No Assigned Role" (needs special handling due to P0001 constraint)
-    const noAssignedRole = currentRoles?.find((cr: any) => isUnassignedRole(cr.roles?.name));
-    const hasOtherRoles = currentRoles?.some((cr: any) => !isUnassignedRole(cr.roles?.name));
+    const noAssignedRole = currentRoles?.find((cr: any) => {
+      const roles = cr.roles as Record<string, unknown>;
+      return isUnassignedRole(roles?.name as string);
+    });
+    const hasOtherRoles = currentRoles?.some((cr: any) => {
+      const roles = cr.roles as Record<string, unknown>;
+      return !isUnassignedRole(roles?.name as string);
+    });
     
     if (noAssignedRole && !hasOtherRoles) {
       console.log(`🔄 User is only in "No Assigned Role", will replace with new role`);
@@ -122,7 +128,7 @@ export async function POST(
       .insert({
         user_id: userId,
         role_id: roleId,
-        assigned_by: userProfile.id,
+        assigned_by: (userProfile as any).id,
         assigned_at: new Date().toISOString()
       });
 
@@ -156,7 +162,7 @@ export async function POST(
       success: true,
       message: `${targetUser.name} assigned to ${role.name}`
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

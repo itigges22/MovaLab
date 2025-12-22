@@ -4,6 +4,7 @@ import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
 
+// Type definitions
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
@@ -43,8 +44,8 @@ export async function GET(
     }
 
     return NextResponse.json({ stakeholders: data || [] })
-  } catch (error) {
-    return handleGuardError(error)
+  } catch (error: unknown) {
+return handleGuardError(error)
   }
 }
 

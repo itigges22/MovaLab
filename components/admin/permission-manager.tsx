@@ -29,7 +29,6 @@ interface PermissionManagerProps {
 }
 
 export function PermissionManager({
-  roleId,
   roleName,
   currentPermissions,
   onSave,
@@ -91,8 +90,8 @@ export function PermissionManager({
     
     setPermissions(prev => {
       const next = { ...prev };
-      categoryPermissions.forEach(permission => {
-        next[permission] = checked;
+      categoryPermissions.forEach((permission: any) => {
+        (next as any)[permission] = checked;
       });
       return next;
     });
@@ -101,7 +100,7 @@ export function PermissionManager({
 
   const getCheckedCount = (category: string) => {
     const categoryPermissions = PermissionCategories[category as keyof typeof PermissionCategories] || [];
-    return categoryPermissions.filter(p => permissions[p]).length;
+    return categoryPermissions.filter((p: any) => (permissions as any)[p]).length;
   };
 
   const getTotalCount = (category: string) => {
@@ -219,8 +218,8 @@ export function PermissionManager({
               {isExpanded && (
                 <CardContent>
                   <div className="space-y-3">
-                    {categoryPermissions.map((permission) => {
-                      const def = PermissionDefinitions[permission];
+                    {categoryPermissions.map((permission:any) => {
+                      const def = (PermissionDefinitions as any)[permission];
                       const isOverride = def.isOverride === true;
 
                       return (
@@ -229,12 +228,12 @@ export function PermissionManager({
                           className={cn(
                             "flex items-start space-x-3 p-3 rounded-lg border",
                             isOverride && "border-orange-300 bg-orange-50 dark:bg-orange-950",
-                            permissions[permission] && !isOverride && "bg-blue-50 dark:bg-blue-950"
+                            (permissions as any)[permission] && !isOverride && "bg-blue-50 dark:bg-blue-950"
                           )}
                         >
                           <Checkbox
                             id={permission}
-                            checked={permissions[permission] || false}
+                            checked={(permissions as any)[permission] || false}
                             onCheckedChange={(checked) => { handlePermissionChange(permission, checked as boolean); }}
                             disabled={readOnly}
                             className="mt-1"

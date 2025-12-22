@@ -44,7 +44,7 @@ export default function GroupManagementDialog({
     try {
       const groupsData = await supabaseTaskService.getGroups();
       setGroups(groupsData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading groups:', error);
     }
   };
@@ -65,7 +65,7 @@ export default function GroupManagementDialog({
         onGroupCreated?.(newGroup);
         setNewGroupName('');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating group:', error);
     } finally {
       setLoading(false);
@@ -86,10 +86,10 @@ export default function GroupManagementDialog({
     try {
       const success = await supabaseTaskService.deleteGroup(groupId);
       if (success) {
-        setGroups(prev => prev.filter(group => group.id !== groupId));
+        setGroups(prev => prev.filter((group: any) => group.id !== groupId));
         onGroupDeleted?.(groupId);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting group:', error);
     }
   };
@@ -145,7 +145,7 @@ export default function GroupManagementDialog({
                   No groups created yet. Create your first group above.
                 </div>
               ) : (
-                groups.map((group) => {
+                groups.map((group:any) => {
                   const isDefaultGroup = group.id === 'general';
                   return (
                     <div

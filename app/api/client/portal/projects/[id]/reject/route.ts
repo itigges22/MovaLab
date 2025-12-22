@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
 import { clientRejectProject } from '@/lib/client-portal-service';
 import { z } from 'zod';
 import { validateRequestBody } from '@/lib/validation-schemas';
@@ -44,22 +42,16 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check CLIENT_APPROVE_PROJECTS permission
-    const canApprove = await hasPermission(userProfile, Permission.CLIENT_APPROVE_PROJECTS, undefined, supabase);
-    if (!canApprove) {
-      return NextResponse.json({ error: 'Insufficient permissions to approve/reject projects' }, { status: 403 });
-    }
-
-    // Verify user is a client
-    if (!userProfile.is_client) {
-      return NextResponse.json({ error: 'Access denied. This endpoint is for client users only.' }, { status: 403 });
+    // Phase 9: Client permissions are hardcoded - verify user is a client with account access
+    if (!userProfile.is_client || !userProfile.client_account_id) {
+      return NextResponse.json({ error: 'Client access required' }, { status: 403 });
     }
 
     // Validate request body
@@ -73,7 +65,7 @@ export async function POST(
     const result = await clientRejectProject({
       projectId: id,
       workflowInstanceId: validation.data.workflow_instance_id,
-      clientUserId: user.id,
+      clientUserId: (user as any).id,
       notes: validation.data.notes,
       issues: validation.data.issues || []
     });
@@ -82,7 +74,7 @@ export async function POST(
       ...result,
       message: 'Project rejected. Issues have been logged.'
     }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/client/portal/projects/[id]/reject:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

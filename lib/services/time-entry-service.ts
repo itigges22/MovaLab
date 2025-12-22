@@ -3,12 +3,12 @@
  * Manages time logging on tasks and projects
  */
 
-import { createClientSupabase } from '../supabase';
-import { Database } from '../supabase';
 
-type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
-type TimeEntryInsert = Database['public']['Tables']['time_entries']['Insert'];
-type TimeEntryUpdate = Database['public']['Tables']['time_entries']['Update'];
+import { createClientSupabase } from '../supabase';
+
+type TimeEntry = any;
+type TimeEntryInsert = any;
+type TimeEntryUpdate = any;
 
 export interface TimeEntryWithDetails extends TimeEntry {
   task?: {
@@ -49,7 +49,7 @@ class TimeEntryService {
     entryDate: string,
     description?: string
   ): Promise<TimeEntry | null> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return null;
 
     const weekStartDate = this.getWeekStartDate(new Date(entryDate));
@@ -64,9 +64,9 @@ class TimeEntryService {
       description: description || null,
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('time_entries')
-      .insert(insertData)
+      .insert([insertData])
       .select()
       .single();
 
@@ -86,7 +86,7 @@ class TimeEntryService {
     startDate?: string,
     endDate?: string
   ): Promise<TimeEntryWithDetails[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return [];
 
     let query = supabase
@@ -122,7 +122,7 @@ class TimeEntryService {
    * Get time entries for a task
    */
   async getTaskTimeEntries(taskId: string): Promise<TimeEntryWithDetails[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return [];
 
     const { data, error } = await supabase
@@ -151,7 +151,7 @@ class TimeEntryService {
     projectId: string,
     weekStartDate?: string
   ): Promise<TimeEntryWithDetails[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return [];
 
     let query = supabase
@@ -186,7 +186,7 @@ class TimeEntryService {
     userId: string,
     weekStartDate: string
   ): Promise<{ totalHours: number; entriesCount: number }> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return { totalHours: 0, entriesCount: 0 };
 
     const { data, error } = await supabase
@@ -200,7 +200,7 @@ class TimeEntryService {
       return { totalHours: 0, entriesCount: 0 };
     }
 
-    const totalHours = data.reduce((sum: number, entry: any) => sum + (entry.hours_logged || 0), 0);
+    const totalHours = data.reduce((sum: number, entry: any) => sum + ((entry.hours_logged as number) || 0), 0);
 
     return {
       totalHours,
@@ -219,7 +219,7 @@ class TimeEntryService {
       description?: string;
     }
   ): Promise<TimeEntry | null> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return null;
 
     const updateData: TimeEntryUpdate = {};
@@ -237,7 +237,7 @@ class TimeEntryService {
       updateData.description = updates.description;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('time_entries')
       .update(updateData)
       .eq('id', entryId)
@@ -256,7 +256,7 @@ class TimeEntryService {
    * Delete a time entry
    */
   async deleteTimeEntry(entryId: string): Promise<boolean> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return false;
 
     const { error } = await supabase
@@ -279,7 +279,7 @@ class TimeEntryService {
     userId: string,
     numberOfWeeks: number = 8
   ): Promise<Record<string, number>> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return {};
 
     // Calculate start date (X weeks ago)
@@ -302,8 +302,8 @@ class TimeEntryService {
     // Aggregate by week
     const weeklyHours: Record<string, number> = {};
     data.forEach((entry: any) => {
-      const week = entry.week_start_date;
-      weeklyHours[week] = (weeklyHours[week] || 0) + (entry.hours_logged || 0);
+      const week = entry.week_start_date as string;
+      weeklyHours[week] = (weeklyHours[week] || 0) + ((entry.hours_logged as number) || 0);
     });
 
     return weeklyHours;

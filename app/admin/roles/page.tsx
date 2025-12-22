@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ export default function RoleManagementPage() {
   const [, setHasUnsavedChanges] = useState(false);
   
   // Queued operations for Edit Mode (managed by parent, executed on save)
-  const [pendingRoleEdits, setPendingRoleEdits] = useState<Map<string, any>>(new Map());
+  const [pendingRoleEdits, setPendingRoleEdits] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [pendingUserAssignments, setPendingUserAssignments] = useState<Array<{roleId: string, userId: string, userName: string}>>([])
 
   // Check if user is unassigned and redirect
@@ -75,18 +75,11 @@ export default function RoleManagementPage() {
     }
   }, [authLoading, userProfile, router]);
 
-  useEffect(() => {
-    if (!authLoading && userProfile && !isUnassigned(userProfile)) {
-      loadData();
-      checkPermissions();
-    }
-  }, [authLoading, userProfile]);
-
   // Debug: Log when roles state changes
   useEffect(() => {
     console.log('🔍 PAGE: Roles state changed:', {
       count: roles.length,
-      roles: roles.map(r => ({ id: r.id, name: r.name }))
+      roles: roles.map((r: any) => ({ id: r.id, name: r.name }))
     });
   }, [roles]);
 
@@ -97,41 +90,39 @@ export default function RoleManagementPage() {
     }
   }, [authLoading, viewType, canViewAccountsTab]);
 
-  async function checkPermissions() {
+  const checkPermissions = useCallback(async () => {
     if (!userProfile) return;
-    
+
     try {
-      const canCreate = await hasPermission(userProfile, Permission.CREATE_ROLE);
-      const canEdit = await hasPermission(userProfile, Permission.EDIT_ROLE);
-      const canDelete = await hasPermission(userProfile, Permission.DELETE_ROLE);
-      const canAssign = await hasPermission(userProfile, Permission.ASSIGN_USERS_TO_ROLES);
-      const canViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB);
-      
-      setCanCreateRole(canCreate);
-      setCanEditRole(canEdit);
-      setCanDeleteRole(canDelete);
-      setCanAssignUsers(canAssign);
-      setCanViewAccountsTab(canViewAccounts);
-      
-      // User is read-only if they can't create, edit, or delete roles
-      setIsReadOnly(!canCreate && !canEdit && !canDelete);
-    } catch (error) {
+      // MANAGE_USER_ROLES consolidates create/edit/delete roles + assign/remove users
+      const canManageRoles = await hasPermission(userProfile, Permission.MANAGE_USER_ROLES);
+      const canManageAccountUsers = await hasPermission(userProfile, Permission.MANAGE_USERS_IN_ACCOUNTS);
+
+      setCanCreateRole(canManageRoles);
+      setCanEditRole(canManageRoles);
+      setCanDeleteRole(canManageRoles);
+      setCanAssignUsers(canManageRoles);
+      setCanViewAccountsTab(canManageAccountUsers);
+
+      // User is read-only if they can't manage roles
+      setIsReadOnly(!canManageRoles);
+    } catch (error: unknown) {
       console.error('Error checking permissions:', error);
     }
-  }
+  }, [userProfile]);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       console.log('🔄 PAGE: Starting loadData()...');
       setLoading(true);
-      
+
       // Add cache-busting headers to ensure fresh data
       const cacheHeaders = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
       };
-      
+
       console.log('🔄 PAGE: Fetching roles from API...');
       // Load roles with container data
       const rolesResponse = await fetch('/api/roles', {
@@ -139,9 +130,9 @@ export default function RoleManagementPage() {
         cache: 'no-store', // Next.js fetch cache option
         credentials: 'include' // Include cookies for authentication
       });
-      
+
       const rolesApiData = await rolesResponse.json();
-      
+
       if (!rolesResponse.ok) {
         // Handle permission errors gracefully (403) - these are expected for users without permissions
         if (rolesResponse.status === 403 || rolesApiData.code === 'PERMISSION_DENIED') {
@@ -156,7 +147,7 @@ export default function RoleManagementPage() {
           }, 100);
           return;
         }
-        
+
         // Log other errors as actual errors
         console.error('❌ PAGE: Roles API error:', {
           status: rolesResponse.status,
@@ -165,7 +156,7 @@ export default function RoleManagementPage() {
         });
         throw new Error(rolesApiData.error || `Failed to load roles: ${rolesResponse.status} ${rolesResponse.statusText}`);
       }
-      
+
       // Check if response contains an error
       if (rolesApiData.error) {
         // Handle permission errors gracefully
@@ -179,24 +170,24 @@ export default function RoleManagementPage() {
           }, 100);
           return;
         }
-        
+
         console.error('❌ PAGE: API returned error:', rolesApiData);
         throw new Error(rolesApiData.error || 'Failed to load roles');
       }
-      
+
       console.log('✅ PAGE: Roles API response received:', {
         rolesCount: rolesApiData.roles?.length || 0,
-        rolesData: rolesApiData.roles?.map((r: any) => `${r.name} (Level ${r.hierarchy_level}, Order ${r.display_order}, System: ${r.is_system_role})`)
+        rolesData: rolesApiData.roles?.map((r: RoleWithUsers) => `${r.name} (Level ${r.hierarchy_level}, Order ${r.display_order}, System: ${r.is_system_role})`)
       });
-      
+
       // Extract roles from the new API response structure
       const rolesData = rolesApiData.roles || []; // Handle both old and new formats, default to empty array
-      
+
       if (!Array.isArray(rolesData)) {
         console.error('❌ PAGE: Roles data is not an array:', rolesData);
         throw new Error('Invalid roles data format received from API');
       }
-      
+
       console.log('🔄 PAGE: Fetching departments from API...');
       // Load departments
       const deptsResponse = await fetch('/api/departments', {
@@ -206,29 +197,30 @@ export default function RoleManagementPage() {
       });
       if (!deptsResponse.ok) throw new Error('Failed to load departments');
       const deptsData = await deptsResponse.json();
-      
+
       console.log('✅ PAGE: Setting roles and departments state...');
       console.log('📊 PAGE: Roles data to set:', {
         count: rolesData.length,
-        roles: rolesData.map((r: any) => ({ id: r.id, name: r.name, hierarchy_level: r.hierarchy_level }))
+        roles: rolesData.map((r: RoleWithUsers) => ({ id: r.id, name: r.name, hierarchy_level: r.hierarchy_level }))
       });
-      
+
       setRoles(rolesData);
       setDepartments(deptsData);
-      
+
       // Log container information for debugging
       if (rolesApiData.containers) {
         console.log('📊 PAGE: Role containers loaded:', rolesApiData.containers);
         console.log(`📊 PAGE: Total levels: ${rolesApiData.totalLevels}, Total roles: ${rolesApiData.totalRoles}`);
       }
-      
+
       console.log('✅ PAGE: loadData() completed successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       // Check if this is a permission error (expected for users without permissions)
-      const isPermissionError = error?.message?.includes('permission') || 
-                                error?.message?.includes('Permission denied') ||
-                                error?.message?.includes('You don\'t have permission');
-      
+      const isPermissionError = err?.message?.includes('permission') ||
+                                err?.message?.includes('Permission denied') ||
+                                err?.message?.includes('You don\'t have permission');
+
       if (isPermissionError) {
         // Handle permission errors gracefully - don't log as error or show toast
         console.log('ℹ️ PAGE: Permission denied - this is expected for users without VIEW_ROLES permission');
@@ -241,19 +233,27 @@ export default function RoleManagementPage() {
         }, 100);
         return;
       }
-      
+
       // Log other errors as actual errors
       console.error('❌ PAGE: Error loading data:', error);
-      const errorMessage = error?.message || 'Failed to load data';
+      const errorMessage = err?.message || 'Failed to load data';
       toast.error(errorMessage);
-      
+
       // Set empty arrays to prevent undefined errors
       setRoles([]);
       setDepartments([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [router]);
+
+  // Load data and check permissions when user is authenticated
+  useEffect(() => {
+    if (!authLoading && userProfile && !isUnassigned(userProfile)) {
+      loadData();
+      checkPermissions();
+    }
+  }, [authLoading, userProfile, loadData, checkPermissions]);
 
   async function handleDeleteRole(roleId: string) {
     if (!confirm('Are you sure you want to delete this role?')) {
@@ -272,9 +272,10 @@ export default function RoleManagementPage() {
 
       toast.success('Role deleted successfully');
       loadData();
-    } catch (error: any) {
-      console.error('Error deleting role:', error);
-      toast.error(error.message || 'Failed to delete role');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error deleting role:', err);
+      toast.error(err.message || 'Failed to delete role');
     }
   }
 
@@ -295,7 +296,7 @@ export default function RoleManagementPage() {
     setPendingRoleEdits(prev => new Map(prev).set(roleId, updates));
     
     // Update local UI immediately for better UX
-    setRoles(prevRoles => prevRoles.map(role => {
+    setRoles(prevRoles => prevRoles.map((role: any) => {
       if (role.id === roleId) {
         return { ...role, ...updates };
       }
@@ -309,10 +310,10 @@ export default function RoleManagementPage() {
     setPendingUserAssignments(prev => [...prev, { roleId, userId, userName }]);
     
     // Update local UI immediately for better UX
-    setRoles(prevRoles => prevRoles.map(role => {
+    setRoles(prevRoles => prevRoles.map((role: any) => {
       if (role.id === roleId) {
         // Check if user is already in the list to avoid duplicates
-        const userExists = role.users.some(u => u.id === userId);
+        const userExists = role.users.some((u: any) => u.id === userId);
         
         if (userExists) {
           console.log('⚠️ User already assigned to this role, skipping UI update');
@@ -365,18 +366,18 @@ export default function RoleManagementPage() {
       console.log('🔄 Updating reporting role:', { roleId, reportingRoleId });
       
       // Get current maximum hierarchy level to ensure Superadmin stays at top
-      const maxLevel = Math.max(...roles.map(r => r.hierarchy_level));
+      const maxLevel = Math.max(...roles.map((r: any) => r.hierarchy_level));
       
     // Calculate new hierarchy level
     let newHierarchyLevel: number;
     if (reportingRoleId) {
-      const reportingRole = roles.find(r => r.id === reportingRoleId);
+      const reportingRole = roles.find((r: any) => r.id === reportingRoleId);
       // Child role should be one level BELOW parent (lower number = deeper in hierarchy)
       newHierarchyLevel = (reportingRole?.hierarchy_level || 1) - 1;
       console.log(`📊 Role will report to ${reportingRole?.name} (level ${reportingRole?.hierarchy_level}), so new level will be ${newHierarchyLevel}`);
     } else {
       // No reporting role - make it a top-level role (Level 1, or Level 0 for "No Assigned Role")
-      const role = roles.find(r => r.id === roleId);
+      const role = roles.find((r: any) => r.id === roleId);
       if (role?.name === 'No Assigned Role') {
         newHierarchyLevel = 0; // Special case for fallback role
       } else if (role?.name === 'Superadmin') {
@@ -410,7 +411,7 @@ export default function RoleManagementPage() {
       console.log('🔄 Reloading data...');
       await loadData();
       console.log('✅ Data reloaded');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating reporting role:', error);
       throw error;
     }
@@ -435,7 +436,7 @@ export default function RoleManagementPage() {
   }
 
   return (
-    <RoleGuard requirePermission={Permission.VIEW_ROLES}>
+    <RoleGuard requirePermission={Permission.MANAGE_USER_ROLES}>
       <div className="container mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -460,7 +461,7 @@ export default function RoleManagementPage() {
       </div>
 
       {/* View Toggle */}
-      <Tabs value={viewType} onValueChange={(v) => setViewType(v as any)} className="w-full">
+      <Tabs value={viewType} onValueChange={(v) => setViewType(v as 'hierarchy' | 'department' | 'accounts')} className="w-full">
         <TabsList>
           <TabsTrigger value="hierarchy" className="flex items-center gap-2">
             <Network className="h-4 w-4" />

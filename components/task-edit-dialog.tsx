@@ -73,7 +73,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
       setUsers(usersData);
       setGroups(groupsData);
       setStatuses(statusesData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading data:', error);
     }
   };
@@ -101,7 +101,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
         onTaskUpdated(updatedTask);
         onOpenChange(false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task:', error);
     } finally {
       setLoading(false);
@@ -121,7 +121,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
   const removeTag = (tagToRemove: string) => {
     setFormData(prev => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove),
+      tags: prev.tags.filter((tag: any) => tag !== tagToRemove),
     }));
   };
 
@@ -212,8 +212,8 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
                 </SelectTrigger>
                 <SelectContent>
                   {statuses
-                    .filter(status => status?.id && status.id !== '')
-                    .map(status => (
+                    .filter((status: any) => status?.id && status.id !== '')
+                    .map((status: any) => (
                       <SelectItem key={status.id} value={status.id}>
                         {status.name}
                       </SelectItem>
@@ -233,8 +233,8 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
                 </SelectTrigger>
                 <SelectContent>
                   {groups
-                    .filter(group => group?.id && group.id !== '')
-                    .map(group => (
+                    .filter((group: any) => group?.id && group.id !== '')
+                    .map((group: any) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name}
                       </SelectItem>
@@ -254,10 +254,10 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
                 </SelectTrigger>
                 <SelectContent>
                   {users
-                    .filter(user => user?.id && user.id !== '')
-                    .map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
+                    .filter((user: any) => (user as any)?.id && (user as any).id !== '')
+                    .map((user: any) => (
+                      <SelectItem key={(user as any).id} value={(user as any).id}>
+                        {(user as any).name}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -280,7 +280,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
             </div>
             {formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {formData.tags.map((tag, index) => (
+                {formData.tags.map((tag:any, index:any) => (
                   <span
                     key={index}
                     className="bg-secondary text-secondary-foreground px-2 py-1 rounded text-xs flex items-center gap-1"

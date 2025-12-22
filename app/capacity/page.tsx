@@ -29,8 +29,8 @@ export default function CapacityPage() {
         return
       }
 
-      // Check if user can view their own capacity or edit availability
-      const viewCapacity = await hasPermission(userProfile, Permission.VIEW_OWN_CAPACITY)
+      // Check if user can view team capacity or edit their own availability
+      const viewCapacity = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY)
       const editAvailability = await hasPermission(userProfile, Permission.EDIT_OWN_AVAILABILITY)
 
       setCanAccess(viewCapacity || editAvailability)

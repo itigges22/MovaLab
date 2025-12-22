@@ -8,6 +8,12 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 /**
  * GET /api/admin/time-entries
  * Get all time entries for admin dashboard
@@ -32,7 +38,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for admin permission
-    const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
+    // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
+    const canViewTeam = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
     if (!canViewTeam) {
       return NextResponse.json(
         { error: 'Insufficient permissions to view team time entries' },
@@ -97,9 +104,9 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary stats
     const totalHours = timeEntries?.reduce((sum, entry) => sum + (entry.hours_logged || 0), 0) || 0;
-    const uniqueUsers = new Set(timeEntries?.map(e => e.user_id)).size;
-    const uniqueProjects = new Set(timeEntries?.map(e => e.project_id)).size;
-    const autoClockOuts = timeEntries?.filter(e => e.is_auto_clock_out).length || 0;
+    const uniqueUsers = new Set(timeEntries?.map((e: any) => e.user_id)).size;
+    const uniqueProjects = new Set(timeEntries?.map((e: any) => e.project_id)).size;
+    const autoClockOuts = timeEntries?.filter((e: any) => e.is_auto_clock_out).length || 0;
 
     return NextResponse.json({
       success: true,
@@ -112,10 +119,11 @@ export async function GET(request: NextRequest) {
         autoClockOuts
       }
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/admin/time-entries:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/admin/time-entries:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

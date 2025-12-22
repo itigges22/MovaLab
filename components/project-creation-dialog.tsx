@@ -25,6 +25,7 @@ import {
 import { PlusIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClientSupabase } from '@/lib/supabase';
+
 import { useAuth } from '@/lib/hooks/useAuth';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
@@ -50,10 +51,9 @@ interface WorkflowTemplate {
   description: string | null;
 }
 
-export default function ProjectCreationDialog({ 
-  children, 
+export default function ProjectCreationDialog({
+  children,
   onProjectCreated,
-  departmentId,
   accountId: propAccountId,
   initialStartDate,
   open: controlledOpen,
@@ -66,14 +66,14 @@ export default function ProjectCreationDialog({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([]);
   const { userProfile } = useAuth();
-  const [canCreateProject, setCanCreateProject] = useState(false);
+  const [_canCreateProject, setCanCreateProject] = useState(false);
 
   // Check permissions
   useEffect(() => {
     if (!userProfile || !propAccountId) return;
-    
+
     async function checkPermissions() {
-      const canCreate = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId: propAccountId });
+      const canCreate = await hasPermission(userProfile, Permission.MANAGE_PROJECTS, { accountId: propAccountId });
       setCanCreateProject(canCreate);
     }
     
@@ -117,7 +117,7 @@ export default function ProjectCreationDialog({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const supabase = createClientSupabase();
+        const supabase = createClientSupabase() as any as any;
         if (!supabase) return;
 
         // Load accounts
@@ -144,7 +144,7 @@ export default function ProjectCreationDialog({
         } else {
           setWorkflows(workflowsData || []);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading data:', error);
       }
     };
@@ -169,7 +169,7 @@ export default function ProjectCreationDialog({
 
     // Check permission for the selected account
     if (userProfile && formData.accountId) {
-      const canCreate = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId: formData.accountId });
+      const canCreate = await hasPermission(userProfile, Permission.MANAGE_PROJECTS, { accountId: formData.accountId });
       if (!canCreate) {
         toast.error('You do not have permission to create projects for this account.');
         return;
@@ -179,7 +179,7 @@ export default function ProjectCreationDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }
@@ -193,7 +193,7 @@ export default function ProjectCreationDialog({
       }
 
       // Create the project (status will be determined by workflow stage)
-      const { data: project, error: projectError } = await supabase
+      const { data: project, error: projectError } = await (supabase as any)
         .from('projects')
         .insert({
           name: formData.name,
@@ -234,7 +234,7 @@ export default function ProjectCreationDialog({
           if (!workflowResponse.ok) {
             console.error('Failed to start workflow, but project was created');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error starting workflow:', error);
           // Don't fail the whole operation if workflow start fails
         }
@@ -252,7 +252,7 @@ export default function ProjectCreationDialog({
         priority: 'medium',
         estimatedHours: '',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating project:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
@@ -337,8 +337,8 @@ export default function ProjectCreationDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {accounts
-                    .filter((account) => account && account.id && account.id !== '')
-                    .map((account) => (
+                    .filter((account:any) => account && account.id && account.id !== '')
+                    .map((account:any) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.name}
                       </SelectItem>
@@ -359,7 +359,7 @@ export default function ProjectCreationDialog({
                   {workflows.length === 0 ? (
                     <SelectItem value="none" disabled>No workflows available</SelectItem>
                   ) : (
-                    workflows.map((workflow) => (
+                    workflows.map((workflow:any) => (
                       <SelectItem key={workflow.id} value={workflow.id}>
                         {workflow.name}
                       </SelectItem>
@@ -367,9 +367,9 @@ export default function ProjectCreationDialog({
                   )}
                 </SelectContent>
               </Select>
-              {formData.workflowTemplateId && workflows.find(w => w.id === formData.workflowTemplateId)?.description && (
+              {formData.workflowTemplateId && workflows.find((w: any) => w.id === formData.workflowTemplateId)?.description && (
                 <p className="text-xs text-gray-500">
-                  {workflows.find(w => w.id === formData.workflowTemplateId)?.description}
+                  {workflows.find((w: any) => w.id === formData.workflowTemplateId)?.description}
                 </p>
               )}
             </div>

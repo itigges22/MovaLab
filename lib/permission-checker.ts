@@ -7,9 +7,9 @@
  * 3. Override Permissions: Allow access regardless of assignment
  *
  * Example: User wants to edit Project X
- * - Check: Does user have EDIT_PROJECT permission? (base)
+ * - Check: Does user have MANAGE_PROJECTS permission? (base)
  * - Check: Is user assigned to Project X? (context)
- * - OR Check: Does user have EDIT_ALL_PROJECTS? (override)
+ * - OR Check: Does user have MANAGE_ALL_PROJECTS? (override)
  *
  * IMPORTANT: Server-side code (API routes) MUST pass an authenticated SupabaseClient
  * to ensure proper RLS context. Client-side code can omit the parameter.
@@ -19,7 +19,7 @@ import { createClientSupabase } from './supabase';
 import { UserWithRoles, PermissionContext } from './rbac-types';
 import { Permission } from './permissions';
 import { logger, permissionCheck } from './debug-logger';
-import type { SupabaseClient } from '@supabase/supabase-js';
+
 
 // Cache for permission checks (expires after 5 minutes)
 interface CacheEntry {
@@ -58,12 +58,12 @@ export function isSuperadmin(userProfile: UserWithRoles | null): boolean {
   if (!userProfile) return false;
   
   // Check is_superadmin flag
-  if (userProfile.is_superadmin) return true;
+  if ((userProfile as any).is_superadmin) return true;
   
   // Check if user has Superadmin role
   if (!userProfile.user_roles || !Array.isArray(userProfile.user_roles)) return false;
   
-  return userProfile.user_roles.some(ur => {
+  return userProfile.user_roles.some((ur: any) => {
     const roleName = ur.roles?.name?.toLowerCase();
     return roleName === 'superadmin' || ur.roles?.is_system_role === true && roleName === 'superadmin';
   });
@@ -75,8 +75,8 @@ export function isSuperadmin(userProfile: UserWithRoles | null): boolean {
  * @param projectId - Project ID to check
  * @param supabaseClient - Optional authenticated Supabase client (REQUIRED for server-side, optional for client-side)
  */
-export async function isAssignedToProject(userId: string, projectId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
-  const supabase = supabaseClient || createClientSupabase();
+export async function isAssignedToProject(userId: string, projectId: string, supabaseClient?: any): Promise<boolean> {
+  const supabase = supabaseClient || createClientSupabase() as any;
   if (!supabase) return false;
 
   // First check the project itself - if user is creator or assigned user, they have access
@@ -139,10 +139,10 @@ export async function isAssignedToProject(userId: string, projectId: string, sup
  * @param departmentId - Department ID to check
  * @param supabaseClient - Optional authenticated Supabase client (not used in this function but kept for consistency)
  */
-export async function managesDepartment(userProfile: UserWithRoles | null, departmentId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
+export async function managesDepartment(userProfile: UserWithRoles | null, departmentId: string, _supabaseClient?: any): Promise<boolean> {
   if (!userProfile?.user_roles) return false;
 
-  return userProfile.user_roles.some(ur => ur.roles?.department_id === departmentId);
+  return userProfile.user_roles.some((ur: any) => ur.roles?.department_id === departmentId);
 }
 
 /**
@@ -150,8 +150,8 @@ export async function managesDepartment(userProfile: UserWithRoles | null, depar
  * @param accountId - Account ID
  * @param supabaseClient - Optional authenticated Supabase client
  */
-async function getAccountProjects(accountId: string, supabaseClient?: SupabaseClient): Promise<string[]> {
-  const supabase = supabaseClient || createClientSupabase();
+async function getAccountProjects(accountId: string, supabaseClient?: any): Promise<string[]> {
+  const supabase = supabaseClient || createClientSupabase() as any;
   if (!supabase) return [];
 
   const { data, error } = await supabase
@@ -173,12 +173,12 @@ async function getAccountProjects(accountId: string, supabaseClient?: SupabaseCl
  * @param accountId - Account ID to check
  * @param supabaseClient - Optional authenticated Supabase client (REQUIRED for server-side, optional for client-side)
  */
-export async function hasAccountAccess(userId: string, accountId: string, supabaseClient?: SupabaseClient): Promise<boolean> {
-  const supabase = supabaseClient || createClientSupabase();
+export async function hasAccountAccess(userId: string, accountId: string, supabaseClient?: any): Promise<boolean> {
+  const supabase = supabaseClient || createClientSupabase() as any;
   if (!supabase) return false;
 
   // Check if user is a member of the account
-  const { data: memberData, error: memberError } = await supabase
+  const { data: memberData, error: _memberError } = await supabase
     .from('account_members')
     .select('id')
     .eq('user_id', userId)
@@ -190,7 +190,7 @@ export async function hasAccountAccess(userId: string, accountId: string, supaba
   }
 
   // Check if user is the account manager
-  const { data: accountData, error: accountError } = await supabase
+  const { data: accountData, error: _accountError } = await supabase
     .from('accounts')
     .select('id')
     .eq('id', accountId)
@@ -206,7 +206,7 @@ export async function hasAccountAccess(userId: string, accountId: string, supaba
   if (projectIds.length === 0) return false;
 
   // Check project assignments
-  const { data: projectAssignments, error: projectError } = await supabase
+  const { data: projectAssignments, error: _projectError } = await supabase
     .from('project_assignments')
     .select('id')
     .eq('user_id', userId)
@@ -234,6 +234,78 @@ export async function hasAccountAccess(userId: string, accountId: string, supaba
 }
 
 /**
+ * Check if user is assigned to a workflow instance's current node
+ * @param userProfile - User profile with roles
+ * @param workflowInstanceId - Workflow instance ID to check
+ * @param supabaseClient - Optional authenticated Supabase client
+ */
+export async function isAssignedToWorkflowNode(
+  userProfile: UserWithRoles | null,
+  workflowInstanceId: string,
+  supabaseClient?: any
+): Promise<boolean> {
+  if (!userProfile) return false;
+
+  const supabase = supabaseClient || createClientSupabase() as any;
+  if (!supabase) return false;
+
+  // Get the workflow instance and current node
+  const { data: instance, error: instanceError } = await supabase
+    .from('workflow_instances')
+    .select(`
+      current_node_id,
+      workflow_nodes!workflow_instances_current_node_id_fkey(
+        id,
+        node_type,
+        entity_id
+      )
+    `)
+    .eq('id', workflowInstanceId)
+    .single();
+
+  if (instanceError || !instance || !instance.workflow_nodes) {
+    logger.error('Error fetching workflow instance for node assignment check', { workflowInstanceId }, instanceError);
+    return false;
+  }
+
+  const currentNode = instance.workflow_nodes as {
+    id: string;
+    node_type: string;
+    entity_id: string | null;
+  };
+
+  // Check if user is directly assigned to this specific workflow node
+  const { data: nodeAssignment, error: _assignmentError } = await supabase
+    .from('workflow_active_steps')
+    .select('id')
+    .eq('workflow_instance_id', workflowInstanceId)
+    .eq('node_id', currentNode.id)
+    .eq('assigned_user_id', (userProfile as any).id)
+    .eq('status', 'active')
+    .limit(1);
+
+  if (nodeAssignment && nodeAssignment.length > 0) {
+    return true;
+  }
+
+  // Check based on node type
+  if (currentNode.node_type === 'department' && currentNode.entity_id) {
+    // Check if user belongs to this department
+    return await managesDepartment(userProfile, currentNode.entity_id, supabase);
+  }
+
+  if (currentNode.node_type === 'role' && currentNode.entity_id) {
+    // Check if user has this role
+    if (!userProfile.user_roles) return false;
+    return userProfile.user_roles.some((ur: any) => ur.role_id === currentNode.entity_id);
+  }
+
+  // For other node types (start, end, form, approval, conditional, sync),
+  // assignment is handled via workflow_active_steps table
+  return false;
+}
+
+/**
  * Check if user has a base permission in any of their roles (OR logic)
  * Returns TRUE if ANY role has the permission set to TRUE
  * Returns FALSE only if NO roles have the permission set to TRUE
@@ -242,9 +314,9 @@ export async function hasAccountAccess(userId: string, accountId: string, supaba
  * @param permission - Permission to check
  * @param supabaseClient - Optional authenticated Supabase client
  */
-async function hasBasePermission(userProfile: UserWithRoles | null, permission: Permission, supabaseClient?: SupabaseClient): Promise<boolean> {
+async function hasBasePermission(userProfile: UserWithRoles | null, permission: Permission, supabaseClient?: any): Promise<boolean> {
   if (!userProfile?.user_roles || userProfile.user_roles.length === 0) {
-    logger.debug('No user roles found', { userId: userProfile?.id, permission });
+    logger.debug('No user roles found', { userId: (userProfile as any)?.id, permission });
     return false;
   }
 
@@ -266,7 +338,7 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
       // Only check if permission is explicitly true - ignore false and undefined
       if (permissions[permission] === true) {
         logger.debug('Permission found in loaded role (OR logic)', {
-          userId: userProfile.id,
+          userId: (userProfile as any).id,
           permission,
           roleName: role.name
         });
@@ -281,15 +353,15 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
   }
 
   // If permissions weren't loaded in any role, fetch from database as fallback
-  const roleIds = userProfile.user_roles.map(ur => ur.role_id).filter(Boolean);
+  const roleIds = userProfile.user_roles.map((ur: any) => ur.role_id).filter(Boolean);
   if (roleIds.length === 0) {
-    logger.debug('No valid role IDs found', { userId: userProfile.id, permission });
+    logger.debug('No valid role IDs found', { userId: (userProfile as any).id, permission });
     return false;
   }
 
-  const supabase = supabaseClient || createClientSupabase();
+  const supabase = supabaseClient || createClientSupabase() as any;
   if (!supabase) {
-    logger.error('Supabase client not available', { userId: userProfile.id, permission });
+    logger.error('Supabase client not available', { userId: (userProfile as any).id, permission });
     return false;
   }
 
@@ -299,7 +371,7 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
     .in('id', roleIds);
 
   if (error) {
-    logger.error('Error fetching role permissions', { userId: userProfile.id }, error);
+    logger.error('Error fetching role permissions', { userId: (userProfile as any).id }, error);
     return false;
   }
 
@@ -309,7 +381,7 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
     const permValue = permissions[permission];
     if (permValue === true) {
       logger.debug('Permission found in database role (OR logic)', {
-        userId: userProfile.id,
+        userId: (userProfile as any).id,
         permission,
         roleName: role.name,
         roleId: role.id
@@ -320,7 +392,7 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
   }) || false;
 
   logger.debug('Permission check result from database', {
-    userId: userProfile.id,
+    userId: (userProfile as any).id,
     permission,
     hasPermission,
     roleCount: roles?.length || 0,
@@ -347,7 +419,7 @@ export async function checkPermissionHybrid(
   userProfile: UserWithRoles | null,
   permission: Permission,
   context?: PermissionContext,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: any
 ): Promise<boolean> {
   const startTime = Date.now();
 
@@ -360,41 +432,27 @@ export async function checkPermissionHybrid(
 
     // 2. Superadmin bypass
     if (isSuperadmin(userProfile)) {
-      permissionCheck(permission, userProfile.id, true, { reason: 'superadmin', duration: Date.now() - startTime });
+      permissionCheck(permission, (userProfile as any).id, true, { reason: 'superadmin', duration: Date.now() - startTime });
       return true;
     }
 
     // 3. Check cache
     clearExpiredCache();
-    const cacheKey = getCacheKey(userProfile.id, permission, context);
+    const cacheKey = getCacheKey((userProfile as any).id, permission, context);
     const cached = permissionCache.get(cacheKey);
     if (cached) {
-      permissionCheck(permission, userProfile.id, cached.result, { cached: true, duration: Date.now() - startTime });
+      permissionCheck(permission, (userProfile as any).id, cached.result, { cached: true, duration: Date.now() - startTime });
       return cached.result;
     }
 
-    // 4. Check base permission
-    // EXCEPTION: For VIEW_PROJECTS or VIEW_ACCOUNTS with account context, allow account-level access even without base permission
-    // (Users can view projects/accounts they have access to, even if they don't have general VIEW_PROJECTS/VIEW_ACCOUNTS permission)
-    const isViewProjectsWithAccount = permission === Permission.VIEW_PROJECTS && context?.accountId;
-    const isViewAccountsWithAccount = permission === Permission.VIEW_ACCOUNTS && context?.accountId;
+    // 4. Check base permission (standardized - no special cases)
+    const hasBase = await hasBasePermission(userProfile, permission, supabaseClient);
 
-    let hasBase = await hasBasePermission(userProfile, permission, supabaseClient);
-
-    // If checking VIEW_PROJECTS or VIEW_ACCOUNTS with account context and no base permission, check account access instead
-    if (!hasBase && (isViewProjectsWithAccount || isViewAccountsWithAccount) && context.accountId) {
-      const accountAccess = await hasAccountAccess(userProfile.id, context.accountId, supabaseClient);
-      if (accountAccess) {
-        // User has account access, treat as having base permission for this check
-        hasBase = true;
-      }
-    }
-    
     if (!hasBase) {
       // No base permission = no access
       const duration = Date.now() - startTime;
       permissionCache.set(cacheKey, { result: false, timestamp: Date.now() });
-      permissionCheck(permission, userProfile.id, false, { reason: 'no_base_permission', duration });
+      permissionCheck(permission, (userProfile as any).id, false, { reason: 'no_base_permission', duration });
       return false;
     }
 
@@ -402,7 +460,7 @@ export async function checkPermissionHybrid(
     if (!context || Object.keys(context).length === 0) {
       const duration = Date.now() - startTime;
       permissionCache.set(cacheKey, { result: true, timestamp: Date.now() });
-      permissionCheck(permission, userProfile.id, true, { reason: 'base_permission', duration });
+      permissionCheck(permission, (userProfile as any).id, true, { reason: 'base_permission', duration });
       return true;
     }
 
@@ -410,18 +468,39 @@ export async function checkPermissionHybrid(
     let hasAccess = false;
 
     // Check for override permissions first (they bypass context checks)
-    const overridePermissions: Record<Permission, Permission[]> = {
+    const overridePermissions: Partial<Record<Permission, Permission[]>> = {
+      // Projects
       [Permission.VIEW_PROJECTS]: [Permission.VIEW_ALL_PROJECTS],
-      [Permission.EDIT_PROJECT]: [Permission.EDIT_ALL_PROJECTS],
-      [Permission.DELETE_PROJECT]: [Permission.DELETE_ALL_PROJECTS],
+      [Permission.MANAGE_PROJECTS]: [Permission.MANAGE_ALL_PROJECTS],
+
+      // Departments
       [Permission.VIEW_DEPARTMENTS]: [Permission.VIEW_ALL_DEPARTMENTS],
-      [Permission.EDIT_DEPARTMENT]: [Permission.VIEW_ALL_DEPARTMENTS], // VIEW_ALL_DEPARTMENTS allows editing any department
-      [Permission.DELETE_DEPARTMENT]: [Permission.VIEW_ALL_DEPARTMENTS], // VIEW_ALL_DEPARTMENTS allows deleting any department
+      [Permission.MANAGE_DEPARTMENTS]: [Permission.VIEW_ALL_DEPARTMENTS],
+
+      // Accounts
       [Permission.VIEW_ACCOUNTS]: [Permission.VIEW_ALL_ACCOUNTS],
-      [Permission.EDIT_ACCOUNT]: [Permission.VIEW_ALL_ACCOUNTS], // VIEW_ALL_ACCOUNTS allows editing any account
-      [Permission.DELETE_ACCOUNT]: [Permission.VIEW_ALL_ACCOUNTS], // VIEW_ALL_ACCOUNTS allows deleting any account
-      [Permission.VIEW_ANALYTICS]: [Permission.VIEW_ALL_ANALYTICS],
-    } as any;
+      [Permission.MANAGE_ACCOUNTS]: [Permission.VIEW_ALL_ACCOUNTS],
+
+      // Updates
+      [Permission.VIEW_UPDATES]: [Permission.VIEW_ALL_UPDATES],
+      [Permission.MANAGE_UPDATES]: [Permission.VIEW_ALL_UPDATES],
+
+      // Time Tracking
+      [Permission.VIEW_TIME_ENTRIES]: [Permission.VIEW_ALL_TIME_ENTRIES],
+      [Permission.EDIT_TIME_ENTRIES]: [Permission.VIEW_ALL_TIME_ENTRIES],
+      [Permission.MANAGE_TIME]: [Permission.VIEW_ALL_TIME_ENTRIES],
+
+      // Workflows
+      [Permission.MANAGE_WORKFLOWS]: [Permission.MANAGE_ALL_WORKFLOWS],
+      [Permission.EXECUTE_WORKFLOWS]: [Permission.EXECUTE_ANY_WORKFLOW, Permission.MANAGE_ALL_WORKFLOWS],
+
+      // Analytics (three-tier hierarchy: dept → account → org)
+      [Permission.VIEW_ALL_DEPARTMENT_ANALYTICS]: [Permission.VIEW_ALL_ACCOUNT_ANALYTICS, Permission.VIEW_ALL_ANALYTICS],
+      [Permission.VIEW_ALL_ACCOUNT_ANALYTICS]: [Permission.VIEW_ALL_ANALYTICS],
+
+      // Capacity
+      [Permission.VIEW_TEAM_CAPACITY]: [Permission.VIEW_ALL_CAPACITY],
+    } as Record<string, unknown>;
 
     const overrides = overridePermissions[permission] || [];
     for (const override of overrides) {
@@ -435,77 +514,50 @@ export async function checkPermissionHybrid(
     if (hasAccess) {
       const duration = Date.now() - startTime;
       permissionCache.set(cacheKey, { result: true, timestamp: Date.now() });
-      permissionCheck(permission, userProfile.id, true, { reason: 'override_permission', duration });
+      permissionCheck(permission, (userProfile as any).id, true, { reason: 'override_permission', duration });
       return true;
     }
 
-    // 7. Check context-specific access
-    // For account-level permissions (EDIT_ACCOUNT, DELETE_ACCOUNT), base permission means you can edit/delete ANY account
-    // For department-level permissions (EDIT_DEPARTMENT, DELETE_DEPARTMENT), base permission means you can edit/delete ANY department
-    // Context.accountId/departmentId is only used for filtering VIEW_ACCOUNTS/VIEW_DEPARTMENTS when user doesn't have override
-    const isAccountEditPermission = permission === Permission.EDIT_ACCOUNT || permission === Permission.DELETE_ACCOUNT;
-    const isDepartmentEditPermission = permission === Permission.EDIT_DEPARTMENT || permission === Permission.DELETE_DEPARTMENT;
-    
-    if (isAccountEditPermission && context?.accountId) {
-      // If user has base EDIT_ACCOUNT or DELETE_ACCOUNT permission, they can edit/delete any account
-      // No need to check account access - base permission is sufficient
-      hasAccess = true;
-    } else if (isDepartmentEditPermission && context?.departmentId) {
-      // If user has base EDIT_DEPARTMENT or DELETE_DEPARTMENT permission, they can edit/delete any department
-      // No need to check department assignment - base permission is sufficient
-      hasAccess = true;
+    // 7. Check context-specific access (standardized - all permissions require context validation)
+    if (context.workflowInstanceId) {
+      // Workflow context: Check if user is assigned to current workflow node
+      // EXECUTE_WORKFLOWS requires node assignment unless user has override permission
+      hasAccess = await isAssignedToWorkflowNode(userProfile, context.workflowInstanceId, supabaseClient);
     } else if (context.projectId) {
-      // For workflow permissions (EXECUTE_WORKFLOWS, SKIP_WORKFLOW_NODES), base permission is sufficient
-      // These are actions that can be performed on any workflow, regardless of project assignment
-      const isWorkflowPermission = permission === Permission.EXECUTE_WORKFLOWS || permission === Permission.SKIP_WORKFLOW_NODES;
+      // Project context: Check if user is assigned to this project
+      hasAccess = await isAssignedToProject((userProfile as any).id, context.projectId, supabaseClient);
 
-      if (isWorkflowPermission) {
-        // Workflow permissions only require base permission, not project assignment
-        hasAccess = true;
-      } else {
-        // Check if user is assigned to this project
-        // If they're assigned, they can view it (base permission already checked above)
-        hasAccess = await isAssignedToProject(userProfile.id, context.projectId, supabaseClient);
-
-        // If not directly assigned to this project, check if they have account-level access
-        // Users with account access can view projects in that account
-        if (!hasAccess && context.accountId) {
-          const accountAccess = await hasAccountAccess(userProfile.id, context.accountId, supabaseClient);
-          if (accountAccess) {
-            // Double-check this project is in the account they have access to
-            const supabase = supabaseClient || createClientSupabase();
-            if (supabase) {
-              const { data: project } = await supabase
-                .from('projects')
-                .select('account_id')
-                .eq('id', context.projectId)
-                .single();
-              if (project && project.account_id === context.accountId) {
-                hasAccess = true;
-              }
+      // If not directly assigned to this project, check if they have account-level access
+      // Users with account access can view projects in that account
+      if (!hasAccess && context.accountId) {
+        const accountAccess = await hasAccountAccess((userProfile as any).id, context.accountId, supabaseClient);
+        if (accountAccess) {
+          // Double-check this project is in the account they have access to
+          const supabase = supabaseClient || createClientSupabase() as any;
+          if (supabase) {
+            const { data: project } = await supabase
+              .from('projects')
+              .select('account_id')
+              .eq('id', context.projectId)
+              .single();
+            if (project && project.account_id === context.accountId) {
+              hasAccess = true;
             }
           }
         }
       }
-    }
-
-    if (context.accountId && !context.projectId && !isAccountEditPermission) {
-      // Check if user has access to any project in this account
-      // Only applies to VIEW_ACCOUNTS and other non-edit permissions
-      hasAccess = await hasAccountAccess(userProfile.id, context.accountId, supabaseClient);
-    }
-
-    if (context.departmentId && !isDepartmentEditPermission) {
-      // Check if user has a role in this department
-      // Only applies to VIEW_DEPARTMENTS and other non-edit permissions
-      // If user has VIEW_ALL_DEPARTMENTS override, this check is bypassed above
+    } else if (context.accountId) {
+      // Account context: Check if user is account manager or member
+      hasAccess = await hasAccountAccess((userProfile as any).id, context.accountId, supabaseClient);
+    } else if (context.departmentId) {
+      // Department context: Check if user has a role in this department
       hasAccess = await managesDepartment(userProfile, context.departmentId, supabaseClient);
     }
 
     // 8. Cache and return result
     const duration = Date.now() - startTime;
     permissionCache.set(cacheKey, { result: hasAccess, timestamp: Date.now() });
-    permissionCheck(permission, userProfile.id, hasAccess, { 
+    permissionCheck(permission, (userProfile as any).id, hasAccess, { 
       reason: hasAccess ? 'context_match' : 'no_context_match',
       context,
       duration 
@@ -513,11 +565,11 @@ export async function checkPermissionHybrid(
 
     return hasAccess;
 
-  } catch (error) {
+  } catch (error: unknown) {
     const duration = Date.now() - startTime;
     logger.error('Exception in checkPermissionHybrid', {
       permission,
-      userId: userProfile?.id,
+      userId: (userProfile as any)?.id,
       context,
       duration
     }, error as Error);
@@ -532,7 +584,7 @@ export async function checkAnyPermission(
   userProfile: UserWithRoles | null,
   permissions: Permission[],
   context?: PermissionContext,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: any
 ): Promise<boolean> {
   for (const permission of permissions) {
     if (await checkPermissionHybrid(userProfile, permission, context, supabaseClient)) {
@@ -549,7 +601,7 @@ export async function checkAllPermissions(
   userProfile: UserWithRoles | null,
   permissions: Permission[],
   context?: PermissionContext,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: any
 ): Promise<boolean> {
   for (const permission of permissions) {
     if (!(await checkPermissionHybrid(userProfile, permission, context, supabaseClient))) {
@@ -564,7 +616,7 @@ export async function checkAllPermissions(
  * @param userProfile - User profile with roles
  * @param supabaseClient - Optional authenticated Supabase client
  */
-export async function getUserPermissions(userProfile: UserWithRoles | null, supabaseClient?: SupabaseClient): Promise<Permission[]> {
+export async function getUserPermissions(userProfile: UserWithRoles | null, supabaseClient?: any): Promise<Permission[]> {
   if (!userProfile) return [];
 
   // Superadmin has all permissions
@@ -576,10 +628,10 @@ export async function getUserPermissions(userProfile: UserWithRoles | null, supa
     return [];
   }
 
-  const roleIds = userProfile.user_roles.map(ur => ur.role_id).filter(Boolean);
+  const roleIds = userProfile.user_roles.map((ur: any) => ur.role_id).filter(Boolean);
   if (roleIds.length === 0) return [];
 
-  const supabase = supabaseClient || createClientSupabase();
+  const supabase = supabaseClient || createClientSupabase() as any;
   if (!supabase) return [];
 
   const { data: roles, error } = await supabase

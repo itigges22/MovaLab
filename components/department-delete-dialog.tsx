@@ -33,7 +33,7 @@ export default function DepartmentDeleteDialog({
     if (!userProfile) return;
     
     async function checkPermissions() {
-      const canDelete = await hasPermission(userProfile, Permission.DELETE_DEPARTMENT, { departmentId });
+      const canDelete = await hasPermission(userProfile, Permission.MANAGE_DEPARTMENTS, { departmentId });
       setCanDeleteDepartment(canDelete);
     }
     
@@ -58,7 +58,7 @@ export default function DepartmentDeleteDialog({
       } else {
         toast.error('Failed to delete department. Please try again.')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting department:', error)
       toast.error('An error occurred while deleting the department.')
     } finally {

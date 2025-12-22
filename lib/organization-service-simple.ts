@@ -32,21 +32,21 @@ export const organizationService = {
           hierarchy_level: 1000,
           is_system_role: true,
           permissions: {
-            manage_users: true,
-            manage_roles: true,
-            manage_departments: true,
-            manage_projects: true,
-            manage_tasks: true,
-            manage_milestones: true,
-            manage_accounts: true,
-            manage_permissions: true,
-            view_analytics: true,
-            view_reports: true,
-            create_projects: true,
-            edit_projects: true,
-            delete_projects: true,
-            assign_tasks: true,
-            view_all_projects: true
+            manage_users: { enabled: true } as Record<string, unknown>,
+            manage_roles: { enabled: true } as Record<string, unknown>,
+            manage_departments: { enabled: true } as Record<string, unknown>,
+            manage_projects: { enabled: true } as Record<string, unknown>,
+            manage_tasks: { enabled: true } as Record<string, unknown>,
+            manage_milestones: { enabled: true } as Record<string, unknown>,
+            manage_accounts: { enabled: true } as Record<string, unknown>,
+            manage_permissions: { enabled: true } as Record<string, unknown>,
+            view_analytics: { enabled: true } as Record<string, unknown>,
+            view_reports: { enabled: true } as Record<string, unknown>,
+            create_projects: { enabled: true } as Record<string, unknown>,
+            edit_projects: { enabled: true } as Record<string, unknown>,
+            delete_projects: { enabled: true } as Record<string, unknown>,
+            assign_tasks: { enabled: true } as Record<string, unknown>,
+            view_all_projects: { enabled: true } as Record<string, unknown>
           },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -59,21 +59,21 @@ export const organizationService = {
           hierarchy_level: 100,
           is_system_role: false,
           permissions: {
-            manage_users: false,
-            manage_roles: false,
-            manage_departments: false,
-            manage_projects: false,
-            manage_tasks: true,
-            manage_milestones: false,
-            manage_accounts: false,
-            manage_permissions: false,
-            view_analytics: false,
-            view_reports: true,
-            create_projects: false,
-            edit_projects: false,
-            delete_projects: false,
-            assign_tasks: false,
-            view_all_projects: false
+            manage_users: { enabled: false } as Record<string, unknown>,
+            manage_roles: { enabled: false } as Record<string, unknown>,
+            manage_departments: { enabled: false } as Record<string, unknown>,
+            manage_projects: { enabled: false } as Record<string, unknown>,
+            manage_tasks: { enabled: true } as Record<string, unknown>,
+            manage_milestones: { enabled: false } as Record<string, unknown>,
+            manage_accounts: { enabled: false } as Record<string, unknown>,
+            manage_permissions: { enabled: false } as Record<string, unknown>,
+            view_analytics: { enabled: false } as Record<string, unknown>,
+            view_reports: { enabled: true } as Record<string, unknown>,
+            create_projects: { enabled: false } as Record<string, unknown>,
+            edit_projects: { enabled: false } as Record<string, unknown>,
+            delete_projects: { enabled: false } as Record<string, unknown>,
+            assign_tasks: { enabled: false } as Record<string, unknown>,
+            view_all_projects: { enabled: false } as Record<string, unknown>
           },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -86,21 +86,21 @@ export const organizationService = {
           hierarchy_level: 200,
           is_system_role: false,
           permissions: {
-            manage_users: false,
-            manage_roles: false,
-            manage_departments: false,
-            manage_projects: true,
-            manage_tasks: true,
-            manage_milestones: true,
-            manage_accounts: false,
-            manage_permissions: false,
-            view_analytics: true,
-            view_reports: true,
-            create_projects: true,
-            edit_projects: true,
-            delete_projects: false,
-            assign_tasks: true,
-            view_all_projects: false
+            manage_users: { enabled: false } as Record<string, unknown>,
+            manage_roles: { enabled: false } as Record<string, unknown>,
+            manage_departments: { enabled: false } as Record<string, unknown>,
+            manage_projects: { enabled: true } as Record<string, unknown>,
+            manage_tasks: { enabled: true } as Record<string, unknown>,
+            manage_milestones: { enabled: true } as Record<string, unknown>,
+            manage_accounts: { enabled: false } as Record<string, unknown>,
+            manage_permissions: { enabled: false } as Record<string, unknown>,
+            view_analytics: { enabled: true } as Record<string, unknown>,
+            view_reports: { enabled: true } as Record<string, unknown>,
+            create_projects: { enabled: true } as Record<string, unknown>,
+            edit_projects: { enabled: true } as Record<string, unknown>,
+            delete_projects: { enabled: false } as Record<string, unknown>,
+            assign_tasks: { enabled: true } as Record<string, unknown>,
+            view_all_projects: { enabled: false } as Record<string, unknown>
           },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -159,11 +159,11 @@ export const organizationService = {
     return mockData;
   },
 
-  async getHierarchyView(): Promise<{ nodes: any[] } | null> {
+  async getHierarchyView(): Promise<{ nodes: Record<string, unknown>[] } | null> {
     console.log('Getting hierarchy view from simple service...');
     const data = await this.getOrganizationStructure();
     if (data) {
-      return { nodes: data.hierarchy };
+      return { nodes: data.hierarchy as unknown as Record<string, unknown>[] };
     }
     return null;
   }

@@ -39,10 +39,11 @@ export async function GET(
     }
 
     return NextResponse.json({ config });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/accounts/[accountId]/kanban-config:', error);
-    if (error.status) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    const err = error as { status?: number; message?: string };
+    if (err.status) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -65,8 +66,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Columns array is required' }, { status: 400 });
     }
 
-    // Require EDIT_PROJECT permission (kanban layout permissions are deprecated)
-    await requireAuthAndPermission(Permission.EDIT_PROJECT, { accountId }, request);
+    // Require MANAGE_PROJECTS permission (consolidated from EDIT_PROJECT, kanban layout permissions are deprecated)
+    await requireAuthAndPermission(Permission.MANAGE_PROJECTS, { accountId }, request);
 
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -117,10 +118,11 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, config });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/accounts/[accountId]/kanban-config:', error);
-    if (error.status) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    const err = error as { status?: number; message?: string };
+    if (err.status) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -22,25 +21,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PlusIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { accountService } from '@/lib/account-service';
 import { createClientSupabase } from '@/lib/supabase';
+
 import { useAuth } from '@/lib/hooks/useAuth';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
+import type { UserWithRoles } from '@/lib/rbac-types';
 
 interface TaskCreationDialogProps {
   children?: React.ReactNode;
-  onTaskCreated?: (task: any, assignedUser?: any) => void;
+  onTaskCreated?: (task: Record<string, unknown>, assignedUser?: any) => void;
   accountId?: string;
-  account?: any; // Full account object with contact and manager info
-  userProfile?: any;
+  account?: Record<string, unknown>; // Full account object with contact and manager info
+  userProfile?: UserWithRoles | null;
   initialStartDate?: Date;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   editMode?: boolean;
-  existingProject?: any;
+  existingProject?: Record<string, unknown>;
   // statusOptions prop removed - status is managed by workflows
 }
 
@@ -79,12 +79,12 @@ export default function TaskCreationDialog({
     
     async function checkPermissions() {
       if (editMode && existingProject) {
-        // Edit mode - check EDIT_PROJECT permission
-        const canEdit = await hasPermission(effectiveUserProfile, Permission.EDIT_PROJECT, { projectId: existingProject.id, accountId });
+        // Edit mode - check MANAGE_PROJECTS permission
+        const canEdit = await hasPermission(effectiveUserProfile, Permission.MANAGE_PROJECTS, { projectId: existingProject.id as string, accountId });
         setCanEditProject(canEdit);
       } else {
-        // Create mode - check CREATE_PROJECT permission
-        const canCreate = await hasPermission(effectiveUserProfile, Permission.CREATE_PROJECT, { accountId });
+        // Create mode - check MANAGE_PROJECTS permission
+        const canCreate = await hasPermission(effectiveUserProfile, Permission.MANAGE_PROJECTS, { accountId });
         setCanCreateProject(canCreate);
       }
     }
@@ -106,11 +106,7 @@ export default function TaskCreationDialog({
   // Department selection removed - departments are now derived from user assignments
 
   // Data states
-  const [users, setUsers] = useState<any[]>([]);
-  const [userRoles, setUserRoles] = useState<Map<string, string[]>>(new Map()); // userId -> role names
-  const [userRoleIds, setUserRoleIds] = useState<Map<string, string>>(new Map()); // userId -> primary role ID
   const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
 
   // Update dates when initialStartDate prop changes
   useEffect(() => {
@@ -137,12 +133,12 @@ export default function TaskCreationDialog({
       console.log('Full existing project data:', existingProject);
 
       setFormData({
-        name: existingProject.name || '',
-        priority: existingProject.priority || 'medium',
-        start_date: existingProject.start_date ? new Date(existingProject.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        end_date: existingProject.end_date ? new Date(existingProject.end_date).toISOString().split('T')[0] : addDays(new Date(), 7).toISOString().split('T')[0],
+        name: (existingProject.name as string | undefined) || '',
+        priority: (existingProject.priority as 'low' | 'medium' | 'high' | 'urgent' | 'idea' | undefined) || 'medium',
+        start_date: existingProject.start_date ? new Date(existingProject.start_date as string).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        end_date: existingProject.end_date ? new Date(existingProject.end_date as string).toISOString().split('T')[0] : addDays(new Date(), 7).toISOString().split('T')[0],
         estimated_hours: existingProject.estimated_hours ? String(existingProject.estimated_hours) : '',
-        workflowTemplateId: existingProject.workflow_template_id || '',
+        workflowTemplateId: (existingProject.workflow_template_id as string | undefined) || '',
       });
 
       // Assignment and stakeholders removed - workflow handles assignment
@@ -152,9 +148,8 @@ export default function TaskCreationDialog({
   }, [open, editMode, existingProject]);
 
   const loadData = async () => {
-    setLoadingData(true);
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       
       // Load all users
       const allUsersData = await accountService.getAllUsers();
@@ -163,6 +158,8 @@ export default function TaskCreationDialog({
       // Departments no longer needed - derived from user assignments
 
       // Load user roles for all users
+      if (!supabase) return;
+
       const { data: userRolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select(`
@@ -179,17 +176,17 @@ export default function TaskCreationDialog({
 
       if (rolesError) {
         console.error('Error loading user roles:', rolesError);
-        setUsers(allUsersData || []);
       } else {
         console.log('Loaded user roles data:', userRolesData);
         // Create a map of userId -> array of role names
         const rolesMap = new Map<string, string[]>();
         const roleIdsMap = new Map<string, string>();
         userRolesData?.forEach((ur: any) => {
-          const userId = ur.user_id;
-          const roleId = ur.role_id;
-          const roleName = ur.roles?.name || 'Team Member';
-          const deptName = ur.roles?.departments?.name;
+          const userId = ur.user_id as string;
+          const roleId = ur.role_id as string;
+          const roles = ur.roles as { name?: string; departments?: { name?: string } } | null;
+          const roleName = roles?.name || 'Team Member';
+          const deptName = roles?.departments?.name;
 
           // Format: "Role Name (Department)" or just "Role Name" if no department
           const displayRole = deptName ? `${roleName} (${deptName})` : roleName;
@@ -204,13 +201,10 @@ export default function TaskCreationDialog({
             roleIdsMap.set(userId, roleId);
           }
         });
-        setUserRoles(rolesMap);
-        setUserRoleIds(roleIdsMap);
 
         // Filter users to only include those with at least one role
-        const usersWithRoles = (allUsersData || []).filter((user: any) => rolesMap.has(user.id));
+        const usersWithRoles = (allUsersData || []).filter((user: any) => rolesMap.has((user as any).id as string));
         console.log(`Filtered users: ${usersWithRoles.length} users with roles out of ${allUsersData?.length || 0} total users`);
-        setUsers(usersWithRoles);
       }
 
       // Load workflows
@@ -228,10 +222,9 @@ export default function TaskCreationDialog({
 
       // Stakeholder auto-selection removed - workflow handles assignment
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading data:', error);
     } finally {
-      setLoadingData(false);
     }
   };
 
@@ -284,15 +277,21 @@ export default function TaskCreationDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase();
+      const supabaseClient = createClientSupabase();
+      if (!supabaseClient) {
+        toast.error('Database connection failed.');
+        return;
+      }
+      const supabase = supabaseClient as any;
+
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         toast.error('You must be logged in to create or edit a project.');
         return;
       }
 
-      let project: any;
+      let project: Record<string, unknown>;
 
       if (editMode && existingProject) {
         // UPDATE MODE - Status is managed by workflows, not editable here
@@ -307,8 +306,8 @@ export default function TaskCreationDialog({
             estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
             updated_at: new Date().toISOString(),
             // assigned_user_id not updated here - workflow handles assignment changes
-          })
-          .eq('id', existingProject.id)
+          } as never)
+          .eq('id', existingProject.id as string)
           .select()
           .single();
 
@@ -318,7 +317,7 @@ export default function TaskCreationDialog({
           return;
         }
 
-        project = updatedProject;
+        project = updatedProject as Record<string, unknown>;
 
         // Assignment and stakeholder handling removed - workflow manages these through handoffs
       } else {
@@ -336,7 +335,7 @@ export default function TaskCreationDialog({
             created_by: session.user.id,
             actual_hours: 0,
             estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
-          })
+          } as never)
           .select()
           .single();
 
@@ -381,7 +380,7 @@ export default function TaskCreationDialog({
             } else {
               console.log('[WORKFLOW] Workflow started successfully!');
             }
-          } catch (error) {
+          } catch (error: unknown) {
             console.error('[WORKFLOW] Error starting workflow:', error);
             toast.error(`Project created, but workflow failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
@@ -400,7 +399,7 @@ export default function TaskCreationDialog({
       }
       onTaskCreated?.(project);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error with project:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
@@ -548,16 +547,16 @@ export default function TaskCreationDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Workflow</SelectItem>
-                  {workflows.map((workflow) => (
+                  {workflows.map((workflow:any) => (
                     <SelectItem key={workflow.id} value={workflow.id}>
                       {workflow.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {formData.workflowTemplateId && formData.workflowTemplateId !== 'none' && workflows.find(w => w.id === formData.workflowTemplateId)?.description && (
+              {formData.workflowTemplateId && formData.workflowTemplateId !== 'none' && workflows.find((w: any) => w.id === formData.workflowTemplateId)?.description && (
                 <p className="text-xs text-gray-500">
-                  {workflows.find(w => w.id === formData.workflowTemplateId)?.description}
+                  {workflows.find((w: any) => w.id === formData.workflowTemplateId)?.description}
                 </p>
               )}
             </div>

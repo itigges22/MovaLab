@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check VIEW_WORKFLOWS permission (pass supabase client for server context)
-    const canView = await hasPermission(userProfile, Permission.VIEW_WORKFLOWS, undefined, supabase);
+    const canView = await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
     if (!canView) {
       return NextResponse.json({ error: 'Insufficient permissions to view workflows' }, { status: 403 });
     }
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       : await getWorkflowTemplates();
 
     return NextResponse.json({ success: true, templates }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/admin/workflows/templates:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -115,11 +115,11 @@ export async function POST(request: NextRequest) {
     const template = await createWorkflowTemplate(
       validation.data.name,
       validation.data.description || null,
-      user.id
+      (user as any).id
     );
 
     return NextResponse.json({ success: true, template }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/admin/workflows/templates:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

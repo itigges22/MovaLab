@@ -8,10 +8,10 @@
  * Usage in API routes:
  * ```typescript
  * import { requirePermission, requireAuthentication } from '@/lib/server-guards';
- * 
+ *
  * export async function POST(request: Request) {
  *   const user = await requireAuthentication();
- *   await requirePermission(user, Permission.CREATE_PROJECT, { accountId });
+ *   await requirePermission(user, Permission.MANAGE_PROJECTS, { accountId });
  *   // ... rest of handler
  * }
  * ```
@@ -92,7 +92,7 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
       try {
         supabase = await createServerSupabaseClient();
         logger.debug('Using server component Supabase client');
-      } catch (error) {
+      } catch (error: unknown) {
         // If cookies() fails, it means we're in a Route Handler without request
         logger.error('Failed to create server Supabase client, might be in Route Handler', {}, error as Error);
         throw new AuthenticationError('Authentication failed - Route Handlers must pass request parameter');
@@ -109,7 +109,7 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
     
     logger.debug('Auth check', {
       hasUser: !!user,
-      userId: user?.id,
+      userId: (user as any)?.id,
       hasSession: !!session,
       userError: userError?.message,
       sessionError: sessionError?.message,
@@ -149,12 +149,12 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (profileError) {
       logger.error('Error fetching user profile', { 
-        userId: user.id,
+        userId: (user as any).id,
         errorMessage: profileError.message,
         errorCode: profileError.code,
         errorDetails: profileError.details,
@@ -164,14 +164,14 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
     }
     
     if (!userProfile) {
-      logger.error('User profile not found (null result)', { userId: user.id });
+      logger.error('User profile not found (null result)', { userId: (user as any).id });
       throw new AuthenticationError('User profile not found');
     }
     
-    logger.debug('User profile fetched successfully', { userId: user.id, hasRoles: !!userProfile.user_roles });
+    logger.debug('User profile fetched successfully', { userId: (user as any).id, hasRoles: !!userProfile.user_roles });
 
     return userProfile as unknown as UserWithRoles;
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof AuthenticationError) {
       throw error;
     }
@@ -187,7 +187,7 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
 export async function getAuthenticatedUser(): Promise<UserWithRoles | null> {
   try {
     return await requireAuthentication();
-  } catch (error) {
+  } catch (_error: unknown) {
     return null;
   }
 }
@@ -213,7 +213,7 @@ export async function requirePermission(
     
     if (!hasPermission) {
       logger.warn('Permission denied', {
-        userId: userProfile.id,
+        userId: (userProfile as any).id,
         permission,
         context
       });
@@ -224,7 +224,7 @@ export async function requirePermission(
         context
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof PermissionError) {
       throw error;
     }
@@ -248,14 +248,14 @@ export async function requireAnyPermission(
     try {
       await requirePermission(userProfile, permission, context);
       return; // Success - user has at least one permission
-    } catch (error) {
+    } catch (_error: unknown) {
       // Continue checking other permissions
     }
   }
   
   // None of the permissions matched
   logger.warn('None of required permissions granted', {
-    userId: userProfile.id,
+    userId: (userProfile as any).id,
     permissions,
     context
   });
@@ -295,7 +295,7 @@ export async function requireAllPermissions(
 export async function requireSuperadmin(userProfile: UserWithRoles): Promise<void> {
   if (!isSuperadmin(userProfile)) {
     logger.warn('Superadmin access required but user is not superadmin', {
-      userId: userProfile.id
+      userId: (userProfile as any).id
     });
     throw new ForbiddenError('Superadmin access required');
   }
@@ -336,7 +336,7 @@ export async function requireOwnershipOrPermission(
   overridePermission?: Permission
 ): Promise<void> {
   // Check ownership
-  if (userProfile.id === resourceOwnerId) {
+  if ((userProfile as any).id === resourceOwnerId) {
     return;
   }
   
@@ -360,7 +360,7 @@ export async function requireOwnershipOrPermission(
  * @param error - The error thrown
  * @returns NextResponse with appropriate status code and message
  */
-export function handleGuardError(error: any): NextResponse {
+export function handleGuardError(error: unknown): NextResponse {
   if (error instanceof AuthenticationError) {
     return NextResponse.json(
       { error: error.message, code: 'UNAUTHENTICATED' },
@@ -415,7 +415,7 @@ export function withErrorHandling(
   return async (request: NextRequest, context?: any): Promise<NextResponse> => {
     try {
       return await handler(request, context);
-    } catch (error) {
+    } catch (error: unknown) {
       return handleGuardError(error);
     }
   };

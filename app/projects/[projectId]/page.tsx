@@ -2,20 +2,19 @@
 
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, notFound, useRouter } from 'next/navigation'
+import { useParams, notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RoleGuard } from '@/components/role-guard'
 import { createClientSupabase } from '@/lib/supabase'
-import { Database } from '@/lib/supabase'
-import { ArrowLeft, Calendar, Clock, User, Building2, FolderOpen, Users, AlertCircle, FileText, AlertTriangle, Edit, Plus as PlusIcon, XCircle, CheckCircle2, List, LayoutGrid, GanttChart, RotateCcw, UserPlus, Trash2, Loader2, StickyNote, Pencil, GitBranch, X } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, Building2, FolderOpen, Users, AlertCircle, FileText, AlertTriangle, Edit, Plus as PlusIcon, XCircle, CheckCircle2, List, LayoutGrid, GanttChart, RotateCcw, UserPlus, Trash2, Loader2, StickyNote, Pencil, GitBranch, X } from 'lucide-react'
 import Link from 'next/link'
 import TaskCreationDialog from '@/components/task-creation-dialog'
 import TaskCreateEditDialog from '@/components/task-create-edit-dialog'
-import { projectUpdatesService, ProjectUpdate } from '@/lib/project-updates-service'
-import { projectIssuesService, ProjectIssue } from '@/lib/project-issues-service'
+import { ProjectUpdate } from '@/lib/project-updates-service'
+import { ProjectIssue } from '@/lib/project-issues-service'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -26,13 +25,12 @@ import { Permission } from '@/lib/permissions'
 import { hasPermission } from '@/lib/rbac'
 import { toast } from 'sonner'
 import { WorkflowProgressButton } from '@/components/workflow-progress-button'
-import { WorkflowTimeline } from '@/components/workflow-timeline'
 import { WorkflowProgress } from '@/components/workflow-progress'
 
-type Project = Database['public']['Tables']['projects']['Row']
-type Account = Database['public']['Tables']['accounts']['Row']
-type Department = Database['public']['Tables']['departments']['Row']
-type UserProfile = Database['public']['Tables']['user_profiles']['Row']
+type Project = any
+type Account = any
+type Department = any
+type UserProfile = any
 
 interface Stakeholder {
   id: string
@@ -66,7 +64,7 @@ interface WorkflowFormDataEntry {
   stepName: string | null
   submittedAt: string
   submittedBy: string | null
-  responseData: Record<string, any>
+  responseData: Record<string, Record<string, unknown>>
   fields: Array<{ id: string; label: string; type: string }> | null
   approvalDecision?: 'approved' | 'rejected' | null
 }
@@ -77,14 +75,14 @@ function renderMarkdownContent(content: string): React.ReactNode {
 
   // Handle edge cases like *text** or **text* by normalizing first
   // Replace single asterisks that should be double (common data corruption)
-  let normalizedContent = content
+  const normalizedContent = content
     .replace(/^\*([^*]+)\*\*$/gm, '**$1**') // Fix *text** -> **text**
     .replace(/^\*\*([^*]+)\*$/gm, '**$1**') // Fix **text* -> **text**
 
   // Split by **text** pattern and render bold parts
   const parts = normalizedContent.split(/(\*\*[^*]+\*\*)/g)
 
-  return parts.map((part, index) => {
+  return parts.map((part:any, index:any) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       // Remove the ** markers and render as bold
       return <strong key={index}>{part.slice(2, -2)}</strong>
@@ -225,7 +223,6 @@ function TaskItem({
 export default function ProjectDetailPage() {
   const { userProfile } = useAuth()
   const params = useParams()
-  const router = useRouter()
   const projectId = params.projectId as string
   const [project, setProject] = useState<ProjectWithDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -260,13 +257,13 @@ export default function ProjectDetailPage() {
   const projectRef = useRef<ProjectWithDetails | null>(null)
 
   // Helper to update tasks and ref atomically (prevents stale closure issues)
-  const updateTasks = (updater: Task[] | ((prev: Task[]) => Task[])) => {
+  const updateTasks = useCallback((updater: Task[] | ((prev: Task[]) => Task[])) => {
     setTasks(prev => {
       const newTasks = typeof updater === 'function' ? updater(prev) : updater
       tasksRef.current = newTasks
       return newTasks
     })
-  }
+  }, [])
 
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [canViewTasks, setCanViewTasks] = useState(false)
@@ -274,13 +271,10 @@ export default function ProjectDetailPage() {
   const [canEditTasks, setCanEditTasks] = useState(false)
   const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'gantt'>('list')
   const [kanbanDialogOpen, setKanbanDialogOpen] = useState(false)
   const [ganttDialogOpen, setGanttDialogOpen] = useState(false)
   const [ganttViewMode, setGanttViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('weekly')
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
-  const [calculatedEstimatedHours, setCalculatedEstimatedHours] = useState<number | null>(null)
-  const [calculatedRemainingHours, setCalculatedRemainingHours] = useState<number | null>(null)
   const [projectLevelHours, setProjectLevelHours] = useState<number>(0) // Hours logged directly to project (no task)
 
   // Project estimated hours state
@@ -339,7 +333,6 @@ export default function ProjectDetailPage() {
   const [workflowInstanceId, setWorkflowInstanceId] = useState<string | null>(null)
   const [showStepAssignDropdown, setShowStepAssignDropdown] = useState<string | null>(null) // user_id being assigned
   const [assigningToStep, setAssigningToStep] = useState(false)
-  const [hasActiveWorkflow, setHasActiveWorkflow] = useState(false)
 
   // Workflow contributors state (historical participants for completed projects)
   const [workflowContributors, setWorkflowContributors] = useState<Array<{
@@ -357,18 +350,6 @@ export default function ProjectDetailPage() {
   // Status options removed - status is now managed by workflows
 
   // Task permissions are now inherited from project access
-  // If user can access this project page, they can manage tasks within it
-  useEffect(() => {
-    if (!userProfile) return
-
-    // Since user has access to view this project page, they can manage tasks
-    // Task permissions are inherited from project access
-    setCanViewTasks(true)
-    setCanCreateTasks(true)
-    setCanEditTasks(true)
-    loadTasks()
-  }, [userProfile, projectId])
-
   // Keep projectRef in sync with project state (for use in intervals to avoid stale closures)
   useEffect(() => {
     projectRef.current = project
@@ -384,22 +365,21 @@ export default function ProjectDetailPage() {
     if (!userProfile) return
 
     const checkPermissions = async () => {
-      const [canCreateUpdate, canCreateIssue, canEditIssue] = await Promise.all([
-        hasPermission(userProfile, Permission.CREATE_UPDATE),
-        hasPermission(userProfile, Permission.CREATE_ISSUE),
-        hasPermission(userProfile, Permission.EDIT_ISSUE)
+      const [canManageUpdates, canManageIssues] = await Promise.all([
+        hasPermission(userProfile, Permission.MANAGE_UPDATES),
+        hasPermission(userProfile, Permission.MANAGE_ISSUES)
       ])
 
-      setCanCreateUpdate(canCreateUpdate)
-      setCanCreateIssue(canCreateIssue)
-      setCanEditIssue(canEditIssue)
+      setCanCreateUpdate(canManageUpdates) // Create is part of manage
+      setCanCreateIssue(canManageIssues)   // Create is part of manage
+      setCanEditIssue(canManageIssues)     // Edit is part of manage
     }
 
     checkPermissions()
   }, [userProfile])
 
   // Calculate estimated hours based on tasks
-  const calculateEstimatedHours = (projectTasks: Task[], projectData?: ProjectWithDetails | null) => {
+  const calculateEstimatedHours = useCallback((projectTasks: Task[], projectData?: ProjectWithDetails | null) => {
     if (projectTasks.length === 0) {
       // If no tasks, use project-level estimated_hours
       return projectData?.estimated_hours || project?.estimated_hours || null
@@ -410,10 +390,10 @@ export default function ProjectDetailPage() {
       }, 0)
       return total > 0 ? total : null
     }
-  }
+  }, [project])
 
   // Calculate remaining hours based on tasks
-  const calculateRemainingHours = (projectTasks: Task[]) => {
+  const calculateRemainingHours = useCallback((projectTasks: Task[]) => {
     if (projectTasks.length === 0) {
       return null
     }
@@ -422,10 +402,10 @@ export default function ProjectDetailPage() {
       return sum + (task.remaining_hours || 0)
     }, 0)
     return total
-  }
+  }, [])
 
   // Load tasks and project-level time entries
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!projectId) return
 
     setLoadingTasks(true)
@@ -435,13 +415,11 @@ export default function ProjectDetailPage() {
       updateTasks(projectTasks)
 
       // Calculate estimated and remaining hours based on tasks
-      const calculatedHours = calculateEstimatedHours(projectTasks, project)
-      const remainingHours = calculateRemainingHours(projectTasks)
-      setCalculatedEstimatedHours(calculatedHours)
-      setCalculatedRemainingHours(remainingHours)
+      const _calculatedHours = calculateEstimatedHours(projectTasks, project)
+      const _remainingHours = calculateRemainingHours(projectTasks)
 
       // Also fetch project-level time entries (logged to project without a specific task)
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (supabase) {
         const { data: projectTimeEntries } = await supabase
           .from('time_entries')
@@ -452,12 +430,24 @@ export default function ProjectDetailPage() {
         const projectHours = projectTimeEntries?.reduce((sum: number, entry: { hours_logged: number | null }) => sum + (entry.hours_logged || 0), 0) || 0
         setProjectLevelHours(projectHours)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading tasks:', error)
     } finally {
       setLoadingTasks(false)
     }
-  }
+  }, [projectId, project, updateTasks, calculateEstimatedHours, calculateRemainingHours])
+
+  // If user can access this project page, they can manage tasks within it
+  useEffect(() => {
+    if (!userProfile) return
+
+    // Since user has access to view this project page, they can manage tasks
+    // Task permissions are inherited from project access
+    setCanViewTasks(true)
+    setCanCreateTasks(true)
+    setCanEditTasks(true)
+    loadTasks()
+  }, [userProfile, projectId, loadTasks])
 
   useEffect(() => {
     const loadProject = async () => {
@@ -469,7 +459,7 @@ export default function ProjectDetailPage() {
         const { createBrowserClient } = await import('@supabase/ssr')
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!
         )
 
         // Verify auth session
@@ -541,7 +531,7 @@ export default function ProjectDetailPage() {
           .eq('project_id', projectId)
           .is('removed_at', null)
 
-        const departments: any[] = []
+        const departments: Record<string, unknown>[] = []
 
         // Add departments from assigned_user's roles (if they have an assigned user)
         if (data.assigned_user_id) {
@@ -561,12 +551,16 @@ export default function ProjectDetailPage() {
 
           if (assignedUserRoles) {
             assignedUserRoles.forEach((userRole: any) => {
-              const role = userRole.roles
-              if (role && role.departments) {
-                const dept = role.departments
-                const exists = departments.some((d: any) => d.id === dept.id)
-                if (!exists) {
-                  departments.push(dept)
+              const roles = userRole.roles as Record<string, unknown> | Record<string, unknown>[] | undefined
+              const role = roles ? (Array.isArray(roles) ? roles[0] : roles) : undefined
+              if (role) {
+                const depts = role.departments as Record<string, unknown> | Record<string, unknown>[] | undefined
+                const dept = depts ? (Array.isArray(depts) ? depts[0] : depts) : undefined
+                if (dept) {
+                  const exists = departments.some((d: any) => d.id === dept.id)
+                  if (!exists) {
+                    departments.push(dept)
+                  }
                 }
               }
             })
@@ -597,12 +591,16 @@ export default function ProjectDetailPage() {
 
             if (stakeholderRoles) {
               stakeholderRoles.forEach((userRole: any) => {
-                const role = userRole.roles
-                if (role && role.departments) {
-                  const dept = role.departments
-                  const exists = departments.some((d: any) => d.id === dept.id)
-                  if (!exists) {
-                    departments.push(dept)
+                const roles = userRole.roles as Record<string, unknown> | Record<string, unknown>[] | undefined
+                const role = roles ? (Array.isArray(roles) ? roles[0] : roles) : undefined
+                if (role) {
+                  const depts = role.departments as Record<string, unknown> | Record<string, unknown>[] | undefined
+                  const dept = depts ? (Array.isArray(depts) ? depts[0] : depts) : undefined
+                  if (dept) {
+                    const exists = departments.some((d: any) => d.id === dept.id)
+                    if (!exists) {
+                      departments.push(dept)
+                    }
                   }
                 }
               })
@@ -672,10 +670,11 @@ export default function ProjectDetailPage() {
             const stepLabels = activeSteps
               .map((step: any) => {
                 // First try snapshot
-                const snapshotLabel = getNodeLabel(step.node_id)
+                const snapshotLabel = getNodeLabel(step.node_id as string)
                 if (snapshotLabel) return snapshotLabel
                 // Fallback to FK join result
-                return step.workflow_nodes?.label
+                const workflowNodes = step.workflow_nodes as Record<string, unknown> | undefined
+                return workflowNodes?.label as string | undefined
               })
               .filter(Boolean)
 
@@ -706,9 +705,10 @@ export default function ProjectDetailPage() {
                 .single()
 
               if (!wfError && workflowData?.workflow_nodes) {
-                const nodeData = workflowData.workflow_nodes as any
-                setWorkflowStepNames(nodeData.label ? [nodeData.label] : [])
-                console.log('Workflow step (legacy):', nodeData.label)
+                const nodes = workflowData.workflow_nodes as Record<string, unknown> | Record<string, unknown>[]
+                const nodeData = Array.isArray(nodes) ? nodes[0] : nodes
+                setWorkflowStepNames(nodeData?.label ? [nodeData.label as string] : [])
+                console.log('Workflow step (legacy):', nodeData?.label)
               }
             }
           }
@@ -743,17 +743,16 @@ export default function ProjectDetailPage() {
         setNotesContent(projectWithDetails.notes || '')
 
         // Check if user can edit this project
-        if (userProfile?.id) {
-          const canEdit = await accountService.canUserEditProject(userProfile.id, projectId)
+        if ((userProfile as any)?.id) {
+          const canEdit = await accountService.canUserEditProject((userProfile as any).id, projectId)
           setCanEditProject(canEdit)
         }
 
         // Initialize estimated hours calculation (will be updated when tasks load)
         // If tasks haven't loaded yet, use project-level estimated_hours
         if (tasks.length === 0) {
-          setCalculatedEstimatedHours(projectWithDetails.estimated_hours || null)
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error loading project:', err)
         setError(err instanceof Error ? err.message : 'Failed to load project')
       } finally {
@@ -762,7 +761,7 @@ export default function ProjectDetailPage() {
     }
 
     loadProject()
-  }, [userProfile, projectId])
+  }, [userProfile, projectId, tasks.length])
 
   // Handle task delete
   const handleDeleteTask = useCallback(async (taskId: string) => {
@@ -778,7 +777,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error('Failed to delete task')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting task:', error)
       toast.error('Error deleting task')
     }
@@ -800,7 +799,7 @@ export default function ProjectDetailPage() {
   // Handle task status update (for Kanban drag-drop)
   const handleTaskStatusUpdate = useCallback(async (taskId: string, newStatus: string) => {
     // Optimistically update local state first
-    setTasks(prev => prev.map(task =>
+    setTasks(prev => prev.map((task: any) =>
       task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
     ))
 
@@ -824,7 +823,7 @@ export default function ProjectDetailPage() {
       }
 
       toast.success('Task status updated')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task status:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update task status')
       // Reload tasks to restore correct state on error
@@ -861,7 +860,7 @@ export default function ProjectDetailPage() {
     setWorkflowRefreshKey(prev => prev + 1)
 
     try {
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (!supabase) return
 
       // Refresh workflow step name AND check if workflow is completed
@@ -880,11 +879,13 @@ export default function ProjectDetailPage() {
           .single()
 
         if (!error && workflowData) {
-          const nodeData = workflowData.workflow_nodes as any
-          setWorkflowStepNames(nodeData?.label ? [nodeData.label] : [])
+          const wfData = workflowData as Record<string, unknown>
+          const nodes = wfData.workflow_nodes as Record<string, unknown> | Record<string, unknown>[]
+          const nodeData = Array.isArray(nodes) ? nodes[0] : nodes
+          setWorkflowStepNames(nodeData?.label ? [nodeData.label as string] : [])
 
           // If workflow is completed, refresh project data to update UI
-          if (workflowData.status === 'completed') {
+          if (wfData.status === 'completed') {
             console.log('Workflow completed, refreshing project data...')
           }
         }
@@ -898,17 +899,18 @@ export default function ProjectDetailPage() {
         .single()
 
       if (!projectError && projectData) {
+        const pData = projectData as Record<string, unknown>
         // Update project state with fresh data
-        setProject(prev => prev ? {
+        setProject(prev => prev ? ({
           ...prev,
-          status: projectData.status,
-          completed_at: projectData.completed_at,
-          workflow_instance_id: projectData.workflow_instance_id
-        } : null)
+          status: pData.status,
+          completed_at: pData.completed_at,
+          workflow_instance_id: pData.workflow_instance_id
+        } as ProjectWithDetails) : null)
 
         console.log('Project data refreshed:', {
-          status: projectData.status,
-          completed_at: projectData.completed_at
+          status: pData.status,
+          completed_at: pData.completed_at
         })
       }
 
@@ -940,7 +942,7 @@ export default function ProjectDetailPage() {
       // Removing the inline refresh here prevents a race condition where incomplete
       // data would overwrite the complete data loaded by loadWorkflowFormData().
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error refreshing workflow/project data:', err)
     }
   }, [project?.workflow_instance_id, projectId])
@@ -966,7 +968,7 @@ export default function ProjectDetailPage() {
       toast.success('Project reopened! It now operates without a workflow.')
 
       // Refresh project data to update UI
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (supabase) {
         const { data: projectData } = await supabase
           .from('projects')
@@ -975,15 +977,16 @@ export default function ProjectDetailPage() {
           .single()
 
         if (projectData) {
-          setProject(prev => prev ? {
+          const pData = projectData as Record<string, unknown>
+          setProject(prev => prev ? ({
             ...prev,
-            status: projectData.status,
-            completed_at: projectData.completed_at,
-            workflow_instance_id: projectData.workflow_instance_id
-          } : null)
+            status: pData.status,
+            completed_at: pData.completed_at,
+            workflow_instance_id: pData.workflow_instance_id
+          } as ProjectWithDetails) : null)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error reopening project:', error)
       toast.error('Failed to reopen project')
     } finally {
@@ -1017,7 +1020,7 @@ export default function ProjectDetailPage() {
       toast.success('Project completed successfully!')
 
       // Refresh project data to update UI
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (supabase) {
         const { data: projectData } = await supabase
           .from('projects')
@@ -1026,15 +1029,16 @@ export default function ProjectDetailPage() {
           .single()
 
         if (projectData) {
-          setProject(prev => prev ? {
+          const pData = projectData as Record<string, unknown>
+          setProject(prev => prev ? ({
             ...prev,
-            status: projectData.status,
-            completed_at: projectData.completed_at,
-            workflow_instance_id: projectData.workflow_instance_id
-          } : null)
+            status: pData.status,
+            completed_at: pData.completed_at,
+            workflow_instance_id: pData.workflow_instance_id
+          } as ProjectWithDetails) : null)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error completing project:', error)
       toast.error('Failed to complete project')
     } finally {
@@ -1054,7 +1058,7 @@ export default function ProjectDetailPage() {
 
     setSavingProjectHours(true)
     try {
-      const supabase = createClientSupabase()
+      const supabase = createClientSupabase() as any as any
       if (!supabase) throw new Error('Failed to create Supabase client')
 
       // Calculate task sum
@@ -1063,7 +1067,7 @@ export default function ProjectDetailPage() {
       // Use the higher of entered hours or task sum
       const finalHours = taskSum > hours ? taskSum : hours
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('projects')
         .update({
           estimated_hours: finalHours,
@@ -1075,7 +1079,6 @@ export default function ProjectDetailPage() {
 
       // Update local state
       setProject(prev => prev ? { ...prev, estimated_hours: finalHours } : null)
-      setCalculatedEstimatedHours(finalHours)
       setProjectEstimatedHours('')
 
       if (finalHours !== hours) {
@@ -1083,7 +1086,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.success(`Estimated hours set to ${finalHours}h`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving project hours:', error)
       toast.error('Failed to save estimated hours')
     } finally {
@@ -1102,15 +1105,15 @@ export default function ProjectDetailPage() {
 
       if (response.ok) {
         setTeamMembers(data.assignments || [])
-        setHasActiveWorkflow(data.has_active_workflow || false)
       } else {
         console.error('Error loading team members:', data.error)
       }
 
       // Also get the workflow instance ID for node assignments
-      const supabase = createClientSupabase()
-      if (supabase) {
-        const { data: instances, error: instanceError } = await supabase
+      const supabaseResult2 = createClientSupabase()
+      if (supabaseResult2) {
+        const supabase2 = supabaseResult2 as any
+        const { data: instances, error: instanceError } = await supabase2
           .from('workflow_instances')
           .select('id, status')
           .eq('project_id', projectId)
@@ -1122,10 +1125,11 @@ export default function ProjectDetailPage() {
           console.error('Error fetching workflow instance:', instanceError)
         }
 
-        const instance = instances?.[0]
-        setWorkflowInstanceId(instance?.id || null)
+        const instanceList = instances as Record<string, unknown>[] | null
+        const instance = instanceList?.[0]
+        setWorkflowInstanceId((instance?.id as string) || null)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading team members:', error)
     } finally {
       setLoadingTeamMembers(false)
@@ -1154,7 +1158,7 @@ export default function ProjectDetailPage() {
         console.error('Error loading workflow nodes:', data.error)
         setWorkflowNodes([])
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow nodes:', error)
       setWorkflowNodes([])
     }
@@ -1184,7 +1188,7 @@ export default function ProjectDetailPage() {
       // Reload team members and workflow nodes to get updated data
       await loadTeamMembers()
       await loadWorkflowNodes(userId) // Pass userId to get updated eligibility
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error assigning user to step:', error)
       toast.error('Failed to update step assignment')
     } finally {
@@ -1214,7 +1218,7 @@ export default function ProjectDetailPage() {
       // Reload team members and workflow nodes to get updated data
       await loadTeamMembers()
       await loadWorkflowNodes(userId) // Pass userId to get updated eligibility
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing user from step:', error)
       toast.error('Failed to remove step assignment')
     } finally {
@@ -1228,8 +1232,9 @@ export default function ProjectDetailPage() {
 
     setLoadingWorkflowContributors(true)
     try {
-      const supabase = createClientSupabase()
-      if (!supabase) return
+      const supabaseResult3 = createClientSupabase()
+      if (!supabaseResult3) return
+      const supabase = supabaseResult3 as any
 
       // Get all contributors from project_contributors table
       const { data: contributors, error } = await supabase
@@ -1264,14 +1269,14 @@ export default function ProjectDetailPage() {
 
       // Transform the data
       const formattedContributors = contributors.map((c: any) => ({
-        user_id: c.user_id,
-        name: userMap.get(c.user_id) || 'Unknown User',
-        contribution_type: c.contribution_type,
-        last_contributed_at: c.last_contributed_at
+        user_id: c.user_id as string,
+        name: userMap.get(c.user_id as string) || 'Unknown User',
+        contribution_type: c.contribution_type as string,
+        last_contributed_at: c.last_contributed_at as string
       }))
 
       setWorkflowContributors(formattedContributors)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow contributors:', error)
     } finally {
       setLoadingWorkflowContributors(false)
@@ -1284,8 +1289,9 @@ export default function ProjectDetailPage() {
 
     setLoadingAvailableUsers(true)
     try {
-      const supabase = createClientSupabase()
-      if (!supabase) return
+      const supabaseResult4 = createClientSupabase()
+      if (!supabaseResult4) return
+      const supabase = supabaseResult4 as any
 
       // Get all users (excluding already assigned ones)
       const { data: users, error } = await supabase
@@ -1299,10 +1305,10 @@ export default function ProjectDetailPage() {
       }
 
       // Filter out users who are already team members
-      const assignedUserIds = new Set(teamMembers.map(m => m.user_id))
-      const available = (users || []).filter((u: any) => !assignedUserIds.has(u.id))
+      const assignedUserIds = new Set(teamMembers.map((m: any) => m.user_id))
+      const available = (users || []).filter((u: any) => !assignedUserIds.has(u.id as string))
       setAvailableUsers(available)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading available users:', error)
     } finally {
       setLoadingAvailableUsers(false)
@@ -1330,7 +1336,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(data.error || 'Failed to add team member')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding team member:', error)
       toast.error('Failed to add team member')
     } finally {
@@ -1360,7 +1366,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(data.error || 'Failed to remove team member')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing team member:', error)
       toast.error('Failed to remove team member')
     } finally {
@@ -1413,7 +1419,7 @@ export default function ProjectDetailPage() {
         const { createBrowserClient } = await import('@supabase/ssr')
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!
         )
 
         // Fetch stakeholders using SQL function (same as initial load)
@@ -1475,7 +1481,7 @@ export default function ProjectDetailPage() {
           .eq('project_id', projectId)
           .is('removed_at', null)
 
-        const reloadDepartments: any[] = []
+        const reloadDepartments: Record<string, unknown>[] = []
 
         // Add departments from assigned_user's roles (if they have an assigned user)
         if (data.assigned_user_id) {
@@ -1495,12 +1501,16 @@ export default function ProjectDetailPage() {
 
           if (reloadAssignedUserRoles) {
             reloadAssignedUserRoles.forEach((userRole: any) => {
-              const role = userRole.roles
-              if (role && role.departments) {
-                const dept = role.departments
-                const exists = reloadDepartments.some((d: any) => d.id === dept.id)
-                if (!exists) {
-                  reloadDepartments.push(dept)
+              const roles = userRole.roles as Record<string, unknown> | Record<string, unknown>[] | undefined
+              const role = roles ? (Array.isArray(roles) ? roles[0] : roles) : undefined
+              if (role) {
+                const depts = role.departments as Record<string, unknown> | Record<string, unknown>[] | undefined
+                const dept = depts ? (Array.isArray(depts) ? depts[0] : depts) : undefined
+                if (dept) {
+                  const exists = reloadDepartments.some((d: any) => d.id === dept.id)
+                  if (!exists) {
+                    reloadDepartments.push(dept)
+                  }
                 }
               }
             })
@@ -1531,12 +1541,16 @@ export default function ProjectDetailPage() {
 
             if (reloadStakeholderRoles) {
               reloadStakeholderRoles.forEach((userRole: any) => {
-                const role = userRole.roles
-                if (role && role.departments) {
-                  const dept = role.departments
-                  const exists = reloadDepartments.some((d: any) => d.id === dept.id)
-                  if (!exists) {
-                    reloadDepartments.push(dept)
+                const roles = userRole.roles as Record<string, unknown> | Record<string, unknown>[] | undefined
+                const role = roles ? (Array.isArray(roles) ? roles[0] : roles) : undefined
+                if (role) {
+                  const depts = role.departments as Record<string, unknown> | Record<string, unknown>[] | undefined
+                  const dept = depts ? (Array.isArray(depts) ? depts[0] : depts) : undefined
+                  if (dept) {
+                    const exists = reloadDepartments.some((d: any) => d.id === dept.id)
+                    if (!exists) {
+                      reloadDepartments.push(dept)
+                    }
                   }
                 }
               })
@@ -1561,7 +1575,7 @@ export default function ProjectDetailPage() {
         })
 
         setProject(projectWithDetails)
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[PAGE RELOAD] Error loading project:', err)
         setError(err instanceof Error ? err.message : 'Failed to load project')
       } finally {
@@ -1573,7 +1587,7 @@ export default function ProjectDetailPage() {
   }
 
   // Load project updates
-  const loadProjectUpdates = async () => {
+  const loadProjectUpdates = useCallback(async () => {
     if (!projectId) return
 
     setLoadingUpdates(true)
@@ -1586,19 +1600,19 @@ export default function ProjectDetailPage() {
       } else {
         console.error('Error loading updates:', result.error)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading project updates:', error)
     } finally {
       setLoadingUpdates(false)
     }
-  }
+  }, [projectId])
 
   // Load updates when project is loaded (only re-run when project ID changes, not on every property update)
   useEffect(() => {
     if (project?.id) {
       loadProjectUpdates()
     }
-  }, [project?.id])
+  }, [project?.id, loadProjectUpdates])
 
   // Submit new update
   const handleSubmitUpdate = async () => {
@@ -1626,7 +1640,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(result.error || 'Failed to create update. Please try again.')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating update:', error)
       toast.error('Failed to create update. Please try again.')
     } finally {
@@ -1635,7 +1649,7 @@ export default function ProjectDetailPage() {
   }
 
   // Load project issues
-  const loadProjectIssues = async () => {
+  const loadProjectIssues = useCallback(async () => {
     if (!projectId) return
 
     setLoadingIssues(true)
@@ -1648,22 +1662,22 @@ export default function ProjectDetailPage() {
       } else {
         console.error('Error loading issues:', result.error)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading project issues:', error)
     } finally {
       setLoadingIssues(false)
     }
-  }
+  }, [projectId])
 
   // Load issues when project is loaded (only re-run when project ID changes, not on every property update)
   useEffect(() => {
     if (project?.id) {
       loadProjectIssues()
     }
-  }, [project?.id])
+  }, [project?.id, loadProjectIssues])
 
   // Load workflow form data (submitted form responses from workflow history)
-  const loadWorkflowFormData = async () => {
+  const loadWorkflowFormData = useCallback(async () => {
     if (!project?.workflow_instance_id) {
       setWorkflowFormData([])
       return
@@ -1671,8 +1685,9 @@ export default function ProjectDetailPage() {
 
     setLoadingWorkflowFormData(true)
     try {
-      const supabase = createClientSupabase()
-      if (!supabase) return
+      const supabaseResult5 = createClientSupabase()
+      if (!supabaseResult5) return
+      const supabase = supabaseResult5 as any
 
       // Get workflow history entries with form data
       const { data: historyEntries, error: historyError } = await supabase
@@ -1697,7 +1712,7 @@ export default function ProjectDetailPage() {
       }
 
       const formDataEntries: WorkflowFormDataEntry[] = []
-      const entries = historyEntries || []
+      const entries = (historyEntries || []) as Record<string, unknown>[]
 
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i]
@@ -1729,14 +1744,15 @@ export default function ProjectDetailPage() {
             .single()
 
           if (formResponse) {
+            const formResp = formResponse as Record<string, unknown>
             formDataEntries.push({
-              id: entry.id,
-              formName: (formResponse.form_template as any)?.name || null,
-              stepName: (entry.workflow_nodes as any)?.label || null,
-              submittedAt: formResponse.submitted_at || entry.handed_off_at,
-              submittedBy: (entry.user_profiles as any)?.name || null,
-              responseData: formResponse.response_data || {},
-              fields: (formResponse.form_template as any)?.fields || null,
+              id: entry.id as string,
+              formName: ((formResp.form_template as Record<string, unknown>)?.name as string) || null,
+              stepName: ((entry.workflow_nodes as Record<string, unknown>)?.label as string) || null,
+              submittedAt: (formResp.submitted_at as string) || (entry.handed_off_at as string),
+              submittedBy: ((entry.user_profiles as Record<string, unknown>)?.name as string) || null,
+              responseData: (formResp.response_data as Record<string, Record<string, unknown>>) || {},
+              fields: ((formResp.form_template as Record<string, unknown>)?.fields as Array<{ id: string; label: string; type: string }>) || null,
               approvalDecision
             })
           }
@@ -1744,16 +1760,17 @@ export default function ProjectDetailPage() {
         // Check for inline form data in notes
         else if (entry.notes) {
           try {
-            const notesData = JSON.parse(entry.notes)
+            const notesData = JSON.parse(entry.notes as string) as Record<string, unknown>
             if (notesData.type === 'inline_form' && notesData.data) {
+              const notesDataData = notesData.data as Record<string, unknown>
               formDataEntries.push({
-                id: entry.id,
-                formName: notesData.data.formName || null,
-                stepName: (entry.workflow_nodes as any)?.label || null,
-                submittedAt: entry.handed_off_at,
-                submittedBy: (entry.user_profiles as any)?.name || null,
-                responseData: notesData.data.responses || {},
-                fields: notesData.data.fields || null,
+                id: entry.id as string,
+                formName: (notesDataData.formName as string) || null,
+                stepName: ((entry.workflow_nodes as Record<string, unknown>)?.label as string) || null,
+                submittedAt: entry.handed_off_at as string,
+                submittedBy: ((entry.user_profiles as Record<string, unknown>)?.name as string) || null,
+                responseData: (notesDataData.responses as Record<string, Record<string, unknown>>) || {},
+                fields: (notesDataData.fields as Array<{ id: string; label: string; type: string }>) || null,
                 approvalDecision
               })
             }
@@ -1764,19 +1781,19 @@ export default function ProjectDetailPage() {
       }
 
       setWorkflowFormData(formDataEntries)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow form data:', error)
     } finally {
       setLoadingWorkflowFormData(false)
     }
-  }
+  }, [project])
 
   // Load workflow form data when project is loaded or workflow is updated
   useEffect(() => {
     if (project?.id && project?.workflow_instance_id) {
       loadWorkflowFormData()
     }
-  }, [project?.id, project?.workflow_instance_id, workflowRefreshKey])
+  }, [project?.id, project?.workflow_instance_id, workflowRefreshKey, loadWorkflowFormData])
 
   // Submit new issue
   const handleSubmitIssue = async () => {
@@ -1804,7 +1821,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(result.error || 'Failed to create issue. Please try again.')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating issue:', error)
       toast.error('Failed to create issue. Please try again.')
     } finally {
@@ -1816,7 +1833,7 @@ export default function ProjectDetailPage() {
   const handleUpdateIssueStatus = async (issueId: string, newStatus: 'open' | 'in_progress' | 'resolved') => {
     // Optimistically update UI immediately for better UX
     const previousIssues = [...projectIssues]
-    setProjectIssues(prev => prev.map(issue =>
+    setProjectIssues(prev => prev.map((issue: any) =>
       issue.id === issueId ? { ...issue, status: newStatus } : issue
     ))
 
@@ -1839,7 +1856,7 @@ export default function ProjectDetailPage() {
         toast.error(result.error || 'Failed to update issue status')
         console.error('Error response:', result)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Revert optimistic update on error
       setProjectIssues(previousIssues)
       console.error('Error updating issue status:', error)
@@ -1865,7 +1882,7 @@ export default function ProjectDetailPage() {
         const result = await response.json()
         toast.error(result.error || 'Failed to save notes')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving notes:', error)
       toast.error('Failed to save notes')
     } finally {
@@ -2037,7 +2054,7 @@ export default function ProjectDetailPage() {
         <WorkflowProgress
           key={`workflow-progress-${workflowRefreshKey}`}
           workflowInstanceId={project.workflow_instance_id || null}
-          onStepClick={(stepId, nodeId) => {
+          onStepClick={(stepId) => {
             // Open the progress dialog for the clicked active step
             setSelectedActiveStepId(stepId)
             setProgressDialogOpen(true)
@@ -2131,7 +2148,7 @@ export default function ProjectDetailPage() {
                       <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                     </div>
                   ) : (
-                    workflowFormData.map((entry, index) => {
+                    workflowFormData.map((entry:any, index:any) => {
                       // Determine styling based on approval decision
                       const isApproved = entry.approvalDecision === 'approved'
                       const isRejected = entry.approvalDecision === 'rejected'
@@ -2171,14 +2188,15 @@ export default function ProjectDetailPage() {
                         </div>
                         <div className={`${bgColor} rounded-lg p-3 space-y-2 ${borderColor ? `border ${borderColor}` : ''}`}>
                           {entry.fields?.map((field: any) => {
-                            const value = entry.responseData[field.id]
+                            const fieldId = field.id as string
+                            const value = entry.responseData[fieldId] as unknown
                             if (value === undefined || value === null || value === '') return null
 
                             return (
-                              <div key={field.id} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
-                                <span className="text-xs font-medium text-gray-500 sm:w-1/3">{field.label}:</span>
+                              <div key={fieldId} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
+                                <span className="text-xs font-medium text-gray-500 sm:w-1/3">{field.label as string}:</span>
                                 <span className="text-sm text-gray-900 sm:w-2/3">
-                                  {field.type === 'url' && typeof value === 'string' ? (
+                                  {(field.type as string) === 'url' && typeof value === 'string' ? (
                                     <a href={value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
                                       {value}
                                     </a>
@@ -2278,7 +2296,7 @@ export default function ProjectDetailPage() {
                     </div>
                   ) : tasks.length > 0 ? (
                     <div className="space-y-3">
-                      {tasks.map((task) => (
+                      {tasks.map((task:any) => (
                         <TaskItem
                           key={task.id}
                           task={task}
@@ -2330,7 +2348,7 @@ export default function ProjectDetailPage() {
                       <div className="space-y-3">
                         <div>
                           <label className="text-sm font-medium text-gray-700 mb-1 block">
-                            What's the latest update?
+                            What&apos;s the latest update?
                           </label>
                           <Textarea
                             value={newUpdateContent}
@@ -2377,13 +2395,13 @@ export default function ProjectDetailPage() {
                       {/* Timeline line */}
                       <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200" />
                       
-                      {projectUpdates.map((update, index) => (
+                      {projectUpdates.map((update:any) => (
                         <div key={update.id} className="relative flex gap-4">
                           {/* Avatar */}
                           <div className="flex-shrink-0 relative z-10">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
                               <span className="text-white font-semibold text-sm">
-                                {update.user_profiles?.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                {update.user_profiles?.name.split(' ').map((n: any) => n[0]).join('').toUpperCase().slice(0, 2)}
                               </span>
                             </div>
                           </div>
@@ -2410,7 +2428,7 @@ export default function ProjectDetailPage() {
                   ) : (
                     <div className="text-center py-8 text-gray-400">
                       <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No updates yet. Click "New Update" to add your first progress note.</p>
+                      <p className="text-sm">No updates yet. Click &quot;New Update&quot; to add your first progress note.</p>
                     </div>
                   )}
                 </div>
@@ -2449,7 +2467,7 @@ export default function ProjectDetailPage() {
                       <div className="space-y-3">
                         <div>
                           <label className="text-sm font-medium text-gray-700 mb-1 block">
-                            What's blocking the project?
+                            What&apos;s blocking the project?
                           </label>
                           <Textarea
                             value={newIssueContent}
@@ -2496,7 +2514,7 @@ export default function ProjectDetailPage() {
                       {/* Timeline line */}
                       <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200" />
                       
-                      {projectIssues.map((issue) => (
+                      {projectIssues.map((issue:any) => (
                         <div key={issue.id} className="relative flex gap-4">
                           {/* Status Icon */}
                           <div className="flex-shrink-0 relative z-10">
@@ -2823,21 +2841,21 @@ export default function ProjectDetailPage() {
                             </div>
                           ) : availableUsers.length > 0 ? (
                             <div className="py-1">
-                              {availableUsers.map((user) => (
+                              {availableUsers.map((user:any) => (
                                 <button
-                                  key={user.id}
-                                  onClick={() => handleAddTeamMember(user.id)}
+                                  key={(user as any).id}
+                                  onClick={() => handleAddTeamMember((user as any).id)}
                                   className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
                                   disabled={addingMember}
                                 >
                                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center flex-shrink-0">
                                     <span className="text-white font-semibold text-xs">
-                                      {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                                      {(user as any).name?.split(' ').map((n: any) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
                                     </span>
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                    <p className="text-sm font-medium text-gray-900 truncate">{(user as any).name}</p>
+                                    <p className="text-xs text-gray-500 truncate">{(user as any).email}</p>
                                   </div>
                                 </button>
                               ))}
@@ -2873,7 +2891,7 @@ export default function ProjectDetailPage() {
                     </div>
                   ) : teamMembers.length > 0 ? (
                     <div className="space-y-2">
-                      {teamMembers.map((member) => {
+                      {teamMembers.map((member:any) => {
                         // Determine what to show as the member's role/status
                         const hasWorkflowSteps = member.workflow_steps && member.workflow_steps.length > 0
 
@@ -2963,7 +2981,7 @@ export default function ProjectDetailPage() {
                                           </div>
                                         )}
                                         {/* List all nodes - click to toggle assignment */}
-                                        {workflowNodes.map((node) => {
+                                        {workflowNodes.map((node:any) => {
                                           const isAssigned = node.user_already_assigned
                                           const isEligible = node.user_eligible
                                           const isDisabled = assigningToStep || (!isEligible && !isAssigned)
@@ -3041,7 +3059,7 @@ export default function ProjectDetailPage() {
                     // Show workflow contributors for completed projects
                     <div className="space-y-2">
                       <p className="text-xs text-gray-500 font-medium mb-3">Workflow Participants</p>
-                      {workflowContributors.map((contributor) => (
+                      {workflowContributors.map((contributor:any) => (
                         <div key={contributor.user_id} className="flex items-center gap-3 p-2 rounded-md bg-green-50 border border-green-100">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-semibold text-xs">
@@ -3067,7 +3085,7 @@ export default function ProjectDetailPage() {
                       <AlertCircle className="w-8 h-8 mx-auto text-gray-300 mb-2" />
                       <p className="text-sm text-gray-500">No team members assigned</p>
                       {canEditProject && project.status !== 'complete' && (
-                        <p className="text-xs text-gray-400 mt-1">Click "Add" to assign team members</p>
+                        <p className="text-xs text-gray-400 mt-1">Click &quot;Add&quot; to assign team members</p>
                       )}
                     </div>
                   )}
@@ -3095,7 +3113,7 @@ export default function ProjectDetailPage() {
                       Departments ({project.departments.length})
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {project.departments.map((dept) => (
+                      {project.departments.map((dept:any) => (
                         <Badge key={dept.id} variant="secondary" className="px-3 py-1">
                           {dept.name}
                         </Badge>
@@ -3124,7 +3142,7 @@ export default function ProjectDetailPage() {
           account={project.account}
           userProfile={userProfile}
           editMode={true}
-          existingProject={project}
+          existingProject={project as unknown as Record<string, unknown>}
         />
 
         {/* Task Create/Edit Dialog */}
@@ -3150,8 +3168,8 @@ export default function ProjectDetailPage() {
             </DialogHeader>
             <div className="flex-1 overflow-x-auto overflow-y-auto pb-4">
               <div className="flex gap-4 min-w-max h-full">
-                {['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked'].map((status) => {
-                  const statusTasks = tasks.filter(t => t.status === status)
+                {['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked'].map((status:any) => {
+                  const statusTasks = tasks.filter((t: any) => t.status === status)
                   const statusLabels: Record<string, { label: string; color: string; dropColor: string }> = {
                     backlog: { label: 'Backlog', color: 'bg-gray-100', dropColor: 'bg-gray-200' },
                     todo: { label: 'To Do', color: 'bg-blue-100', dropColor: 'bg-blue-200' },
@@ -3175,11 +3193,11 @@ export default function ProjectDetailPage() {
                       <div
                         className={`rounded-b-lg p-2 flex-1 overflow-y-auto space-y-2 min-h-[200px] transition-colors ${
                           draggedTaskId ? 'border-2 border-dashed border-gray-300' : ''
-                        } ${draggedTaskId && tasks.find(t => t.id === draggedTaskId)?.status !== status ? statusInfo.dropColor : 'bg-gray-50'}`}
+                        } ${draggedTaskId && tasks.find((t: any) => t.id === draggedTaskId)?.status !== status ? statusInfo.dropColor : 'bg-gray-50'}`}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, status)}
                       >
-                        {statusTasks.map((task) => (
+                        {statusTasks.map((task:any) => (
                           <div
                             key={task.id}
                             draggable
@@ -3284,7 +3302,7 @@ export default function ProjectDetailPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">View:</span>
                     <div className="flex border rounded-md">
-                      {(['daily', 'weekly', 'monthly', 'quarterly'] as const).map((mode) => (
+                      {(['daily', 'weekly', 'monthly', 'quarterly'] as const).map((mode:any) => (
                         <Button
                           key={mode}
                           size="sm"
@@ -3330,11 +3348,11 @@ export default function ProjectDetailPage() {
                 maxDate.setDate(maxDate.getDate() + Math.floor(daysToShow / 2))
 
                 // Extend to include all tasks
-                const tasksWithDates = tasks.filter(t => t.start_date && t.due_date)
+                const tasksWithDates = tasks.filter((t: any) => t.start_date && t.due_date)
                 if (tasksWithDates.length > 0) {
-                  const dates = tasksWithDates.flatMap(t => [new Date(t.start_date!), new Date(t.due_date!)])
-                  const taskMin = new Date(Math.min(...dates.map(d => d.getTime())))
-                  const taskMax = new Date(Math.max(...dates.map(d => d.getTime())))
+                  const dates = tasksWithDates.flatMap((t:any) => [new Date(t.start_date!), new Date(t.due_date!)])
+                  const taskMin = new Date(Math.min(...dates.map((d: any) => d.getTime())))
+                  const taskMax = new Date(Math.max(...dates.map((d: any) => d.getTime())))
                   if (taskMin < minDate) minDate = new Date(taskMin.getTime() - 7 * 24 * 60 * 60 * 1000)
                   if (taskMax > maxDate) maxDate = new Date(taskMax.getTime() + 7 * 24 * 60 * 60 * 1000)
                 }
@@ -3378,7 +3396,7 @@ export default function ProjectDetailPage() {
                 // Group days by month for header
                 const months: { month: string; startIndex: number; count: number }[] = []
                 let currentMonth = ''
-                allDays.forEach((day, i) => {
+                allDays.forEach((day:any, i:any) => {
                   const monthKey = day.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
                   if (monthKey !== currentMonth) {
                     months.push({ month: monthKey, startIndex: i, count: 1 })
@@ -3452,7 +3470,7 @@ export default function ProjectDetailPage() {
                         onScroll={handleTaskListScroll}
                       >
                         <div style={{ minHeight: tasks.length > 0 ? `${totalRowsHeight}px` : '200px' }}>
-                          {tasks.map((task, i) => (
+                          {tasks.map((task:any) => (
                             <div
                               key={task.id}
                               className="border-b border-gray-200 px-3 flex items-center cursor-pointer hover:bg-blue-50 transition-colors"
@@ -3502,7 +3520,7 @@ export default function ProjectDetailPage() {
                         <div className="sticky top-0 bg-white z-10 border-b" style={{ height: `${headerHeight}px` }}>
                           {/* Month Row */}
                           <div className="flex border-b" style={{ height: '30px' }}>
-                            {months.map((m, i) => (
+                            {months.map((m:any, i:any) => (
                               <div
                                 key={i}
                                 className="border-r border-gray-300 text-xs font-semibold text-gray-700 flex items-center justify-center bg-gray-100"
@@ -3514,7 +3532,7 @@ export default function ProjectDetailPage() {
                           </div>
                           {/* Day Row */}
                           <div className="flex" style={{ height: '30px' }}>
-                            {allDays.map((day, i) => {
+                            {allDays.map((day:any, i:any) => {
                               const isWeekend = day.getDay() === 0 || day.getDay() === 6
                               const isToday = day.toDateString() === today.toDateString()
                               const isFirstOfMonth = day.getDate() === 1
@@ -3548,7 +3566,7 @@ export default function ProjectDetailPage() {
                         <div className="relative" style={{ minHeight: tasks.length > 0 ? `${totalRowsHeight}px` : '200px' }}>
                           {/* Vertical Gridlines - Full Height */}
                           <div className="absolute inset-0 flex pointer-events-none" style={{ height: `${Math.max(totalRowsHeight, 200)}px` }}>
-                            {allDays.map((day, i) => {
+                            {allDays.map((day:any, i:any) => {
                               const isWeekend = day.getDay() === 0 || day.getDay() === 6
                               const isToday = day.toDateString() === today.toDateString()
                               const isFirstOfMonth = day.getDate() === 1
@@ -3573,7 +3591,7 @@ export default function ProjectDetailPage() {
                           </div>
 
                           {/* Horizontal Row Lines */}
-                          {tasks.map((_, i) => (
+                          {tasks.map((_:any, i:any) => (
                             <div
                               key={`row-line-${i}`}
                               className="absolute w-full border-b border-gray-200"
@@ -3582,7 +3600,7 @@ export default function ProjectDetailPage() {
                           ))}
 
                           {/* Task Bars */}
-                          {tasks.map((task, i) => {
+                          {tasks.map((task:any, i:any) => {
                             const position = getTaskPixelPosition(task)
                             if (!position) return null
 

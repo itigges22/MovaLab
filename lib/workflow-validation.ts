@@ -73,7 +73,7 @@ export function validateWorkflow(
   }
 
   // Check for start node
-  const startNodes = nodes.filter(n => n.data?.type === 'start');
+  const startNodes = nodes.filter((n: any) => n.data?.type === 'start');
   if (startNodes.length === 0) {
     errors.push({
       type: 'error',
@@ -89,7 +89,7 @@ export function validateWorkflow(
   }
 
   // Check for end node
-  const endNodes = nodes.filter(n => n.data?.type === 'end');
+  const endNodes = nodes.filter((n: any) => n.data?.type === 'end');
   if (endNodes.length === 0) {
     warnings.push({
       type: 'warning',
@@ -150,7 +150,7 @@ export function validateWorkflow(
 function validateNoSyncNodes(nodes: Node[]): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const syncNodes = nodes.filter(n => n.data?.type === 'sync');
+  const syncNodes = nodes.filter((n: any) => n.data?.type === 'sync');
 
   for (const node of syncNodes) {
     errors.push({
@@ -187,7 +187,7 @@ function validateSinglePathway(nodes: Node[], edges: Edge[]): ValidationError[] 
       continue;
     }
 
-    const outgoingEdges = edges.filter(e => e.source === node.id);
+    const outgoingEdges = edges.filter((e: any) => e.source === node.id);
 
     // Non-branching nodes should have at most ONE outgoing edge
     if (outgoingEdges.length > 1) {
@@ -210,10 +210,10 @@ function validateSinglePathway(nodes: Node[], edges: Edge[]): ValidationError[] 
 function validateConditionalNodes(nodes: Node[], edges: Edge[]): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];
 
-  const conditionalNodes = nodes.filter(n => n.data?.type === 'conditional');
+  const conditionalNodes = nodes.filter((n: any) => n.data?.type === 'conditional');
 
   for (const node of conditionalNodes) {
-    const outgoingEdges = edges.filter(e => e.source === node.id);
+    const outgoingEdges = edges.filter((e: any) => e.source === node.id);
 
     if (outgoingEdges.length === 0) {
       warnings.push({
@@ -227,12 +227,12 @@ function validateConditionalNodes(nodes: Node[], edges: Edge[]): ValidationWarni
     }
 
     // Check if there's a default path (edge without condition)
-    const hasDefaultPath = outgoingEdges.some(e => {
+    const hasDefaultPath = outgoingEdges.some((e: any) => {
       const data = e.data as { conditionValue?: string; decision?: string } | undefined;
       return !data?.conditionValue && !data?.decision;
     });
 
-    const conditionalEdges = outgoingEdges.filter(e => {
+    const conditionalEdges = outgoingEdges.filter((e: any) => {
       const data = e.data as { conditionValue?: string; decision?: string } | undefined;
       return data?.conditionValue || data?.decision;
     });
@@ -266,20 +266,20 @@ function findOrphanedNodes(nodes: Node[], edges: Edge[]): Node[] {
   const connectedNodeIds = new Set<string>();
 
   // Add all nodes that have edges
-  edges.forEach(edge => {
+  edges.forEach((edge: any) => {
     connectedNodeIds.add(edge.source);
     connectedNodeIds.add(edge.target);
   });
 
   // Find nodes not in connected set (except start with no incoming is ok)
-  return nodes.filter(node => {
+  return nodes.filter((node: any) => {
     // Start nodes are allowed to have no incoming edges
     if (node.data?.type === 'start') {
-      return !edges.some(e => e.source === node.id);
+      return !edges.some((e: any) => e.source === node.id);
     }
     // End nodes are allowed to have no outgoing edges
     if (node.data?.type === 'end') {
-      return !edges.some(e => e.target === node.id);
+      return !edges.some((e: any) => e.target === node.id);
     }
     // Other nodes must have at least one connection
     return !connectedNodeIds.has(node.id);
@@ -301,10 +301,10 @@ function detectCycles(nodes: Node[], edges: Edge[]): ValidationError[] {
     recursionStack.add(nodeId);
     cyclePath.push(nodeId);
 
-    const outgoing = edges.filter(e => e.source === nodeId);
+    const outgoing = edges.filter((e: any) => e.source === nodeId);
     for (const edge of outgoing) {
       // Skip edges that are explicitly marked as rejection loops (intentional back-edges)
-      const edgeData = edge.data as any;
+      const edgeData = edge.data as Record<string, unknown>;
       if (edgeData?.decision === 'rejected' || edgeData?.conditionValue === 'rejected') {
         continue; // Rejection loops are allowed
       }
@@ -315,8 +315,8 @@ function detectCycles(nodes: Node[], edges: Edge[]): ValidationError[] {
         // Found a cycle that's not a rejection loop
         const cycleStartIndex = cyclePath.indexOf(edge.target);
         const cycleNodes = cyclePath.slice(cycleStartIndex);
-        const cycleLabels = cycleNodes.map(id => {
-          const node = nodes.find(n => n.id === id);
+        const cycleLabels = cycleNodes.map((id: any) => {
+          const node = nodes.find((n: any) => n.id === id);
           return node?.data?.label || id;
         });
 
@@ -351,10 +351,10 @@ function detectCycles(nodes: Node[], edges: Edge[]): ValidationError[] {
 function validateApprovalNodes(nodes: Node[], edges: Edge[]): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const approvalNodes = nodes.filter(n => n.data?.type === 'approval');
+  const approvalNodes = nodes.filter((n: any) => n.data?.type === 'approval');
 
   for (const node of approvalNodes) {
-    const outgoingEdges = edges.filter(e => e.source === node.id);
+    const outgoingEdges = edges.filter((e: any) => e.source === node.id);
 
     // Check for at least one edge
     if (outgoingEdges.length === 0) {
@@ -369,8 +369,8 @@ function validateApprovalNodes(nodes: Node[], edges: Edge[]): ValidationError[] 
     }
 
     // Check if there are both approved and rejected paths
-    const hasApprovedPath = outgoingEdges.some(e => {
-      const data = e.data as any;
+    const hasApprovedPath = outgoingEdges.some((e: any) => {
+      const data = e.data as Record<string, unknown>;
       return data?.decision === 'approved' || data?.conditionValue === 'approved';
     });
 
@@ -401,11 +401,11 @@ function validateRoleAssignments(nodes: Node[], roles: RoleWithUserCount[]): Val
   const errors: ValidationError[] = [];
 
   // Create a map for quick role lookup
-  const roleMap = new Map(roles.map(r => [r.id, r]));
+  const roleMap = new Map(roles.map((r: any) => [r.id, r]));
 
   for (const node of nodes) {
     const nodeType = node.data?.type as string;
-    const config = node.data?.config as any;
+    const config = node.data?.config as Record<string, unknown>;
 
     // Check role nodes
     if (nodeType === 'role' && config?.roleId) {

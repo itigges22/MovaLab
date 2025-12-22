@@ -78,7 +78,7 @@ export default function WorkflowsPage() {
       } else {
         toast.error(data.error || 'Failed to load workflows');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       toast.error('Failed to load workflows');
       console.error('Error fetching workflows:', err);
     } finally {
@@ -114,7 +114,7 @@ export default function WorkflowsPage() {
       } else {
         toast.error(data.error || 'Failed to create workflow template');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       toast.error('Failed to create workflow template');
       console.error('Error creating workflow:', err);
     } finally {
@@ -141,7 +141,7 @@ export default function WorkflowsPage() {
       } else {
         toast.error(data.error || 'Failed to delete workflow template');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       toast.error('Failed to delete workflow template');
       console.error('Error deleting workflow:', err);
     } finally {
@@ -195,7 +195,7 @@ export default function WorkflowsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {templates.map((template) => (
+              {templates.map((template:any) => (
                 <div
                   key={template.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"

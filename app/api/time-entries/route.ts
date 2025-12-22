@@ -9,6 +9,12 @@ import { timeEntryService } from '@/lib/services/time-entry-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 /**
  * GET /api/time-entries
  * Get time entries for a user, task, or project
@@ -50,11 +56,12 @@ export async function GET(request: NextRequest) {
       timeEntries = await timeEntryService.getProjectTimeEntries(projectId);
     } else {
       // Get time entries for a user (default to current user)
-      const targetUserId = userId ?? userProfile.id;
+      const targetUserId = userId ?? (userProfile as any).id;
       
       // Permission check for viewing other users' time entries
-      if (targetUserId !== userProfile.id) {
-        const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
+      // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
+      if (targetUserId !== (userProfile as any).id) {
+        const canViewTeam = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
         if (!canViewTeam) {
           return NextResponse.json(
             { error: 'Insufficient permissions to view other users\' time entries' },
@@ -70,10 +77,11 @@ export async function GET(request: NextRequest) {
       success: true,
       timeEntries,
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/time-entries:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/time-entries:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -122,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: LOG_TIME
-    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME, undefined, supabase);
+    const canLogTime = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
     if (!canLogTime) {
       return NextResponse.json(
         { error: 'Insufficient permissions to log time' },
@@ -142,7 +150,7 @@ export async function POST(request: NextRequest) {
       .from('time_entries')
       .insert({
         task_id: taskId,
-        user_id: userProfile.id,
+        user_id: (userProfile as any).id,
         project_id: projectId,
         hours_logged: hoursLogged,
         entry_date: entryDate,
@@ -164,10 +172,11 @@ export async function POST(request: NextRequest) {
       success: true,
       timeEntry,
     });
-  } catch (error: any) {
-    console.error('Error in POST /api/time-entries:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in POST /api/time-entries:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -208,7 +217,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Permission check: EDIT_OWN_TIME_ENTRIES
-    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_TIME_ENTRIES, undefined, supabase);
+    const canEdit = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { error: 'Insufficient permissions to edit time entries' },
@@ -231,8 +240,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check ownership or team permission
-    if (existingEntry.user_id !== userProfile.id) {
-      const canEditTeam = await hasPermission(userProfile, Permission.EDIT_TEAM_TIME_ENTRIES, undefined, supabase);
+    if (existingEntry.user_id !== (userProfile as any).id) {
+      const canEditTeam = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
       if (!canEditTeam) {
         return NextResponse.json(
           { error: 'Can only edit your own time entries' },
@@ -242,7 +251,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check 14-day edit limit (only for own entries)
-    if (existingEntry.user_id === userProfile.id) {
+    if (existingEntry.user_id === (userProfile as any).id) {
       const existingEntryDate = new Date(existingEntry.entry_date);
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
@@ -272,10 +281,11 @@ export async function PATCH(request: NextRequest) {
       success: true,
       timeEntry,
     });
-  } catch (error: any) {
-    console.error('Error in PATCH /api/time-entries:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in PATCH /api/time-entries:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -316,7 +326,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Permission check: EDIT_OWN_TIME_ENTRIES
-    const canEdit = await hasPermission(userProfile, Permission.EDIT_OWN_TIME_ENTRIES, undefined, supabase);
+    const canEdit = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { error: 'Insufficient permissions to delete time entries' },
@@ -339,8 +349,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check ownership or team permission
-    if (existingEntry.user_id !== userProfile.id) {
-      const canEditTeam = await hasPermission(userProfile, Permission.EDIT_TEAM_TIME_ENTRIES, undefined, supabase);
+    if (existingEntry.user_id !== (userProfile as any).id) {
+      const canEditTeam = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
       if (!canEditTeam) {
         return NextResponse.json(
           { error: 'Can only delete your own time entries' },
@@ -350,7 +360,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check 14-day edit limit (only for own entries)
-    if (existingEntry.user_id === userProfile.id) {
+    if (existingEntry.user_id === (userProfile as any).id) {
       const entryDate = new Date(existingEntry.entry_date);
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
@@ -376,10 +386,11 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: 'Time entry deleted successfully',
     });
-  } catch (error: any) {
-    console.error('Error in DELETE /api/time-entries:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in DELETE /api/time-entries:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

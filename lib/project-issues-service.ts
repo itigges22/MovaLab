@@ -34,7 +34,7 @@ export const projectIssuesService = {
    * Get all issues for a project
    */
   async getProjectIssues(projectId: string): Promise<ProjectIssue[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     
     const { data, error } = await supabase
       .from('project_issues')
@@ -58,7 +58,7 @@ export const projectIssuesService = {
    * Get all active (open or in_progress) issues for a department
    */
   async getDepartmentActiveIssues(departmentId: string): Promise<(ProjectIssue & { project?: { id: string; name: string } })[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     
     // Get all roles for this department
     const { data: departmentRoles, error: rolesError } = await supabase
@@ -124,7 +124,7 @@ export const projectIssuesService = {
       }
     });
     const projects = Array.from(projectsMap.values());
-    const projectIds = projects.map((p: { id: string; name: string }) => p.id);
+    const projectIds = projects.map((p: any) => p.id);
 
     if (projectIds.length === 0) {
       return [];
@@ -149,7 +149,7 @@ export const projectIssuesService = {
 
     // Add project information to each issue
     const issuesWithProjects = (issues || []).map((issue: any) => {
-      const project = projects.find((p: { id: string; name: string }) => p.id === issue.project_id);
+      const project = projects.find((p: any) => p.id === issue.project_id);
       return {
         ...issue,
         project: project ? { id: project.id, name: project.name } : undefined
@@ -163,7 +163,7 @@ export const projectIssuesService = {
    * Get all active (open or in_progress) issues for an account
    */
   async getAccountActiveIssues(accountId: string): Promise<(ProjectIssue & { project?: { id: string; name: string } })[]> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     
     // First, get all project IDs for this account
     const { data: projects, error: projectsError } = await supabase
@@ -180,7 +180,7 @@ export const projectIssuesService = {
       return [];
     }
 
-    const projectIds = projects.map((p: { id: string; name: string }) => p.id);
+    const projectIds = projects.map((p: any) => p.id);
 
     // Get all active issues for these projects
     const { data, error } = await supabase
@@ -202,7 +202,7 @@ export const projectIssuesService = {
     // Add project info to each issue
     const issuesWithProjects = (data || []).map((issue: any) => ({
       ...issue,
-      project: projects.find((p: { id: string; name: string }) => p.id === issue.project_id)
+      project: projects.find((p: any) => p.id === issue.project_id)
     }));
 
     return issuesWithProjects;
@@ -212,7 +212,7 @@ export const projectIssuesService = {
    * Create a new project issue
    */
   async createProjectIssue(input: ProjectIssueInput): Promise<ProjectIssue> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -248,14 +248,14 @@ export const projectIssuesService = {
     issueId: string, 
     status: 'open' | 'in_progress' | 'resolved'
   ): Promise<ProjectIssue> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
       throw new Error('You must be logged in to update an issue');
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status,
       updated_at: new Date().toISOString(),
     };
@@ -293,7 +293,7 @@ export const projectIssuesService = {
    * Update issue content
    */
   async updateIssueContent(issueId: string, content: string): Promise<ProjectIssue> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
 
     const { data, error } = await supabase
       .from('project_issues')
@@ -321,7 +321,7 @@ export const projectIssuesService = {
    * Delete a project issue
    */
   async deleteProjectIssue(issueId: string): Promise<void> {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
 
     const { error } = await supabase
       .from('project_issues')

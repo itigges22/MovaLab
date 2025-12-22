@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowRight, CheckCircle2, XCircle, Send, Loader2, FileText, AlertTriangle, RefreshCw, Clock, User } from 'lucide-react';
+import { ArrowRight, CheckCircle2, XCircle, Send, Loader2, FileText, Clock, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClientSupabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -49,7 +50,7 @@ interface WorkflowInstance {
     id: string;
     node_type: 'start' | 'department' | 'role' | 'approval' | 'form' | 'conditional' | 'sync' | 'end';
     label: string;
-    settings: any;
+    settings: Record<string, unknown>;
     entity_id: string | null;
   };
   workflow_templates?: {
@@ -57,8 +58,8 @@ interface WorkflowInstance {
     name: string;
   };
   started_snapshot?: {
-    nodes?: any[];
-    connections?: any[];
+    nodes?: Record<string, unknown>[];
+    connections?: Record<string, unknown>[];
     template_name?: string;
   } | null;
 }
@@ -83,7 +84,7 @@ interface FormField {
   required: boolean;
   placeholder?: string;
   options?: string[];
-  defaultValue?: any;
+  defaultValue?: Record<string, unknown>;
   validation?: {
     min?: number;
     max?: number;
@@ -92,7 +93,7 @@ interface FormField {
   };
   conditional?: {
     show_if: string;
-    equals: any;
+    equals: Record<string, unknown>;
   };
 }
 
@@ -104,18 +105,18 @@ interface FormTemplate {
 }
 
 // Helper function to render simple markdown (bold text) as React elements
-function renderMarkdownContent(content: string): React.ReactNode {
+function _renderMarkdownContent(content: string): React.ReactNode {
   if (!content) return null;
 
   // Handle edge cases like *text** or **text* by normalizing first
-  let normalizedContent = content
+  const normalizedContent = content
     .replace(/^\*([^*]+)\*\*$/gm, '**$1**') // Fix *text** -> **text**
     .replace(/^\*\*([^*]+)\*$/gm, '**$1**'); // Fix **text* -> **text**
 
   // Split by **text** pattern and render bold parts
   const parts = normalizedContent.split(/(\*\*[^*]+\*\*)/g);
 
-  return parts.map((part, index) => {
+  return parts.map((part:any, index:any) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       // Remove the ** markers and render as bold
       return <strong key={index}>{part.slice(2, -2)}</strong>;
@@ -169,14 +170,14 @@ export function WorkflowProgressButton({
   const [selectedUserPerNode, setSelectedUserPerNode] = useState<Record<string, string>>({});
 
   // Stale data detection - track when workflow was last loaded vs current state
-  const [isStaleData, setIsStaleData] = useState(false);
+  const [_isStaleData, setIsStaleData] = useState(false);
   const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<string | null>(null);
 
   // Permission state
   const [canExecuteWorkflows, setCanExecuteWorkflows] = useState<boolean | null>(null);
   const [checkingPermissions, setCheckingPermissions] = useState(true);
   const [hasRequiredRole, setHasRequiredRole] = useState<boolean>(false); // Default false - only show after check passes
-  const [requiredRoleName, setRequiredRoleName] = useState<string | null>(null);
+  const [_requiredRoleName, setRequiredRoleName] = useState<string | null>(null);
   const [isAssignedToProject, setIsAssignedToProject] = useState<boolean>(false); // Default false - only show after check passes
   const [checkingAccessPermissions, setCheckingAccessPermissions] = useState(true); // Track access permission loading
 
@@ -186,14 +187,14 @@ export function WorkflowProgressButton({
   const [currentStepName, setCurrentStepName] = useState<string | null>(null);
 
   // Parallel approvers state - show other users approving in parallel
-  const [parallelApprovers, setParallelApprovers] = useState<Array<{
+  const [_parallelApprovers, setParallelApprovers] = useState<Array<{
     id: string;
     userName: string;
     nodeName: string;
     completed: boolean;
     decision: string | null;
   }>>([]);
-  const [isParallelApproval, setIsParallelApproval] = useState(false);
+  const [_isParallelApproval, setIsParallelApproval] = useState(false);
 
   // Form state
   const [formTemplate, setFormTemplate] = useState<FormTemplate | null>(null);
@@ -219,7 +220,7 @@ export function WorkflowProgressButton({
         selectedUserPerNode,
         savedAt: new Date().toISOString(),
       }));
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Failed to auto-save form data:', e);
     }
   }, [formData, decision, feedback, selectedUserId, selectedUserPerNode, workflowInstanceId, dialogOpen, getFormSaveKey]);
@@ -241,7 +242,7 @@ export function WorkflowProgressButton({
           localStorage.removeItem(saveKey);
         }
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Failed to load saved form data:', e);
     }
     return null;
@@ -252,7 +253,7 @@ export function WorkflowProgressButton({
     const saveKey = getFormSaveKey();
     try {
       localStorage.removeItem(saveKey);
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Failed to clear saved form data:', e);
     }
   }, [getFormSaveKey]);
@@ -260,16 +261,16 @@ export function WorkflowProgressButton({
   // Parallel workflow state
   const [branchId, setBranchId] = useState<string | null>(null);
   const [existingFormData, setExistingFormData] = useState<{ data: Record<string, any>; fields?: any[]; formName?: string } | null>(null);
-  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [_isSuperadmin, setIsSuperadmin] = useState(false);
 
   // Project issues state - show open issues to inform decision-making
-  const [projectIssues, setProjectIssues] = useState<Array<{
+  const [_projectIssues, setProjectIssues] = useState<Array<{
     id: string;
     content: string;
     status: string;
     created_at: string;
   }>>([]);
-  const [loadingIssues, setLoadingIssues] = useState(false);
+  const [_loadingIssues, setLoadingIssues] = useState(false);
 
   // Check permission when component mounts or user changes
   useEffect(() => {
@@ -283,7 +284,7 @@ export function WorkflowProgressButton({
       try {
         const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, { projectId });
         setCanExecuteWorkflows(canExecute);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error checking workflow permissions:', error);
         setCanExecuteWorkflows(false);
       } finally {
@@ -308,7 +309,7 @@ export function WorkflowProgressButton({
       }
 
       try {
-        const supabase = createClientSupabase();
+        const supabase = createClientSupabase() as any;
         if (!supabase) return;
 
         // Get workflow instance with snapshot (don't rely on FK join which fails when template is deleted)
@@ -334,23 +335,23 @@ export function WorkflowProgressButton({
         }
 
         // Get current node from snapshot (preferred) or live table (fallback)
-        const snapshotNodes = instance.started_snapshot?.nodes || [];
+        const snapshotNodes = ((instance as any).started_snapshot?.nodes || []) as any[];
         const hasSnapshot = snapshotNodes.length > 0;
 
         let currentNodeFromSnapshot = null;
-        if (hasSnapshot && instance.current_node_id) {
-          currentNodeFromSnapshot = snapshotNodes.find((n: any) => n.id === instance.current_node_id);
+        if (hasSnapshot && (instance as any).current_node_id) {
+          currentNodeFromSnapshot = snapshotNodes.find((n: any) => n.id === (instance as any).current_node_id);
         }
 
         // Attach the node info to instance for later use
-        const instanceWithNode = {
-          ...instance,
+        const instanceWithNode: any = {
+          ...(instance as any),
           workflow_nodes: currentNodeFromSnapshot
         };
 
         // Check if user is superadmin (bypasses all checks)
-        const userIsSuperadmin = userProfile.is_superadmin ||
-          userProfile.user_roles?.some((ur: any) => ur.roles?.name?.toLowerCase() === 'superadmin');
+        const userIsSuperadmin = (userProfile as any).is_superadmin ||
+          userProfile.user_roles?.some((ur: any) => (ur.roles as any)?.name?.toLowerCase() === 'superadmin');
 
         setIsSuperadmin(userIsSuperadmin);
 
@@ -365,7 +366,7 @@ export function WorkflowProgressButton({
         // 1. externalActiveStepId is provided
         // 2. current_node_id is null (template was modified/deleted)
         // 3. workflow is using snapshot-based execution
-        let nodeIdToCheck: string | null = instance.current_node_id;
+        let nodeIdToCheck: string | null = (instance as any).current_node_id;
         let hasNodeAssignment = false;
         let isAssignedToActiveStep = false;
 
@@ -378,9 +379,9 @@ export function WorkflowProgressButton({
             .single();
 
           if (activeStep) {
-            nodeIdToCheck = activeStep.node_id;
+            nodeIdToCheck = (activeStep as any).node_id;
             // Check if user is directly assigned to this active step (e.g., sync leader)
-            if (activeStep.assigned_user_id === userProfile.id) {
+            if ((activeStep as any).assigned_user_id === (userProfile as any).id) {
               isAssignedToActiveStep = true;
             }
           }
@@ -395,8 +396,8 @@ export function WorkflowProgressButton({
             .limit(1);
 
           if (activeSteps && activeSteps.length > 0) {
-            nodeIdToCheck = activeSteps[0].node_id;
-            if (activeSteps[0].assigned_user_id === userProfile.id) {
+            nodeIdToCheck = (activeSteps[0] as any).node_id;
+            if ((activeSteps[0] as any).assigned_user_id === (userProfile as any).id) {
               isAssignedToActiveStep = true;
             }
           }
@@ -425,7 +426,7 @@ export function WorkflowProgressButton({
             .select('id')
             .eq('workflow_instance_id', workflowInstanceId)
             .eq('node_id', nodeIdToCheck)
-            .eq('user_id', userProfile.id)
+            .eq('user_id', (userProfile as any).id)
             .single();
 
           if (nodeAssignment) {
@@ -439,12 +440,12 @@ export function WorkflowProgressButton({
 
         // 1. CHECK PROJECT ASSIGNMENT (via project_assignments table only)
         // NOTE: created_by and assigned_user_id on the project do NOT grant workflow progression rights
-        if (instance.project_id) {
+        if ((instance as any).project_id) {
           const { data: assignments } = await supabase
             .from('project_assignments')
             .select('id')
-            .eq('user_id', userProfile.id)
-            .eq('project_id', instance.project_id)
+            .eq('user_id', (userProfile as any).id)
+            .eq('project_id', (instance as any).project_id)
             .is('removed_at', null);
 
           setIsAssignedToProject((assignments?.length || 0) > 0);
@@ -482,7 +483,7 @@ export function WorkflowProgressButton({
               .eq('id', currentNode.entity_id)
               .single();
 
-            setRequiredRoleName(roleData?.name || null);
+            setRequiredRoleName((roleData as any)?.name || null);
           } else {
             setRequiredRoleName(null);
           }
@@ -490,7 +491,7 @@ export function WorkflowProgressButton({
           // For department nodes, entity_id is a department_id
           // Check if user has any role in this department
           const userDeptIds = userProfile.user_roles
-            ?.map((ur: any) => ur.roles?.department_id)
+            ?.map((ur: any) => (ur.roles as any)?.department_id)
             .filter(Boolean) || [];
           const hasAccess = userDeptIds.includes(currentNode.entity_id);
           setHasRequiredRole(hasAccess);
@@ -503,7 +504,7 @@ export function WorkflowProgressButton({
               .eq('id', currentNode.entity_id)
               .single();
 
-            setRequiredRoleName(deptData?.name ? `${deptData.name} department` : null);
+            setRequiredRoleName((deptData as any)?.name ? `${(deptData as any).name} department` : null);
           } else {
             setRequiredRoleName(null);
           }
@@ -526,18 +527,18 @@ export function WorkflowProgressButton({
               .from('workflow_node_assignments')
               .select('node_id')
               .eq('workflow_instance_id', workflowInstanceId)
-              .eq('user_id', userProfile.id)
+              .eq('user_id', (userProfile as any).id)
               .neq('node_id', nodeIdToCheck || '');
 
             if (futureAssignments && futureAssignments.length > 0) {
               // User is assigned to a future step - get label from snapshot
-              const futureNodeId = futureAssignments[0].node_id;
+              const futureNodeId = (futureAssignments[0] as any).node_id;
               const futureNode = hasSnapshot
                 ? snapshotNodes.find((n: any) => n.id === futureNodeId)
                 : null;
 
               setIsPipelineProject(true);
-              setAssignedFutureStepName(futureNode?.label || 'a future step');
+              setAssignedFutureStepName((futureNode as any)?.label || 'a future step');
               setCurrentStepName(currentNode?.label || 'the current step');
             } else {
               setIsPipelineProject(false);
@@ -546,7 +547,7 @@ export function WorkflowProgressButton({
             }
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error checking access permissions:', error);
         // On error, default to hiding the button for safety
         setHasRequiredRole(false);
@@ -559,27 +560,10 @@ export function WorkflowProgressButton({
     checkAccessPermissions();
   }, [workflowInstanceId, userProfile, externalActiveStepId]);
 
-  useEffect(() => {
-    if (workflowInstanceId && dialogOpen) {
-      // Build a unique key for this dialog session: instanceId + activeStepId
-      // This ensures we reload if either changes, but not on focus changes
-      const sessionKey = `${workflowInstanceId}-${externalActiveStepId || 'default'}`;
-
-      // Only load data if we haven't already loaded for this specific session
-      if (loadedWorkflowInstanceRef.current !== sessionKey) {
-        loadedWorkflowInstanceRef.current = sessionKey;
-        loadWorkflowData();
-      }
-    }
-    // Note: We intentionally do NOT reset the ref when dialogOpen becomes false
-    // This prevents the issue where date picker/select focus changes briefly toggle dialogOpen
-    // The ref will naturally reset when a different workflowInstanceId is loaded
-  }, [workflowInstanceId, dialogOpen, externalActiveStepId]);
-
-  const loadWorkflowData = async () => {
+  const loadWorkflowData = useCallback(async () => {
     try {
       setLoading(true);
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) return;
 
       // First, get the workflow instance (including snapshot)
@@ -590,7 +574,7 @@ export function WorkflowProgressButton({
           started_snapshot,
           workflow_templates(*)
         `)
-        .eq('id', workflowInstanceId)
+        .eq('id', workflowInstanceId as string)
         .single();
 
       if (instanceError || !instance) {
@@ -600,8 +584,8 @@ export function WorkflowProgressButton({
 
       // Extract snapshot data for use throughout the function
       // This ensures we use the workflow configuration from when the project started
-      const snapshotNodes = instance.started_snapshot?.nodes || [];
-      const snapshotConnections = instance.started_snapshot?.connections || [];
+      const snapshotNodes = ((instance as any).started_snapshot?.nodes || []) as any[];
+      const snapshotConnections = ((instance as any).started_snapshot?.connections || []) as any[];
       const hasSnapshot = snapshotNodes.length > 0 && snapshotConnections.length > 0;
 
       console.log('[WorkflowProgressButton] Snapshot status:', {
@@ -611,7 +595,7 @@ export function WorkflowProgressButton({
       });
 
       // Check for stale data - if workflow was updated since we last loaded
-      const currentUpdatedAt = instance.updated_at;
+      const currentUpdatedAt = (instance as any).updated_at;
       if (lastKnownUpdatedAt && currentUpdatedAt && lastKnownUpdatedAt !== currentUpdatedAt) {
         // Workflow was updated by someone else
         setIsStaleData(true);
@@ -625,7 +609,7 @@ export function WorkflowProgressButton({
       // 2. Otherwise, ALWAYS check for active steps in workflow_active_steps table
       //    (this is critical when current_node_id is null or template was deleted)
       // 3. Fall back to current_node_id for legacy workflows
-      let nodeIdToLoad = instance.current_node_id;
+      let nodeIdToLoad = (instance as any).current_node_id;
       let activeStepIdToUse: string | null = externalActiveStepId || null;
 
       if (externalActiveStepId) {
@@ -637,8 +621,8 @@ export function WorkflowProgressButton({
           .single();
 
         if (activeStep) {
-          nodeIdToLoad = activeStep.node_id;
-          setBranchId(activeStep.branch_id);
+          nodeIdToLoad = (activeStep as any).node_id;
+          setBranchId((activeStep as any).branch_id);
         }
       } else {
         // ALWAYS check for active steps - this handles:
@@ -648,21 +632,21 @@ export function WorkflowProgressButton({
         const { data: activeSteps } = await supabase
           .from('workflow_active_steps')
           .select('id, node_id, branch_id')
-          .eq('workflow_instance_id', workflowInstanceId)
+          .eq('workflow_instance_id', workflowInstanceId as string)
           .eq('status', 'active')
           .order('activated_at', { ascending: false })
           .limit(1);
 
         if (activeSteps && activeSteps.length > 0) {
-          nodeIdToLoad = activeSteps[0].node_id;
-          activeStepIdToUse = activeSteps[0].id;
-          setBranchId(activeSteps[0].branch_id);
+          nodeIdToLoad = (activeSteps[0] as any).node_id;
+          activeStepIdToUse = (activeSteps[0] as any).id;
+          setBranchId((activeSteps[0] as any).branch_id);
           console.log('[WorkflowProgressButton] Using active step:', {
             nodeId: nodeIdToLoad,
             stepId: activeStepIdToUse,
-            branchId: activeSteps[0].branch_id
+            branchId: (activeSteps[0] as any).branch_id
           });
-        } else if (instance.current_node_id) {
+        } else if ((instance as any).current_node_id) {
           // Fallback to current_node_id if no active steps found
           setBranchId(null);
         } else {
@@ -676,7 +660,7 @@ export function WorkflowProgressButton({
 
       // Now get the node data - prefer snapshot over live tables
       // This ensures deleted/modified templates don't break in-progress workflows
-      let currentNodeData = null;
+      let currentNodeData: any = null;
       if (nodeIdToLoad) {
         if (hasSnapshot) {
           // Use snapshot data (protects against template deletion/modification)
@@ -695,8 +679,8 @@ export function WorkflowProgressButton({
       }
 
       // Construct the instance with node data in the expected format
-      const instanceWithNode = {
-        ...instance,
+      const instanceWithNode: any = {
+        ...(instance as any),
         workflow_nodes: currentNodeData,
       };
 
@@ -705,7 +689,7 @@ export function WorkflowProgressButton({
       // Check if form was already submitted - handles both form nodes and approval nodes
       setExistingFormData(null); // Reset first
       let foundExistingFormData = false; // Track if we found form data (for blocking editable form)
-      let previousFormResponses: Record<string, any> | null = null; // For pre-filling form after rejection
+      let previousFormResponses: any = null; // For pre-filling form after rejection
 
       const isApprovalNode = currentNodeData?.node_type === 'approval';
       const isFormNode = currentNodeData?.node_type === 'form';
@@ -724,7 +708,7 @@ export function WorkflowProgressButton({
             to_node_id,
             workflow_nodes!workflow_history_from_node_id_fkey(node_type, label)
           `)
-          .eq('workflow_instance_id', workflowInstanceId)
+          .eq('workflow_instance_id', workflowInstanceId as string)
           .order('handed_off_at', { ascending: false })
           .limit(10);
 
@@ -733,17 +717,17 @@ export function WorkflowProgressButton({
         // but we still want to show it on all approval nodes that follow the form
         if (isApprovalNode) {
           // First, try to find a form submission directly TO this node
-          formHistoryEntry = recentHistory?.find((entry: any) =>
+          formHistoryEntry = (recentHistory as any[])?.find((entry: any) =>
             entry.to_node_id === nodeIdToLoad &&
-            (entry.form_response_id || (entry.notes && entry.notes.includes('inline_form')))
+            (entry.form_response_id || (entry.notes && (entry.notes as string).includes('inline_form')))
           );
 
           // If not found, look for form submissions FROM a form node
           // This handles parallel approval nodes that all follow the same form
           if (!formHistoryEntry) {
-            formHistoryEntry = recentHistory?.find((entry: any) =>
-              entry.workflow_nodes?.node_type === 'form' &&
-              (entry.form_response_id || (entry.notes && entry.notes.includes('inline_form')))
+            formHistoryEntry = (recentHistory as any[])?.find((entry: any) =>
+              (entry.workflow_nodes as any)?.node_type === 'form' &&
+              (entry.form_response_id || (entry.notes && (entry.notes as string).includes('inline_form')))
             );
           }
         }
@@ -751,9 +735,9 @@ export function WorkflowProgressButton({
         // Special case: Form node after rejection - look for previous submission FROM this form node
         // This allows the user to see and edit their previous form data after a rejection
         if (!formHistoryEntry && isFormNode) {
-          formHistoryEntry = recentHistory?.find((entry: any) =>
+          formHistoryEntry = (recentHistory as any[])?.find((entry: any) =>
             entry.from_node_id === nodeIdToLoad &&
-            (entry.form_response_id || (entry.notes && entry.notes.includes('inline_form')))
+            (entry.form_response_id || (entry.notes && (entry.notes as string).includes('inline_form')))
           );
         }
 
@@ -775,13 +759,13 @@ export function WorkflowProgressButton({
             if (formResponse) {
               if (isFormNode) {
                 // Form node - store for pre-filling editable form
-                previousFormResponses = formResponse.response_data;
+                previousFormResponses = (formResponse as any).response_data;
               } else {
                 // Non-form node - show as read-only
                 setExistingFormData({
-                  data: formResponse.response_data,
-                  fields: (formResponse.form_template as any)?.fields,
-                  formName: (formResponse.form_template as any)?.name
+                  data: (formResponse as any).response_data,
+                  fields: ((formResponse as any).form_template as any)?.fields as any[],
+                  formName: ((formResponse as any).form_template as any)?.name as string
                 });
                 foundExistingFormData = true;
               }
@@ -790,7 +774,7 @@ export function WorkflowProgressButton({
           // Check for inline form data in notes
           else if (formHistoryEntry.notes) {
             try {
-              const notesData = JSON.parse(formHistoryEntry.notes);
+              const notesData = JSON.parse(formHistoryEntry.notes as string);
               if (notesData.type === 'inline_form' && notesData.data) {
                 if (isFormNode) {
                   // Form node - store for pre-filling editable form
@@ -829,13 +813,13 @@ export function WorkflowProgressButton({
         formLoaded = false; // No editable form - show read-only data instead
       }
       // First, check if there's an inline form in the node settings (workflow builder stores forms here)
-      else if (currentNodeData?.settings?.formFields && currentNodeData.settings.formFields.length > 0) {
+      else if (currentNodeData?.settings?.formFields && (currentNodeData.settings.formFields as any[]).length > 0) {
         // Build a form template from the inline settings
         const inlineTemplate: FormTemplate = {
           id: `inline-${currentNodeData.id}`,
-          name: currentNodeData.settings.formName || currentNodeData.label || 'Form',
-          description: currentNodeData.settings.formDescription || null,
-          fields: currentNodeData.settings.formFields.map((field: any) => ({
+          name: (currentNodeData.settings.formName as string) || currentNodeData.label || 'Form',
+          description: (currentNodeData.settings.formDescription as string) || null,
+          fields: (currentNodeData.settings.formFields as any[]).map((field: any) => ({
             id: field.id,
             type: field.type === 'select' ? 'dropdown' : field.type, // Map 'select' to 'dropdown'
             label: field.label,
@@ -891,12 +875,12 @@ export function WorkflowProgressButton({
           .single();
 
         if (template && !templateError) {
-          setFormTemplate(template);
+          setFormTemplate(template as any);
           formLoaded = true;
 
           // Initialize form data with default values
           const initialData: Record<string, any> = {};
-          for (const field of (template.fields as FormField[]) || []) {
+          for (const field of ((template as any).fields as FormField[]) || []) {
             if (field.defaultValue !== undefined) {
               initialData[field.id] = field.defaultValue;
             } else if (field.type === 'checkbox') {
@@ -935,7 +919,7 @@ export function WorkflowProgressButton({
 
       // Get next node(s) preview - handle both single and parallel branches
       // Use snapshot data for connections and nodes to ensure template changes don't break workflows
-      const nodeIdForConnections = nodeIdToLoad || instance.current_node_id;
+      const nodeIdForConnections = nodeIdToLoad || (instance as any).current_node_id;
       if (nodeIdForConnections) {
         // Get connections - prefer snapshot over live tables
         let connections: any[] = [];
@@ -950,15 +934,15 @@ export function WorkflowProgressButton({
           const { data: liveConnections } = await supabase
             .from('workflow_connections')
             .select('to_node_id, condition')
-            .eq('workflow_template_id', instance.workflow_template_id)
+            .eq('workflow_template_id', (instance as any).workflow_template_id)
             .eq('from_node_id', nodeIdForConnections);
-          connections = liveConnections || [];
+          connections = (liveConnections as any[]) || [];
         }
 
         if (connections.length > 0) {
           // Filter out decision-based connections (those are for approval routing, not parallel branches)
           const parallelConnections = connections.filter(
-            (c: any) => !c.condition?.decision && !c.condition?.conditionValue
+            (c: any) => !(c.condition as any)?.decision && !(c.condition as any)?.conditionValue
           );
 
           // Get all next node IDs
@@ -976,34 +960,34 @@ export function WorkflowProgressButton({
               .from('workflow_nodes')
               .select('*')
               .in('id', nextNodeIds);
-            allNextNodes = liveNextNodes || [];
+            allNextNodes = (liveNextNodes as any[]) || [];
           }
 
           if (allNextNodes.length > 0) {
             // Set legacy single node for backward compatibility
-            setNextNode(allNextNodes[0]);
+            setNextNode(allNextNodes[0] as any);
             // Set all next nodes for parallel support
-            setNextNodes(allNextNodes);
+            setNextNodes(allNextNodes as any);
 
             // For parallel branches, fetch users for EACH next node
             if (allNextNodes.length > 1) {
               const usersMap: Record<string, User[]> = {};
 
               for (const node of allNextNodes) {
-                if (node.entity_id) {
+                if ((node as any).entity_id) {
                   const { data: userRoles } = await supabase
                     .from('user_roles')
                     .select(`
                       user_id,
                       users!user_roles_user_id_fkey(id, name, email)
                     `)
-                    .eq('role_id', node.entity_id);
+                    .eq('role_id', (node as any).entity_id);
 
                   if (userRoles) {
-                    const users = userRoles
+                    const users = (userRoles as any[])
                       .map((ur: any) => ur.users)
-                      .filter((u: any) => u !== null);
-                    usersMap[node.id] = users;
+                      .filter((u: any) => u !== null) as User[];
+                    usersMap[(node as any).id] = users;
                   }
                 }
               }
@@ -1013,19 +997,19 @@ export function WorkflowProgressButton({
             } else {
               // Single next node - use legacy availableUsers
               const singleNode = allNextNodes[0];
-              if (singleNode.entity_id) {
+              if ((singleNode as any).entity_id) {
                 const { data: userRoles } = await supabase
                   .from('user_roles')
                   .select(`
                     user_id,
                     users!user_roles_user_id_fkey(id, name, email)
                   `)
-                  .eq('role_id', singleNode.entity_id);
+                  .eq('role_id', (singleNode as any).entity_id);
 
                 if (userRoles) {
-                  const users = userRoles
+                  const users = (userRoles as any[])
                     .map((ur: any) => ur.users)
-                    .filter((u: any) => u !== null);
+                    .filter((u: any) => u !== null) as User[];
                   setAvailableUsers(users);
                 }
               }
@@ -1082,13 +1066,13 @@ export function WorkflowProgressButton({
                 assigned_user_id,
                 workflow_nodes!inner(id, label, node_type)
               `)
-              .eq('workflow_instance_id', workflowInstanceId)
+              .eq('workflow_instance_id', workflowInstanceId as string)
               .neq('id', activeStepIdToUse || '')
               .in('status', ['active', 'completed', 'waiting']);
 
             // Filter to only parallel siblings (same base branch, same flow ID, different index)
-            const parallelSiblings = (siblingSteps || []).filter((step: any) => {
-              const stepBranchParts = step.branch_id.split('_');
+            const parallelSiblings = ((siblingSteps as any[]) || []).filter((step: any) => {
+              const stepBranchParts = (step.branch_id as string).split('_');
               const stepPrefix = stepBranchParts[0];
               const stepFlowId = stepBranchParts[1];
 
@@ -1114,27 +1098,27 @@ export function WorkflowProgressButton({
                     const { data: userData } = await supabase
                       .from('users')
                       .select('name')
-                      .eq('id', step.assigned_user_id)
+                      .eq('id', step.assigned_user_id as string)
                       .single();
-                    userName = userData?.name || 'Unknown User';
+                    userName = (userData as any)?.name || 'Unknown User';
                   }
 
                   // Check for approval decision
                   const { data: approval } = await supabase
                     .from('workflow_approvals')
                     .select('decision')
-                    .eq('workflow_instance_id', workflowInstanceId)
-                    .eq('node_id', step.node_id)
+                    .eq('workflow_instance_id', workflowInstanceId as string)
+                    .eq('node_id', step.node_id as string)
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle();
 
                   return {
-                    id: step.id,
+                    id: step.id as string,
                     userName,
                     nodeName: (step.workflow_nodes as any)?.label || 'Unknown',
                     completed: step.status === 'completed',
-                    decision: approval?.decision || null,
+                    decision: (approval as any)?.decision || null,
                   };
                 })
               );
@@ -1154,12 +1138,29 @@ export function WorkflowProgressButton({
         setIsParallelApproval(false);
         setParallelApprovers([]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [workflowInstanceId, projectId, externalActiveStepId, branchId, lastKnownUpdatedAt, loadSavedFormData]);
+
+  useEffect(() => {
+    if (workflowInstanceId && dialogOpen) {
+      // Build a unique key for this dialog session: instanceId + activeStepId
+      // This ensures we reload if either changes, but not on focus changes
+      const sessionKey = `${workflowInstanceId}-${externalActiveStepId || 'default'}`;
+
+      // Only load data if we haven't already loaded for this specific session
+      if (loadedWorkflowInstanceRef.current !== sessionKey) {
+        loadedWorkflowInstanceRef.current = sessionKey;
+        loadWorkflowData();
+      }
+    }
+    // Note: We intentionally do NOT reset the ref when dialogOpen becomes false
+    // This prevents the issue where date picker/select focus changes briefly toggle dialogOpen
+    // The ref will naturally reset when a different workflowInstanceId is loaded
+  }, [workflowInstanceId, dialogOpen, externalActiveStepId, loadWorkflowData]);
 
   // Helper to check if a field should be visible based on conditional logic
   const isFieldVisible = (field: FormField): boolean => {
@@ -1199,10 +1200,10 @@ export function WorkflowProgressButton({
             if (isNaN(Number(value))) {
               return `${field.label} must be a number`;
             }
-            if (field.validation?.min !== undefined && Number(value) < field.validation.min) {
+            if (field.validation?.min !== undefined && Number(value) < (field.validation.min as number)) {
               return `${field.label} must be at least ${field.validation.min}`;
             }
-            if (field.validation?.max !== undefined && Number(value) > field.validation.max) {
+            if (field.validation?.max !== undefined && Number(value) > (field.validation.max as number)) {
               return `${field.label} must be at most ${field.validation.max}`;
             }
             break;
@@ -1239,7 +1240,7 @@ export function WorkflowProgressButton({
     // SYNC NODES: Always require user assignment (the whole point is to assign the next step)
     if (nextNodes.length > 1 && Object.keys(usersPerNode).length > 0) {
       // Parallel branches - validate all assignments
-      const nodesRequiringAssignment = nextNodes.filter((node) =>
+      const nodesRequiringAssignment = nextNodes.filter((node:any) =>
         usersPerNode[node.id] && usersPerNode[node.id].length > 0
       );
 
@@ -1263,7 +1264,7 @@ export function WorkflowProgressButton({
       setSubmitting(true);
 
       let formResponseId: string | undefined;
-      let inlineFormData: Record<string, any> | undefined;
+      let inlineFormData: Record<string, Record<string, unknown>> | undefined;
 
       // If there's a form, handle it
       if (formTemplate) {
@@ -1273,9 +1274,9 @@ export function WorkflowProgressButton({
         if (isInlineForm) {
           // For inline forms, pass the form data directly to the workflow progress endpoint
           inlineFormData = {
-            formName: formTemplate.name,
-            formDescription: formTemplate.description,
-            fields: formTemplate.fields,
+            formName: formTemplate.name as any,
+            formDescription: formTemplate.description as any,
+            fields: formTemplate.fields as any,
             responses: formData,
           };
         } else {
@@ -1353,7 +1354,7 @@ export function WorkflowProgressButton({
       router.refresh();
     } catch (error: any) {
       console.error('Error progressing workflow:', error);
-      toast.error(error.message || 'Failed to progress workflow');
+      toast.error(error?.message || 'Failed to progress workflow');
     } finally {
       setSubmitting(false);
     }
@@ -1408,7 +1409,8 @@ export function WorkflowProgressButton({
   const isFormNode = currentNode?.node_type === 'form';
   const isSyncNode = currentNode?.node_type === 'sync';
   // formTemplate is loaded from either inline settings or linked form_template_id
-  const hasFormTemplate = formTemplate !== null;
+  const _hasFormTemplate = formTemplate !== null;
+
 
   return (
     <>
@@ -1446,172 +1448,73 @@ export function WorkflowProgressButton({
             </DialogDescription>
           </DialogHeader>
 
-          {loading ? (
+          {loading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
-          ) : (
+          )}
+          {!loading && (
             <div className="space-y-4 py-4 overflow-y-auto flex-1 min-h-0">
-              {/* Stale Data Warning */}
-              {isStaleData && (
-                <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-800">
-                        This workflow was updated by another user
-                      </p>
-                      <p className="text-xs text-amber-700 mt-1">
-                        Please refresh to see the latest state before making changes.
-                      </p>
+              {/* Current and Next Step Information */}
+              {currentNode && (nextNode || nextNodes.length > 0) && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">Current Step</span>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setLastKnownUpdatedAt(null);
-                        setIsStaleData(false);
-                        loadWorkflowData();
-                        router.refresh();
-                      }}
-                      className="flex-shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-1" />
-                      Refresh
-                    </Button>
+                    <div className="flex items-center gap-2 ml-6">
+                      <Badge className="bg-blue-100 text-blue-800 text-xs">
+                        {currentNode.node_type}
+                      </Badge>
+                      <span className="text-sm text-blue-800">{currentNode.label}</span>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* Open Issues Alert */}
-              {!loadingIssues && projectIssues.length > 0 && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-red-800">
-                        Open Issues ({projectIssues.length})
-                      </p>
-                      <p className="text-xs text-red-700 mt-1 mb-2">
-                        The following issues are currently open for this project. Consider these when making your decision.
-                      </p>
-                      <ul className="space-y-1">
-                        {projectIssues.map((issue) => (
-                          <li key={issue.id} className="text-xs text-red-700 flex items-start gap-1">
-                            <span className="text-red-400 mt-0.5">•</span>
-                            <span className="line-clamp-2">{renderMarkdownContent(issue.content)}</span>
-                          </li>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <ArrowRight className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">Next Step</span>
+                    </div>
+                    {nextNodes.length > 1 ? (
+                      <div className="ml-6 space-y-2">
+                        {nextNodes.map((node:any, index:number) => (
+                          <div key={node.id} className="flex items-center gap-2">
+                            <Badge className="bg-purple-100 text-purple-800 text-xs">
+                              {node.node_type}
+                            </Badge>
+                            <span className="text-sm text-blue-800">{node.label}</span>
+                            {index < nextNodes.length - 1 && <span className="text-xs text-gray-400">&</span>}
+                          </div>
                         ))}
-                      </ul>
-                    </div>
+                        <p className="text-xs text-blue-600">Multiple parallel branches</p>
+                      </div>
+                    ) : nextNode ? (
+                      <div className="flex items-center gap-2 ml-6">
+                        <Badge className="bg-purple-100 text-purple-800 text-xs">
+                          {nextNode.node_type}
+                        </Badge>
+                        <span className="text-sm text-blue-800">{nextNode.label}</span>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              )}
 
-              {/* Current Step */}
-              <div className={`p-4 border rounded-lg ${isSyncNode ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
-                <Label className={`text-sm font-medium ${isSyncNode ? 'text-amber-900' : 'text-blue-900'}`}>Current Step</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className={isSyncNode ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}>
-                    {currentNode?.node_type}
-                  </Badge>
-                  <span className="font-medium">{currentNode?.label}</span>
-                  {branchId && branchId !== 'main' && (
-                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                      {branchId}
-                    </Badge>
+                  {availableUsers.length > 0 && nextNodes.length <= 1 && (
+                    <div className="text-xs text-blue-600 flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      {availableUsers.length} user{availableUsers.length !== 1 ? 's' : ''} available for assignment
+                    </div>
                   )}
                 </div>
-                {isSyncNode && (
-                  <p className={`text-xs mt-2 ${isSyncNode ? 'text-amber-700' : 'text-blue-700'}`}>
-                    All parallel branches have merged. Please assign someone to continue the workflow.
-                  </p>
-                )}
-                {(workflowInstance?.started_snapshot?.template_name || workflowInstance?.workflow_templates?.name) && (
-                  <p className={`text-xs mt-1 ${isSyncNode ? 'text-amber-700' : 'text-blue-700'}`}>
-                    Workflow: {workflowInstance.started_snapshot?.template_name || workflowInstance.workflow_templates?.name?.replace(/^\[DELETED\]\s*/, '')}
-                  </p>
-                )}
-              </div>
-
-              {/* Parallel Approvers Info - shows other users approving in parallel */}
-              {isParallelApproval && parallelApprovers.length > 0 && (
-                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <Label className="text-sm font-medium text-purple-900">Other Approvers (Parallel)</Label>
-                  <div className="mt-2 space-y-2">
-                    {parallelApprovers.map((approver) => (
-                      <div key={approver.id} className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm text-purple-800">{approver.userName}</span>
-                        <span className="text-xs text-purple-600">({approver.nodeName})</span>
-                        <Badge
-                          variant={approver.completed ? 'default' : 'outline'}
-                          className={
-                            approver.completed
-                              ? approver.decision === 'approved'
-                                ? 'bg-green-100 text-green-800 border-green-300'
-                                : approver.decision === 'rejected'
-                                ? 'bg-red-100 text-red-800 border-red-300'
-                                : 'bg-gray-100 text-gray-800'
-                              : 'border-purple-300 text-purple-700'
-                          }
-                        >
-                          {approver.completed
-                            ? approver.decision
-                              ? approver.decision.charAt(0).toUpperCase() + approver.decision.slice(1)
-                              : 'Completed'
-                            : 'Pending'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-purple-700 mt-2">
-                    All parallel approvers must complete before the workflow continues to the sync point.
-                  </p>
-                </div>
               )}
 
-              {/* Next Step Preview - handles both single and parallel branches */}
-              {nextNodes.length > 1 ? (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <Label className="text-sm font-medium text-green-900">Next Steps (Parallel)</Label>
-                  <div className="space-y-2 mt-2">
-                    {nextNodes.map((node, index) => (
-                      <div key={node.id} className="flex items-center gap-2">
-                        <ArrowRight className="w-4 h-4 text-green-600" />
-                        <Badge className="bg-green-100 text-green-800">
-                          {node.node_type}
-                        </Badge>
-                        <span className="font-medium">{node.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-green-700 mt-2">
-                    These steps will run in parallel
-                  </p>
-                </div>
-              ) : nextNode && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <Label className="text-sm font-medium text-green-900">Next Step</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <ArrowRight className="w-4 h-4 text-green-600" />
-                    <Badge className="bg-green-100 text-green-800">
-                      {nextNode.node_type}
-                    </Badge>
-                    <span className="font-medium">{nextNode.label}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* User Assignment Selection - parallel branches */}
               {nextNodes.length > 1 && Object.keys(usersPerNode).length > 0 && (
                 <div className="space-y-4">
                   <Label className="text-sm font-medium">Assign Users to Each Step *</Label>
                   <p className="text-xs text-gray-500 -mt-2">
                     Select a user for each parallel workflow branch
                   </p>
-                  {nextNodes.map((node) => {
+                  {nextNodes.map((node:any) => {
                     const nodeUsers = usersPerNode[node.id] || [];
                     if (nodeUsers.length === 0) return null;
 
@@ -1633,9 +1536,9 @@ export function WorkflowProgressButton({
                             <SelectValue placeholder={`Select ${node.label} assignee`} />
                           </SelectTrigger>
                           <SelectContent>
-                            {nodeUsers.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name}
+                            {nodeUsers.map((user:any) => (
+                              <SelectItem key={(user as any).id} value={(user as any).id}>
+                                {(user as any).name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1657,9 +1560,9 @@ export function WorkflowProgressButton({
                       <SelectValue placeholder={isSyncNode ? 'Select who will handle the next step' : 'Select a user to assign'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {nextNode?.label} - {user.name}
+                      {availableUsers.map((user:any) => (
+                        <SelectItem key={(user as any).id} value={(user as any).id}>
+                          {nextNode?.label} - {(user as any).name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1672,8 +1575,7 @@ export function WorkflowProgressButton({
                 </div>
               )}
 
-              {/* Approval Decision (for approval nodes) */}
-              {isApprovalNode && (
+              {(isApprovalNode && (
                 <div className="space-y-3">
                   <Label>Decision *</Label>
                   <div className="grid grid-cols-2 gap-2">
@@ -1697,10 +1599,10 @@ export function WorkflowProgressButton({
                     </Button>
                   </div>
                 </div>
-              )}
+              )) as React.ReactNode}
 
               {/* Feedback/Notes */}
-              {(isApprovalNode || currentNode?.settings?.allow_feedback) && (
+              {((isApprovalNode || currentNode?.settings?.allow_feedback) && (
                 <div className="space-y-2">
                   <Label htmlFor="feedback">
                     {isApprovalNode ? 'Feedback (Optional)' : 'Notes (Optional)'}
@@ -1717,10 +1619,10 @@ export function WorkflowProgressButton({
                     rows={4}
                   />
                 </div>
-              )}
+              )) as React.ReactNode}
 
               {/* Existing Form Data (already submitted - show read-only) */}
-              {existingFormData && (
+              {(existingFormData && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <FileText className="w-5 h-5 text-green-600" />
@@ -1733,12 +1635,12 @@ export function WorkflowProgressButton({
 
                   <div className="p-4 bg-gray-50 rounded-lg space-y-3">
                     {existingFormData.fields?.map((field: any) => {
-                      const value = existingFormData.data[field.id];
+                      const value = existingFormData.data[(field.id as string)];
                       if (value === undefined || value === null || value === '') return null;
 
                       return (
-                        <div key={field.id} className="flex flex-col">
-                          <span className="text-xs text-gray-500 font-medium">{field.label}</span>
+                        <div key={field.id as string} className="flex flex-col">
+                          <span className="text-xs text-gray-500 font-medium">{field.label as string}</span>
                           <span className="text-sm text-gray-900">
                             {Array.isArray(value) ? value.join(', ') :
                              typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
@@ -1758,10 +1660,10 @@ export function WorkflowProgressButton({
                     ))}
                   </div>
                 </div>
-              )}
+              )) as React.ReactNode}
 
               {/* Form Fields (for nodes with form templates) - only show if no existing submission */}
-              {formTemplate && !existingFormData && (
+              {(formTemplate && !existingFormData && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <FileText className="w-5 h-5 text-purple-600" />
@@ -1773,7 +1675,7 @@ export function WorkflowProgressButton({
                     </div>
                   </div>
 
-                  {formTemplate.fields.map((field) => {
+                  {formTemplate.fields.map((field:any) => {
                     // Check conditional visibility
                     if (!isFieldVisible(field)) return null;
 
@@ -1790,7 +1692,7 @@ export function WorkflowProgressButton({
                             id={`form-${field.id}`}
                             type="text"
                             placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
+                            value={String(formData[field.id] || '')}
                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                           />
                         )}
@@ -1801,7 +1703,7 @@ export function WorkflowProgressButton({
                             id={`form-${field.id}`}
                             type="email"
                             placeholder={field.placeholder || 'email@example.com'}
-                            value={formData[field.id] || ''}
+                            value={String(formData[field.id] || '')}
                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                           />
                         )}
@@ -1812,7 +1714,7 @@ export function WorkflowProgressButton({
                             id={`form-${field.id}`}
                             type="url"
                             placeholder={field.placeholder || 'https://example.com'}
-                            value={formData[field.id] || ''}
+                            value={String(formData[field.id] || '')}
                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                           />
                         )}
@@ -1823,9 +1725,9 @@ export function WorkflowProgressButton({
                             id={`form-${field.id}`}
                             type="number"
                             placeholder={field.placeholder}
-                            min={field.validation?.min}
-                            max={field.validation?.max}
-                            value={formData[field.id] || ''}
+                            min={field.validation?.min as number}
+                            max={field.validation?.max as number}
+                            value={String(formData[field.id] || '')}
                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                           />
                         )}
@@ -1835,7 +1737,7 @@ export function WorkflowProgressButton({
                           <Input
                             id={`form-${field.id}`}
                             type="date"
-                            value={formData[field.id] || ''}
+                            value={String(formData[field.id] || '')}
                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                           />
                         )}
@@ -1845,7 +1747,7 @@ export function WorkflowProgressButton({
                           <Textarea
                             id={`form-${field.id}`}
                             placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
+                            value={String(formData[field.id] || '')}
                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                             rows={4}
                           />
@@ -1854,14 +1756,14 @@ export function WorkflowProgressButton({
                         {/* Dropdown Select */}
                         {field.type === 'dropdown' && field.options && (
                           <Select
-                            value={formData[field.id] || ''}
+                            value={String(formData[field.id] || '')}
                             onValueChange={(value) => setFormData({ ...formData, [field.id]: value })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder={field.placeholder || 'Select an option'} />
                             </SelectTrigger>
                             <SelectContent>
-                              {field.options.map((option) => (
+                              {field.options.map((option:any) => (
                                 <SelectItem key={option} value={option}>
                                   {option}
                                 </SelectItem>
@@ -1875,7 +1777,7 @@ export function WorkflowProgressButton({
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               id={`form-${field.id}`}
-                              checked={formData[field.id] || false}
+                              checked={Boolean(formData[field.id])}
                               onCheckedChange={(checked) => setFormData({ ...formData, [field.id]: checked })}
                             />
                             <label
@@ -1890,16 +1792,16 @@ export function WorkflowProgressButton({
                         {/* Multiselect (as multiple checkboxes) */}
                         {field.type === 'multiselect' && field.options && (
                           <div className="space-y-2">
-                            {field.options.map((option) => (
+                            {field.options.map((option:any) => (
                               <div key={option} className="flex items-center space-x-2">
                                 <Checkbox
                                   id={`form-${field.id}-${option}`}
-                                  checked={(formData[field.id] || []).includes(option)}
+                                  checked={Array.isArray(formData[field.id]) && (formData[field.id] as any[]).includes(option)}
                                   onCheckedChange={(checked) => {
-                                    const currentValues = formData[field.id] || [];
+                                    const currentValues = Array.isArray(formData[field.id]) ? formData[field.id] as any[] : [];
                                     const newValues = checked
                                       ? [...currentValues, option]
-                                      : currentValues.filter((v: string) => v !== option);
+                                      : currentValues.filter((v: any) => v !== option);
                                     setFormData({ ...formData, [field.id]: newValues });
                                   }}
                                 />
@@ -1926,16 +1828,16 @@ export function WorkflowProgressButton({
                     );
                   })}
                 </div>
-              )}
+              )) as React.ReactNode}
 
               {/* Show message if form node but form template not found */}
-              {isFormNode && !formTemplate && !loading && (
+              {(isFormNode && !formTemplate && !loading && (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
                     This step requires a form, but no form template has been configured for this workflow node.
                   </p>
                 </div>
-              )}
+              )) as React.ReactNode}
             </div>
           )}
 

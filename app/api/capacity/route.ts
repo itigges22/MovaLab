@@ -9,6 +9,12 @@ import { capacityService } from '@/lib/services/capacity-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 /**
  * GET /api/capacity
  * Get capacity metrics
@@ -52,10 +58,10 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case 'user': {
-        const userId = id ?? userProfile.id;
+        const userId = id ?? (userProfile as any).id;
         
         // Permission check
-        const isOwnData = userId === userProfile.id;
+        const isOwnData = userId === (userProfile as any).id;
         if (!isOwnData) {
           const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
           const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
@@ -148,10 +154,11 @@ export async function GET(request: NextRequest) {
       success: true,
       metrics,
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/capacity:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/capacity:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

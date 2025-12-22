@@ -25,8 +25,7 @@ export interface WorkflowNodeData {
     formTemplateName?: string;
     allowAttachments?: boolean;
     // Inline form config (stored directly in node, not in form_templates)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    formFields?: any[];
+    formFields?: Record<string, unknown>[];
     formName?: string;
     formDescription?: string;
     isDraftForm?: boolean;

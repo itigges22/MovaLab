@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: LOG_TIME
-    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME, undefined, supabase);
+    const canLogTime = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
     if (!canLogTime) {
       return NextResponse.json(
         { error: 'Insufficient permissions to log time' },
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from('clock_sessions')
       .select('*')
-      .eq('user_id', userProfile.id)
+      .eq('user_id', (userProfile as any).id)
       .eq('is_active', true)
       .single();
 
@@ -110,9 +110,9 @@ export async function POST(request: NextRequest) {
     const weekStartDate = monday.toISOString().split('T')[0];
 
     // Create time entries for each allocation
-    const timeEntries = allocations.map(allocation => ({
+    const timeEntries = allocations.map((allocation: any) => ({
       task_id: allocation.taskId ?? null,
-      user_id: userProfile.id,
+      user_id: (userProfile as any).id,
       project_id: allocation.projectId,
       hours_logged: Math.round(allocation.hours * 100) / 100, // Round to 2 decimals
       entry_date: entryDate,
@@ -169,10 +169,11 @@ export async function POST(request: NextRequest) {
         entriesCreated: createdEntries?.length || 0
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/clock/out:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: errorMessage },
       { status: 500 }
     );
   }

@@ -1,3 +1,4 @@
+
 import { createClientSupabase } from './supabase';
 import { addDays } from 'date-fns';
 
@@ -85,7 +86,7 @@ class SupabaseTaskService {
   private initialized = false;
 
   private getSupabase() {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase client not available');
     }
@@ -109,7 +110,7 @@ class SupabaseTaskService {
       // Try to create tables if they don't exist
       await this.ensureTablesExist();
       this.initialized = true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error initializing Supabase:', error);
       this.initialized = true;
     }
@@ -121,7 +122,7 @@ class SupabaseTaskService {
       
       // Test basic connection
       const supabase = this.getSupabase();
-      const { data, error } = await supabase
+      const { _data, error } = await supabase
         .from('groups')
         .select('count')
         .limit(1);
@@ -133,7 +134,7 @@ class SupabaseTaskService {
       
       console.log('✅ Supabase connection successful');
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Supabase connection test failed:', error);
       throw error;
     }
@@ -150,7 +151,7 @@ class SupabaseTaskService {
         console.log('Go to: https://supabase.com/dashboard -> SQL Editor');
         console.log('Copy and paste the contents of supabase-schema.sql');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking tables:', error);
     }
   }
@@ -181,7 +182,7 @@ class SupabaseTaskService {
       if (error) throw error;
 
       return (data || []).map(this.mapDatabaseTaskToTask);
-    } catch (error) {
+    } catch (_error: unknown) {
       console.warn('Supabase not available, using fallback data');
       return this.getFallbackTasks();
     }
@@ -190,13 +191,13 @@ class SupabaseTaskService {
   // Get tasks by status/column
   async getTasksByColumn(columnId: string): Promise<Task[]> {
     const tasks = await this.getAllTasks();
-    return tasks.filter(task => task.column === columnId);
+    return tasks.filter((task: any) => task.column === columnId);
   }
 
   // Get tasks by group
   async getTasksByGroup(groupId: string): Promise<Task[]> {
     const tasks = await this.getAllTasks();
-    return tasks.filter(task => task.group.id === groupId);
+    return tasks.filter((task: any) => task.group.id === groupId);
   }
 
   // Get task by ID
@@ -217,7 +218,7 @@ class SupabaseTaskService {
 
       if (error) throw error;
       return data ? this.mapDatabaseTaskToTask(data) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching task:', error);
       return null;
     }
@@ -289,7 +290,7 @@ class SupabaseTaskService {
       
       console.log('Task created successfully in database:', taskData);
       return taskData ? this.mapDatabaseTaskToTask(taskData) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating task:', error);
       return this.createFallbackTask(data);
     }
@@ -308,7 +309,7 @@ class SupabaseTaskService {
     
     try {
       // First check if the task exists in the database
-      const { data: existingTask, error: checkError } = await this.getSupabase()
+      const { data: _existingTask, error: checkError } = await this.getSupabase()
         .from('tasks')
         .select('id')
         .eq('id', data.id)
@@ -318,7 +319,7 @@ class SupabaseTaskService {
         console.log('Task not found in database, skipping update:', data.id);
         return null;
       }
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (data.name) updateData.name = data.name;
       if (data.description !== undefined) updateData.description = data.description;
       if (data.startAt) updateData.start_at = data.startAt.toISOString();
@@ -353,7 +354,7 @@ class SupabaseTaskService {
         return null;
       }
       return taskData ? this.mapDatabaseTaskToTask(taskData) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating task:', error);
       return null;
     }
@@ -371,7 +372,7 @@ class SupabaseTaskService {
 
       if (error) throw error;
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting task:', error);
       return false;
     }
@@ -406,7 +407,7 @@ class SupabaseTaskService {
 
           if (error) throw error;
           return data || [];
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error fetching users:', error);
           return this.getFallbackUsers();
         }
@@ -456,7 +457,7 @@ class SupabaseTaskService {
 
           console.log('User created successfully:', userData);
           return userData;
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error creating user:', error);
           console.log('Falling back to local user creation');
           return this.createFallbackUser(data);
@@ -554,7 +555,7 @@ class SupabaseTaskService {
           }
 
           return true;
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error deleting user:', error);
           return false;
         }
@@ -572,7 +573,7 @@ class SupabaseTaskService {
 
           if (error) throw error;
           return data || [];
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error fetching groups:', error);
           return this.getFallbackGroups();
         }
@@ -593,7 +594,7 @@ class SupabaseTaskService {
           console.log('Supabase client status:', {
             isConnected: !!supabase,
             url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-            hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
           });
           
           const { data: groupData, error } = await this.getSupabase()
@@ -638,7 +639,7 @@ class SupabaseTaskService {
 
           console.log('Group created successfully:', groupData);
           return groupData;
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error creating group:', error);
           console.log('Falling back to local group creation');
           return this.createFallbackGroup(data);
@@ -735,7 +736,7 @@ class SupabaseTaskService {
           }
 
           return true;
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error deleting group:', error);
           return false;
         }
@@ -753,7 +754,7 @@ class SupabaseTaskService {
 
       if (error) throw error;
       return data || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching statuses:', error);
       return [];
     }
@@ -765,14 +766,14 @@ class SupabaseTaskService {
     const statuses = await this.getStatuses();
     
     const total = tasks.length;
-    const byStatus = statuses.map(status => ({
+    const byStatus = statuses.map((status: any) => ({
       status: status.name,
-      count: tasks.filter(task => task.status.id === status.id).length,
+      count: tasks.filter((task: any) => task.status.id === status.id).length,
       color: status.color,
     }));
-    const byPriority = ['high', 'medium', 'low'].map(priority => ({
+    const byPriority = ['high', 'medium', 'low'].map((priority: any) => ({
       priority,
-      count: tasks.filter(task => task.priority === priority).length,
+      count: tasks.filter((task: any) => task.priority === priority).length,
     }));
 
     return {
@@ -806,9 +807,9 @@ class SupabaseTaskService {
       { id: 'done', name: 'Done', color: '#10B981' },
     ];
 
-    const user = users.find(u => u.id === data.ownerId) || users[0];
-    const group = groups.find(g => g.id === data.groupId) || groups[0];
-    const status = statuses.find(s => s.id === data.statusId) || statuses[0];
+    const user = users.find((u: any) => u.id === data.ownerId) || users[0];
+    const group = groups.find((g: any) => g.id === data.groupId) || groups[0];
+    const status = statuses.find((s: any) => s.id === data.statusId) || statuses[0];
 
     return {
       id: `task-${Date.now()}`,
@@ -990,7 +991,7 @@ class SupabaseTaskService {
 
       console.log('Database milestones result:', data);
       return (data || []).map(this.mapDatabaseMilestoneToMilestone);
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Supabase not available, using fallback milestones', error);
       return this.getFallbackMilestones();
     }
@@ -1021,7 +1022,7 @@ class SupabaseTaskService {
       }
 
       return this.mapDatabaseMilestoneToMilestone(milestoneData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating milestone:', error);
       return this.createFallbackMilestone(data);
     }
@@ -1035,7 +1036,7 @@ class SupabaseTaskService {
     }
 
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (data.name) updateData.name = data.name;
       if (data.description !== undefined) updateData.description = data.description;
       if (data.date) updateData.date = data.date.toISOString();
@@ -1054,7 +1055,7 @@ class SupabaseTaskService {
       }
 
       return this.mapDatabaseMilestoneToMilestone(milestoneData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating milestone:', error);
       return null;
     }
@@ -1079,7 +1080,7 @@ class SupabaseTaskService {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting milestone:', error);
       return false;
     }

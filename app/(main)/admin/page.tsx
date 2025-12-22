@@ -135,7 +135,7 @@ export default function AdminHubPage() {
       <div>
         <h2 className="text-2xl font-semibold mb-4">User Management</h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {userManagementFeatures.map((feature) => {
+          {userManagementFeatures.map((feature:any) => {
             const Icon = feature.icon;
             return (
               <Card key={feature.title} className={`hover:shadow-lg transition-shadow ${feature.borderColor}`}>
@@ -156,7 +156,7 @@ export default function AdminHubPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-1">
-                    {feature.features.map((item, idx) => (
+                    {feature.features.map((item:any, idx:any) => (
                       <li key={idx} className="text-sm flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-current" />
                         {item}
@@ -174,7 +174,7 @@ export default function AdminHubPage() {
       <div>
         <h2 className="text-2xl font-semibold mb-4">Workflow & Client Management</h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {workflowClientFeatures.map((feature) => {
+          {workflowClientFeatures.map((feature:any) => {
             const Icon = feature.icon;
             return (
               <Card key={feature.title} className={`hover:shadow-lg transition-shadow ${feature.borderColor}`}>
@@ -195,7 +195,7 @@ export default function AdminHubPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-1">
-                    {feature.features.map((item, idx) => (
+                    {feature.features.map((item:any, idx:any) => (
                       <li key={idx} className="text-sm flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-current" />
                         {item}
@@ -213,7 +213,7 @@ export default function AdminHubPage() {
       <div>
         <h2 className="text-2xl font-semibold mb-4">System Settings</h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {systemSettingsFeatures.map((feature) => {
+          {systemSettingsFeatures.map((feature:any) => {
             const Icon = feature.icon;
             return (
               <Card key={feature.title} className={`hover:shadow-lg transition-shadow ${feature.borderColor}`}>
@@ -234,7 +234,7 @@ export default function AdminHubPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-1">
-                    {feature.features.map((item, idx) => (
+                    {feature.features.map((item:any, idx:any) => (
                       <li key={idx} className="text-sm flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-current" />
                         {item}

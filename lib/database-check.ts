@@ -1,3 +1,4 @@
+
 import { createClientSupabase } from './supabase';
 
 /**
@@ -5,7 +6,7 @@ import { createClientSupabase } from './supabase';
  * @returns Object with check results
  */
 export async function checkDatabaseSchema() {
-  const supabase = createClientSupabase();
+  const supabase = createClientSupabase() as any;
   if (!supabase) {
     return {
       success: false,
@@ -19,7 +20,7 @@ export async function checkDatabaseSchema() {
 
   try {
     // Check if user_profiles table exists
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: _profiles, error: profilesError } = await supabase
       .from('user_profiles')
       .select('id')
       .limit(1);
@@ -41,7 +42,7 @@ export async function checkDatabaseSchema() {
     }
 
     // Check if departments table exists
-    const { data: departments, error: departmentsError } = await supabase
+    const { data: _departments, error: departmentsError } = await supabase
       .from('departments')
       .select('id')
       .limit(1);
@@ -63,7 +64,7 @@ export async function checkDatabaseSchema() {
     }
 
     // Check if roles table exists
-    const { data: roles, error: rolesError } = await supabase
+    const { data: _roles, error: rolesError } = await supabase
       .from('roles')
       .select('id')
       .limit(1);
@@ -90,7 +91,7 @@ export async function checkDatabaseSchema() {
       details: checks
     };
 
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: `Database check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -107,7 +108,7 @@ export async function checkDatabaseSchema() {
  * @returns Test result
  */
 export async function testUserProfileCreation(userId: string, email: string, name: string) {
-  const supabase = createClientSupabase();
+  const supabase = createClientSupabase() as any;
   if (!supabase) {
     return {
       success: false,
@@ -116,8 +117,8 @@ export async function testUserProfileCreation(userId: string, email: string, nam
   }
 
   try {
-    const { data, error } = await supabase
-      .from('user_profiles')
+    const { data, error } = await (supabase
+      .from('user_profiles') as any)
       .insert({
         id: userId,
         email,
@@ -146,7 +147,7 @@ export async function testUserProfileCreation(userId: string, email: string, nam
       data
     };
 
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: `Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`

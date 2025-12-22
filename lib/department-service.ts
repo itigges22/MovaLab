@@ -1,5 +1,5 @@
 import { createServerSupabase } from './supabase-server';
-import { Department, Project, UserProfile, UserRole, Role } from './supabase';
+import { Department, Project } from './supabase';
 
 // Department service for managing department data and analytics
 
@@ -65,7 +65,7 @@ interface ProjectWithRelations {
   }[];
 }
 
-interface TeamMemberWithRelations {
+interface _TeamMemberWithRelations {
   user_id: string;
   user_profiles: {
     id: string;
@@ -114,7 +114,7 @@ class ServerDepartmentService {
       }
 
       return data || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAllDepartments:', error);
       return [];
     }
@@ -140,7 +140,7 @@ class ServerDepartmentService {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getDepartmentById:', error);
       return null;
     }
@@ -251,7 +251,7 @@ class ServerDepartmentService {
       const typedAssignments = (assignments as unknown as TaskAssignmentWithRelations[]) || [];
 
       const now = new Date();
-      return typedProjects.map(project => {
+      return typedProjects.map((project: any) => {
         let healthStatus: 'healthy' | 'at_risk' | 'critical' = 'healthy';
         let daysUntilDeadline: number | null = null;
 
@@ -266,11 +266,11 @@ class ServerDepartmentService {
           }
         }
 
-        const projectAssignments = typedAssignments.filter(a => 
+        const projectAssignments = typedAssignments.filter((a: any) => 
           a.tasks?.project_id === project.id
         );
 
-        const assignedUsers = projectAssignments.map(a => ({
+        const assignedUsers = projectAssignments.map((a: any) => ({
           id: a.user_profiles?.id || '',
           name: a.user_profiles?.name || 'Unknown',
           image: a.user_profiles?.image || null
@@ -292,7 +292,7 @@ class ServerDepartmentService {
           daysUntilDeadline
         };
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getDepartmentProjects:', error);
       return [];
     }
@@ -331,8 +331,8 @@ class ServerDepartmentService {
 
     // If department has no roles, it has no projects
     if (roleIds.length === 0) {
-      const activeProjects: any[] = [];
-      const teamSize = 0;
+      const _activeProjects: Record<string, unknown>[] = [];
+      const _teamSize = 0;
       return {
         id: department.id,
         name: department.name,
@@ -396,7 +396,7 @@ class ServerDepartmentService {
 
     // Extract unique project IDs
     const projectIds = Array.from(new Set(projectAssignments?.map((a: any) => a.project_id) || []));
-    let projects: any[] = [];
+    let projects: Record<string, unknown>[] = [];
 
     if (projectIds.length > 0) {
       // Fetch projects separately
@@ -444,8 +444,7 @@ class ServerDepartmentService {
 
     // Get user profiles separately
     const userProfileIds = Array.from(new Set(userRolesData?.map((ur: any) => ur.user_id) || []));
-    let teamMembers: any[] = [];
-    let teamError: any = null;
+    let teamMembers: Record<string, unknown>[] = [];
 
     if (userProfileIds.length > 0) {
       const { data: profilesData, error: profilesError } = await supabase
@@ -455,7 +454,6 @@ class ServerDepartmentService {
 
       if (profilesError) {
         console.error('Error fetching user profiles for department metrics:', profilesError);
-        teamError = profilesError;
       } else {
         // Map user_roles to user_profiles
         teamMembers = (profilesData || []).map((profile: any) => ({
@@ -470,11 +468,11 @@ class ServerDepartmentService {
     ) || [];
 
     // Deduplicate users by ID in case they have multiple roles in the same department
-    const uniqueUsers = new Map();
+    const uniqueUsers = new Map<string, Record<string, unknown>>();
     (teamMembers || []).forEach((member: any) => {
-      const user = member.user_profiles;
-      if (user && !uniqueUsers.has(user.id)) {
-        uniqueUsers.set(user.id, user);
+      const user = member.user_profiles as Record<string, unknown>;
+      if (user && !uniqueUsers.has((user as any).id as string)) {
+        uniqueUsers.set((user as any).id as string, user);
       }
     });
     const teamSize = uniqueUsers.size;
@@ -487,13 +485,13 @@ class ServerDepartmentService {
     };
 
     const now = new Date();
-    activeProjects.forEach((project: Project) => {
+    activeProjects.forEach((project: any) => {
       if (!project.end_date) {
         projectHealth.healthy++;
         return;
       }
 
-      const endDate = new Date(project.end_date);
+      const endDate = new Date(project.end_date as string);
       const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
       if (daysUntilDeadline < 0) {
@@ -517,7 +515,7 @@ class ServerDepartmentService {
     const teamUserIds = Array.from(uniqueUsers.keys());
 
     // Fetch actual hours logged this week for all users
-    let timeEntriesMap = new Map<string, number>();
+    const timeEntriesMap = new Map<string, number>();
     if (teamUserIds.length > 0) {
       const { data: timeEntries, error: timeError } = await supabase
         .from('time_entries')
@@ -527,14 +525,14 @@ class ServerDepartmentService {
 
       if (!timeError && timeEntries) {
         timeEntries.forEach((entry: any) => {
-          const current = timeEntriesMap.get(entry.user_id) || 0;
-          timeEntriesMap.set(entry.user_id, current + (entry.hours_logged || 0));
+          const current = timeEntriesMap.get(entry.user_id as string) || 0;
+          timeEntriesMap.set(entry.user_id as string, current + ((entry.hours_logged as number) || 0));
         });
       }
     }
 
     // Fetch availability for all users this week
-    let availabilityMap = new Map<string, number>();
+    const availabilityMap = new Map<string, number>();
     if (teamUserIds.length > 0) {
       const { data: availability, error: availError} = await supabase
         .from('user_availability')
@@ -544,15 +542,15 @@ class ServerDepartmentService {
 
       if (!availError && availability) {
         availability.forEach((avail: any) => {
-          availabilityMap.set(avail.user_id, avail.available_hours || 0);
+          availabilityMap.set(avail.user_id as string, (avail.available_hours as number) || 0);
         });
       }
     }
 
     // Calculate workload distribution with real data
     const workloadDistribution = Array.from(uniqueUsers.values()).map((user: any) => {
-      const actualHours = timeEntriesMap.get(user.id) || 0;
-      const availableHours = availabilityMap.get(user.id) || 0; // Default 0 hours/week if not set
+      const actualHours = timeEntriesMap.get((user as any).id as string) || 0;
+      const availableHours = availabilityMap.get((user as any).id as string) || 0; // Default 0 hours/week if not set
 
       // Calculate utilization percentage
       const workloadPercentage = availableHours > 0
@@ -570,9 +568,9 @@ class ServerDepartmentService {
       }
 
       return {
-        userId: user.id,
-        userName: user.name,
-        userImage: user.image,
+        userId: (user as any).id as string,
+        userName: (user as any).name as string,
+        userImage: (user as any).image as string | null,
         workloadPercentage,
         workloadSentiment,
         actualHours,
@@ -582,10 +580,10 @@ class ServerDepartmentService {
 
     // Calculate overall capacity utilization
     const totalAvailableHours = workloadDistribution.reduce((sum: number, member: any) =>
-      sum + (member?.availableHours || 0), 0
+      sum + ((member?.availableHours as number) || 0), 0
     );
     const totalActualHours = workloadDistribution.reduce((sum: number, member: any) =>
-      sum + (member?.actualHours || 0), 0
+      sum + ((member?.actualHours as number) || 0), 0
     );
     const capacityUtilization = totalAvailableHours > 0
       ? (totalActualHours / totalAvailableHours) * 100

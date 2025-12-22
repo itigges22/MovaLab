@@ -2,7 +2,7 @@
 import { toast } from 'sonner';
 
 // Account edit dialog - requires EDIT_ACCOUNT permission
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -27,35 +27,39 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [canEditAccount, setCanEditAccount] = useState(false);
+
+  // Memoize account ID to avoid complex expression in deps
+  const accountId = useMemo(() => (account as any).id, [account]);
+
   const [formData, setFormData] = useState({
-    name: account.name || '',
-    description: account.description || '',
-    primary_contact_name: account.primary_contact_name || '',
-    primary_contact_email: account.primary_contact_email || '',
-    status: (account.status || 'active') as 'active' | 'inactive' | 'suspended'
+    name: (account as any).name || '',
+    description: (account as any).description || '',
+    primary_contact_name: (account as any).primary_contact_name || '',
+    primary_contact_email: (account as any).primary_contact_email || '',
+    status: ((account as any).status || 'active') as 'active' | 'inactive' | 'suspended'
   });
 
   // Check permissions
   useEffect(() => {
     if (!userProfile) return;
-    
+
     async function checkPermissions() {
-      const canEdit = await hasPermission(userProfile, Permission.EDIT_ACCOUNT, { accountId: account.id });
+      const canEdit = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS, { accountId });
       setCanEditAccount(canEdit);
     }
-    
+
     checkPermissions();
-  }, [userProfile, account.id]);
+  }, [userProfile, accountId]);
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setFormData({
-        name: account.name || '',
-        description: account.description || '',
-        primary_contact_name: account.primary_contact_name || '',
-        primary_contact_email: account.primary_contact_email || '',
-        status: (account.status || 'active') as 'active' | 'inactive' | 'suspended'
+        name: (account as any).name || '',
+        description: (account as any).description || '',
+        primary_contact_name: (account as any).primary_contact_name || '',
+        primary_contact_email: (account as any).primary_contact_email || '',
+        status: ((account as any).status || 'active') as 'active' | 'inactive' | 'suspended'
       });
     }
   }, [open, account]);
@@ -71,7 +75,7 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/accounts/${account.id}`, {
+      const response = await fetch(`/api/accounts/${(account as any).id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -97,7 +101,7 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
       onAccountUpdated?.();
       // Refresh server data without full page reload
       router.refresh();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating account:', error);
       toast.error('Failed to update account. Please try again.');
     } finally {

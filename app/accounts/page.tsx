@@ -25,11 +25,21 @@ export default async function AccountsPage() {
 
   // Create server-side Supabase client with auth
   const supabase = await createServerSupabase();
+  if (!supabase) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Database Error</h1>
+          <p className="text-gray-600 mt-2">Unable to connect to database.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Fetch accounts based on user role - pass supabase client for proper auth
-  const accounts = isAdminLevel 
+  const accounts = isAdminLevel
     ? await accountService.getAllAccounts(supabase)
-    : await accountService.getUserAccounts(userProfile.id, supabase);
+    : await accountService.getUserAccounts((userProfile as any).id, supabase);
 
   return (
     <div className="min-h-screen bg-background">

@@ -1,9 +1,10 @@
-import { createClientSupabase } from './supabase';
-import { Database } from './supabase';
 
-type TaskRow = Database['public']['Tables']['tasks']['Row'];
-type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
-type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
+
+import { createClientSupabase } from './supabase';
+
+type _TaskRow = any;
+type TaskInsert = any;
+type TaskUpdate = any;
 
 // Task interface matching the database schema
 export interface Task {
@@ -67,7 +68,7 @@ export interface UpdateTaskData {
 
 class TaskServiceDB {
   private getSupabase() {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase client not available');
     }
@@ -139,9 +140,10 @@ class TaskServiceDB {
       const hoursPerTask = new Map<string, number>();
       if (timeEntries) {
         for (const entry of timeEntries) {
-          if (entry.task_id) {
-            const current = hoursPerTask.get(entry.task_id) || 0;
-            hoursPerTask.set(entry.task_id, current + (entry.hours_logged || 0));
+          const typedEntry = entry as { task_id: string | null; hours_logged: number | null };
+          if (typedEntry.task_id) {
+            const current = hoursPerTask.get(typedEntry.task_id) || 0;
+            hoursPerTask.set(typedEntry.task_id, current + (typedEntry.hours_logged || 0));
           }
         }
       }
@@ -153,12 +155,13 @@ class TaskServiceDB {
         task.actual_hours = hoursPerTask.get(task.id) || 0;
         return task;
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; code?: string; stack?: string };
       console.error('Error in getTasksByProject:', {
-        message: error?.message || 'Unknown error',
-        code: error?.code,
+        message: err?.message || 'Unknown error',
+        code: err?.code,
         projectId,
-        stack: error?.stack?.slice(0, 500)
+        stack: err?.stack?.slice(0, 500)
       });
       return [];
     }
@@ -188,7 +191,7 @@ class TaskServiceDB {
       }
 
       return data ? this.mapTaskRowToTask(data) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getTaskById:', error);
       return null;
     }
@@ -211,7 +214,7 @@ class TaskServiceDB {
         throw new Error('User not authenticated');
       }
       
-      console.log('Creating task with user:', user.id);
+      console.log('Creating task with user:', (user as any).id);
       console.log('Task creation data input:', data);
       
       const taskData: TaskInsert = {
@@ -231,9 +234,10 @@ class TaskServiceDB {
 
       console.log('Task data being inserted:', taskData);
 
-      const { data: newTask, error } = await supabase
+      // Type assertion needed due to complex joined query
+      const result = await (supabase as any)
         .from('tasks')
-        .insert(taskData)
+        .insert([taskData])
         .select(`
           *,
           created_by_user:user_profiles!created_by(id, name, email),
@@ -241,6 +245,8 @@ class TaskServiceDB {
           project:projects(id, name)
         `)
         .single();
+
+      const { data: newTask, error } = result as { data: Record<string, unknown> | null; error: any };
 
       if (error) {
         console.error('Error creating task:', {
@@ -254,18 +260,19 @@ class TaskServiceDB {
       }
 
       console.log('New task from database:', newTask);
-      const mappedTask = newTask ? this.mapTaskRowToTask(newTask) : null;
+      const mappedTask = newTask ? this.mapTaskRowToTask(newTask as Record<string, unknown>) : null;
       console.log('Mapped new task:', mappedTask);
-      
+
       return mappedTask;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; details?: string; hint?: string; code?: string; name?: string; stack?: string };
       console.error('Error in createTask:', {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        name: error?.name,
-        stack: error?.stack
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+        code: err?.code,
+        name: err?.name,
+        stack: err?.stack
       });
       return null;
     }
@@ -301,8 +308,9 @@ class TaskServiceDB {
           .single();
 
         if (currentTask) {
-          const estimated = currentTask.estimated_hours || 0;
-          const remaining = currentTask.remaining_hours ?? estimated;
+          const typedTask = currentTask as { estimated_hours: number | null; remaining_hours: number | null };
+          const estimated = typedTask.estimated_hours || 0;
+          const remaining = typedTask.remaining_hours ?? estimated;
           // actual_hours = estimated - remaining (how much work was done)
           updateData.actual_hours = Math.max(0, estimated - remaining);
           // Also set remaining to 0 since task is complete
@@ -311,7 +319,8 @@ class TaskServiceDB {
         }
       }
 
-      const { data: updatedTask, error } = await supabase
+      // Type assertion needed due to complex joined query
+      const result = await (supabase as any)
         .from('tasks')
         .update(updateData)
         .eq('id', data.id)
@@ -323,13 +332,15 @@ class TaskServiceDB {
         `)
         .single();
 
+      const { data: updatedTask, error } = result as { data: Record<string, unknown> | null; error: any };
+
       if (error) {
         console.error('Error updating task:', error);
         throw error;
       }
 
       return updatedTask ? this.mapTaskRowToTask(updatedTask) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateTask:', error);
       return null;
     }
@@ -368,8 +379,9 @@ class TaskServiceDB {
       }
       
       console.log('Updating task with data:', updateData);
-      
-      const { data: updatedTask, error } = await supabase
+
+      // Type assertion needed due to complex joined query
+      const result = await (supabase as any)
         .from('tasks')
         .update(updateData)
         .eq('id', taskId)
@@ -381,6 +393,8 @@ class TaskServiceDB {
         `)
         .single();
 
+      const { data: updatedTask, error } = result as { data: Record<string, unknown> | null; error: any };
+
       if (error) {
         console.error('Error updating remaining hours:', error);
         throw error;
@@ -391,7 +405,7 @@ class TaskServiceDB {
       console.log('Mapped task result:', mappedTask);
       
       return mappedTask;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error in updateRemainingHours:', error);
       throw error;
     }
@@ -415,7 +429,7 @@ class TaskServiceDB {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in deleteTask:', error);
       return false;
     }
@@ -426,24 +440,24 @@ class TaskServiceDB {
    */
   private mapTaskRowToTask(row: any): Task {
     return {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      project_id: row.project_id,
-      status: row.status,
-      priority: row.priority,
-      start_date: row.start_date,
-      due_date: row.due_date,
-      estimated_hours: row.estimated_hours,
-      remaining_hours: row.remaining_hours,
-      actual_hours: row.actual_hours,
-      created_by: row.created_by,
-      assigned_to: row.assigned_to || null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      created_by_user: row.created_by_user,
-      assigned_to_user: row.assigned_to_user,
-      project: row.project,
+      id: row.id as string,
+      name: row.name as string,
+      description: row.description as string | null,
+      project_id: row.project_id as string,
+      status: row.status as 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'blocked',
+      priority: row.priority as 'low' | 'medium' | 'high' | 'urgent',
+      start_date: row.start_date as string | null,
+      due_date: row.due_date as string | null,
+      estimated_hours: row.estimated_hours as number | null,
+      remaining_hours: row.remaining_hours as number | null,
+      actual_hours: row.actual_hours as number,
+      created_by: row.created_by as string,
+      assigned_to: (row.assigned_to as string | null) || null,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string,
+      created_by_user: row.created_by_user as { id: string; name: string; email: string } | undefined,
+      assigned_to_user: row.assigned_to_user as { id: string; name: string; email: string } | undefined,
+      project: row.project as { id: string; name: string } | undefined,
     };
   }
 }

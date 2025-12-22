@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, CheckCircle, Shield, Database, User } from 'lucide-react'
+import { AlertCircle, CheckCircle, Shield, User, Database } from 'lucide-react'
 import { assignSuperadminRole, checkSuperadminRole, removeSuperadminRole } from '@/lib/superadmin-utils'
 import { testDatabaseConnection } from '@/lib/test-database'
 
@@ -33,7 +33,7 @@ export default function SuperadminSetupPage() {
           router.push('/dashboard')
         }, 2000)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error assigning superadmin role:', error)
       setMessage({ 
         type: 'error', 
@@ -56,7 +56,7 @@ export default function SuperadminSetupPage() {
         await refreshProfile() // Refresh profile to get updated roles
         setIsSuperadmin(false)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error removing superadmin role:', error)
       setMessage({ 
         type: 'error', 
@@ -79,7 +79,7 @@ export default function SuperadminSetupPage() {
         type: 'info', 
         text: isSuperadminStatus ? 'You have superadmin role' : 'You do not have superadmin role' 
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking superadmin status:', error)
       setMessage({ 
         type: 'error', 
@@ -108,7 +108,7 @@ export default function SuperadminSetupPage() {
           text: `Database test failed: ${result.error}` 
         })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error testing database:', error)
       setMessage({ 
         type: 'error', 
@@ -149,10 +149,10 @@ export default function SuperadminSetupPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <p><strong>Name:</strong> {userProfile?.name || 'N/A'}</p>
-            <p><strong>Email:</strong> {userProfile?.email || user.email}</p>
-            <p><strong>User ID:</strong> {user.id}</p>
-            <p><strong>Current Roles:</strong> {userProfile?.user_roles?.map(ur => ur.roles.name).join(', ') || 'None'}</p>
+            <p><strong>Name:</strong> {(userProfile as any)?.name || 'N/A'}</p>
+            <p><strong>Email:</strong> {(userProfile as any)?.email || (user as any).email}</p>
+            <p><strong>User ID:</strong> {(user as any).id}</p>
+            <p><strong>Current Roles:</strong> {userProfile?.user_roles?.map((ur: any) => ur.roles.name).join(', ') || 'None'}</p>
           </div>
         </CardContent>
       </Card>

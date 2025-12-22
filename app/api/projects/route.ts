@@ -6,6 +6,7 @@ import { createProjectSchema, validateRequestBody } from '@/lib/validation-schem
 import { logger } from '@/lib/debug-logger'
 import { config } from '@/lib/config'
 
+// Type definitions
 /**
  * POST /api/projects - Create a new project
  */
@@ -38,11 +39,11 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
-      logger.error('User profile not found', { action: 'create_project', userId: user.id })
+      logger.error('User profile not found', { action: 'create_project', userId: (user as any).id })
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       logger.warn('Invalid project creation data', {
         action: 'create_project',
-        userId: user.id,
+        userId: (user as any).id,
         error: validation.error
       })
       return NextResponse.json({ error: validation.error }, { status: 400 })
@@ -61,13 +62,13 @@ export async function POST(request: NextRequest) {
 
     const { accountId } = validation.data
 
-    // Check CREATE_PROJECT permission with account context
+    // Check MANAGE_PROJECTS permission with account context (consolidated from CREATE_PROJECT)
     // CRITICAL: Pass authenticated supabase client for proper RLS context in permission checks
-    const canCreateProject = await hasPermission(userProfile, Permission.CREATE_PROJECT, { accountId }, supabase)
-    if (!canCreateProject) {
+    const canManageProjects = await hasPermission(userProfile, Permission.MANAGE_PROJECTS, { accountId }, supabase)
+    if (!canManageProjects) {
       logger.warn('Insufficient permissions to create project', {
         action: 'create_project',
-        userId: user.id,
+        userId: (user as any).id,
         accountId
       })
       return NextResponse.json({ error: 'Insufficient permissions to create projects' }, { status: 403 })
@@ -84,8 +85,8 @@ export async function POST(request: NextRequest) {
         start_date: validation.data.start_date,
         end_date: validation.data.end_date,
         budget: validation.data.budget,
-        assigned_user_id: validation.data.assigned_user_id || user.id,
-        created_by: user.id,
+        assigned_user_id: validation.data.assigned_user_id || (user as any).id,
+        created_by: (user as any).id,
         created_at: new Date().toISOString()
       })
       .select()
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       logger.error('Failed to create project in database', {
         action: 'create_project',
-        userId: user.id,
+        userId: (user as any).id,
         accountId
       }, error as Error)
 
@@ -109,16 +110,16 @@ export async function POST(request: NextRequest) {
       .from('project_assignments')
       .insert({
         project_id: project.id,
-        user_id: user.id,
+        user_id: (user as any).id,
         role_in_project: 'Project Creator',
         assigned_at: new Date().toISOString(),
-        assigned_by: user.id
+        assigned_by: (user as any).id
       })
 
     if (assignmentError) {
       logger.error('Failed to add creator to project assignments', {
         action: 'create_project',
-        userId: user.id,
+        userId: (user as any).id,
         projectId: project.id
       }, assignmentError as Error)
       // Don't fail the request, the project was created successfully
@@ -126,14 +127,14 @@ export async function POST(request: NextRequest) {
 
     logger.info('Project created successfully', {
       action: 'create_project',
-      userId: user.id,
+      userId: (user as any).id,
       projectId: project.id,
       accountId
     })
 
     return NextResponse.json({ success: true, project }, { status: 201 })
-  } catch (error) {
-    logger.error('Error in POST /api/projects', { action: 'create_project' }, error as Error)
+  } catch (error: unknown) {
+logger.error('Error in POST /api/projects', { action: 'create_project' }, error as Error)
     return NextResponse.json({
       error: 'Internal server error',
       ...(config.errors.exposeDetails && { details: (error as Error).message })
@@ -259,7 +260,7 @@ export async function GET(request: NextRequest) {
 
     // Get departments for each project via project_assignments
     const projectIds = (projects || []).map((p: any) => p.id)
-    const departmentsByProject: { [key: string]: any[] } = {}
+    const departmentsByProject: { [key: string]: Record<string, unknown>[] } = {}
 
     if (projectIds.length > 0) {
       // Fetch assignments and user roles in parallel
@@ -297,18 +298,19 @@ export async function GET(request: NextRequest) {
           .in('user_id', userIds)
 
         // Build a map of user_id to departments
-        const userDepartments: { [key: string]: any[] } = {}
+        const userDepartments: { [key: string]: Record<string, unknown>[] } = {}
         if (userRoles) {
           userRoles.forEach((ur: any) => {
-            if (!userDepartments[ur.user_id]) {
-              userDepartments[ur.user_id] = []
+            const userId = ur.user_id as string;
+            if (!userDepartments[userId]) {
+              userDepartments[userId] = []
             }
-            const role = ur.roles
-            if (role?.departments) {
-              const dept = role.departments
-              const exists = userDepartments[ur.user_id].some((d: any) => d.id === dept.id)
+            const role = ur.roles as Record<string, unknown>;
+            const departments = role?.departments as Record<string, unknown>;
+            if (departments) {
+              const exists = userDepartments[userId].some((d: any) => d.id === departments.id)
               if (!exists) {
-                userDepartments[ur.user_id].push(dept)
+                userDepartments[userId].push(departments)
               }
             }
           })
@@ -316,8 +318,8 @@ export async function GET(request: NextRequest) {
 
         // Map departments to projects based on assigned users
         assignments.forEach((assignment: any) => {
-          const projectId = assignment.project_id
-          const userId = assignment.user_id
+          const projectId = assignment.project_id as string;
+          const userId = assignment.user_id as string;
 
           if (!departmentsByProject[projectId]) {
             departmentsByProject[projectId] = []
@@ -338,25 +340,29 @@ export async function GET(request: NextRequest) {
       const projectTaskSum: Record<string, number> = {}
       if (tasksData) {
         tasksData.forEach((task: any) => {
-          if (!projectRemainingHours[task.project_id]) {
-            projectRemainingHours[task.project_id] = 0
+          const projectId = task.project_id as string;
+          if (!projectRemainingHours[projectId]) {
+            projectRemainingHours[projectId] = 0
           }
-          if (!projectTaskSum[task.project_id]) {
-            projectTaskSum[task.project_id] = 0
+          if (!projectTaskSum[projectId]) {
+            projectTaskSum[projectId] = 0
           }
-          projectRemainingHours[task.project_id] += (task.remaining_hours || task.estimated_hours || 0)
-          projectTaskSum[task.project_id] += (task.estimated_hours || 0)
+          projectRemainingHours[projectId] += ((task.remaining_hours as number) || (task.estimated_hours as number) || 0)
+          projectTaskSum[projectId] += ((task.estimated_hours as number) || 0)
         })
       }
 
       // Add departments and task data to projects
-      const projectsWithDetails = (projects || []).map((project: any) => ({
-        ...project,
-        account: project.account || null,
-        departments: departmentsByProject[project.id] || [],
-        remaining_hours: projectRemainingHours[project.id] || null,
-        task_hours_sum: projectTaskSum[project.id] || 0
-      }))
+      const projectsWithDetails = (projects || []).map((project: any) => {
+        const projectId = project.id as string;
+        return {
+          ...project,
+          account: project.account || null,
+          departments: departmentsByProject[projectId] || [],
+          remaining_hours: projectRemainingHours[projectId] || null,
+          task_hours_sum: projectTaskSum[projectId] || 0
+        };
+      })
 
       return NextResponse.json({
         success: true,
@@ -368,8 +374,8 @@ export async function GET(request: NextRequest) {
       success: true,
       projects: projects || []
     })
-  } catch (error) {
-    logger.error('Error in projects API', { action: 'get_projects' }, error as Error)
+  } catch (error: unknown) {
+logger.error('Error in projects API', { action: 'get_projects' }, error as Error)
     return NextResponse.json({
       error: 'Internal server error',
       ...(config.errors.exposeDetails && { details: (error as Error).message })

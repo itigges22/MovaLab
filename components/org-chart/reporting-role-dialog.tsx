@@ -45,14 +45,14 @@ export function ReportingRoleDialog({
        onSave(role.id, reportingRoleId);
       onOpenChange(false);
       toast.success(`Updated reporting relationship for ${role.name}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating reporting role:', error);
       toast.error('Failed to update reporting relationship');
     }
   };
 
   // Filter out the current role and roles that would create circular references
-  const availableRoles = allRoles.filter(r => {
+  const availableRoles = allRoles.filter((r: any) => {
     if (r.id === role?.id) return false; // Can't report to self
     
     // Check for circular reference: if current role reports to this role,
@@ -62,7 +62,7 @@ export function ReportingRoleDialog({
     return true;
   });
 
-  console.log('🔄 ReportingRoleDialog: Available roles:', availableRoles.map(r => r.name));
+  console.log('🔄 ReportingRoleDialog: Available roles:', availableRoles.map((r: any) => r.name));
   console.log('🔄 ReportingRoleDialog: Selected reporting role ID:', selectedReportingRoleId);
 
   return (
@@ -86,8 +86,8 @@ export function ReportingRoleDialog({
               <SelectContent>
                 <SelectItem value="none">No reporting role (Top level)</SelectItem>
                 {availableRoles
-                  .filter((r) => r?.id && r.id !== '')
-                  .map((r) => (
+                  .filter((r:any) => r?.id && r.id !== '')
+                  .map((r:any) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.name} (Level {r.hierarchy_level})
                     </SelectItem>
@@ -99,7 +99,7 @@ export function ReportingRoleDialog({
           {selectedReportingRoleId && selectedReportingRoleId !== 'none' && (
             <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
               <strong>Result:</strong> {role?.name} will be at hierarchy level{' '}
-              {(allRoles.find(r => r.id === selectedReportingRoleId)?.hierarchy_level ?? 0) - 1}
+              {(allRoles.find((r: any) => r.id === selectedReportingRoleId)?.hierarchy_level ?? 0) - 1}
             </div>
           )}
           

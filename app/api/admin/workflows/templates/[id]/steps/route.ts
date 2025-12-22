@@ -38,7 +38,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -84,7 +84,10 @@ export async function PUT(
     }
 
     // Server-side validation: Check for sync nodes (parallel workflows disabled)
-    const syncNodes = nodes.filter((n: any) => n.data?.type === 'sync');
+    const syncNodes = nodes.filter((n: any) => {
+      const data = n.data as Record<string, unknown> | undefined;
+      return data?.type === 'sync';
+    });
     if (syncNodes.length > 0) {
       return NextResponse.json({
         error: 'Sync nodes are not allowed. Parallel workflows have been disabled.',
@@ -94,11 +97,12 @@ export async function PUT(
 
     // Server-side validation: Check for parallel paths (non-branching nodes with multiple outgoing edges)
     if (edges && Array.isArray(edges)) {
-      const edgesBySource = new Map<string, any[]>();
+      const edgesBySource = new Map<string, Record<string, unknown>[]>();
       edges.forEach((edge: any) => {
-        const existing = edgesBySource.get(edge.source) || [];
+        const source = edge.source as string;
+        const existing = edgesBySource.get(source) || [];
         existing.push(edge);
-        edgesBySource.set(edge.source, existing);
+        edgesBySource.set(source, existing);
       });
 
       for (const node of nodes) {
@@ -148,31 +152,37 @@ export async function PUT(
     console.log('[Workflow Save] Existing nodes deleted successfully');
 
     // Insert new nodes
-    const nodeInserts = nodes.map((node: any, index: number) => ({
-      id: node.id,
-      workflow_template_id: templateId,
-      node_type: node.data.type,
-      label: node.data.label,
-      position_x: node.position.x,
-      position_y: node.position.y,
-      step_order: index,
-      entity_id: node.data.config?.roleId || node.data.config?.approverRoleId || null,
-      form_template_id: node.data.config?.formTemplateId || null,
-      settings: {
-        department_id: node.data.config?.departmentId,
-        required_approvals: node.data.config?.requiredApprovals,
-        allow_feedback: node.data.config?.allowFeedback,
-        allow_send_back: node.data.config?.allowSendBack,
-        allow_attachments: node.data.config?.allowAttachments,
-        formFields: node.data.config?.formFields,
-        formName: node.data.config?.formName,
-        formDescription: node.data.config?.formDescription,
-        isDraftForm: node.data.config?.isDraftForm,
-        condition_type: node.data.config?.conditionType,
-        conditions: node.data.config?.conditions,
-        sourceFormFieldId: node.data.config?.sourceFormFieldId,
-      },
-    }));
+    const nodeInserts = nodes.map((node: Record<string, unknown>, index: number) => {
+      const data = node.data as Record<string, unknown>;
+      const position = node.position as Record<string, unknown>;
+      const config = data.config as Record<string, unknown> | undefined;
+
+      return {
+        id: node.id,
+        workflow_template_id: templateId,
+        node_type: data.type,
+        label: data.label,
+        position_x: position.x,
+        position_y: position.y,
+        step_order: index,
+        entity_id: config?.roleId || config?.approverRoleId || null,
+        form_template_id: config?.formTemplateId || null,
+        settings: {
+          department_id: config?.departmentId,
+          required_approvals: config?.requiredApprovals,
+          allow_feedback: config?.allowFeedback,
+          allow_send_back: config?.allowSendBack,
+          allow_attachments: config?.allowAttachments,
+          formFields: config?.formFields,
+          formName: config?.formName,
+          formDescription: config?.formDescription,
+          isDraftForm: config?.isDraftForm,
+          condition_type: config?.conditionType,
+          conditions: config?.conditions,
+          sourceFormFieldId: config?.sourceFormFieldId,
+        },
+      };
+    });
 
     console.log('[Workflow Save] Inserting', nodeInserts.length, 'nodes...');
     console.log('[Workflow Save] First node sample:', JSON.stringify(nodeInserts[0], null, 2));
@@ -193,23 +203,27 @@ export async function PUT(
 
     // Insert new connections/edges
     if (edges && Array.isArray(edges) && edges.length > 0) {
-      const connectionInserts = edges.map((edge: any) => ({
-        workflow_template_id: templateId,
-        from_node_id: edge.source,
-        to_node_id: edge.target,
-        condition: edge.data || edge.sourceHandle ? {
-          label: edge.data?.label,
-          conditionValue: edge.data?.conditionValue,
-          conditionType: edge.data?.conditionType,
-          decision: edge.data?.decision,
-          // Critical fields for form-based conditional routing
-          sourceFormFieldId: edge.data?.sourceFormFieldId,
-          value: edge.data?.value,
-          value2: edge.data?.value2,
-          // Store sourceHandle for conditional branch edges
-          sourceHandle: edge.sourceHandle,
-        } : null,
-      }));
+      const connectionInserts = edges.map((edge: any) => {
+        const data = edge.data as Record<string, unknown> | undefined;
+
+        return {
+          workflow_template_id: templateId,
+          from_node_id: edge.source,
+          to_node_id: edge.target,
+          condition: data || edge.sourceHandle ? {
+            label: data?.label,
+            conditionValue: data?.conditionValue,
+            conditionType: data?.conditionType,
+            decision: data?.decision,
+            // Critical fields for form-based conditional routing
+            sourceFormFieldId: data?.sourceFormFieldId,
+            value: data?.value,
+            value2: data?.value2,
+            // Store sourceHandle for conditional branch edges
+            sourceHandle: edge.sourceHandle,
+          } : null,
+        };
+      });
 
       console.log('[Workflow Save] Inserting', connectionInserts.length, 'connections...');
       console.log('[Workflow Save] First connection sample:', JSON.stringify(connectionInserts[0], null, 2));
@@ -254,8 +268,8 @@ export async function PUT(
       edgeCount: edges?.length || 0,
       is_active: isActive, // Include if it was auto-deactivated
     }, { status: 200 });
-  } catch (error) {
-    console.error('Error in PUT /api/admin/workflows/templates/[id]/steps:', error);
+  } catch (error: unknown) {
+console.error('Error in PUT /api/admin/workflows/templates/[id]/steps:', error);
     return NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authentication and permission
-    const userProfile = await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    const userProfile = await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
 
     // Parse request body
     const body = await request.json();
@@ -40,37 +40,37 @@ export async function POST(request: NextRequest) {
       action: 'approveUser',
       targetUserId: userId,
       actionType: action,
-      approverId: userProfile.id
+      approverId: (userProfile as any).id
     });
 
     let success = false;
 
     if (action === 'approve') {
-      success = await userApprovalService.approveUser(userId, userProfile.id, reason);
+      success = await userApprovalService.approveUser(userId, (userProfile as any).id, reason);
       if (success) {
         userAction('approved', userId, { 
           action: 'approveUser',
-          approvedBy: userProfile.id,
+          approvedBy: (userProfile as any).id,
           reason
         });
         logger.info('User approved successfully', { 
           action: 'approveUser',
           userId,
-          approvedBy: userProfile.id
+          approvedBy: (userProfile as any).id
         });
       }
     } else if (action === 'reject') {
-      success = await userApprovalService.rejectUser(userId, userProfile.id, reason);
+      success = await userApprovalService.rejectUser(userId, (userProfile as any).id, reason);
       if (success) {
         userAction('rejected', userId, { 
           action: 'approveUser',
-          rejectedBy: userProfile.id,
+          rejectedBy: (userProfile as any).id,
           reason
         });
         logger.info('User rejected successfully', { 
           action: 'approveUser',
           userId,
-          rejectedBy: userProfile.id
+          rejectedBy: (userProfile as any).id
         });
       }
     }
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       message: `User ${action}d successfully`
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
   
   try {
     // Check authentication and permission first
-    await requireAuthAndPermission(Permission.ASSIGN_USERS_TO_ROLES, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ stats });
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

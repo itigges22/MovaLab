@@ -1,3 +1,4 @@
+
 import { createClientSupabase } from './supabase';
 import { UserProfile, UserRole, Role, Department } from './supabase';
 
@@ -10,7 +11,7 @@ import { UserProfile, UserRole, Role, Department } from './supabase';
  */
 export async function getCurrentUser() {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return null;
 
     // Try to get user - this will automatically refresh if needed
@@ -36,7 +37,7 @@ export async function getCurrentUser() {
     }
 
     return user;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getCurrentUser:', error);
     return null;
   }
@@ -54,7 +55,7 @@ export async function getCurrentUserProfile() {
       return null;
     }
 
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       if (process.env.NODE_ENV === 'development') {
         console.log('No Supabase client available');
@@ -63,7 +64,7 @@ export async function getCurrentUserProfile() {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('Fetching user profile for user ID:', user.id);
+      console.log('Fetching user profile for user ID:', (user as any).id);
     }
 
     // First, try to get just the profile without joins
@@ -71,15 +72,15 @@ export async function getCurrentUserProfile() {
   const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (process.env.NODE_ENV === 'development') {
       console.log('Profile query result:', {
         profile: profile ? {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email
+          id: (profile as UserProfile).id,
+          name: (profile as UserProfile).name,
+          email: (profile as UserProfile).email
         } : null,
         error
       });
@@ -92,7 +93,7 @@ export async function getCurrentUserProfile() {
       console.error('Error details:', error.details);
       console.error('Error hint:', error.hint);
       console.error('Full error object:', JSON.stringify(error, null, 2));
-      console.error('User ID we are querying for:', user.id);
+      console.error('User ID we are querying for:', (user as any).id);
       console.error('===================================');
       
       // If profile doesn't exist, try a simple query without joins
@@ -104,7 +105,7 @@ export async function getCurrentUserProfile() {
         const { data: simpleProfile, error: simpleError } = await supabase
           .from('user_profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', (user as any).id)
           .single();
           
         if (simpleError) {
@@ -129,7 +130,7 @@ export async function getCurrentUserProfile() {
           const { data: simpleProfile, error: simpleError } = await supabase
             .from('user_profiles')
             .select('*')
-            .eq('id', user.id)
+            .eq('id', (user as any).id)
             .single();
             
           if (simpleError) {
@@ -155,7 +156,7 @@ export async function getCurrentUserProfile() {
         const { data: simpleProfile, error: simpleError } = await supabase
           .from('user_profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', (user as any).id)
           .single();
           
         if (simpleError) {
@@ -176,7 +177,7 @@ export async function getCurrentUserProfile() {
 
     // Fetch user_roles separately to avoid relationship ambiguity
     if (process.env.NODE_ENV === 'development') {
-      console.log('Fetching user roles for user:', user.id);
+      console.log('Fetching user roles for user:', (user as any).id);
     }
     const { data: userRoles, error: rolesError } = await supabase
       .from('user_roles')
@@ -198,13 +199,13 @@ export async function getCurrentUserProfile() {
           )
         )
       `)
-      .eq('user_id', user.id);
+      .eq('user_id', (user as any).id);
 
     if (rolesError) {
       console.error('Error fetching user roles:', rolesError);
       // Return profile without roles if there's an error
       return {
-        ...profile,
+        ...(profile as UserProfile),
         user_roles: []
       } as UserProfile & {
         user_roles: (UserRole & {
@@ -221,7 +222,7 @@ export async function getCurrentUserProfile() {
 
     // Return profile with user_roles
     return {
-      ...profile,
+      ...(profile as UserProfile),
       user_roles: userRoles || []
     } as UserProfile & {
       user_roles: (UserRole & {
@@ -230,7 +231,7 @@ export async function getCurrentUserProfile() {
         };
       })[];
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getCurrentUserProfile:', error);
     return null;
   }
@@ -244,7 +245,7 @@ export async function getCurrentUserProfile() {
  */
 export async function signInWithEmail(email: string, password: string) {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -260,7 +261,7 @@ export async function signInWithEmail(email: string, password: string) {
     }
 
     return data;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in signInWithEmail:', error);
     throw error;
   }
@@ -275,7 +276,7 @@ export async function signInWithEmail(email: string, password: string) {
  */
 export async function signUpWithEmail(email: string, password: string, name: string) {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -295,8 +296,8 @@ export async function signUpWithEmail(email: string, password: string, name: str
     if (error) {
       console.error('Sign up error:', {
         message: error.message,
-        details: error.details,
-        hint: error.hint,
+        details: (error as unknown as Record<string, unknown>).details,
+        hint: (error as unknown as Record<string, unknown>).hint,
         code: error.code,
         fullError: error
       });
@@ -337,7 +338,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
     }
 
     return data;
-  } catch (error) {
+  } catch (error: unknown) {
     // Only log actual errors, not expected "User already registered" cases
     if (error instanceof Error && error.message === 'User already registered') {
       // This is expected behavior, not an error - just re-throw without logging
@@ -362,7 +363,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
  */
 export async function createUserProfile(userId: string, email: string, name: string) {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -372,9 +373,9 @@ export async function createUserProfile(userId: string, email: string, name: str
       console.log('Current auth user:', await supabase.auth.getUser());
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('user_profiles')
-      .insert({
+      .insert([{
         id: userId,
         email,
         name,
@@ -382,7 +383,7 @@ export async function createUserProfile(userId: string, email: string, name: str
         bio: null,
         skills: [],
         workload_sentiment: null,
-      })
+      }])
       .select()
       .single();
 
@@ -414,7 +415,7 @@ export async function createUserProfile(userId: string, email: string, name: str
     }
 
     return data;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in createUserProfile:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       fullError: error
@@ -429,7 +430,7 @@ export async function createUserProfile(userId: string, email: string, name: str
  */
 export async function signOut() {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -440,7 +441,7 @@ export async function signOut() {
       console.error('Sign out error:', error);
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in signOut:', error);
     throw error;
   }
@@ -453,7 +454,7 @@ export async function signOut() {
  */
 export async function resetPassword(email: string) {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -467,7 +468,7 @@ export async function resetPassword(email: string) {
       console.error('Password reset error:', error);
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in resetPassword:', error);
     throw error;
   }
@@ -480,7 +481,7 @@ export async function resetPassword(email: string) {
  */
 export async function updatePassword(newPassword: string) {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -493,7 +494,7 @@ export async function updatePassword(newPassword: string) {
       console.error('Password update error:', error);
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in updatePassword:', error);
     throw error;
   }
@@ -507,7 +508,7 @@ export async function isAuthenticated(): Promise<boolean> {
   try {
     const user = await getCurrentUser();
     return !!user;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in isAuthenticated:', error);
     return false;
   }
@@ -553,7 +554,7 @@ export async function updateUserProfile(profileData: {
       console.log('User profile updated successfully');
     }
     return data.profile;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in updateUserProfile:', error);
     throw error;
   }
@@ -565,7 +566,7 @@ export async function updateUserProfile(profileData: {
  */
 export async function getCurrentSession() {
   try {
-    const supabase = createClientSupabase();
+    const supabase = createClientSupabase() as any;
     if (!supabase) return null;
 
     const { data: { session }, error } = await supabase.auth.getSession();
@@ -576,7 +577,7 @@ export async function getCurrentSession() {
     }
 
     return session;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getCurrentSession:', error);
     return null;
   }

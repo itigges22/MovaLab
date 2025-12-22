@@ -20,7 +20,7 @@ export interface LogContext {
   roleId?: string;
   departmentId?: string;
   action?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface LogEntry {
@@ -59,13 +59,13 @@ class DebugLogger {
     }
 
     if (Array.isArray(obj)) {
-      return obj.map(item => this.sanitize(item));
+      return obj.map((item: any) => this.sanitize(item));
     }
 
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
       const keyLower = key.toLowerCase();
-      const isSensitive = this.sensitiveFields.some(field => keyLower.includes(field.toLowerCase()));
+      const isSensitive = this.sensitiveFields.some((field: any) => keyLower.includes(field.toLowerCase()));
 
       if (isSensitive) {
         sanitized[key] = '[REDACTED]';

@@ -15,7 +15,7 @@ export async function DELETE(
     const { accountId, userId } = await params;
     
     // Require permission to remove users from accounts
-    await requireAuthAndPermission(Permission.REMOVE_ACCOUNT_USERS, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USERS_IN_ACCOUNTS, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -35,10 +35,10 @@ export async function DELETE(
     }
     
     return NextResponse.json({ message: 'User removed from account successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/accounts/[accountId]/members/[userId]:', error);
-    if (error && typeof error === 'object' && 'status' in error) {
-      const err = error as { status: number; message?: string };
+    const err = error as { status?: number; message?: string };
+    if (err.status) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

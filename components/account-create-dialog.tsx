@@ -34,7 +34,7 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
     if (!userProfile) return;
     
     async function checkPermissions() {
-      const canCreate = await hasPermission(userProfile, Permission.CREATE_ACCOUNT);
+      const canCreate = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS);
       setCanCreateAccount(canCreate);
     }
     
@@ -62,7 +62,7 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
           description: formData.description,
           primary_contact_name: formData.primary_contact_name,
           status: formData.status,
-          account_manager_id: userProfile.id
+          account_manager_id: (userProfile as any).id
         }),
       });
 
@@ -84,7 +84,7 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
 
       setOpen(false);
       onAccountCreated?.();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating account:', error);
       toast.error('Failed to create account. Please try again.');
     } finally {

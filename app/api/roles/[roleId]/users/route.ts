@@ -11,7 +11,7 @@ export async function GET(
     const { roleId } = await params;
     
     // Check authentication and permission
-    await requireAuthAndPermission(Permission.VIEW_ROLES, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
@@ -41,7 +41,7 @@ export async function GET(
     const users = data?.map((item: any) => item.user_profiles).filter(Boolean) || [];
 
     return NextResponse.json(users);
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

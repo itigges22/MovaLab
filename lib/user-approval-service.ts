@@ -3,8 +3,9 @@
  * Handles user approval workflow for new user registrations
  */
 
+
 import { createClientSupabase } from './supabase';
-import { logger, databaseQuery, databaseError, userAction, roleManagement } from './debug-logger';
+import { logger, databaseQuery, databaseError, userAction } from './debug-logger';
 
 export interface UserProfile {
   id: string;
@@ -37,8 +38,8 @@ export interface ApprovalAction {
 }
 
 class UserApprovalService {
-  private async getSupabase() {
-    return createClientSupabase();
+  private async getSupabase(): Promise<any | null> {
+    return createClientSupabase() as any;
   }
 
   /**
@@ -71,7 +72,7 @@ class UserApprovalService {
       });
 
       return pendingUsers || [];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in getPendingUsers', { action: 'getPendingUsers' }, error as Error);
       return [];
     }
@@ -90,7 +91,7 @@ class UserApprovalService {
 
       databaseQuery('UPDATE', 'user_profiles', { action: 'approveUser', userId, approvedBy });
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({
           is_approved: true,
@@ -116,7 +117,7 @@ class UserApprovalService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in approveUser', { action: 'approveUser', userId }, error as Error);
       return false;
     }
@@ -173,7 +174,7 @@ class UserApprovalService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in rejectUser', { action: 'rejectUser', userId }, error as Error);
       return false;
     }
@@ -192,7 +193,7 @@ class UserApprovalService {
 
       databaseQuery('UPDATE', 'user_profiles', { action: 'requestApproval', userId });
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({
           is_approved: false,
@@ -211,7 +212,7 @@ class UserApprovalService {
       logger.info('Approval requested successfully', { action: 'requestApproval', userId });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in requestApproval', { action: 'requestApproval', userId }, error as Error);
       return false;
     }
@@ -242,7 +243,7 @@ class UserApprovalService {
         return false;
       }
 
-      const isApproved = user?.is_approved || false;
+      const isApproved = ((user as Record<string, unknown>)?.is_approved as boolean) || false;
       logger.debug('User approval status checked', { 
         action: 'isUserApproved', 
         userId, 
@@ -250,7 +251,7 @@ class UserApprovalService {
       });
 
       return isApproved;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in isUserApproved', { action: 'isUserApproved', userId }, error as Error);
       return false;
     }
@@ -306,9 +307,9 @@ class UserApprovalService {
           stats.total_approved++;
         } else {
           stats.total_pending++;
-          
+
           // Group pending by date
-          const date = new Date(user.approval_requested_at || user.created_at).toISOString().split('T')[0];
+          const date = new Date((user.approval_requested_at || (user as any).created_at) as string).toISOString().split('T')[0];
           stats.pending_by_date[date] = (stats.pending_by_date[date] || 0) + 1;
         }
       });
@@ -319,7 +320,7 @@ class UserApprovalService {
       });
 
       return stats;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in getApprovalStats', { action: 'getApprovalStats' }, error as Error);
       return {
         total_pending: 0,
@@ -374,7 +375,7 @@ class UserApprovalService {
       });
 
       return results;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in bulkApproveUsers', { action: 'bulkApproveUsers' }, error as Error);
       return {
         successful: [],
@@ -419,10 +420,10 @@ class UserApprovalService {
       }
 
       const history = {
-        approval_requested_at: user?.approval_requested_at || null,
-        approved_at: user?.approved_at || null,
-        approved_by: user?.approved_by || null,
-        approver_name: user?.approver?.name || null,
+        approval_requested_at: (user as Record<string, unknown>)?.approval_requested_at as string | null || null,
+        approved_at: (user as Record<string, unknown>)?.approved_at as string | null || null,
+        approved_by: (user as Record<string, unknown>)?.approved_by as string | null || null,
+        approver_name: ((user as Record<string, unknown>)?.approver as Record<string, unknown>)?.name as string | null || null,
       };
 
       logger.debug('User approval history retrieved', { 
@@ -432,7 +433,7 @@ class UserApprovalService {
       });
 
       return history;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Exception in getUserApprovalHistory', { action: 'getUserApprovalHistory', userId }, error as Error);
       return null;
     }

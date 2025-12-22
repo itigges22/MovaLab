@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Database, CheckCircle, AlertCircle, Clock, Activity } from 'lucide-react'
+import { CheckCircle, AlertCircle, Clock, Activity, Database } from 'lucide-react'
 import { Permission } from '@/lib/permissions'
 import { hasPermission } from '@/lib/rbac'
 

@@ -3,6 +3,12 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface AuthErrorWithStatus extends Error {
+  status?: number;
+  name: string;
+}
+
 /**
  * GET /api/accounts/members
  * Get all accounts with their assigned members
@@ -88,22 +94,22 @@ export async function GET(request: NextRequest) {
       const members = (allMembers || []).filter((m: any) => m.account_id === account.id);
       
       const formattedMembers = members.map((member: any) => {
-        const userProfile = member.user_profiles;
-        const userRoles = userProfile?.user_roles || [];
-        
+        const userProfile = member.user_profiles as Record<string, unknown> | undefined;
+        const userRoles = (userProfile?.user_roles as Record<string, unknown>[] | undefined) || [];
+
         return {
           id: member.id,
           user_id: member.user_id,
           account_id: member.account_id,
           created_at: member.created_at,
           user: userProfile ? {
-            id: userProfile.id,
-            name: userProfile.name,
-            email: userProfile.email,
-            image: userProfile.image,
+            id: (userProfile as any).id,
+            name: (userProfile as any).name,
+            email: (userProfile as any).email,
+            image: (userProfile as any).image,
             roles: userRoles.map((ur: any) => {
-              const role = ur.roles;
-              const department = role?.departments;
+              const role = ur.roles as Record<string, unknown> | undefined;
+              const department = role?.departments as Record<string, unknown> | undefined;
               return {
                 id: role?.id,
                 name: role?.name,
@@ -125,10 +131,11 @@ export async function GET(request: NextRequest) {
     });
     
     return NextResponse.json({ accounts: accountsWithMembers });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as AuthErrorWithStatus;
     console.error('Error in GET /api/accounts/members:', error);
-    if (error.status) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    if (err.status) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

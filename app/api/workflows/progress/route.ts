@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { progressWorkflow, progressWorkflowStep } from '@/lib/workflow-execution-service';
+import { progressWorkflowStep } from '@/lib/workflow-execution-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       supabase,
       workflowInstanceId,
       activeStepId || null, // Pass null for legacy behavior
-      user.id,
+      (user as any).id,
       decision,
       feedback,
       formResponseId,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       nextNode: result.nextNode,
       newActiveSteps: result.newActiveSteps || [], // Include new active steps for parallel workflows
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/workflows/progress:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

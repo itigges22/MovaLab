@@ -50,7 +50,7 @@ export default function NewsletterEditDialog({
       setOpen(false)
       onNewsletterUpdated?.()
       toast.success('Newsletter updated successfully!')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating newsletter:', error)
       toast.error(`Failed to update newsletter: ${(error as Error).message}`)
     } finally {

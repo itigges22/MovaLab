@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Final Workflow Database Audit
  *
@@ -41,8 +42,8 @@ async function testInsertAndRollback(tableName: string) {
         }
       }
     }
-  } catch (err: any) {
-    console.log(`Exception:`, err.message);
+  } catch (err: unknown) {
+    console.log(`Exception:`, (err as Error).message);
   }
 }
 

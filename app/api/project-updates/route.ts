@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     let userProfile;
     try {
       userProfile = await requireAuthentication(request);
-    } catch (error) {
+    } catch (_error: unknown) {
       // If authentication fails, return empty array (user will see no updates)
       logger.debug('User not authenticated, returning empty project updates', { action: 'getProjectUpdates' });
       return NextResponse.json([]);
@@ -28,18 +28,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    const userId = userProfile.id;
+    const userId = (userProfile as any).id;
 
-    // Check which permission the user has (in priority order: most permissive first)
-    const hasViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_PROJECT_UPDATES);
-    const hasViewAccount = await checkPermissionHybrid(userProfile, Permission.VIEW_ACCOUNT_PROJECTS_UPDATES);
-    const hasViewDepartment = await checkPermissionHybrid(userProfile, Permission.VIEW_DEPARTMENT_PROJECTS_UPDATES);
-    const hasViewAssigned = await checkPermissionHybrid(userProfile, Permission.VIEW_ASSIGNED_PROJECTS_UPDATES);
-    
-    // IMPORTANT: If user doesn't have ANY of the welcome page update viewing permissions, return empty array
-    // VIEW_UPDATES permission is for viewing updates in project pages, not the welcome page
-    if (!hasViewAll && !hasViewAccount && !hasViewDepartment && !hasViewAssigned) {
-      logger.debug('User has no welcome page project update permissions, returning empty array', { userId });
+    // Phase 9: Simplified permission check - VIEW_UPDATES (context-aware) or VIEW_ALL_UPDATES (override)
+    const hasViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_UPDATES);
+    const hasViewUpdates = await checkPermissionHybrid(userProfile, Permission.VIEW_UPDATES);
+
+    // IMPORTANT: If user doesn't have update viewing permissions, return empty array
+    if (!hasViewAll && !hasViewUpdates) {
+      logger.debug('User has no project update permissions, returning empty array', { userId });
       return NextResponse.json([]);
     }
 
@@ -76,164 +73,56 @@ export async function GET(request: NextRequest) {
         )
       `);
 
-    // If user has VIEW_ALL_PROJECT_UPDATES, return all updates
+    // If user has VIEW_ALL_UPDATES override, return all updates
     if (hasViewAll) {
-      logger.debug('User has VIEW_ALL_PROJECT_UPDATES permission', { userId });
+      logger.debug('User has VIEW_ALL_UPDATES permission', { userId });
       // No filter needed - return all updates
-    } 
-    // If user has VIEW_ACCOUNT_PROJECTS_UPDATES, filter by accounts they're assigned to
-    else if (hasViewAccount) {
-      logger.debug('User has VIEW_ACCOUNT_PROJECTS_UPDATES permission', { userId });
-
-      // OPTIMIZATION: Parallelize account queries
-      const [
-        { data: userAccounts },
-        { data: userProjects },
-        { data: projectAssignments }
-      ] = await Promise.all([
-        supabase
-          .from('accounts')
-          .select('id')
-          .eq('account_manager_id', userId),
-        supabase
-          .from('projects')
-          .select('account_id')
-          .or(`created_by.eq.${userId},assigned_user_id.eq.${userId}`),
-        supabase
-          .from('project_assignments')
-          .select('project:projects(account_id)')
-          .eq('user_id', userId)
-          .is('removed_at', null)
-      ]);
-
-      const accountIds = new Set<string>();
-      
-      // Add account manager accounts
-      userAccounts?.forEach(acc => accountIds.add(acc.id));
-      
-      // Add accounts from projects
-      userProjects?.forEach((p: any) => {
-        if (p.account_id) accountIds.add(p.account_id);
-      });
-      
-      // Add accounts from project assignments
-      projectAssignments?.forEach((pa: any) => {
-        if (pa.project?.account_id) accountIds.add(pa.project.account_id);
-      });
-
-      if (accountIds.size > 0) {
-        // Get projects in these accounts
-        const { data: accountProjects } = await supabase
-          .from('projects')
-          .select('id')
-          .in('account_id', Array.from(accountIds));
-
-        const projectIds = accountProjects?.map((p: any) => p.id) || [];
-        
-        if (projectIds.length > 0) {
-          query = query.in('project_id', projectIds);
-        } else {
-          // No accessible projects - return empty result
-          query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
-        }
-      } else {
-        // No accessible accounts - return empty result
-        query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
-      }
     }
-    // If user has VIEW_DEPARTMENT_PROJECTS_UPDATES, filter by department projects
-    else if (hasViewDepartment) {
-      logger.debug('User has VIEW_DEPARTMENT_PROJECTS_UPDATES permission', { userId });
-      
-      // Get user's departments from their roles
-      const userDepartmentIds = userProfile.user_roles
-        ?.map(ur => ur.roles.departments?.id)
-        .filter((id): id is string => id !== undefined && id !== null) || [];
+    // Phase 9: Simplified - filter to projects user has access to
+    else {
+      logger.debug('User has VIEW_UPDATES permission, filtering to accessible projects', { userId });
 
-      if (userDepartmentIds.length > 0) {
-        // Get roles for these departments
-        const { data: departmentRoles } = await supabase
-          .from('roles')
-          .select('id')
-          .in('department_id', userDepartmentIds);
-
-        const roleIds = departmentRoles?.map((r: any) => r.id) || [];
-
-        if (roleIds.length > 0) {
-          // Get users who have these roles
-          const { data: deptUsers } = await supabase
-            .from('user_roles')
-            .select('user_id')
-            .in('role_id', roleIds);
-
-          const deptUserIds = Array.from(new Set(deptUsers?.map((ur: any) => ur.user_id) || []));
-
-          if (deptUserIds.length > 0) {
-            // Get projects assigned to these users
-            const { data: projectAssignments } = await supabase
-              .from('project_assignments')
-              .select('project_id')
-              .in('user_id', deptUserIds)
-              .is('removed_at', null);
-
-            const projectIds = Array.from(new Set(projectAssignments?.map((pa: any) => pa.project_id) || []));
-
-            if (projectIds.length > 0) {
-              query = query.in('project_id', projectIds);
-            } else {
-              // No accessible projects - return empty result
-              query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
-            }
-          } else {
-            // No users in departments - return empty result
-            query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
-          }
-        } else {
-          // No roles in departments - return empty result
-          query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
-        }
-      } else {
-        // No departments - return empty result
-        query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
-      }
-    }
-    // If user has VIEW_ASSIGNED_PROJECTS_UPDATES, filter by assigned projects only
-    else if (hasViewAssigned) {
-      logger.debug('User has VIEW_ASSIGNED_PROJECTS_UPDATES permission', { userId });
-
-      // OPTIMIZATION: Parallelize project queries
+      // Get ALL projects user has access to (assigned + account + department)
       const [
         { data: assignedProjects },
-        { data: directProjects }
+        { data: directProjects },
+        { data: accountProjects }
       ] = await Promise.all([
+        // Direct project assignments
         supabase
           .from('project_assignments')
           .select('project_id')
           .eq('user_id', userId)
           .is('removed_at', null),
+        // Projects created by or assigned to user
         supabase
           .from('projects')
           .select('id')
-          .or(`created_by.eq.${userId},assigned_user_id.eq.${userId}`)
+          .or(`created_by.eq.${userId},assigned_user_id.eq.${userId}`),
+        // Projects in accounts user manages or is member of
+        supabase
+          .from('account_members')
+          .select('account:accounts!inner(projects(id))')
+          .eq('user_id', userId)
       ]);
 
       const projectIds = new Set<string>();
-      
-      assignedProjects?.forEach(ap => projectIds.add(ap.project_id));
-      directProjects?.forEach((p: any) => projectIds.add(p.id));
+
+      // Add directly assigned projects
+      assignedProjects?.forEach((ap: any) => projectIds.add(ap.project_id));
+      // Add created/assigned projects
+      directProjects?.forEach((p: { id: string }) => projectIds.add(p.id));
+      // Add account projects
+      (accountProjects as unknown as { account?: { projects?: { id: string }[] } }[] | null)?.forEach((am: { account?: { projects?: { id: string }[] } }) => {
+        am.account?.projects?.forEach((p: { id: string }) => projectIds.add(p.id));
+      });
 
       if (projectIds.size > 0) {
         query = query.in('project_id', Array.from(projectIds));
       } else {
-        // No assigned projects - return empty result
+        // No accessible projects - return empty result
         query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
       }
-    }
-    // This block should never be reached due to the check above, but kept as safety net
-    else {
-      logger.warn('Unexpected permission state - user has no update viewing permissions but reached filter logic', { userId });
-      // Return empty result - user should not see any updates
-      query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
     }
 
     // Execute query
@@ -256,8 +145,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(data || []);
-  } catch (error) {
-    logger.error('Unexpected error in project-updates API', { 
+  } catch (error: unknown) {
+logger.error('Unexpected error in project-updates API', {
       action: 'getProjectUpdates',
       errorMessage: error instanceof Error ? error.message : String(error)
     }, error instanceof Error ? error : new Error(String(error)));

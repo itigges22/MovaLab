@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Check workflow table schemas
  */
@@ -52,7 +53,7 @@ async function checkSchemas() {
         console.log('Table exists but is empty');
         // Try another approach: describe via information_schema
         const { data: schemaData, error: schemaError } = await supabase
-          .from('information_schema.columns' as any)
+          .from('information_schema.columns' as unknown as string)
           .select('column_name, data_type, is_nullable')
           .eq('table_schema', 'public')
           .eq('table_name', tableName);

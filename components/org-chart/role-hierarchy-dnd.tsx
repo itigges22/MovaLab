@@ -20,19 +20,17 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ChevronRight, 
-  ChevronDown, 
-  GripVertical, 
-  Edit, 
+import {
+  ChevronRight,
+  ChevronDown,
+  GripVertical,
+  Edit,
   Trash2,
   UserPlus,
   Users,
   Shield,
-  Loader2,
   ArrowUp
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -248,14 +246,14 @@ function SortableRoleItem({
     {/* Show users when expanded */}
     {expanded && hasChildren && role.users && role.users.length > 0 && (
       <div className="mt-2 ml-12 space-y-1">
-        {role.users.map((user) => (
+        {role.users.map((user:any) => (
           <div
-            key={user.id}
+            key={(user as any).id}
             className="flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded text-sm"
           >
             <Users className="h-3.5 w-3.5 text-gray-400" />
-            <span className="flex-1">{user.name}</span>
-            <span className="text-xs text-gray-500">{user.email}</span>
+            <span className="flex-1">{(user as any).name}</span>
+            <span className="text-xs text-gray-500">{(user as any).email}</span>
           </div>
         ))}
       </div>
@@ -285,17 +283,13 @@ export function RoleHierarchyDnd({
   onDelete,
   onAssignUser,
   onSetReportingRole,
-  isReadOnly,
-  onEditModeChange,
-  pendingRoleEdits = new Map(),
-  pendingUserAssignments: parentPendingUserAssignments = [],
-  onHasUnsavedChanges
+  isReadOnly
 }: RoleHierarchyDndProps) {
   const [items, setItems] = useState<RoleWithUsers[]>(roles);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  
+
   // Simple state - no edit mode needed
-  const [isSaving, setIsSaving] = useState(false);
+  const [, setIsSaving] = useState(false);
   
   // Drag and drop sensors
   const sensors = useSensors(
@@ -308,7 +302,7 @@ export function RoleHierarchyDnd({
   useEffect(() => {
     console.log('🔄 useEffect triggered with:', {
       rolesLength: roles.length,
-      rolesData: roles.map(r => `${r.name} (Level ${r.hierarchy_level}, Order ${r.display_order})`)
+      rolesData: roles.map((r: any) => `${r.name} (Level ${r.hierarchy_level}, Order ${r.display_order})`)
     });
     
     // Don't sort here - let buildHierarchyTree handle the proper ordering
@@ -378,14 +372,14 @@ export function RoleHierarchyDnd({
     }
     
     // Check if we're moving a parent role - if so, we need to move all children too
-    const isParentRole = items.some(role => role.reporting_role_id === activeRole.id);
+    const isParentRole = items.some((role: any) => role.reporting_role_id === activeRole.id);
     
     if (isParentRole) {
       // Moving a parent role - collect all children recursively
       const childrenToMove = new Set<string>();
       
       function collectChildren(parentId: string) {
-        const children = items.filter(role => role.reporting_role_id === parentId);
+        const children = items.filter((role: any) => role.reporting_role_id === parentId);
         for (const child of children) {
           childrenToMove.add(child.id);
           collectChildren(child.id); // Recursively collect grandchildren
@@ -395,11 +389,11 @@ export function RoleHierarchyDnd({
       collectChildren(activeRole.id);
       
       // Get all roles that need to move (parent + all children)
-      const rolesToMove = [activeRole, ...items.filter(role => childrenToMove.has(role.id))];
-      const rolesToMoveIds = new Set(rolesToMove.map(role => role.id));
+      const rolesToMove = [activeRole, ...items.filter((role: any) => childrenToMove.has(role.id))];
+      const rolesToMoveIds = new Set(rolesToMove.map((role: any) => role.id));
       
       // Get roles that don't need to move
-      const otherRoles = items.filter(role => !rolesToMoveIds.has(role.id));
+      const otherRoles = items.filter((role: any) => !rolesToMoveIds.has(role.id));
       
       // Find the insertion point
       const overIndexInOther = otherRoles.findIndex(role => role.id === overRole.id);
@@ -410,7 +404,7 @@ export function RoleHierarchyDnd({
         setItems(newItems);
         
         // Update display orders for all moved roles
-        rolesToMove.forEach((role, index) => {
+        rolesToMove.forEach((role:any, index:any) => {
           role.display_order = otherRoles.length + index + 1;
         });
         
@@ -426,7 +420,7 @@ export function RoleHierarchyDnd({
         setItems(newItems);
         
         // Update display orders for all roles
-        newItems.forEach((role, index) => {
+        newItems.forEach((role:any, index:any) => {
           role.display_order = index + 1;
         });
         
@@ -447,8 +441,8 @@ export function RoleHierarchyDnd({
       setItems(newItems);
       
       // Update display orders for roles at the same level
-      const sameLevelRoles = newItems.filter(role => role.hierarchy_level === activeRole.hierarchy_level);
-      sameLevelRoles.forEach((role, index) => {
+      const sameLevelRoles = newItems.filter((role: any) => role.hierarchy_level === activeRole.hierarchy_level);
+      sameLevelRoles.forEach((role:any, index:any) => {
         role.display_order = index + 1;
       });
       
@@ -462,7 +456,7 @@ export function RoleHierarchyDnd({
     setIsSaving(true);
     
     try {
-      const updatePromises = rolesToUpdate.map(role => 
+      const updatePromises = rolesToUpdate.map((role: any) => 
         fetch('/api/roles/reorder', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -480,7 +474,7 @@ export function RoleHierarchyDnd({
       
       // Reload data to ensure consistency
        onRoleUpdate();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating role order:', error);
       toast.error('Failed to update role order');
     } finally {
@@ -490,15 +484,12 @@ export function RoleHierarchyDnd({
 
   // Build hierarchy tree for rendering with proper parent-child nesting
   function buildHierarchyTree(roles: RoleWithUsers[]): RoleWithUsers[] {
-    console.log('🌳 Building hierarchy tree with roles:', roles.map(r => `${r.name} (Level ${r.hierarchy_level}, Reports to: ${(r.reporting_role?.name ?? r.reporting_role_id) || 'none'})`));
-    
-    // Create a map for quick lookup
-    const roleMap = new Map(roles.map(role => [role.id, role]));
-    
+    console.log('🌳 Building hierarchy tree with roles:', roles.map((r: any) => `${r.name} (Level ${r.hierarchy_level}, Reports to: ${(r.reporting_role?.name ?? r.reporting_role_id) || 'none'})`));
+
     // Find root roles (roles with no reporting role or highest level)
-    const maxLevel = Math.max(...roles.map(r => r.hierarchy_level));
+    const maxLevel = Math.max(...roles.map((r: any) => r.hierarchy_level));
     const rootRoles = roles
-      .filter(role => !role.reporting_role_id || role.hierarchy_level === maxLevel)
+      .filter((role: any) => !role.reporting_role_id || role.hierarchy_level === maxLevel)
       .sort((a, b) => {
         // Superadmin should always be first
         if (a.name === 'Superadmin') return -1;
@@ -510,7 +501,7 @@ export function RoleHierarchyDnd({
         return a.display_order - b.display_order;
       });
     
-    console.log('🌳 Root roles:', rootRoles.map(r => `${r.name} (Level ${r.hierarchy_level})`));
+    console.log('🌳 Root roles:', rootRoles.map((r: any) => `${r.name} (Level ${r.hierarchy_level})`));
     
     const result: RoleWithUsers[] = [];
     const addedRoles = new Set<string>();
@@ -533,10 +524,10 @@ export function RoleHierarchyDnd({
       
       // Find direct children of this parent
       const children = roles
-        .filter(role => role.reporting_role_id === parentRole.id && !addedRoles.has(role.id))
+        .filter((role: any) => role.reporting_role_id === parentRole.id && !addedRoles.has(role.id))
         .sort((a, b) => a.display_order - b.display_order);
       
-      console.log(`🌳 Children of ${parentRole.name}:`, children.map(r => `${r.name} (Level ${r.hierarchy_level})`));
+      console.log(`🌳 Children of ${parentRole.name}:`, children.map((r: any) => `${r.name} (Level ${r.hierarchy_level})`));
       
       // Add each child and recursively process their children
       for (const child of children) {
@@ -552,9 +543,9 @@ export function RoleHierarchyDnd({
     buildTree(null);
     
     // Add any orphaned roles (roles that weren't added due to missing parent)
-    const orphanedRoles = roles.filter(role => !addedRoles.has(role.id));
+    const orphanedRoles = roles.filter((role: any) => !addedRoles.has(role.id));
     if (orphanedRoles.length > 0) {
-      console.log('🌳 Orphaned roles (missing parent):', orphanedRoles.map(r => `${r.name} (reports to: ${r.reporting_role?.name ?? r.reporting_role_id})`));
+      console.log('🌳 Orphaned roles (missing parent):', orphanedRoles.map((r: any) => `${r.name} (reports to: ${r.reporting_role?.name ?? r.reporting_role_id})`));
       // Sort orphaned roles by hierarchy level (descending) then by display order
       const sortedOrphans = orphanedRoles.sort((a, b) => {
         if (a.hierarchy_level !== b.hierarchy_level) {
@@ -562,15 +553,15 @@ export function RoleHierarchyDnd({
         }
         return a.display_order - b.display_order;
       });
-      result.push(...sortedOrphans.map(role => ({ ...role, depth: 0 })));
+      result.push(...sortedOrphans.map((role: any) => ({ ...role, depth: 0 })));
     }
     
-    console.log('🌳 Final hierarchy tree:', result.map(r => `${'  '.repeat(r.depth ?? 0)}${r.name} (Level ${r.hierarchy_level})`));
+    console.log('🌳 Final hierarchy tree:', result.map((r: any) => `${'  '.repeat(r.depth ?? 0)}${r.name} (Level ${r.hierarchy_level})`));
     return result;
   }
 
   const hierarchyTree = buildHierarchyTree(items);
-  console.log('🌳 Hierarchy tree for rendering:', hierarchyTree.map(r => `${r.name} (Level ${r.hierarchy_level})`));
+  console.log('🌳 Hierarchy tree for rendering:', hierarchyTree.map((r: any) => `${r.name} (Level ${r.hierarchy_level})`));
 
   return (
     <div className="space-y-4">
@@ -581,11 +572,11 @@ export function RoleHierarchyDnd({
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={hierarchyTree.map(role => role.id)}
+          items={hierarchyTree.map((role: any) => role.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-2">
-            {hierarchyTree.map((role, index) => (
+            {hierarchyTree.map((role:any, index:any) => (
               <SortableRoleItem
                 key={`${role.id}-${role.hierarchy_level}-${role.display_order}-${index}`}
                 role={role}

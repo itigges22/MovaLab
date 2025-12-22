@@ -25,12 +25,12 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
 
-    const pastProjects: any[] = [];
+    const pastProjects: Record<string, unknown>[] = [];
     const processedProjectIds = new Set<string>();
 
     // 1. Get completed projects (via project_assignments)
@@ -65,20 +65,21 @@ export async function GET(request: NextRequest) {
 
     // Only filter by user if not superadmin
     if (!isSuperadmin) {
-      completedQuery = completedQuery.eq('user_id', user.id);
+      completedQuery = completedQuery.eq('user_id', (user as any).id);
     }
 
     const { data: completedAssignments, error: completedError } = await completedQuery;
 
     if (!completedError && completedAssignments) {
       for (const assignment of completedAssignments) {
-        const project = assignment.projects as any;
-        const assignedUser = (assignment as any).user_profiles;
+        const projects = assignment.projects as Record<string, unknown> | Record<string, unknown>[];
+        const project = Array.isArray(projects) ? projects[0] : projects;
+        const assignedUser = (assignment as Record<string, unknown>).user_profiles;
 
         // For superadmins, use project+user combo as key to show all users' past projects
         const projectKey = isSuperadmin
           ? `${project.id}-${assignment.user_id}`
-          : project.id;
+          : (project.id as string);
 
         if (project?.status === 'complete' && !processedProjectIds.has(projectKey)) {
           processedProjectIds.add(projectKey);
@@ -95,9 +96,9 @@ export async function GET(request: NextRequest) {
             role_in_project: assignment.role_in_project,
             // Include assigned user info for superadmins
             assigned_user: isSuperadmin && assignedUser ? {
-              id: assignedUser.id,
-              name: assignedUser.name,
-              email: assignedUser.email
+              id: (assignedUser as Record<string, unknown>).id,
+              name: (assignedUser as Record<string, unknown>).name,
+              email: (assignedUser as Record<string, unknown>).email
             } : undefined
           });
         }
@@ -144,17 +145,17 @@ export async function GET(request: NextRequest) {
 
     // Only filter by user if not superadmin
     if (!isSuperadmin) {
-      nodeQuery = nodeQuery.eq('user_id', user.id);
+      nodeQuery = nodeQuery.eq('user_id', (user as any).id);
     }
 
     const { data: nodeAssignments, error: nodeError } = await nodeQuery;
 
     if (!nodeError && nodeAssignments) {
       // Get completed steps for these workflow instances
-      const instanceIds = [...new Set(nodeAssignments.map(na => na.workflow_instance_id))];
+      const instanceIds = [...new Set(nodeAssignments.map((na: any) => na.workflow_instance_id))];
 
-      let completedStepsMap: Record<string, Set<string>> = {};
-      let activeStepsMap: Record<string, Set<string>> = {};
+      const completedStepsMap: Record<string, Set<string>> = {};
+      const activeStepsMap: Record<string, Set<string>> = {};
 
       if (instanceIds.length > 0) {
         // Get completed steps
@@ -194,14 +195,16 @@ export async function GET(request: NextRequest) {
       for (const assignment of nodeAssignments) {
         const instanceId = assignment.workflow_instance_id;
         const nodeId = assignment.node_id;
-        const instance = assignment.workflow_instances as any;
-        const project = instance?.projects;
-        const assignedUser = (assignment as any).user_profiles;
+        const instances = assignment.workflow_instances as Record<string, unknown> | Record<string, unknown>[];
+        const instance = Array.isArray(instances) ? instances[0] : instances;
+        const projects = instance?.projects as Record<string, unknown> | Record<string, unknown>[] | undefined;
+        const project = projects ? (Array.isArray(projects) ? projects[0] : projects) : undefined;
+        const assignedUser = (assignment as Record<string, unknown>).user_profiles;
 
         // For superadmins, use project+user combo as key to show all users' past projects
         const projectKey = isSuperadmin
           ? `${project?.id}-${assignment.user_id}`
-          : project?.id;
+          : (project?.id as string);
 
         // Skip if already processed or project is in a non-relevant state
         if (!project || processedProjectIds.has(projectKey)) {
@@ -229,14 +232,22 @@ export async function GET(request: NextRequest) {
             completion_reason: 'step_completed',
             completed_step: {
               nodeId: assignment.node_id,
-              nodeName: (assignment.workflow_nodes as any)?.label || 'Unknown Step',
-              nodeType: (assignment.workflow_nodes as any)?.node_type || 'role'
+              nodeName: (() => {
+                const workflowNodes = assignment.workflow_nodes as Record<string, unknown> | Record<string, unknown>[];
+                const node = Array.isArray(workflowNodes) ? workflowNodes[0] : workflowNodes;
+                return (node?.label as string) || 'Unknown Step';
+              })(),
+              nodeType: (() => {
+                const workflowNodes = assignment.workflow_nodes as Record<string, unknown> | Record<string, unknown>[];
+                const node = Array.isArray(workflowNodes) ? workflowNodes[0] : workflowNodes;
+                return (node?.node_type as string) || 'role';
+              })()
             },
             // Include assigned user info for superadmins
             assigned_user: isSuperadmin && assignedUser ? {
-              id: assignedUser.id,
-              name: assignedUser.name,
-              email: assignedUser.email
+              id: (assignedUser as Record<string, unknown>).id,
+              name: (assignedUser as Record<string, unknown>).name,
+              email: (assignedUser as Record<string, unknown>).email
             } : undefined
           });
         }
@@ -245,8 +256,8 @@ export async function GET(request: NextRequest) {
 
     // Sort by completion date (most recent first)
     pastProjects.sort((a, b) => {
-      const dateA = new Date(a.completed_at || a.created_at).getTime();
-      const dateB = new Date(b.completed_at || b.created_at).getTime();
+      const dateA = new Date((a.completed_at as string) || (a.created_at as string)).getTime();
+      const dateB = new Date((b.completed_at as string) || (b.created_at as string)).getTime();
       return dateB - dateA;
     });
 
@@ -254,7 +265,7 @@ export async function GET(request: NextRequest) {
       success: true,
       projects: pastProjects
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/my-past-projects:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

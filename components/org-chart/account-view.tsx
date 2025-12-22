@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Users,
-  Building2,
   UserPlus,
   ChevronDown,
   ChevronRight,
@@ -62,7 +61,7 @@ interface AccountWithMembers {
 interface AccountViewProps {
   searchQuery?: string;
   selectedAccount?: string;
-  onAccountSelect?: (account: any) => void;
+  onAccountSelect?: (account: AccountWithMembers) => void;
   onUserAssign?: (userId: string, accountId: string) => void;
   isReadOnly?: boolean;
   userProfile?: UserWithRoles | null;
@@ -71,7 +70,7 @@ interface AccountViewProps {
 interface AccountCardProps {
   account: AccountWithMembers;
   searchQuery?: string;
-  onAccountSelect?: (account: any) => void;
+  onAccountSelect?: (account: AccountWithMembers) => void;
   onUserAssign?: (userId: string, accountId: string) => void;
   isReadOnly?: boolean;
   userProfile?: UserWithRoles | null;
@@ -80,7 +79,6 @@ interface AccountCardProps {
 function AccountCard({
   account,
   searchQuery = '',
-  onAccountSelect,
   onUserAssign,
   isReadOnly = false,
   userProfile,
@@ -123,17 +121,14 @@ function AccountCard({
       }
 
       try {
-        const canView = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB);
-        const canAssign = await hasPermission(userProfile, Permission.ASSIGN_ACCOUNT_USERS);
-        const canRemove = await hasPermission(userProfile, Permission.REMOVE_ACCOUNT_USERS);
-        // Account manager can be managed by anyone who can view the accounts tab
-        const canManage = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS_TAB);
+        // MANAGE_USERS_IN_ACCOUNTS consolidates VIEW_ACCOUNTS_TAB, ASSIGN_ACCOUNT_USERS, REMOVE_ACCOUNT_USERS
+        const canManageAccountUsers = await hasPermission(userProfile, Permission.MANAGE_USERS_IN_ACCOUNTS);
 
-        setCanViewTab(canView);
-        setCanAssignUsers(canAssign);
-        setCanRemoveUsers(canRemove);
-        setCanManageAccountManager(canManage);
-      } catch (error) {
+        setCanViewTab(canManageAccountUsers);
+        setCanAssignUsers(canManageAccountUsers);
+        setCanRemoveUsers(canManageAccountUsers);
+        setCanManageAccountManager(canManageAccountUsers);
+      } catch (error: unknown) {
         console.error('Error checking permissions:', error);
         setCanViewTab(false);
         setCanAssignUsers(false);
@@ -166,7 +161,7 @@ function AccountCard({
       if (!response.ok) throw new Error('Failed to load users');
       const data = await response.json();
       setAllUsers(data.users || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading users:', error);
       toast.error('Failed to load users');
     } finally {
@@ -209,9 +204,10 @@ function AccountCard({
       onUserAssign?.(userId, account.id);
       // Refresh server data without full page reload
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error assigning user:', error);
-      toast.error(error.message || 'Failed to assign user to account');
+      const err = error as { message?: string };
+      toast.error(err.message || 'Failed to assign user to account');
     }
   };
 
@@ -237,9 +233,10 @@ function AccountCard({
 
       toast.success('User removed from account successfully');
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error removing user:', error);
-      toast.error(error.message || 'Failed to remove user from account');
+      const err = error as { message?: string };
+      toast.error(err.message || 'Failed to remove user from account');
     }
   };
 
@@ -266,17 +263,18 @@ function AccountCard({
 
       toast.success('Account manager updated successfully');
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating account manager:', error);
-      toast.error(error.message || 'Failed to update account manager');
+      const err = error as { message?: string };
+      toast.error(err.message || 'Failed to update account manager');
     } finally {
       setUpdatingManager(false);
     }
   };
 
   // Get users not yet assigned to this account
-  const assignedUserIds = new Set(account.members.map(m => m.user_id));
-  const availableUsers = allUsers.filter(u => !assignedUserIds.has(u.id));
+  const assignedUserIds = new Set(account.members.map((m: any) => m.user_id));
+  const availableUsers = allUsers.filter((u: any) => !assignedUserIds.has(u.id));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -328,11 +326,11 @@ function AccountCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Account Manager</SelectItem>
-                  {allUsers.map((user) => {
-                    const roles = user.user_roles?.map(ur => ur.roles?.name).filter(Boolean).join(', ') ?? 'No Role';
+                  {allUsers.map((user:any) => {
+                    const roles = user.user_roles?.map((ur: any) => ur.roles?.name).filter(Boolean).join(', ') ?? 'No Role';
                     return (
-                      <SelectItem key={user.id} value={user.id}>
-                        {roles} - {user.name}
+                      <SelectItem key={(user as any).id} value={(user as any).id}>
+                        {roles} - {(user as any).name}
                       </SelectItem>
                     );
                   })}
@@ -383,7 +381,7 @@ function AccountCard({
                     No members assigned to this account
                   </p>
                 ) : (
-                  account.members.map((member) => (
+                  account.members.map((member:any) => (
                     <div
                       key={member.id}
                       className="flex items-center justify-between p-3 bg-muted/30 rounded border"
@@ -401,7 +399,7 @@ function AccountCard({
                           {/* Show user roles */}
                           {member.user?.roles && member.user.roles.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {member.user.roles.map((role) => (
+                              {member.user.roles.map((role:any) => (
                                 <Badge 
                                   key={role.id} 
                                   variant="secondary" 
@@ -445,40 +443,40 @@ function AccountCard({
                       <p className="text-sm text-muted-foreground">All users are already assigned</p>
                     ) : (
                       <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {availableUsers.map((user) => {
+                        {availableUsers.map((user:any) => {
                           // Extract roles from user_roles array
-                          const roles = user.user_roles
-                            ?.map((ur: any) => ur.roles)
-                            .filter((r: any) => r !== null) || [];
+                          const roles = (user.user_roles as Array<Record<string, unknown>> | undefined)
+                            ?.map((ur: any) => ur.roles as Record<string, unknown>)
+                            .filter((r): r is Record<string, unknown> => r !== null) || [];
                           
                           return (
                             <div
-                              key={user.id}
+                              key={(user as any).id}
                               className="flex items-center justify-between p-2 bg-background rounded border hover:bg-muted/50"
                             >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <Avatar className="h-6 w-6 shrink-0">
-                                  <AvatarImage src={user.image ?? undefined} />
+                                  <AvatarImage src={(user as any).image ?? undefined} />
                                   <AvatarFallback className="text-xs">
-                                    {user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                    {(user as any).name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm truncate">{user.name}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                  <p className="text-sm truncate">{(user as any).name}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{(user as any).email}</p>
                                   {/* Show user roles */}
                                   {roles.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {roles.map((role: any) => (
-                                        <Badge 
-                                          key={role.id} 
-                                          variant="secondary" 
+                                        <Badge
+                                          key={role.id as string}
+                                          variant="secondary"
                                           className="text-xs"
                                         >
-                                          {role.name}
-                                          {role.departments && (
+                                          {String(role.name)}
+                                          {(role.departments as Record<string, unknown> | null | undefined) && (
                                             <span className="text-muted-foreground ml-1">
-                                              ({role.departments.name})
+                                              ({String((role.departments as Record<string, unknown>).name)})
                                             </span>
                                           )}
                                         </Badge>
@@ -491,7 +489,7 @@ function AccountCard({
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 px-2 text-xs shrink-0"
-                                onClick={() => handleAssignUser(user.id)}
+                                onClick={() => handleAssignUser((user as any).id)}
                               >
                                 <UserPlus className="h-3 w-3 mr-1" />
                                 Add
@@ -545,7 +543,7 @@ export function AccountView({
       console.log('📊 Accounts data:', data);
       
       setAccounts(data.accounts || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('💥 Error loading accounts:', error);
       toast.error('Failed to load accounts');
     } finally {
@@ -565,7 +563,7 @@ export function AccountView({
 
   // Filter accounts by selected account
   const filteredAccounts = (selectedAccount && selectedAccount !== 'all')
-    ? accounts.filter(acc => acc.id === selectedAccount)
+    ? accounts.filter((acc: any) => acc.id === selectedAccount)
     : accounts;
   
   console.log('🔍 Filtering accounts:', {
@@ -621,7 +619,7 @@ export function AccountView({
         </Card>
       ) : (
         <div className="grid gap-6">
-          {filteredAccounts.map((account) => (
+          {filteredAccounts.map((account:any) => (
             <AccountCard
               key={account.id}
               account={account}

@@ -81,8 +81,8 @@ export function DepartmentList({
     // Fallback for departments without metrics (shouldn't happen in normal operation)
     return {
       id: departmentId,
-      name: departments.find(d => d.id === departmentId)?.name || 'Unknown',
-      description: departments.find(d => d.id === departmentId)?.description || null,
+      name: departments.find((d: any) => d.id === departmentId)?.name || 'Unknown',
+      description: departments.find((d: any) => d.id === departmentId)?.description || null,
       activeProjects: 0,
       teamSize: 0,
       capacityUtilization: 0,
@@ -163,7 +163,7 @@ export function DepartmentList({
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visibleDepartments.map((department) => {
+          {visibleDepartments.map((department:any) => {
             const metrics = getMetrics(department.id);
             const healthScore = getHealthScore(metrics);
             

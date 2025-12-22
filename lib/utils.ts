@@ -13,7 +13,7 @@ export interface AppError {
   stack?: string;
 }
 
-export function getErrorMessage(error: any): string {
+export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -26,7 +26,7 @@ export function getErrorMessage(error: any): string {
   return 'An unknown error occurred';
 }
 
-export function getErrorDetails(error: any): AppError {
+export function getErrorDetails(error: unknown): AppError {
   if (error instanceof Error) {
     return {
       message: error.message,

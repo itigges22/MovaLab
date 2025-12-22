@@ -5,10 +5,10 @@
  * Motion/Akiflow-style calendar for setting work availability
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calendar, Save, Copy, ChevronLeft, ChevronRight, Clock, Info } from 'lucide-react'
+import { Calendar, Save, ChevronLeft, ChevronRight, Clock, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { hasPermission } from '@/lib/permission-checker'
 import { Permission } from '@/lib/permissions'
@@ -26,9 +26,11 @@ interface DragAvailabilityCalendarProps {
   onSave?: () => void
 }
 
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+
 export default function DragAvailabilityCalendar({ userProfile, userId, onSave }: DragAvailabilityCalendarProps) {
-  const targetUserId = userId ?? userProfile.id
-  const isOwnData = targetUserId === userProfile.id
+  const targetUserId = userId ?? (userProfile as any).id
+  const isOwnData = targetUserId === (userProfile as any).id
 
   const [canEdit, setCanEdit] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,6 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
   const [dragStart, setDragStart] = useState<{ day: string; hour: number } | null>(null)
   const [dragEnd, setDragEnd] = useState<{ day: string; hour: number } | null>(null)
 
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const hours = Array.from({ length: 24 }, (_, i) => i) // 0-23
 
@@ -108,7 +109,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
 
   // Check if a time slot is unavailable
   const isSlotUnavailable = (day: string, hour: number): boolean => {
-    return unavailableBlocks.some(block => 
+    return unavailableBlocks.some((block: any) => 
       block.day === day && hour >= block.startHour && hour < block.endHour
     )
   }
@@ -116,15 +117,15 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
   // Calculate available hours
   const calculateAvailableHours = (): Record<string, number> => {
     const hoursPerDay: Record<string, number> = {}
-    days.forEach(day => {
+    DAYS.forEach((day: any) => {
       // Get all unavailable blocks for this day
-      const dayBlocks = unavailableBlocks.filter(block => block.day === day)
+      const dayBlocks = unavailableBlocks.filter((block: any) => block.day === day)
 
       // Merge overlapping blocks to avoid double-counting
       const mergedBlocks: TimeBlock[] = []
       dayBlocks
         .sort((a, b) => a.startHour - b.startHour)
-        .forEach(block => {
+        .forEach((block: any) => {
           if (mergedBlocks.length === 0) {
             mergedBlocks.push(block)
           } else {
@@ -200,7 +201,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
     if (existingBlock) {
       // Remove overlapping blocks
       setUnavailableBlocks(prev =>
-        prev.filter(block =>
+        prev.filter((block: any) =>
           !(block.day === day &&
             ((startHour >= block.startHour && startHour < block.endHour) ||
              (endHour > block.startHour && endHour <= block.endHour) ||
@@ -258,7 +259,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
             // Legacy format: convert hours per day to blocks (approximate)
             const blocks: TimeBlock[] = []
 
-            days.forEach(day => {
+            DAYS.forEach((day: any) => {
               const hoursAvailable = scheduleData.hoursPerDay?.[day] ?? scheduleData[day] ?? 0
               const unavailableHours = 24 - hoursAvailable
               const isWeekend = day === 'saturday' || day === 'sunday'
@@ -290,12 +291,12 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
         } else {
           // Default: All time unavailable (0 hours available) - user can add their open times
           const defaultBlocks: TimeBlock[] = []
-          days.forEach(day => {
+          DAYS.forEach((day: any) => {
             defaultBlocks.push({ day, startHour: 0, endHour: 24 })
           })
           setUnavailableBlocks(defaultBlocks)
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading availability:', error)
         toast.error('Failed to load availability')
       } finally {
@@ -339,7 +340,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
       } else {
         toast.error(data.error || 'Failed to save availability')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving availability:', error)
       toast.error('Failed to save availability')
     } finally {
@@ -415,7 +416,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
           <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <div>
             <strong>How to use:</strong> Drag across time slots to toggle availability.
-            Gray blocks = unavailable (you can't work). White blocks = available (you can work).
+            Gray blocks = unavailable (you can&apos;t work). White blocks = available (you can work).
             Click and drag on gray to make time available, or drag on white to make time unavailable.
           </div>
         </div>
@@ -424,25 +425,25 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
         <div className="border rounded-lg overflow-hidden">
           <div className="grid grid-cols-8 border-b bg-gray-50">
             <div className="p-2 text-xs font-medium text-gray-600 border-r">Time</div>
-            {dayLabels.map((label, idx) => (
+            {dayLabels.map((label:any, idx:any) => (
               <div key={label} className="p-2 text-center text-xs font-medium text-gray-600 border-r last:border-r-0">
                 <div className="text-gray-800 font-bold">
                   {weekDates[idx] ? weekDates[idx].getDate() : ''}
                 </div>
                 <div className="text-gray-600">{label}</div>
-                <div className="text-blue-600 font-semibold">{availableHours[days[idx]]}h</div>
+                <div className="text-blue-600 font-semibold">{availableHours[DAYS[idx]]}h</div>
               </div>
             ))}
           </div>
 
           {/* Hour rows - show all 24 hours so users can mark any time unavailable */}
           <div>
-            {hours.map(hour => (
+            {hours.map((hour: any) => (
               <div key={hour} className="grid grid-cols-8 border-b last:border-b-0">
                 <div className="p-1 text-xs text-gray-600 border-r bg-gray-50">
                   {formatHour(hour)}
                 </div>
-                {days.map(day => {
+                {DAYS.map((day: any) => {
                   const isUnavailable = isSlotUnavailable(day, hour)
                   const isInDragSelection = isDragging && dragStart && dragEnd &&
                     day === dragStart.day &&
@@ -497,7 +498,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
               onClick={() => {
                 // Set default: weekdays 9-5
                 const defaultBlocks: TimeBlock[] = []
-                days.forEach(day => {
+                DAYS.forEach((day: any) => {
                   if (day === 'saturday' || day === 'sunday') {
                     defaultBlocks.push({ day, startHour: 0, endHour: 24 })
                   } else {

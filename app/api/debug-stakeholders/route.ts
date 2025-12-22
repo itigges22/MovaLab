@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   console.log('=== END DEBUG ===')
 
   return NextResponse.json({ stakeholders, error })
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

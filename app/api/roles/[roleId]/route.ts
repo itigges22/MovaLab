@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { logger, apiCall, databaseQuery, databaseError } from '@/lib/debug-logger';
+import { logger } from '@/lib/debug-logger';
 import { roleManagementService } from '@/lib/role-management-service';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
@@ -14,7 +14,7 @@ export async function DELETE(
 
   try {
     // Check authentication and permission
-    await requireAuthAndPermission(Permission.DELETE_ROLE, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     logger.info('API DELETE /api/roles/[roleId]', { 
       action: 'api_call',
       roleId 
@@ -28,19 +28,19 @@ export async function DELETE(
     }
 
     // Create Supabase client with service role key (bypasses RLS)
-    // If service key is not available, use anon key (RLS will apply)
+    // If service key is not available, use publishable key (RLS will apply)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!;
     const usingServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
     });
-    
-    logger.info(usingServiceKey ? 'Using service role key (RLS bypassed)' : 'Using anon key (RLS active)', { 
+
+    logger.info(usingServiceKey ? 'Using service role key (RLS bypassed)' : 'Using publishable key (RLS active)', { 
       action: 'deleteRole',
       roleId 
     });
@@ -117,7 +117,7 @@ export async function DELETE(
         roleId,
         roleName: existingRole.name,
         affectedNodes: workflowNodes.length,
-        nodeLabels: workflowNodes.map(n => n.label)
+        nodeLabels: workflowNodes.map((n: any) => n.label)
       });
 
       const { error: clearEntityError } = await supabase
@@ -221,10 +221,13 @@ export async function DELETE(
               error: deleteError.message 
             });
           } else {
-            logger.info('User removed from deleted role, keeping other roles', { 
+            logger.info('User removed from deleted role, keeping other roles', {
               action: 'deleteRole',
               userId: userRole.user_id,
-              otherRoles: otherRoles.map((or: any) => or.roles.name)
+              otherRoles: otherRoles.map((or: any) => {
+                const roles = or.roles as Record<string, unknown>;
+                return roles.name as string;
+              })
             });
           }
         }
@@ -244,7 +247,7 @@ export async function DELETE(
       roleName: existingRole.name 
     });
     
-    const { data: deletedData, error: deleteError, count } = await supabase
+    const { data: deletedData, error: deleteError } = await supabase
       .from('roles')
       .delete()
       .eq('id', roleId)
@@ -279,12 +282,12 @@ export async function DELETE(
         deletedRole: existingRole.name,
         deletedCount: deletedData?.length || 0,
         workflowNodesCleared: workflowNodes?.length || 0,
-        affectedWorkflowNodes: workflowNodes?.map(n => n.label) || []
+        affectedWorkflowNodes: workflowNodes?.map((n: any) => n.label) || []
       },
       { status: 200 }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }
@@ -298,7 +301,7 @@ export async function PATCH(
 
   try {
     // Check authentication and permission
-    await requireAuthAndPermission(Permission.EDIT_ROLE, {}, request);
+    await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     logger.info('API PATCH /api/roles/[roleId]', { 
       action: 'api_call',
       roleId 
@@ -335,7 +338,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, role: updatedRole });
 
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

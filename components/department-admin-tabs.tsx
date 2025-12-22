@@ -1,19 +1,11 @@
 'use client';
 import { toast } from 'sonner';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import { 
   Select,
   SelectContent,
@@ -29,12 +21,13 @@ import {
 } from 'lucide-react';
 import { createClientSupabase } from '@/lib/supabase';
 
+
 interface Role {
   id: string;
   name: string;
   description: string | null;
   department_id: string;
-  permissions: any;
+  permissions: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   user_count?: number;
@@ -56,8 +49,8 @@ interface DepartmentSettings {
   id: string;
   name: string;
   description: string | null;
-  notification_settings: any;
-  workflow_rules: any;
+  notification_settings: Record<string, unknown>;
+  workflow_rules: Record<string, unknown>;
 }
 
 interface DepartmentAdminTabsProps {
@@ -67,7 +60,7 @@ interface DepartmentAdminTabsProps {
 export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTabsProps) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [departmentSettings, setDepartmentSettings] = useState<DepartmentSettings | null>(null);
+  const [, setDepartmentSettings] = useState<DepartmentSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [settingsForm, setSettingsForm] = useState({
     name: '',
@@ -85,14 +78,9 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
     }
   });
 
-  // Load data on component mount
-  useEffect(() => {
-    loadData();
-  }, [departmentId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) return;
 
       // Load roles
@@ -108,10 +96,10 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
       if (rolesError) {
         console.error('Error loading roles:', rolesError);
       } else {
-        const rolesWithCount = rolesData?.map((role: any) => ({
+        const rolesWithCount = (rolesData?.map((role: any) => ({
           ...role,
-          user_count: role.user_roles?.[0]?.count || 0
-        })) || [];
+          user_count: (role.user_roles as Array<Record<string, unknown>> | undefined)?.[0]?.count as number | undefined || 0
+        })) as Role[]) || [];
         setRoles(rolesWithCount);
       }
 
@@ -151,37 +139,43 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
       if (departmentError) {
         console.error('Error loading department:', departmentError);
       } else {
+        const dept = departmentData as unknown as Record<string, unknown>;
         setDepartmentSettings(departmentData);
         setSettingsForm({
-          name: departmentData.name,
-          description: departmentData.description || '',
-          notificationSettings: departmentData.notification_settings || {
+          name: dept.name as string,
+          description: (dept.description as string) || '',
+          notificationSettings: (dept.notification_settings as unknown as { projectDeadlines: boolean; taskAssignments: boolean; deliverableApprovals: boolean; weeklyDigest: boolean }) || {
             projectDeadlines: true,
             taskAssignments: true,
             deliverableApprovals: true,
             weeklyDigest: true,
           },
-          workflowRules: departmentData.workflow_rules || {
+          workflowRules: (dept.workflow_rules as unknown as { requireApproval: boolean; autoAssignTasks: boolean; defaultPriority: string }) || {
             requireApproval: false,
             autoAssignTasks: false,
             defaultPriority: 'medium',
           }
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [departmentId]);
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
 
   const handleSaveSettings = async () => {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any as any;
       if (!supabase) return;
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('departments')
         .update({
           name: settingsForm.name,
@@ -197,7 +191,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
       }
 
       toast.error('Settings saved successfully!');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving settings:', error);
       toast.error('An error occurred. Please try again.');
     }
@@ -237,8 +231,8 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-2xl font-bold text-primary">
-                    {users.filter(user => 
-                      user.user_roles.some(ur => ur.roles.department_id === departmentId)
+                    {users.filter((user: any) => 
+                      user.user_roles.some((ur: any) => ur.roles.department_id === departmentId)
                     ).length}
                   </div>
                   <div className="text-sm text-muted-foreground">Assigned Users</div>
@@ -258,23 +252,23 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {users.map((user) => {
+              {users.map((user:any) => {
                 const userRoles = user.user_roles
-                  .filter(ur => ur.roles.department_id === departmentId);
+                  .filter((ur: any) => ur.roles.department_id === departmentId);
                 
                 if (userRoles.length === 0) {
                   return null;
                 }
 
                 return (
-                  <div key={user.id} className="border rounded-lg p-4">
+                  <div key={(user as any).id} className="border rounded-lg p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{user.name}</div>
-                        <div className="text-sm text-muted-foreground truncate">{user.email}</div>
+                        <div className="font-medium truncate">{(user as any).name}</div>
+                        <div className="text-sm text-muted-foreground truncate">{(user as any).email}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {userRoles.map((userRole) => (
+                        {userRoles.map((userRole: any) => (
                           <Badge key={userRole.id} variant="secondary" className="text-xs">
                             {userRole.roles.name}
                           </Badge>
@@ -285,8 +279,8 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
                 );
               })}
               
-              {users.every(user => 
-                user.user_roles.filter(ur => ur.roles.department_id === departmentId).length === 0
+              {users.every((user: any) => 
+                user.user_roles.filter((ur: any) => ur.roles.department_id === departmentId).length === 0
               ) && (
                 <div className="text-center py-8 text-muted-foreground">
                   No team members assigned to roles in this department

@@ -31,7 +31,7 @@ export default function NewsletterDeleteDialog({
       setOpen(false)
       onNewsletterDeleted?.()
       toast.success('Newsletter deleted successfully!')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting newsletter:', error)
       toast.error(`Failed to delete newsletter: ${(error as Error).message}`)
     } finally {

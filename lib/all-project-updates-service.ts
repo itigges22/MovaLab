@@ -1,5 +1,6 @@
 import { createClientSupabase } from '@/lib/supabase';
 
+
 export type AllProjectUpdate = {
   id: string;
   project_id: string;
@@ -31,8 +32,11 @@ export const allProjectUpdatesService = {
    * Only shows updates from projects the user has access to
    */
   async getAllProjectUpdates(): Promise<AllProjectUpdate[]> {
-    const supabase = createClientSupabase();
-    
+    const supabase = createClientSupabase() as any;
+    if (!supabase) {
+      throw new Error('Unable to connect to database');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('You must be logged in to view project updates');
@@ -67,8 +71,11 @@ export const allProjectUpdatesService = {
    * Get project updates for a specific user's projects only
    */
   async getUserProjectUpdates(): Promise<AllProjectUpdate[]> {
-    const supabase = createClientSupabase();
-    
+    const supabase = createClientSupabase() as any;
+    if (!supabase) {
+      throw new Error('Unable to connect to database');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('You must be logged in to view project updates');

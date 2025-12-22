@@ -88,7 +88,7 @@ export default function ClientFeedbackPage() {
       } else {
         toast.error('Failed to load accounts');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading accounts:', error);
       toast.error('Error loading accounts');
     } finally {
@@ -107,7 +107,7 @@ export default function ClientFeedbackPage() {
       } else {
         toast.error('Failed to load feedback');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading feedback:', error);
       toast.error('Error loading feedback');
     } finally {
@@ -116,7 +116,7 @@ export default function ClientFeedbackPage() {
   };
 
   const calculateStats = (feedbackData: ClientFeedback[]) => {
-    const withScores = feedbackData.filter(f => f.satisfaction_score !== null);
+    const withScores = feedbackData.filter((f: any) => f.satisfaction_score !== null);
 
     if (withScores.length === 0) {
       setStats({
@@ -127,7 +127,7 @@ export default function ClientFeedbackPage() {
       return;
     }
 
-    const scores = withScores.map(f => f.satisfaction_score as number);
+    const scores = withScores.map((f: any) => f.satisfaction_score as number);
     const averageSatisfaction = scores.reduce((sum, score) => sum + score, 0) / scores.length;
 
     const feedbackByScore: Record<number, number> = {};
@@ -223,7 +223,7 @@ export default function ClientFeedbackPage() {
               <p className="text-sm text-gray-500">No accounts found</p>
             ) : (
               <div className="space-y-2">
-                {accounts.map((account) => (
+                {accounts.map((account:any) => (
                   <button
                     key={account.id}
                     onClick={() => { setSelectedAccount(account); }}
@@ -322,7 +322,7 @@ export default function ClientFeedbackPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {feedback.map((item) => (
+                    {feedback.map((item: ClientFeedback) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.projects.name}</TableCell>
                         <TableCell>

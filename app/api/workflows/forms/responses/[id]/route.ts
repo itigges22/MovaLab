@@ -37,21 +37,22 @@ export async function GET(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check VIEW_FORMS permission
-    const canView = await hasPermission(userProfile, Permission.VIEW_FORMS, undefined, supabase);
-    if (!canView) {
-      return NextResponse.json({ error: 'Insufficient permissions to view forms' }, { status: 403 });
+    // Phase 9: Forms are inline-only in workflows, check workflow permissions instead
+    const canViewWorkflow = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase) ||
+                            await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
+    if (!canViewWorkflow) {
+      return NextResponse.json({ error: 'Insufficient permissions to view workflow forms' }, { status: 403 });
     }
 
     // Verify user has access to the form response (and its workflow if linked)
-    const accessCheck = await verifyFormResponseAccess(supabase, user.id, id);
+    const accessCheck = await verifyFormResponseAccess(supabase, (user as any).id, id);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this form response'
@@ -66,7 +67,7 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, response }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/forms/responses/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

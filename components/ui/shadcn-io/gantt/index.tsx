@@ -145,49 +145,43 @@ const getInnerDifferenceIn = (range: Range) => {
   return fn;
 };
 
-const getStartOf = (range: Range) => {
-  let fn = startOfDay;
-
+const getStartOf = (range: Range): ((date: string | number | Date) => Date) => {
   if (range === 'monthly' || range === 'quarterly') {
-    fn = startOfMonth;
+    return startOfMonth as (date: string | number | Date) => Date;
   } else if (range === 'yearly') {
-    fn = (date: string | number | Date) => {
+    return (date: string | number | Date) => {
       const d = new Date(date);
-      return new Date(d.getFullYear(), 0, 1) as any;
+      return new Date(d.getFullYear(), 0, 1);
     };
   }
 
-  return fn;
+  return startOfDay as (date: string | number | Date) => Date;
 };
 
-const getEndOf = (range: Range) => {
-  let fn = endOfDay;
-
+const getEndOf = (range: Range): ((date: string | number | Date) => Date) => {
   if (range === 'monthly' || range === 'quarterly') {
-    fn = endOfMonth;
+    return endOfMonth as (date: string | number | Date) => Date;
   } else if (range === 'yearly') {
-    fn = (date: string | number | Date) => {
+    return (date: string | number | Date) => {
       const d = new Date(date);
-      return new Date(d.getFullYear(), 11, 31) as any;
+      return new Date(d.getFullYear(), 11, 31);
     };
   }
 
-  return fn;
+  return endOfDay as (date: string | number | Date) => Date;
 };
 
-const getAddRange = (range: Range) => {
-  let fn = addDays;
-
+const getAddRange = (range: Range): ((date: string | number | Date, amount: number) => Date) => {
   if (range === 'monthly' || range === 'quarterly') {
-    fn = addMonths;
+    return addMonths as (date: string | number | Date, amount: number) => Date;
   } else if (range === 'yearly') {
-    fn = (date: string | number | Date, amount: number) => {
+    return (date: string | number | Date, amount: number) => {
       const d = new Date(date);
-      return new Date(d.getFullYear() + amount, d.getMonth(), d.getDate()) as any;
+      return new Date(d.getFullYear() + amount, d.getMonth(), d.getDate());
     };
   }
 
-  return fn;
+  return addDays as (date: string | number | Date, amount: number) => Date;
 };
 
 const getDateByMousePosition = (context: GanttContextProps, mouseX: number) => {
@@ -367,7 +361,7 @@ export const GanttContentHeader: FC<GanttContentHeaderProps> = ({
           gridTemplateColumns: `repeat(${columns}, var(--gantt-column-width))`,
         }}
       >
-        {Array.from({ length: columns }).map((_, index) => (
+        {Array.from({ length: columns }).map((_:any, index:any) => (
           <div
             className="shrink-0 border-border/50 border-b py-1 text-center text-xs"
             key={`${id}-${index}`}
@@ -383,10 +377,10 @@ export const GanttContentHeader: FC<GanttContentHeaderProps> = ({
 const DailyHeader: FC = () => {
   const gantt = useContext(GanttContext);
 
-  return gantt.timelineData.map((year) =>
+  return gantt.timelineData.map((year:any) =>
     year.quarters
-      .flatMap((quarter) => quarter.months)
-      .map((month, index) => (
+      .flatMap((quarter: any) => quarter.months)
+      .map((month:any, index:any) => (
         <div className="relative flex flex-col" key={`${year.year}-${index}`}>
           <GanttContentHeader
             columns={month.days}
@@ -426,17 +420,17 @@ const DailyHeader: FC = () => {
 const MonthlyHeader: FC = () => {
   const gantt = useContext(GanttContext);
 
-  return gantt.timelineData.map((year) => (
+  return gantt.timelineData.map((year:any) => (
     <div className="relative flex flex-col" key={year.year}>
       <GanttContentHeader
-        columns={year.quarters.flatMap((quarter) => quarter.months).length}
+        columns={year.quarters.flatMap((quarter: any) => quarter.months).length}
         renderHeaderItem={(item: number) => (
           <p>{format(new Date(year.year, item, 1), 'MMM')}</p>
         )}
         title={`${year.year}`}
       />
       <GanttColumns
-        columns={year.quarters.flatMap((quarter) => quarter.months).length}
+        columns={year.quarters.flatMap((quarter: any) => quarter.months).length}
       />
     </div>
   ));
@@ -445,8 +439,8 @@ const MonthlyHeader: FC = () => {
 const QuarterlyHeader: FC = () => {
   const gantt = useContext(GanttContext);
 
-  return gantt.timelineData.map((year) =>
-    year.quarters.map((quarter, quarterIndex) => (
+  return gantt.timelineData.map((year:any) =>
+    year.quarters.map((quarter: any, quarterIndex: any) => (
       <div
         className="relative flex flex-col"
         key={`${year.year}-${quarterIndex}`}
@@ -469,7 +463,7 @@ const QuarterlyHeader: FC = () => {
 const YearlyHeader: FC = () => {
   const gantt = useContext(GanttContext);
 
-  return gantt.timelineData.map((year) => (
+  return gantt.timelineData.map((year:any) => (
     <div className="relative flex flex-col" key={year.year}>
       <GanttContentHeader
         columns={12}
@@ -747,7 +741,7 @@ export const GanttColumns: FC<GanttColumnsProps> = ({
         gridTemplateColumns: `repeat(${columns}, var(--gantt-column-width))`,
       }}
     >
-      {Array.from({ length: columns }).map((_, index) => (
+      {Array.from({ length: columns }).map((_:any, index:any) => (
         <GanttColumn
           index={index}
           isColumnSecondary={isColumnSecondary}
@@ -1105,7 +1099,7 @@ export const GanttFeatureRow: FC<GanttFeatureRowProps> = ({
         minHeight: 'var(--gantt-row-height)'
       }}
     >
-      {featureWithPositions.map((feature) => (
+      {featureWithPositions.map((feature:any) => (
         <div
           key={feature.id}
           className="absolute w-full"
@@ -1301,9 +1295,9 @@ export const GanttProvider: FC<GanttProviderProps> = ({
     };
   }, []);
 
-  // Fix the useCallback to include all dependencies
-  const handleScroll = useCallback(
-    throttle(() => {
+  // Use useMemo for throttled function to properly track dependencies
+  const handleScroll = useMemo(
+    () => throttle(() => {
       const scrollElement = scrollRef.current;
       if (!scrollElement) {
         return;
@@ -1367,7 +1361,8 @@ export const GanttProvider: FC<GanttProviderProps> = ({
         setScrollX(scrollElement.scrollLeft);
       }
     }, 100),
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [timelineData] // setScrollX and setTimelineData are stable (setState functions), not included
   );
 
   useEffect(() => {
@@ -1418,16 +1413,17 @@ export const GanttProvider: FC<GanttProviderProps> = ({
 
   // Listen for custom scrollToToday event
   useEffect(() => {
-    const handleScrollToToday = (event: any) => {
-      const todayFeature = event.detail;
+    const handleScrollToToday = (event: Event) => {
+      const customEvent = event as CustomEvent<GanttFeature>;
+      const todayFeature = customEvent.detail;
       if (todayFeature) {
         scrollToFeature(todayFeature);
       }
     };
 
-    window.addEventListener('scrollToToday', handleScrollToToday);
+    window.addEventListener('scrollToToday', handleScrollToToday as EventListener);
     return () => {
-      window.removeEventListener('scrollToToday', handleScrollToToday);
+      window.removeEventListener('scrollToToday', handleScrollToToday as EventListener);
     };
   }, [scrollToFeature]);
 

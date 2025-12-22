@@ -33,8 +33,8 @@ interface AvailabilityCalendarProps {
 }
 
 export default function AvailabilityCalendar({ userProfile, userId }: AvailabilityCalendarProps) {
-  const targetUserId = userId ?? userProfile.id
-  const isOwnData = targetUserId === userProfile.id
+  const targetUserId = userId ?? (userProfile as any).id
+  const isOwnData = targetUserId === (userProfile as any).id
 
   const [canEdit, setCanEdit] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -146,7 +146,7 @@ export default function AvailabilityCalendar({ userProfile, userId }: Availabili
           })
           setNotes('')
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading availability:', error)
         toast.error('Failed to load availability')
       } finally {
@@ -185,7 +185,7 @@ export default function AvailabilityCalendar({ userProfile, userId }: Availabili
       } else {
         toast.error(data.error || 'Failed to save availability')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving availability:', error)
       toast.error('Failed to save availability')
     } finally {
@@ -207,7 +207,7 @@ export default function AvailabilityCalendar({ userProfile, userId }: Availabili
       setCurrentWeekStart(getWeekStartDate(nextWeek))
 
       toast.success('Copied to next week. Click Save to confirm.')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error copying to next week:', error)
       toast.error('Failed to copy to next week')
     }

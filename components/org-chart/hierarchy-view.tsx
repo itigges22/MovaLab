@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, ChevronDown, Users, Shield, Building2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Users, Shield } from 'lucide-react';
 import { RoleHierarchyNode } from '@/lib/role-management-service';
 import { organizationService } from '@/lib/organization-service';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { logger, componentRender, componentError } from '@/lib/debug-logger';
+import { logger, componentError } from '@/lib/debug-logger';
 
 interface HierarchyViewProps {
   searchQuery?: string;
@@ -47,7 +46,7 @@ function TreeNode({
   searchQuery = '',
   selectedDepartment,
 }: TreeNodeProps) {
-  const [roleUsers, setRoleUsers] = useState<any[]>([]);
+  const [roleUsers, setRoleUsers] = useState<Record<string, unknown>[]>([]);
   const [showUsers, setShowUsers] = useState(false);
 
   // Filter by search query
@@ -60,13 +59,7 @@ function TreeNode({
 
   const shouldShow = matchesSearch && matchesDepartment;
 
-  useEffect(() => {
-    if (showUsers && node.id) {
-      void loadRoleUsers();
-    }
-  }, [showUsers, node.id]);
-
-  const loadRoleUsers = async () => {
+  const loadRoleUsers = useCallback(async () => {
     try {
       logger.debug('Loading role users', { 
         action: 'loadRoleUsers', 
@@ -74,14 +67,14 @@ function TreeNode({
       });
       
       const users = await organizationService.getUsersByRole(node.id);
-      setRoleUsers(users);
+      setRoleUsers(users as unknown as Record<string, unknown>[]);
       
       logger.debug('Role users loaded successfully', { 
         action: 'loadRoleUsers', 
         roleId: node.id,
         userCount: users.length
       });
-    } catch (error) {
+    } catch (error: unknown) {
       componentError('HierarchyView', error as Error, { 
         action: 'loadRoleUsers',
         roleId: node.id
@@ -92,7 +85,13 @@ function TreeNode({
       }, error as Error);
       setRoleUsers([]);
     }
-  };
+  }, [node.id]);
+
+  useEffect(() => {
+    if (showUsers && node.id) {
+      void loadRoleUsers();
+    }
+  }, [showUsers, node.id, loadRoleUsers]);
 
   const handleToggle = () => {
     onToggle(node.id);
@@ -235,21 +234,21 @@ function TreeNode({
       {/* Users List */}
       {showUsers && roleUsers.length > 0 && (
         <div className="ml-8 space-y-1">
-          {roleUsers.map((user) => (
+          {roleUsers.map((user:any) => (
             <div
-              key={user.id}
+              key={(user as any).id as string}
               className="flex items-center gap-2 p-2 bg-muted/30 rounded border"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                <p className="text-sm font-medium truncate">{String((user as any).name)}</p>
+                <p className="text-xs text-muted-foreground truncate">{String((user as any).email)}</p>
               </div>
               {!isReadOnly && onUserAssign && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs"
-                  onClick={() => { handleUserAssign(user.id); }}
+                  onClick={() => { handleUserAssign((user as any).id as string); }}
                 >
                   Reassign
                 </Button>
@@ -260,7 +259,7 @@ function TreeNode({
       )}
 
       {/* Children */}
-      {isExpanded && node.children.map((child) => (
+      {isExpanded && node.children.map((child:any) => (
         <TreeNode
           key={child.id}
           node={child}
@@ -304,10 +303,10 @@ export function HierarchyView({
       if (hierarchyData) {
         setHierarchy(hierarchyData.nodes);
         // Auto-expand first level
-        const firstLevelIds = hierarchyData.nodes.map(node => node.id);
+        const firstLevelIds = hierarchyData.nodes.map((node: any) => node.id);
         setExpandedNodes(new Set(firstLevelIds));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading hierarchy:', error);
     } finally {
       setLoading(false);
@@ -355,7 +354,7 @@ export function HierarchyView({
             No roles found
           </p>
         ) : (
-          hierarchy.map((node) => (
+          hierarchy.map((node:any) => (
             <ErrorBoundary key={node.id} component="TreeNode">
               <TreeNode
                 node={node}

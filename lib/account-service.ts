@@ -1,5 +1,5 @@
+
 import { createClientSupabase } from './supabase';
-import { Database } from './supabase';
 
 // Helper functions for status mapping
 const getStatusDisplayName = (status: string) => {
@@ -24,9 +24,9 @@ const getStatusColor = (status: string) => {
   return colorMap[status] || '#6B7280';
 };
 
-export type Account = Database['public']['Tables']['accounts']['Row'];
-export type Project = Database['public']['Tables']['projects']['Row'];
-export type User = Database['public']['Tables']['user_profiles']['Row'];
+export type Account = any;
+export type Project = any;
+export type User = any;
 
 export interface AccountWithProjects extends Account {
   projects: ProjectWithDetails[];
@@ -102,13 +102,17 @@ export interface UrgentItem {
 
 class AccountService {
   // Get account by ID with related data
-  async getAccountById(accountId: string, userMap?: { [key: string]: any }, supabaseClient?: any): Promise<AccountWithProjects | null> {
+  async getAccountById(accountId: string, userMap?: { [key: string]: Record<string, unknown> }, supabaseClient?: any): Promise<AccountWithProjects | null> {
     try {
-      const supabase = supabaseClient || createClientSupabase();
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return null;
       }
+
+      type AccountWithManager = Account & {
+        user_profiles?: User;
+      };
 
       const { data: account, error: accountError } = await supabase
         .from('accounts')
@@ -126,17 +130,19 @@ class AccountService {
 
       if (!account) return null;
 
+      const typedAccount = account as unknown as AccountWithManager;
+
       // Get projects for this account
       console.log('getAccountById: About to call getAccountProjects for accountId:', accountId);
       const projects = await this.getAccountProjects(accountId, userMap, supabase);
       console.log('getAccountById: getAccountProjects returned:', projects.length, 'projects');
 
       return {
-        ...account,
+        ...typedAccount,
         projects,
-        account_manager: account.user_profiles as User,
+        account_manager: typedAccount.user_profiles,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAccountById:', error);
       return null;
     }
@@ -145,7 +151,7 @@ class AccountService {
   // Get all accounts
   async getAllAccounts(supabaseClient?: any): Promise<Account[]> {
     try {
-      const supabase = supabaseClient || createClientSupabase();
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return [];
@@ -168,7 +174,7 @@ class AccountService {
       }
 
       return data || [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Error in getAllAccounts:', error);
       return [];
     }
@@ -177,7 +183,7 @@ class AccountService {
   // Check if a user can edit a specific project
   async canUserEditProject(userId: string, projectId: string, supabaseClient?: any): Promise<boolean> {
     try {
-      const supabase = supabaseClient || createClientSupabase();
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return false;
@@ -193,19 +199,31 @@ class AccountService {
         `)
         .eq('user_id', userId);
 
+      type UserRoleWithRole = {
+        roles?: Record<string, unknown> | null;
+      };
+
       if (!rolesError && userRoles) {
-        for (const ur of userRoles) {
-          const role = ur.roles as any;
-          if (!role?.permissions) continue;
+        const typedUserRoles = userRoles as unknown as UserRoleWithRole[];
+        for (const ur of typedUserRoles) {
+          const role = ur.roles;
+          if (!role) continue;
+
+          const permissions = role.permissions as Record<string, unknown> | null;
+          if (!permissions) continue;
 
           // Check for EDIT_ALL_PROJECTS permission (permission-based, not role name based)
-          if (role.permissions.edit_all_projects === true) {
+          if (permissions.edit_all_projects === true) {
             return true;
           }
         }
       }
 
       // Get project details
+      type ProjectWithAccount = Project & {
+        accounts?: { account_manager_id: string | null } | null;
+      };
+
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select(`
@@ -225,26 +243,34 @@ class AccountService {
         return false;
       }
 
+      const typedProject = project as unknown as ProjectWithAccount;
+
       // Check if user is the project creator
-      if (project.created_by === userId) {
+      if (typedProject.created_by === userId) {
         return true;
       }
 
       // Check if user is the assigned user
-      if (project.assigned_user_id === userId) {
+      if (typedProject.assigned_user_id === userId) {
         return true;
       }
 
       // Check if user is the account manager
-      if (project.accounts?.account_manager_id === userId) {
+      if (typedProject.accounts?.account_manager_id === userId) {
         return true;
       }
 
       // Check if user has EDIT_PROJECT permission AND is assigned to this project
       if (userRoles) {
-        for (const ur of userRoles) {
-          const role = ur.roles as any;
-          if (role?.permissions?.edit_project === true) {
+        const typedUserRoles = userRoles as unknown as UserRoleWithRole[];
+        for (const ur of typedUserRoles) {
+          const role = ur.roles;
+          if (!role) continue;
+
+          const permissions = role.permissions as Record<string, unknown> | null;
+          if (!permissions) continue;
+
+          if (permissions.edit_project === true) {
             // Check if user is assigned to this project via project_assignments
             const { data: assignment } = await supabase
               .from('project_assignments')
@@ -262,7 +288,7 @@ class AccountService {
 
       // Stakeholders have read-only access, not edit access
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in canUserEditProject:', error);
       return false;
     }
@@ -271,7 +297,7 @@ class AccountService {
   // Check if a user can access a specific account
   async canUserAccessAccount(userId: string, accountId: string, supabaseClient?: any): Promise<boolean> {
     try {
-      const supabase = supabaseClient || createClientSupabase();
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return false;
@@ -342,7 +368,7 @@ class AccountService {
       }
 
       return (projectAccess && projectAccess.length > 0);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in canUserAccessAccount:', error);
       return false;
     }
@@ -351,7 +377,7 @@ class AccountService {
   // Check if user has FULL (edit) access to account (not just read-only via project stakeholder)
   async hasFullAccountAccess(userId: string, accountId: string, supabaseClient?: any): Promise<boolean> {
     try {
-      const supabase = supabaseClient || createClientSupabase();
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return false;
@@ -393,7 +419,7 @@ class AccountService {
       }
 
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in hasFullAccountAccess:', error);
       return false;
     }
@@ -402,7 +428,7 @@ class AccountService {
   // Get accounts that a user has access to (through projects, membership, or as account manager)
   async getUserAccounts(userId: string, supabaseClient?: any): Promise<Account[]> {
     try {
-      const supabase = supabaseClient || createClientSupabase();
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return [];
@@ -421,17 +447,22 @@ class AccountService {
       }
 
       // Get accounts where user is a member (via account_members table)
-      let memberAccounts: any[] = [];
+      let memberAccounts: Account[] = [];
       const { data: accountMemberships, error: membershipError } = await supabase
         .from('account_members')
         .select('account_id')
         .eq('user_id', userId);
 
+      type AccountMembership = {
+        account_id: string;
+      };
+
       if (membershipError && membershipError.code !== '42P01') {
         console.error('Error fetching account memberships:', membershipError);
         // Continue - don't fail the whole query
       } else if (accountMemberships && accountMemberships.length > 0) {
-        const memberAccountIds = accountMemberships.map((am: any) => am.account_id);
+        const typedMemberships = accountMemberships as unknown as AccountMembership[];
+        const memberAccountIds = typedMemberships.map((am:any) => am.account_id);
 
         // Fetch the actual account data
         const { data: memberAccountData, error: memberAccountDataError } = await supabase
@@ -442,11 +473,15 @@ class AccountService {
         if (memberAccountDataError) {
           console.error('Error fetching member account data:', memberAccountDataError);
         } else if (memberAccountData) {
-          memberAccounts = memberAccountData;
+          memberAccounts = memberAccountData as Account[];
         }
       }
 
       // Get accounts where user has projects assigned (as creator)
+      type ProjectAccountId = {
+        account_id: string;
+      };
+
       let createdProjectAccountIds: string[] = [];
       const { data: createdProjects, error: createdProjectError } = await supabase
         .from('projects')
@@ -456,7 +491,8 @@ class AccountService {
       if (createdProjectError) {
         console.error('Error fetching created projects:', createdProjectError);
       } else if (createdProjects) {
-        createdProjectAccountIds = createdProjects.map((p: any) => p.account_id).filter(Boolean);
+        const typedProjects = createdProjects as unknown as ProjectAccountId[];
+        createdProjectAccountIds = typedProjects.map((p:any) => p.account_id).filter(Boolean);
       }
 
       // Get accounts where user is assigned to projects (as assignee)
@@ -469,13 +505,17 @@ class AccountService {
       if (assignedProjectError) {
         console.error('Error fetching assigned projects:', assignedProjectError);
       } else if (assignedProjects) {
-        assignedProjectAccountIds = assignedProjects.map((p: any) => p.account_id).filter(Boolean);
+        const typedAssigned = assignedProjects as unknown as ProjectAccountId[];
+        assignedProjectAccountIds = typedAssigned.map((p:any) => p.account_id).filter(Boolean);
       }
 
       // Combine all account IDs and deduplicate
+      const managedAccountIds = (managedAccounts || []) as Account[];
+      const memberAccountIds = (memberAccounts || []) as Account[];
+
       const allAccountIds = [
-        ...(managedAccounts?.map((a: any) => a.id) || []),
-        ...(memberAccounts?.map((a: any) => a.id) || []),
+        ...managedAccountIds.map((a:any) => a.id),
+        ...memberAccountIds.map((a:any) => a.id),
         ...createdProjectAccountIds,
         ...assignedProjectAccountIds
       ];
@@ -495,14 +535,15 @@ class AccountService {
         return managedAccounts || [];
       }
 
+      const typedAllAccounts = (allAccounts || []) as Account[];
+
       // Remove duplicates based on account ID
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const uniqueAccounts = (allAccounts || []).filter((account: any, index: number, self: any[]) =>
-        index === self.findIndex((a: any) => a.id === account.id)
+      const uniqueAccounts = typedAllAccounts.filter((account, index, self) =>
+        index === self.findIndex((a) => a.id === account.id)
       );
 
       return uniqueAccounts;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getUserAccounts:', error);
       return [];
     }
@@ -510,12 +551,12 @@ class AccountService {
 
   // Get projects for a specific account
   // Pass a supabase client to ensure proper auth context (server or client)
-  async getAccountProjects(accountId: string, userMap?: { [key: string]: any }, supabaseClient?: any): Promise<ProjectWithDetails[]> {
+  async getAccountProjects(accountId: string, userMap?: { [key: string]: Record<string, unknown> }, supabaseClient?: any): Promise<ProjectWithDetails[]> {
     console.log('getAccountProjects: Starting for accountId:', accountId);
     try {
       // Use provided client, or fall back to singleton (less reliable)
-      const supabase = supabaseClient || createClientSupabase();
-      
+      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+
       if (!supabase) {
         console.error('Supabase client not available');
         return [];
@@ -549,26 +590,28 @@ class AccountService {
       }
 
 
+      const typedProjects = (data || []) as Project[];
+
       // Fetch assigned user data separately for projects that have assigned users
-      const projectsWithAssignedUsers = (data || []).filter((p: any) => p.assigned_user_id);
-      const assignedUserIds = projectsWithAssignedUsers.map((p: any) => p.assigned_user_id);
-      
+      const projectsWithAssignedUsers = typedProjects.filter((p:any) => p.assigned_user_id);
+      const assignedUserIds = projectsWithAssignedUsers.map((p:any) => p.assigned_user_id as string);
+
       console.log('Projects with assigned users:', projectsWithAssignedUsers.length);
       console.log('Assigned user IDs:', assignedUserIds);
-      
-      let assignedUsersMap: { [key: string]: any } = {};
+
+      let assignedUsersMap: { [key: string]: Record<string, unknown> } = {};
       if (assignedUserIds.length > 0) {
         console.log('Looking up users with IDs:', assignedUserIds);
-        
+
         // If userMap is provided, use it instead of querying the database
         if (userMap) {
           console.log('Using provided userMap');
-          assignedUsersMap = assignedUserIds.reduce((acc: any, userId: string) => {
+          assignedUsersMap = assignedUserIds.reduce((acc, userId) => {
             if (userMap[userId]) {
               acc[userId] = userMap[userId];
             }
             return acc;
-          }, {} as { [key: string]: any });
+          }, {} as { [key: string]: Record<string, unknown> });
           console.log('Assigned users from userMap:', assignedUsersMap);
         } else {
           console.log('No userMap provided, querying database...');
@@ -602,24 +645,25 @@ class AccountService {
           // Prefer multiple user lookup (gets all users), fall back to single user lookup
           if (!usersError && usersData && usersData.length > 0) {
             console.log('Using multiple user lookup result (preferred)');
-            assignedUsersMap = usersData.reduce((acc: any, user: any) => {
-              acc[user.id] = user;
+            const typedUsers = usersData as unknown as User[];
+            assignedUsersMap = typedUsers.reduce((acc, user) => {
+              acc[(user as any).id] = user as Record<string, unknown>;
               return acc;
-            }, {} as { [key: string]: any });
+            }, {} as { [key: string]: Record<string, unknown> });
           } else if (!singleUserError && singleUserData) {
             console.log('Using single user lookup result (fallback)');
-            assignedUsersMap[assignedUserIds[0]] = singleUserData;
+            assignedUsersMap[assignedUserIds[0]] = singleUserData as Record<string, unknown>;
           } else {
             console.log('No user data found from any query');
           }
         }
       }
-      
+
       console.log('Assigned users map:', assignedUsersMap);
 
       // Get departments for each project via project_assignments
-      const projectIds = (data || []).map((p: any) => p.id);
-      const departmentsByProject: { [key: string]: any[] } = {};
+      const projectIds = typedProjects.map((p:any) => p.id);
+      const departmentsByProject: { [key: string]: Record<string, unknown>[] } = {};
 
       // Fetch workflow steps for projects
       const workflowSteps: { [key: string]: string | null } = {};
@@ -636,14 +680,38 @@ class AccountService {
           .in('project_id', projectIds)
           .eq('status', 'active');
 
+        type WorkflowInstance = {
+          project_id: string;
+          workflow_nodes?: {
+            label: string;
+          } | null;
+        };
+
         if (!workflowError && workflowData) {
-          workflowData.forEach((instance: any) => {
-            if (instance.project_id && instance.workflow_nodes?.label) {
-              workflowSteps[instance.project_id] = instance.workflow_nodes.label;
+          const typedWorkflow = workflowData as unknown as WorkflowInstance[];
+          typedWorkflow.forEach((instance:any) => {
+            const nodes = instance.workflow_nodes;
+            if (instance.project_id && nodes && typeof nodes.label === 'string') {
+              workflowSteps[instance.project_id] = nodes.label;
             }
           });
         }
       }
+
+      type ProjectAssignment = {
+        project_id: string;
+        user_id: string;
+        user_roles?: {
+          role_id: string;
+          roles?: {
+            department_id: string | null;
+            departments?: {
+              id: string;
+              name: string;
+            } | null;
+          } | null;
+        }[] | null;
+      };
 
       if (projectIds.length > 0) {
         const { data: assignments, error: assignmentsError } = await supabase
@@ -666,8 +734,9 @@ class AccountService {
           .is('removed_at', null);
 
         if (!assignmentsError && assignments) {
+          const typedAssignments = assignments as unknown as ProjectAssignment[];
           // Build a map of project_id -> unique departments
-          assignments.forEach((assignment: any) => {
+          typedAssignments.forEach((assignment:any) => {
             const projectId = assignment.project_id;
             if (!departmentsByProject[projectId]) {
               departmentsByProject[projectId] = [];
@@ -680,9 +749,9 @@ class AccountService {
               if (role && role.departments) {
                 const dept = role.departments;
                 // Check if department already exists for this project
-                const exists = departmentsByProject[projectId].some((d: any) => d.id === dept.id);
+                const exists = departmentsByProject[projectId].some((d:any) => d.id === dept.id);
                 if (!exists) {
-                  departmentsByProject[projectId].push(dept);
+                  departmentsByProject[projectId].push(dept as Record<string, unknown>);
                 }
               }
             });
@@ -690,39 +759,42 @@ class AccountService {
         }
       }
 
-      const mappedProjects = (data || []).map((project: any) => {
-        const assignedUsers = project.assigned_user_id && assignedUsersMap[project.assigned_user_id] 
-          ? [assignedUsersMap[project.assigned_user_id]] 
+      const mappedProjects = typedProjects.map((project:any) => {
+        const projectId = project.id;
+        const assignedUserId = project.assigned_user_id;
+        const assignedUsers = assignedUserId && assignedUsersMap[assignedUserId]
+          ? [assignedUsersMap[assignedUserId]]
           : [];
-        
+
         // Debug: Log if a project has an assigned_user_id but no assigned user data
-        if (project.assigned_user_id && assignedUsers.length === 0) {
-          console.warn(`⚠️ Project "${project.name}" has assigned_user_id "${project.assigned_user_id}" but no user data found in map`);
+        if (assignedUserId && assignedUsers.length === 0) {
+          console.warn(`⚠️ Project "${project.name}" has assigned_user_id "${assignedUserId}" but no user data found in map`);
           console.log('Available user IDs in map:', Object.keys(assignedUsersMap));
         }
-        
+
         console.log(`Project ${project.name}:`, {
-          assigned_user_id: project.assigned_user_id,
+          assigned_user_id: assignedUserId,
           assigned_users: assignedUsers,
-          user_in_map: assignedUsersMap[project.assigned_user_id]
+          user_in_map: assignedUserId ? assignedUsersMap[assignedUserId] : null
         });
-        
+
+        const status = project.status;
         return {
           ...project,
-          departments: departmentsByProject[project.id] || [],
+          departments: departmentsByProject[projectId] || [],
           assigned_users: assignedUsers,
           status_info: {
-            id: project.status,
-            name: getStatusDisplayName(project.status),
-            color: getStatusColor(project.status)
+            id: status,
+            name: getStatusDisplayName(status),
+            color: getStatusColor(status)
           },
-          workflow_step: workflowSteps[project.id] || null,
-        };
+          workflow_step: workflowSteps[projectId] || null,
+        } as ProjectWithDetails;
       });
       
       console.log('Final mapped projects:', mappedProjects);
       return mappedProjects;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAccountProjects:', error);
       return [];
     }
@@ -734,18 +806,18 @@ class AccountService {
       const projects = await this.getAccountProjects(accountId, undefined, supabaseClient);
       const now = new Date();
 
-      const activeProjects = projects.filter(p =>
+      const activeProjects = projects.filter((p: any) =>
         p.status_info.name !== 'Complete' && p.status_info.name !== 'Cancelled'
       ).length;
 
-      const completedProjects = projects.filter(p =>
+      const completedProjects = projects.filter((p: any) =>
         p.status_info.name === 'Complete'
       ).length;
 
       const totalProjects = projects.length;
 
       // Upcoming deadlines - only count non-completed projects with deadlines in next 7 days
-      const upcomingDeadlines = projects.filter(p => {
+      const upcomingDeadlines = projects.filter((p: any) => {
         if (!p.end_date) return false;
         // IMPORTANT: Exclude completed projects from deadline counts
         if (p.status_info.name === 'Complete' || p.status_info.name === 'Cancelled') return false;
@@ -755,7 +827,7 @@ class AccountService {
       }).length;
 
       // Overdue projects - only count non-completed projects that are past due
-      const overdueProjects = projects.filter(p => {
+      const overdueProjects = projects.filter((p: any) => {
         if (!p.end_date) return false;
         // IMPORTANT: Exclude completed projects from overdue counts
         if (p.status_info.name === 'Complete' || p.status_info.name === 'Cancelled') return false;
@@ -766,10 +838,11 @@ class AccountService {
       // Count actual pending approvals from workflow instances for this account's projects
       let pendingApprovals = 0;
       if (supabaseClient && projects.length > 0) {
-        const projectIds = projects.map(p => p.id);
+        const supabase = supabaseClient as any;
+        const projectIds = projects.map((p: any) => p.id);
 
         // Query workflow instances for account's projects that are waiting on approval/form nodes
-        const { data: workflowInstances, error: workflowError } = await supabaseClient
+        const { data: workflowInstances, error: workflowError } = await supabase
           .from('workflow_instances')
           .select(`
             id,
@@ -780,9 +853,17 @@ class AccountService {
           .eq('status', 'active');
 
         if (!workflowError && workflowInstances) {
+          type WorkflowInstanceWithNode = {
+            workflow_nodes?: {
+              node_type: string;
+            } | null;
+          };
+
+          const typedInstances = workflowInstances as unknown as WorkflowInstanceWithNode[];
           // Count instances where current node is an approval or form type
-          pendingApprovals = workflowInstances.filter((instance: any) => {
-            const nodeType = instance.workflow_nodes?.node_type;
+          pendingApprovals = typedInstances.filter((instance:any) => {
+            const nodes = instance.workflow_nodes;
+            const nodeType = nodes?.node_type;
             return nodeType === 'approval' || nodeType === 'form';
           }).length;
         }
@@ -804,7 +885,7 @@ class AccountService {
         pendingApprovals,
         healthScore,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAccountMetrics:', error);
       return {
         activeProjects: 0,
@@ -825,7 +906,7 @@ class AccountService {
       const now = new Date();
       const urgentItems: UrgentItem[] = [];
 
-      projects.forEach(project => {
+      projects.forEach((project: any) => {
         // Check for projects marked as URGENT priority
         if (project.priority === 'urgent' && project.status_info.name !== 'Complete') {
           urgentItems.push({
@@ -884,7 +965,7 @@ class AccountService {
         }
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getUrgentItems:', error);
       return [];
     }
@@ -900,7 +981,7 @@ class AccountService {
     assigned_user_id?: string;
   }, createdBy?: string): Promise<Project | null> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return null;
@@ -909,15 +990,21 @@ class AccountService {
 
       console.log('Creating project with assigned_user_id:', projectData.assigned_user_id);
 
+      const insertData = {
+        name: projectData.name,
+        description: projectData.description || null,
+        account_id: accountId,
+        priority: 'medium' as const,
+        start_date: projectData.start_date || null,
+        end_date: projectData.end_date || null,
+        status: (projectData.status || 'planning') as 'planning' | 'in_progress' | 'review' | 'complete' | 'on_hold',
+        created_by: createdBy || null,
+        assigned_user_id: projectData.assigned_user_id || null,
+      };
+
       const { data, error } = await supabase
         .from('projects')
-        .insert({
-          ...projectData,
-          account_id: accountId,
-          priority: 'medium', // Default priority
-          created_by: createdBy || null,
-          assigned_user_id: projectData.assigned_user_id || null,
-        })
+        .insert(insertData as any)
         .select()
         .single();
 
@@ -926,9 +1013,10 @@ class AccountService {
         return null;
       }
 
-      console.log('Project created successfully with assigned_user_id:', data?.assigned_user_id);
-      return data;
-    } catch (error) {
+      const typedData = data as Project | null;
+      console.log('Project created successfully with assigned_user_id:', typedData?.assigned_user_id);
+      return typedData;
+    } catch (error: unknown) {
       console.error('Error in createProject:', error);
       return null;
     }
@@ -937,7 +1025,7 @@ class AccountService {
   // Update project
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return null;
@@ -958,10 +1046,20 @@ class AccountService {
       }
 
       console.log('Current project state:', currentProject);
-      
-      const { data, error } = await supabase
+
+      // Convert updates to proper type, allowing partial updates
+      const updateData: Partial<Project> = {};
+      const updateKeys = Object.keys(updates) as Array<string>;
+      for (const key of updateKeys) {
+        const value = (updates as any)[key];
+        if (value !== undefined) {
+          (updateData as Record<string, unknown>)[key] = value;
+        }
+      }
+
+      const { data, error } = await (supabase as any)
         .from('projects')
-        .update(updates)
+        .update(updateData)
         .eq('id', projectId)
         .select()
         .single();
@@ -979,7 +1077,7 @@ class AccountService {
 
       console.log('Project updated successfully:', data);
       return data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateProject:', error);
       return null;
     }
@@ -989,7 +1087,7 @@ class AccountService {
   async deleteProject(projectId: string): Promise<boolean> {
     try {
       console.log('deleteProject called with ID:', projectId);
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return false;
@@ -1008,7 +1106,7 @@ class AccountService {
 
       console.log('Project deleted from database successfully');
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in deleteProject:', error);
       return false;
     }
@@ -1017,7 +1115,7 @@ class AccountService {
   // Get all users for assignment
   async getAllUsers(): Promise<User[]> {
     try {
-      const supabase = createClientSupabase();
+      const supabase = createClientSupabase() as any;
       if (!supabase) {
         console.error('Supabase client not available');
         return [];
@@ -1060,36 +1158,50 @@ class AccountService {
         console.log('Using simple query result:', simpleUsers);
         
         // Now manually check each user for roles, account memberships, and department memberships
-        const filteredUsers = [];
-        
-        for (const user of simpleUsers || []) {
+        const filteredUsers: User[] = [];
+
+        const typedSimpleUsers = (simpleUsers || []) as User[];
+
+        for (const user of typedSimpleUsers) {
+          type UserRoleWithRole = {
+            role_id: string;
+            roles?: {
+              id: string;
+              name: string;
+              department_id: string | null;
+            } | null;
+          };
+
           // Check if user has any roles
           const { data: userRoles } = await supabase
             .from('user_roles')
             .select('role_id, roles:role_id(id, name, department_id)')
-            .eq('user_id', user.id);
-          
+            .eq('user_id', (user as any).id);
+
           // Check if user has any account memberships
           const { data: accountMembers } = await supabase
             .from('account_members')
             .select('account_id')
-            .eq('user_id', user.id);
-          
-          const hasRoles = userRoles && userRoles.length > 0;
+            .eq('user_id', (user as any).id);
+
+          const typedUserRoles = (userRoles || []) as unknown as UserRoleWithRole[];
+
+          const hasRoles = typedUserRoles.length > 0;
           const hasAccountMemberships = accountMembers && accountMembers.length > 0;
-          const hasDepartmentMemberships = userRoles?.some((ur: any) => 
-            ur.roles && ur.roles.department_id
-          ) || false;
-          
+          const hasDepartmentMemberships = typedUserRoles.some((ur:any) => {
+            const roles = ur.roles;
+            return roles && roles.department_id;
+          });
+
           const hasAnyMembership = hasRoles || hasAccountMemberships || hasDepartmentMemberships;
-          
+
           if (hasAnyMembership) {
             filteredUsers.push(user);
           } else {
-            console.log(`Filtering out user ${user.name} (${user.email}) - no roles, accounts, or departments`);
+            console.log(`Filtering out user ${(user as any).name} (${(user as any).email}) - no roles, accounts, or departments`);
           }
         }
-        
+
         console.log(`Manual filtering result: ${filteredUsers.length} out of ${simpleUsers?.length || 0} users have roles/accounts/departments`);
         return filteredUsers;
       }
@@ -1104,54 +1216,82 @@ class AccountService {
         return [];
       }
 
-      console.log('Raw users before filtering:', users.map((u: any) => ({ 
-        name: u.name, 
-        email: u.email, 
-        hasRoles: u.user_roles?.length > 0,
-        hasAccountMembers: u.account_members?.length > 0,
-        roles: u.user_roles?.map((ur: any) => ur.roles?.name).filter(Boolean),
-        departments: u.user_roles?.map((ur: any) => ur.roles?.department_id).filter(Boolean),
-        user_roles: u.user_roles,
-        account_members: u.account_members
-      })));
+      type UserWithRelations = User & {
+        user_roles?: {
+          role_id: string;
+          roles?: {
+            id: string;
+            name: string;
+            department_id: string | null;
+          } | null;
+        }[] | null;
+        account_members?: {
+          account_id: string;
+        }[] | null;
+      };
+
+      const typedUsers = users as unknown as UserWithRelations[];
+
+      console.log('Raw users before filtering:', typedUsers.map((u:any) => {
+        const userRoles = u.user_roles;
+        const accountMembers = u.account_members;
+        return {
+          name: u.name,
+          email: u.email,
+          hasRoles: userRoles && userRoles.length > 0,
+          hasAccountMembers: accountMembers && accountMembers.length > 0,
+          roles: userRoles?.map((ur:any) => ur.roles?.name).filter(Boolean),
+          departments: userRoles?.map((ur:any) => ur.roles?.department_id).filter(Boolean),
+          user_roles: userRoles,
+          account_members: accountMembers
+        };
+      }));
 
       // Filter users who have at least one role, account membership, or department membership
-      const filteredUsers = users.filter((user: any) => {
+      const filteredUsers = typedUsers.filter((user:any) => {
+        const userRoles = user.user_roles;
+        const accountMembers = user.account_members;
+
         // Check if user has any roles
-        const hasRoles = user.user_roles && user.user_roles.length > 0;
-        
+        const hasRoles = userRoles && userRoles.length > 0;
+
         // Check if user has any account memberships
-        const hasAccountMemberships = user.account_members && user.account_members.length > 0;
-        
-        // Check if user has any department memberships through roles (simplified check)
-        const hasDepartmentMemberships = user.user_roles?.some((ur: any) => 
-          ur.roles && ur.roles.department_id
-        ) || false;
+        const hasAccountMemberships = accountMembers && accountMembers.length > 0;
+
+        // Check if user has any department memberships through roles
+        const hasDepartmentMemberships = userRoles?.some((ur:any) => {
+          const roles = ur.roles;
+          return roles && roles.department_id;
+        }) || false;
 
         // User must have at least one of: roles, account memberships, or department memberships
         const hasAnyMembership = hasRoles || hasAccountMemberships || hasDepartmentMemberships;
-        
+
         if (!hasAnyMembership) {
-          console.log(`Filtering out user ${user.name} (${user.email}) - no roles, accounts, or departments`);
+          console.log(`Filtering out user ${(user as any).name} (${(user as any).email}) - no roles, accounts, or departments`);
         }
-        
+
         return hasAnyMembership;
       });
 
       // Clean up the data structure to match the expected User interface
-      const cleanedUsers = filteredUsers.map((user: any) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        created_at: user.created_at,
-        updated_at: user.updated_at
+      const cleanedUsers: User[] = filteredUsers.map((user:any) => ({
+        id: (user as any).id,
+        name: (user as any).name,
+        email: (user as any).email,
+        image: (user as any).image,
+        bio: (user as any).bio,
+        skills: (user as any).skills,
+        workload_sentiment: (user as any).workload_sentiment,
+        is_superadmin: user.is_superadmin,
+        created_at: (user as any).created_at,
+        updated_at: (user as any).updated_at
       }));
 
       console.log(`Filtered users: ${cleanedUsers.length} out of ${users.length} users have roles/accounts/departments`);
-      console.log('Filtered user details:', cleanedUsers.map((u: any) => ({ name: u.name, email: u.email })));
+      console.log('Filtered user details:', cleanedUsers.map((u:any) => ({ name: u.name, email: u.email })));
       return cleanedUsers;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in getAllUsers:', error);
       return [];
     }

@@ -7,6 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 type TimePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 
 interface CapacityDataPoint {
@@ -63,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (projectIds.length === 0) {
       return NextResponse.json({
         success: true,
-        data: ranges.map(r => ({
+        data: ranges.map((r: any) => ({
           label: r.label,
           startDate: r.startDate,
           endDate: r.endDate,
@@ -83,12 +89,12 @@ export async function GET(request: NextRequest) {
       .in('project_id', projectIds)
       .is('removed_at', null);
 
-    const userIds = Array.from(new Set((projectAssignmentsData || []).map((pa: any) => pa.user_id)));
+    const userIds = Array.from(new Set((projectAssignmentsData || []).map((pa: any) => pa.user_id as string)));
 
     if (userIds.length === 0) {
       return NextResponse.json({
         success: true,
-        data: ranges.map(r => ({
+        data: ranges.map((r: any) => ({
           label: r.label,
           startDate: r.startDate,
           endDate: r.endDate,
@@ -140,10 +146,14 @@ export async function GET(request: NextRequest) {
     const availabilityMap = new Map<string, Map<string, number>>();
     if (availabilityData.data) {
       availabilityData.data.forEach((a: any) => {
-        if (!availabilityMap.has(a.user_id)) {
-          availabilityMap.set(a.user_id, new Map());
+        const userId = a.user_id as string;
+        const weekStartDate = a.week_start_date as string;
+        const availableHours = a.available_hours as number;
+
+        if (!availabilityMap.has(userId)) {
+          availabilityMap.set(userId, new Map<string, number>());
         }
-        availabilityMap.get(a.user_id)?.set(a.week_start_date, a.available_hours);
+        availabilityMap.get(userId)?.set(weekStartDate, availableHours);
       });
     }
 
@@ -151,14 +161,18 @@ export async function GET(request: NextRequest) {
     const userAccountsMap = new Map<string, Set<string>>();
     if (allUserProjectsData.data) {
       allUserProjectsData.data.forEach((assignment: any) => {
-        if (!userAccountsMap.has(assignment.user_id)) {
-          userAccountsMap.set(assignment.user_id, new Set());
+        const userId = assignment.user_id as string;
+        const projects = assignment.projects as Record<string, unknown>;
+        const accountId = projects.account_id as string;
+
+        if (!userAccountsMap.has(userId)) {
+          userAccountsMap.set(userId, new Set<string>());
         }
-        userAccountsMap.get(assignment.user_id)?.add(assignment.projects.account_id);
+        userAccountsMap.get(userId)?.add(accountId);
       });
     }
 
-    const dataPoints: CapacityDataPoint[] = ranges.map(range => {
+    const dataPoints: CapacityDataPoint[] = ranges.map((range: any) => {
       const periodStart = new Date(range.startDate);
       const periodEnd = new Date(range.endDate);
 
@@ -166,7 +180,7 @@ export async function GET(request: NextRequest) {
       // Proportionally allocate user capacity based on number of accounts they work on
       let totalAvailable = 0;
       userIds.forEach(userId => {
-        const userAvailability = availabilityMap.get(userId) ?? new Map();
+        const userAvailability = availabilityMap.get(userId) ?? new Map<string, number>();
         const userAccounts = userAccountsMap.get(userId);
         const accountCount = userAccounts ? userAccounts.size : 1;
         const allocationFactor = 1 / accountCount; // Split capacity evenly across accounts
@@ -187,7 +201,7 @@ export async function GET(request: NextRequest) {
           }
         } else {
           // For monthly/quarterly, sum all weeks in the period
-          let currentWeek = new Date(periodStart);
+          const currentWeek = new Date(periodStart);
           const dayOfWeek = currentWeek.getDay();
           const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
           currentWeek.setDate(currentWeek.getDate() + daysToMonday);
@@ -212,19 +226,19 @@ export async function GET(request: NextRequest) {
           if (task.status === 'done' || task.status === 'complete') return false;
 
           // Only count tasks assigned to users in this account (or unassigned tasks)
-          if (task.assigned_to && !userIds.includes(task.assigned_to)) return false;
+          if (task.assigned_to && !userIds.includes(task.assigned_to as string)) return false;
 
           // Check if task overlaps with period
-          const taskStart = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
-          const taskEnd = task.due_date ? new Date(task.due_date) : new Date('2099-12-31');
+          const taskStart = task.start_date ? new Date(task.start_date as string) : new Date(task.created_at as string);
+          const taskEnd = task.due_date ? new Date(task.due_date as string) : new Date('2099-12-31');
           return taskStart <= periodEnd && taskEnd >= periodStart;
         })
         .reduce((sum, task: any) => {
-          const hours = task.remaining_hours ?? task.estimated_hours ?? 0;
+          const hours = ((((task.remaining_hours ?? task.estimated_hours ?? 0) as number)) as number);
           if (hours === 0) return sum;
 
-          const taskStart = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
-          const taskEnd = task.due_date ? new Date(task.due_date) : new Date('2099-12-31');
+          const taskStart = task.start_date ? new Date(task.start_date as string) : new Date(task.created_at as string);
+          const taskEnd = task.due_date ? new Date(task.due_date as string) : new Date('2099-12-31');
           const taskDurationMs = taskEnd.getTime() - taskStart.getTime();
           const taskDurationDays = Math.max(1, Math.ceil(taskDurationMs / (1000 * 60 * 60 * 24)));
           const dailyRate = hours / taskDurationDays;
@@ -267,10 +281,10 @@ export async function GET(request: NextRequest) {
       // Calculate actual hours from time entries on account projects
       const totalActual = (timeEntriesData.data || [])
         .filter((entry: any) => {
-          const entryDate = new Date(entry.entry_date);
+          const entryDate = new Date(entry.entry_date as string);
           return entryDate >= periodStart && entryDate <= periodEnd;
         })
-        .reduce((sum: number, entry: any) => sum + (entry.hours_logged || 0), 0);
+        .reduce((sum: number, entry: any) => sum + ((entry.hours_logged as number) || 0), 0);
 
       const utilization = totalAvailable > 0 ? Math.round((totalActual / totalAvailable) * 100) : 0;
 
@@ -290,10 +304,11 @@ export async function GET(request: NextRequest) {
       data: dataPoints,
       period,
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/capacity/account:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/capacity/account:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

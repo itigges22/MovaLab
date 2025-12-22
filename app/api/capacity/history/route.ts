@@ -8,6 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 // Helper to parse date string as local time (not UTC)
 function parseLocalDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -58,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') ?? userProfile.id;
+    const userId = searchParams.get('userId') ?? (userProfile as any).id;
     const period = (searchParams.get('period') ?? 'weekly') as TimePeriod;
 
     // Generate date ranges based on period
@@ -129,7 +135,7 @@ export async function GET(request: NextRequest) {
     const availabilityMap = new Map<string, number>();
     if (availabilityData.data) {
       availabilityData.data.forEach((a: any) => {
-        availabilityMap.set(a.week_start_date, a.available_hours);
+        availabilityMap.set(a.week_start_date as string, a.available_hours as number);
       });
     }
 
@@ -141,11 +147,11 @@ export async function GET(request: NextRequest) {
 
     // Remove duplicates (task might be both directly assigned and in an assigned project)
     const uniqueTasks = Array.from(
-      new Map(allTasks.map(t => [t.id, t])).values()
+      new Map(allTasks.map((t: any) => [t.id, t])).values()
     );
 
     // Calculate capacity for each date range
-    const dataPoints: CapacityDataPoint[] = ranges.map(range => {
+    const dataPoints: CapacityDataPoint[] = ranges.map((range: any) => {
       // Get available hours for this period based on user_availability
       let available = 0;
       let weeksInPeriod = 0;
@@ -169,7 +175,7 @@ export async function GET(request: NextRequest) {
         let totalHours = 0;
 
         // Use local time to match how availability is saved
-        let currentWeek = new Date(periodStart.getFullYear(), periodStart.getMonth(), periodStart.getDate());
+        const currentWeek = new Date(periodStart.getFullYear(), periodStart.getMonth(), periodStart.getDate());
 
         // Get the Monday of the week containing periodStart
         const dayOfWeek = currentWeek.getDay();
@@ -197,24 +203,24 @@ export async function GET(request: NextRequest) {
 
       // Calculate allocated hours from tasks
       let allocated = uniqueTasks
-        .filter(task => {
+        .filter((task: any) => {
           if (task.status === 'done' || task.status === 'complete') return false;
 
           // Check if task overlaps with this period
-          const taskStart = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
-          const taskEnd = task.due_date ? new Date(task.due_date) : new Date('2099-12-31');
+          const taskStart = task.start_date ? new Date(task.start_date as string) : new Date(task.created_at);
+          const taskEnd = task.due_date ? new Date(task.due_date as string) : new Date('2099-12-31');
           const periodStart = new Date(range.startDate);
           const periodEnd = new Date(range.endDate);
 
           return taskStart <= periodEnd && taskEnd >= periodStart;
         })
         .reduce((sum, task) => {
-          const hours = task.remaining_hours ?? task.estimated_hours ?? 0;
+          const hours = ((task.remaining_hours ?? task.estimated_hours ?? 0) as number);
           if (hours === 0) return sum;
 
           // Get task date range
-          const taskStart = task.start_date ? new Date(task.start_date) : new Date(task.created_at);
-          const taskEnd = task.due_date ? new Date(task.due_date) : new Date('2099-12-31');
+          const taskStart = task.start_date ? new Date(task.start_date as string) : new Date(task.created_at);
+          const taskEnd = task.due_date ? new Date(task.due_date as string) : new Date('2099-12-31');
 
           // Calculate total task duration in days (minimum 1 day)
           const taskDurationMs = taskEnd.getTime() - taskStart.getTime();
@@ -241,16 +247,16 @@ export async function GET(request: NextRequest) {
       if (projectAssignmentsData.data) {
         for (const pa of projectAssignmentsData.data) {
           const project = Array.isArray(pa.projects) ? pa.projects[0] : pa.projects;
-          if (!project || (project as any).status === 'complete') continue;
+          if (!project || (project as Record<string, unknown>).status === 'complete') continue;
 
-          // Check if this project has any tasks
-          const projectHasTasks = (projectTasksData ?? []).some((t: any) => t.project_id === (project as any).id);
+          // Check if this project has Record<string, unknown> tasks
+          const projectHasTasks = (projectTasksData ?? []).some((t: any) => t.project_id === (project as Record<string, unknown>).id);
 
           // If no tasks exist, use project-level estimated hours
-          if (!projectHasTasks && (project as any).estimated_hours) {
+          if (!projectHasTasks && (project as Record<string, unknown>).estimated_hours) {
             // Check if project overlaps with this period
-            const projectStart = (project as any).start_date ? new Date((project as any).start_date) : new Date();
-            const projectEnd = (project as any).end_date ? new Date((project as any).end_date) : new Date('2099-12-31');
+            const projectStart = (project as Record<string, unknown>).start_date ? new Date((project as Record<string, unknown>).start_date as string) : new Date();
+            const projectEnd = (project as Record<string, unknown>).end_date ? new Date((project as Record<string, unknown>).end_date as string) : new Date('2099-12-31');
             const periodStart = new Date(range.startDate);
             const periodEnd = new Date(range.endDate);
 
@@ -258,7 +264,7 @@ export async function GET(request: NextRequest) {
               // Calculate project duration and spread hours across it
               const projectDurationMs = projectEnd.getTime() - projectStart.getTime();
               const projectDurationDays = Math.max(1, Math.ceil(projectDurationMs / (1000 * 60 * 60 * 24)) + 1);
-              const dailyRate = (project as any).estimated_hours / projectDurationDays;
+              const dailyRate = ((project as Record<string, unknown>).estimated_hours as number) / projectDurationDays;
 
               // Calculate overlap
               const overlapStart = new Date(Math.max(projectStart.getTime(), periodStart.getTime()));
@@ -275,14 +281,14 @@ export async function GET(request: NextRequest) {
       // Calculate actual hours from time_entries (real hours logged)
       const actual = (timeEntriesData.data || [])
         .filter((entry: any) => {
-          const entryDate = new Date(entry.entry_date);
+          const entryDate = new Date(entry.entry_date as string);
           const periodStart = new Date(range.startDate);
           const periodEnd = new Date(range.endDate);
           return entryDate >= periodStart && entryDate <= periodEnd;
         })
         .reduce((sum: number, entry: any) => {
           // Convert to number (Postgres numeric/decimal returns as string)
-          return sum + Number(entry.hours_logged || 0);
+          return sum + Number((entry.hours_logged as number) || 0);
         }, 0);
 
       // Calculate utilization percentage
@@ -316,10 +322,11 @@ export async function GET(request: NextRequest) {
       userId,
       debug: debugInfo,
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/capacity/history:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/capacity/history:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

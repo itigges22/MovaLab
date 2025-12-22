@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { AccountList } from '@/components/account-list';
-import { AccountCreateDialog } from '@/components/account-create-dialog';
 import { Account } from '@/lib/account-service';
-import { UserWithRoles, isSuperadmin } from '@/lib/rbac';
+import { UserWithRoles } from '@/lib/rbac';
 
 interface AccountsClientWrapperProps {
   initialAccounts: Account[];
@@ -17,7 +16,7 @@ export function AccountsClientWrapper({
   userProfile, 
   isAdminLevel 
 }: AccountsClientWrapperProps) {
-  const [accounts, setAccounts] = useState(initialAccounts);
+  const [accounts, _setAccounts] = useState(initialAccounts);
 
   const handleAccountCreated = () => {
     // Refresh the page to get updated accounts

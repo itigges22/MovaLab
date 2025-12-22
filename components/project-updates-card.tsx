@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { AllProjectUpdate } from '@/lib/all-project-updates-service'
 import { formatDistanceToNow } from 'date-fns'
-import { Activity, Clock, User } from 'lucide-react'
+import { Activity, Clock } from 'lucide-react'
 
 interface ProjectUpdatesCardProps {
   className?: string;
@@ -21,7 +21,7 @@ function renderMarkdownContent(content: string): React.ReactNode {
   // Split by **text** pattern and render bold parts
   const parts = content.split(/(\*\*[^*]+\*\*)/g)
 
-  return parts.map((part, index) => {
+  return parts.map((part:any, index:any) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       // Remove the ** markers and render as bold
       return <strong key={index}>{part.slice(2, -2)}</strong>
@@ -58,7 +58,7 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
       
       const data = await response.json()
       setUpdates(data || [])
-    } catch (err) {
+    } catch (err: unknown) {
       // Handle network errors gracefully (server not running, CORS, etc.)
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         // Network error - likely server not running or connection issue
@@ -93,7 +93,7 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word.charAt(0))
+      .map((word: any) => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2)
@@ -159,7 +159,7 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
             </div>
           ) : (
             <div className="space-y-4">
-              {updates.map((update) => (
+              {updates.map((update:any) => (
                 <div key={update.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start space-x-3">
                     <Avatar className="w-8 h-8 flex-shrink-0">
@@ -188,12 +188,12 @@ export default function ProjectUpdatesCard({ className }: ProjectUpdatesCardProp
                         <span className="hidden sm:inline">•</span>
                         <span className="break-all sm:break-normal">{update.projects?.accounts?.name || 'Unknown Account'}</span>
                         <span className="hidden sm:inline">•</span>
-                        {(update as any).workflow_history?.workflow_nodes?.label ? (
+                        {((update as Record<string, unknown>).workflow_history as Record<string, unknown> | undefined)?.workflow_nodes ? (
                           <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
-                            {(update as any).workflow_history.workflow_nodes.label}
-                            {(update as any).workflow_history.approval_decision && (
+                            {String((((update as Record<string, unknown>).workflow_history as Record<string, unknown>)?.workflow_nodes as Record<string, unknown> | undefined)?.label)}
+                            {Boolean(((update as Record<string, unknown>).workflow_history as Record<string, unknown> | undefined)?.approval_decision) && (
                               <span className="ml-1">
-                                ({(update as any).workflow_history.approval_decision})
+                                ({String(((update as Record<string, unknown>).workflow_history as Record<string, unknown> | undefined)?.approval_decision)})
                               </span>
                             )}
                           </Badge>

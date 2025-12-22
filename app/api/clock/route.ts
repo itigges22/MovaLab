@@ -9,6 +9,12 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 /**
  * GET /api/clock
  * Check if user is currently clocked in
@@ -35,7 +41,7 @@ export async function GET(request: NextRequest) {
     const { data: session, error } = await supabase
       .from('clock_sessions')
       .select('*')
-      .eq('user_id', userProfile.id)
+      .eq('user_id', (userProfile as any).id)
       .eq('is_active', true)
       .single();
 
@@ -79,10 +85,11 @@ export async function GET(request: NextRequest) {
       isClockedIn: !!session,
       session: session || null
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/clock:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/clock:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -111,7 +118,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: LOG_TIME
-    const canLogTime = await hasPermission(userProfile, Permission.LOG_TIME, undefined, supabase);
+    const canLogTime = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
     if (!canLogTime) {
       return NextResponse.json(
         { error: 'Insufficient permissions to clock in' },
@@ -123,7 +130,7 @@ export async function POST(request: NextRequest) {
     const { data: existingSession } = await supabase
       .from('clock_sessions')
       .select('id')
-      .eq('user_id', userProfile.id)
+      .eq('user_id', (userProfile as any).id)
       .eq('is_active', true)
       .single();
 
@@ -138,7 +145,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error } = await supabase
       .from('clock_sessions')
       .insert({
-        user_id: userProfile.id,
+        user_id: (userProfile as any).id,
         clock_in_time: new Date().toISOString(),
         is_active: true
       })
@@ -158,10 +165,11 @@ export async function POST(request: NextRequest) {
       message: 'Clocked in successfully',
       session
     });
-  } catch (error: any) {
-    console.error('Error in POST /api/clock:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in POST /api/clock:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

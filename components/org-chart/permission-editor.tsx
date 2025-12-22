@@ -22,7 +22,6 @@ interface PermissionEditorProps {
 }
 
 export function PermissionEditor({
-  roleId,
   roleName,
   currentPermissions,
   onPermissionsChange,
@@ -73,7 +72,7 @@ export function PermissionEditor({
       if (success) {
         setHasChanges(false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving permissions:', error);
     } finally {
       setSaving(false);
@@ -88,16 +87,16 @@ export function PermissionEditor({
 
   const getCategoryStats = (categoryPermissions: Permission[]) => {
     const total = categoryPermissions.length;
-    const enabled = categoryPermissions.filter(p => permissions[p]).length;
+    const enabled = categoryPermissions.filter((p: any) => (permissions as any)[p]).length;
     return { total, enabled, percentage: total > 0 ? Math.round((enabled / total) * 100) : 0 };
   };
 
   const getPermissionDescription = (permission: Permission) => {
-    return PermissionDefinitions[permission]?.description || '';
+    return (PermissionDefinitions as any)[permission]?.description || '';
   };
 
   const getPermissionName = (permission: Permission) => {
-    return PermissionDefinitions[permission]?.name || permission;
+    return (PermissionDefinitions as any)[permission]?.name || permission;
   };
 
   if (isSystemRole) {
@@ -187,11 +186,11 @@ export function PermissionEditor({
               
               {isExpanded && (
                 <div className="ml-6 space-y-3">
-                  {categoryPermissions.map((permission) => (
+                  {categoryPermissions.map((permission:any) => (
                     <div key={permission} className="flex items-start space-x-3">
                       <Checkbox
                         id={permission}
-                        checked={permissions[permission] || false}
+                        checked={(permissions as any)[permission] || false}
                         onCheckedChange={(checked) => 
                           { handlePermissionChange(permission, checked as boolean); }
                         }
@@ -226,7 +225,7 @@ export function PermissionEditor({
               <span className="text-sm font-medium">Unsaved Changes</span>
             </div>
             <p className="text-sm text-amber-700 mt-1">
-              You have unsaved permission changes. Click "Save Changes" to apply them.
+              You have unsaved permission changes. Click &quot;Save Changes&quot; to apply them.
             </p>
           </div>
         )}

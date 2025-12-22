@@ -9,6 +9,12 @@ import { availabilityService } from '@/lib/services/availability-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+  status?: number;
+}
+
 /**
  * GET /api/availability
  * Get user availability for a specific week
@@ -34,11 +40,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') ?? userProfile.id;
+    const userId = searchParams.get('userId') ?? (userProfile as any).id;
     const weekStartDate = searchParams.get('weekStartDate') ?? availabilityService.getWeekStartDate();
 
     // Permission check: can view own or has VIEW_TEAM_CAPACITY/VIEW_ALL_CAPACITY
-    const isOwnData = userId === userProfile.id;
+    const isOwnData = userId === (userProfile as any).id;
     if (!isOwnData) {
       const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
       const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
@@ -57,10 +63,11 @@ export async function GET(request: NextRequest) {
       success: true,
       availability,
     });
-  } catch (error: any) {
-    console.error('Error in GET /api/availability:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in GET /api/availability:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -102,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: can only edit own availability
-    if (userId !== userProfile.id) {
+    if (userId !== (userProfile as any).id) {
       return NextResponse.json(
         { error: 'Can only edit your own availability' },
         { status: 403 }
@@ -138,10 +145,11 @@ export async function POST(request: NextRequest) {
       success: true,
       availability,
     });
-  } catch (error: any) {
-    console.error('Error in POST /api/availability:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in POST /api/availability:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -183,7 +191,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Permission check: can only delete own availability
-    if (userId !== userProfile.id) {
+    if (userId !== (userProfile as any).id) {
       return NextResponse.json(
         { error: 'Can only delete your own availability' },
         { status: 403 }
@@ -203,10 +211,11 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: 'Availability deleted successfully',
     });
-  } catch (error: any) {
-    console.error('Error in DELETE /api/availability:', error);
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
+console.error('Error in DELETE /api/availability:', error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error.message },
+      { error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

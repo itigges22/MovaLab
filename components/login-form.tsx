@@ -37,7 +37,7 @@ export function LoginForm({
   const [message, setMessage] = useState('')
   const [isSignUp, setIsSignUp] = useState(mode === 'signup')
   
-  const router = useRouter()
+  const _router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') ?? '/'
 
@@ -51,7 +51,7 @@ export function LoginForm({
       if (isSignUp) {
         const result = await signUpWithEmail(email, password, name)
         if (result.user) {
-          if (result.needsEmailConfirmation) {
+          if ('needsEmailConfirmation' in result && result.needsEmailConfirmation) {
             setMessage('Account created successfully! Please check your email to verify your account before logging in.')
           } else {
             setMessage('Account created successfully! Redirecting...')
@@ -70,31 +70,34 @@ export function LoginForm({
           }, 1500)
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       let errorMessage = 'An error occurred. Please try again.'
-      
+
+      // Type guard for error with message property
+      const err = error as { message?: string };
+
       // Handle specific Supabase auth errors with user-friendly messages
-      if (error.message?.includes('User already registered') || error.message?.includes('already been registered')) {
+      if (err.message?.includes('User already registered') || err.message?.includes('already been registered')) {
         errorMessage = 'Email already in use. Please try logging in instead.'
-      } else if (error.message?.includes('Invalid login credentials')) {
+      } else if (err.message?.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password. Please check your credentials and try again.'
-      } else if (error.message?.includes('Email not confirmed')) {
+      } else if (err.message?.includes('Email not confirmed')) {
         errorMessage = 'Please check your email and click the confirmation link before logging in.'
-      } else if (error.message?.includes('Password should be at least')) {
+      } else if (err.message?.includes('Password should be at least')) {
         errorMessage = 'Password should be at least 6 characters long.'
-      } else if (error.message?.includes('Invalid email')) {
+      } else if (err.message?.includes('Invalid email')) {
         errorMessage = 'Please enter a valid email address.'
-      } else if (error.message) {
+      } else if (err.message) {
         // For other known errors, use the error message
-        errorMessage = error.message
+        errorMessage = err.message
       }
-      
+
       // Only log unexpected errors, not user-friendly validation errors
-      if (!error.message?.includes('User already registered') && 
-          !error.message?.includes('Invalid login credentials') &&
-          !error.message?.includes('Email not confirmed') &&
-          !error.message?.includes('Password should be at least') &&
-          !error.message?.includes('Invalid email')) {
+      if (!err.message?.includes('User already registered') &&
+          !err.message?.includes('Invalid login credentials') &&
+          !err.message?.includes('Email not confirmed') &&
+          !err.message?.includes('Password should be at least') &&
+          !err.message?.includes('Invalid email')) {
         console.error('Unexpected auth error:', error)
       }
       

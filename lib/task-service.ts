@@ -299,24 +299,24 @@ class TaskService {
 
   // Get tasks by status/column
   getTasksByColumn(columnId: string): Task[] {
-    return this.tasks.filter(task => task.column === columnId);
+    return this.tasks.filter((task: any) => task.column === columnId);
   }
 
   // Get tasks by group
   getTasksByGroup(groupId: string): Task[] {
-    return this.tasks.filter(task => task.group.id === groupId);
+    return this.tasks.filter((task: any) => task.group.id === groupId);
   }
 
   // Get task by ID
   getTaskById(id: string): Task | undefined {
-    return this.tasks.find(task => task.id === id);
+    return this.tasks.find((task: any) => task.id === id);
   }
 
   // Create new task
   createTask(data: CreateTaskData): Task {
-    const status = statuses.find(s => s.id === data.statusId) || statuses[0];
-    const group = groups.find(g => g.id === data.groupId) || groups[0];
-    const owner = users.find(u => u.id === data.ownerId) || users[0];
+    const status = statuses.find((s: any) => s.id === data.statusId) || statuses[0];
+    const group = groups.find((g: any) => g.id === data.groupId) || groups[0];
+    const owner = users.find((u: any) => u.id === data.ownerId) || users[0];
     
     const newTask: Task = {
       id: this.nextId.toString(),
@@ -346,9 +346,9 @@ class TaskService {
     if (taskIndex === -1) return null;
 
     const existingTask = this.tasks[taskIndex];
-    const status = data.statusId ? statuses.find(s => s.id === data.statusId) || existingTask.status : existingTask.status;
-    const group = data.groupId ? groups.find(g => g.id === data.groupId) || existingTask.group : existingTask.group;
-    const owner = data.ownerId ? users.find(u => u.id === data.ownerId) || existingTask.owner : existingTask.owner;
+    const status = data.statusId ? statuses.find((s: any) => s.id === data.statusId) || existingTask.status : existingTask.status;
+    const group = data.groupId ? groups.find((g: any) => g.id === data.groupId) || existingTask.group : existingTask.group;
+    const owner = data.ownerId ? users.find((u: any) => u.id === data.ownerId) || existingTask.owner : existingTask.owner;
 
     const updatedTask: Task = {
       ...existingTask,
@@ -384,8 +384,8 @@ class TaskService {
     const task = this.getTaskById(taskId);
     if (!task) return null;
 
-    const status = statuses.find(s => s.id === columnId) || task.status;
-    
+    const _status = statuses.find((s: any) => s.id === columnId) || task.status;
+
     return this.updateTask({
       id: taskId,
       statusId: columnId,
@@ -404,14 +404,14 @@ class TaskService {
   // Get statistics
   getTaskStats() {
     const total = this.tasks.length;
-    const byStatus = statuses.map(status => ({
+    const byStatus = statuses.map((status: any) => ({
       status: status.name,
-      count: this.tasks.filter(task => task.status.id === status.id).length,
+      count: this.tasks.filter((task: any) => task.status.id === status.id).length,
       color: status.color,
     }));
-    const byPriority = ['high', 'medium', 'low'].map(priority => ({
+    const byPriority = ['high', 'medium', 'low'].map((priority: any) => ({
       priority,
-      count: this.tasks.filter(task => task.priority === priority).length,
+      count: this.tasks.filter((task: any) => task.priority === priority).length,
     }));
 
     return {

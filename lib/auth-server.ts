@@ -20,7 +20,7 @@ export async function getCurrentUserServer() {
     }
 
     return user;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getCurrentUserServer:', error);
     return null;
   }
@@ -62,7 +62,7 @@ export async function getCurrentUserProfileServer() {
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (error) {
@@ -77,7 +77,7 @@ export async function getCurrentUserProfileServer() {
         };
       })[];
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getCurrentUserProfileServer:', error);
     return null;
   }
@@ -91,7 +91,7 @@ export async function isAuthenticatedServer(): Promise<boolean> {
   try {
     const user = await getCurrentUserServer();
     return !!user;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in isAuthenticatedServer:', error);
     return false;
   }
@@ -114,7 +114,7 @@ export async function getCurrentSessionServer() {
     }
 
     return session;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getCurrentSessionServer:', error);
     return null;
   }

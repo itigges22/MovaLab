@@ -12,7 +12,7 @@ export function useSession() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClientSupabase()
+    const supabase = createClientSupabase() as any
     if (!supabase) {
       setLoading(false)
       return
@@ -29,7 +29,7 @@ export function useSession() {
         }
 
         setSession(session)
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error in getInitialSession:', error)
       } finally {
         setLoading(false)

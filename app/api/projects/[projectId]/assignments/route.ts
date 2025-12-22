@@ -51,7 +51,7 @@ export async function GET(
 
     // Get user roles for all assigned users (separate query to avoid nested relation issues)
     const userIds = (assignments || []).map((a: any) => a.user_id).filter(Boolean)
-    let userRolesMap: Record<string, string> = {}
+    const userRolesMap: Record<string, string> = {}
 
     if (userIds.length > 0) {
       const { data: userRoles } = await supabase
@@ -67,8 +67,13 @@ export async function GET(
       // Build a map of user_id -> primary role name
       if (userRoles) {
         for (const ur of userRoles) {
-          if (!userRolesMap[ur.user_id] && (ur.roles as any)?.name) {
-            userRolesMap[ur.user_id] = (ur.roles as any).name
+          const roles = ur.roles as Record<string, unknown> | Record<string, unknown>[];
+          const roleName = Array.isArray(roles)
+            ? (roles[0]?.name as string)
+            : (roles?.name as string);
+
+          if (!userRolesMap[ur.user_id] && roleName) {
+            userRolesMap[ur.user_id] = roleName;
           }
         }
       }
@@ -86,16 +91,17 @@ export async function GET(
       .single()
 
     // If there's a workflow, get node assignments (supporting multiple per user)
-    let nodeAssignmentsMap: Record<string, Array<{ stepId: string; stepName: string; isActive?: boolean }>> = {}
+    const nodeAssignmentsMap: Record<string, Array<{ stepId: string; stepName: string; isActive?: boolean }>> = {}
     // Track users from active steps who may not be in project_assignments
-    let activeStepUsers: Array<{ userId: string; stepId: string; stepName: string }> = []
+    const activeStepUsers: Array<{ userId: string; stepId: string; stepName: string }> = []
 
     if (workflowInstance) {
       // Helper to get node label from snapshot
       const getNodeLabel = (nodeId: string): string => {
-        const snapshot = (workflowInstance as any).started_snapshot;
-        const node = snapshot?.nodes?.find((n: any) => n.id === nodeId);
-        return node?.label || 'Unknown Step';
+        const snapshot = (workflowInstance as Record<string, unknown>).started_snapshot as Record<string, unknown>;
+        const nodes = snapshot?.nodes as Record<string, unknown>[] | undefined;
+        const node = nodes?.find((n: any) => n.id === nodeId);
+        return (node?.label as string) || 'Unknown Step';
       };
 
       // Get all node assignments for this workflow instance
@@ -144,7 +150,7 @@ export async function GET(
 
           // Only add if not already present for this node
           const existingSteps = nodeAssignmentsMap[userId]
-          if (!existingSteps.some(s => s.stepId === stepInfo.stepId)) {
+          if (!existingSteps.some((s: any) => s.stepId === stepInfo.stepId)) {
             nodeAssignmentsMap[userId].push(stepInfo)
           }
 
@@ -160,7 +166,7 @@ export async function GET(
 
     // Enrich assignments with workflow node info and primary role
     const enrichedAssignments = (assignments || []).map((assignment: any) => {
-      const userId = assignment.user_id
+      const userId = assignment.user_id as string;
       const nodeAssignments = nodeAssignmentsMap[userId] || []
       const primaryRole = userRolesMap[userId] || null
 
@@ -177,11 +183,11 @@ export async function GET(
     // Find users from active workflow steps who are NOT in project_assignments
     // These users should appear in the Team Members section with their step assignments
     const existingUserIds = new Set((assignments || []).map((a: any) => a.user_id))
-    const missingStepUserIds = [...new Set(activeStepUsers.map(u => u.userId))]
+    const missingStepUserIds = [...new Set(activeStepUsers.map((u: any) => u.userId))]
       .filter(userId => !existingUserIds.has(userId))
 
     // Fetch user profiles for missing users
-    let virtualTeamMembers: any[] = []
+    const virtualTeamMembers: Record<string, unknown>[] = []
     if (missingStepUserIds.length > 0) {
       const { data: missingUserProfiles } = await supabase
         .from('user_profiles')
@@ -200,8 +206,13 @@ export async function GET(
       const missingRolesMap: Record<string, string> = {}
       if (missingUserRoles) {
         for (const ur of missingUserRoles) {
-          if (!missingRolesMap[ur.user_id] && (ur.roles as any)?.name) {
-            missingRolesMap[ur.user_id] = (ur.roles as any).name
+          const roles = ur.roles as Record<string, unknown> | Record<string, unknown>[];
+          const roleName = Array.isArray(roles)
+            ? (roles[0]?.name as string)
+            : (roles?.name as string);
+
+          if (!missingRolesMap[ur.user_id] && roleName) {
+            missingRolesMap[ur.user_id] = roleName;
           }
         }
       }
@@ -234,7 +245,7 @@ export async function GET(
       has_active_workflow: workflowInstance?.status === 'active'
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/projects/[projectId]/assignments:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -281,7 +292,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
@@ -306,8 +317,8 @@ export async function POST(
 
     // Check permissions
     const userIsSuperadmin = isSuperadmin(userProfile)
-    const hasEditAllProjects = await hasPermission(userProfile, Permission.EDIT_ALL_PROJECTS, undefined, supabase)
-    const isProjectCreator = project.created_by === user.id
+    const hasEditAllProjects = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS, undefined, supabase)
+    const isProjectCreator = project.created_by === (user as any).id
 
     if (!userIsSuperadmin && !hasEditAllProjects && !isProjectCreator) {
       return NextResponse.json({
@@ -349,7 +360,7 @@ export async function POST(
           project_id: projectId,
           user_id: userId,
           role_in_project: roleInProject || 'member',
-          assigned_by: user.id
+          assigned_by: (user as any).id
         })
 
       if (insertError) {
@@ -360,7 +371,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, message: 'Team member added successfully' })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/projects/[projectId]/assignments:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -407,7 +418,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single()
 
     if (!userProfile) {
@@ -432,8 +443,8 @@ export async function DELETE(
 
     // Check permissions
     const userIsSuperadmin = isSuperadmin(userProfile)
-    const hasEditAllProjects = await hasPermission(userProfile, Permission.EDIT_ALL_PROJECTS, undefined, supabase)
-    const isProjectCreator = project.created_by === user.id
+    const hasEditAllProjects = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS, undefined, supabase)
+    const isProjectCreator = project.created_by === (user as any).id
 
     if (!userIsSuperadmin && !hasEditAllProjects && !isProjectCreator) {
       return NextResponse.json({
@@ -461,7 +472,7 @@ export async function DELETE(
       .eq('project_id', projectId)
 
     if (workflowInstances && workflowInstances.length > 0) {
-      const instanceIds = workflowInstances.map(wi => wi.id)
+      const instanceIds = workflowInstances.map((wi: any) => wi.id)
       const { error: nodeAssignmentError } = await supabase
         .from('workflow_node_assignments')
         .delete()
@@ -476,7 +487,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Team member removed successfully' })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/projects/[projectId]/assignments:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

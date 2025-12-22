@@ -3,6 +3,11 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 
+// Type definitions
+interface ErrorWithMessage extends Error {
+  message: string;
+}
+
 /**
  * PATCH /api/admin/time-entries/[id]
  * Update a time entry (hours, project, description)
@@ -31,7 +36,8 @@ export async function PATCH(
       );
     }
 
-    const canEdit = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
+    // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
+    const canEdit = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
     if (!canEdit) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
@@ -80,10 +86,11 @@ export async function PATCH(
       success: true,
       timeEntry: data,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
     console.error('Error in PATCH /api/admin/time-entries/[id]:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error', message: error.message },
+      { success: false, error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }
@@ -117,7 +124,8 @@ export async function DELETE(
       );
     }
 
-    const canDelete = await hasPermission(userProfile, Permission.VIEW_TEAM_TIME_ENTRIES, undefined, supabase);
+    // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
+    const canDelete = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
     if (!canDelete) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
@@ -143,10 +151,11 @@ export async function DELETE(
       success: true,
       message: 'Time entry deleted successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as ErrorWithMessage;
     console.error('Error in DELETE /api/admin/time-entries/[id]:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error', message: error.message },
+      { success: false, error: 'Internal server error', message: err.message },
       { status: 500 }
     );
   }

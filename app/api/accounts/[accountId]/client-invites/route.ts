@@ -36,21 +36,21 @@ export async function GET(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check SEND_CLIENT_INVITES permission
-    const canManageInvites = await hasPermission(userProfile, Permission.SEND_CLIENT_INVITES, undefined, supabase);
+    // Check MANAGE_CLIENT_INVITES permission
+    const canManageInvites = await hasPermission(userProfile, Permission.MANAGE_CLIENT_INVITES, undefined, supabase);
     if (!canManageInvites) {
       return NextResponse.json({ error: 'Insufficient permissions to view client invitations' }, { status: 403 });
     }
 
     // Verify user has access to this account
-    const hasAccess = await hasAccountAccessServer(supabase, user.id, accountId);
+    const hasAccess = await hasAccountAccessServer(supabase, (user as any).id, accountId);
     if (!hasAccess) {
       return NextResponse.json({
         error: 'You do not have access to this account'
@@ -61,7 +61,7 @@ export async function GET(
     const invitations = await getClientInvitationsByAccount(accountId);
 
     return NextResponse.json({ success: true, invitations }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/accounts/[id]/client-invites:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

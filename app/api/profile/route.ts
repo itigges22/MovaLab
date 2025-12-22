@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { requireAuthAndPermission, requireAuthentication, handleGuardError } from '@/lib/server-guards';
-import { Permission } from '@/lib/permissions';
+import { requireAuthentication, handleGuardError } from '@/lib/server-guards';
 import { logger } from '@/lib/debug-logger';
 
 /**
@@ -24,16 +23,16 @@ export async function GET(request: NextRequest) {
     const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('id, name, email, bio, skills, image, created_at, updated_at')
-      .eq('id', userProfile.id)
+      .eq('id', (userProfile as any).id)
       .single();
 
     if (error) {
-      logger.error('Error fetching profile', { action: 'getProfile', userId: userProfile.id }, error);
+      logger.error('Error fetching profile', { action: 'getProfile', userId: (userProfile as any).id }, error);
       return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
     }
 
     return NextResponse.json({ profile });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }
@@ -59,10 +58,10 @@ export async function PATCH(request: NextRequest) {
 
     // Validate that user can only update their own profile
     // (This is already enforced by requireAuthAndPermission, but adding explicit check for clarity)
-    if (body.id && body.id !== userProfile.id) {
+    if (body.id && body.id !== (userProfile as any).id) {
       logger.warn('User attempted to update another user\'s profile', {
         action: 'updateProfile',
-        userId: userProfile.id,
+        userId: (userProfile as any).id,
         attemptedId: body.id
       });
       return NextResponse.json(
@@ -87,7 +86,7 @@ export async function PATCH(request: NextRequest) {
 
     logger.info('Updating user profile', {
       action: 'updateProfile',
-      userId: userProfile.id,
+      userId: (userProfile as any).id,
       fields: Object.keys(updateData)
     });
 
@@ -95,22 +94,22 @@ export async function PATCH(request: NextRequest) {
     const { data: updatedProfile, error } = await supabase
       .from('user_profiles')
       .update(updateData)
-      .eq('id', userProfile.id)
+      .eq('id', (userProfile as any).id)
       .select('id, name, email, bio, skills, image, created_at, updated_at')
       .single();
 
     if (error) {
-      logger.error('Error updating profile', { action: 'updateProfile', userId: userProfile.id }, error);
+      logger.error('Error updating profile', { action: 'updateProfile', userId: (userProfile as any).id }, error);
       return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
     }
 
     logger.info('Profile updated successfully', {
       action: 'updateProfile',
-      userId: userProfile.id
+      userId: (userProfile as any).id
     });
 
     return NextResponse.json({ profile: updatedProfile });
-  } catch (error) {
+  } catch (error: unknown) {
     return handleGuardError(error);
   }
 }

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { addDays } from 'date-fns';
+import { useState, useEffect, useCallback } from 'react';
 import {
   GanttProvider,
   GanttHeader,
@@ -16,7 +15,6 @@ import {
   GanttMarker,
   GanttCreateMarkerTrigger,
   type GanttFeature,
-  type GanttStatus,
   type GanttMarkerProps,
 } from '@/components/ui/shadcn-io/gantt';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,9 +24,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { EyeIcon, LinkIcon, TrashIcon, Calendar, User, Tag, AlertCircle, Edit, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { EyeIcon, LinkIcon, TrashIcon, Calendar, User, Tag, AlertCircle, Edit, Clock } from 'lucide-react';
 import { supabaseTaskService, type Task, type Milestone } from '@/lib/supabase-task-service';
-import TaskCreationDialog from '@/components/task-creation-dialog';
 import MilestoneCreationDialog from '@/components/milestone-creation-dialog';
 import TaskEditDialog from '@/components/task-edit-dialog';
 
@@ -132,8 +129,8 @@ const TaskDetailExpansion = ({ task, isExpanded, onEdit, onRemove }: { task: Tas
           <div className="flex items-center gap-1.5">
             <Tag className="w-2.5 h-2.5" />
             <div className="flex flex-wrap gap-0.5">
-              {task.tags.slice(0, 3).map((tag, index) => (
-                <span 
+              {task.tags.slice(0, 3).map((tag:any, index:any) => (
+                <span
                   key={index}
                   className="bg-secondary text-secondary-foreground px-1 py-0.5 rounded text-xs"
                 >
@@ -205,8 +202,8 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
         setMilestones(milestonesData);
         console.log('Loaded milestones for rendering:', milestonesData);
         console.log('Number of milestones loaded:', milestonesData.length);
-        console.log('Milestone details:', milestonesData.map(m => ({ name: m.name, date: m.date, color: m.color })));
-      } catch (error) {
+        console.log('Milestone details:', milestonesData.map((m: any) => ({ name: m.name, date: m.date, color: m.color })));
+      } catch (error: unknown) {
         console.error('Error loading data:', error);
       } finally {
         setLoading(false);
@@ -223,7 +220,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   // Debug logging for features
   useEffect(() => {
     console.log('Features updated:', features.length, 'features');
-    console.log('Feature details:', features.map(f => ({ id: f.id, name: f.name, startAt: f.startAt })));
+    console.log('Feature details:', features.map((f: any) => ({ id: f.id, name: f.name, startAt: f.startAt })));
   }, [features]);
 
 
@@ -259,7 +256,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   };
 
   const handleTaskUpdated = async (updatedTask: Task) => {
-    setTasks(prev => prev.map(task => task.id === updatedTask.id ? updatedTask : task));
+    setTasks(prev => prev.map((task: any) => task.id === updatedTask.id ? updatedTask : task));
     setEditDialogOpen(false);
     setTaskToEdit(null);
   };
@@ -279,19 +276,19 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
         // Reload milestones to update the display
         const milestonesData = await supabaseTaskService.getAllMilestones();
         setMilestones(milestonesData);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error deleting milestone:', error);
       }
     } else {
       // Handle regular markers
-      setMarkers(prev => prev.filter(marker => marker.id !== id));
+      setMarkers(prev => prev.filter((marker: any) => marker.id !== id));
     }
   };
 
   const handleRemoveFeature = async (id: string) => {
     // Handle regular tasks only (milestones are handled by handleRemoveMarker)
     if (await supabaseTaskService.deleteTask(id)) {
-      setTasks(prev => prev.filter(task => task.id !== id));
+      setTasks(prev => prev.filter((task: any) => task.id !== id));
     }
   };
 
@@ -310,7 +307,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
     try {
       const milestonesData = await supabaseTaskService.getAllMilestones();
       setMilestones(milestonesData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error reloading milestones after creation:', error);
     }
   };
@@ -323,12 +320,12 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
     const updatedTask = await supabaseTaskService.updateTaskDates(id, startAt, endAt);
     if (updatedTask) {
       setTasks(prev =>
-        prev.map(task => task.id === id ? updatedTask : task)
+        prev.map((task: any) => task.id === id ? updatedTask : task)
       );
     }
   };
 
-  const handleTaskCreated = (newTask: Task) => {
+  const _handleTaskCreated = (newTask: Task) => {
     console.log('Task created:', newTask);
     console.log('Current tasks before adding:', tasks.length);
     
@@ -346,7 +343,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
         const tasksData = await supabaseTaskService.getAllTasks();
         console.log('Reloaded tasks from database:', tasksData.length);
         setTasks(tasksData);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error reloading tasks after creation:', error);
       }
     };
@@ -416,7 +413,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
       
       return () => clearTimeout(timer);
     }
-  }, [range, zoom, scrollToToday]);
+  }, [range, zoom, scrollToToday, loading]);
 
   return (
     <div className="h-[calc(100vh-12rem)] lg:h-[calc(100vh-8rem)] overflow-hidden">
@@ -428,8 +425,8 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
         <GanttSidebar className="min-w-[200px] lg:min-w-[250px] max-w-[300px]">
           {Object.entries(sortedGroupedFeatures).map(([group, groupFeatures]) => (
             <GanttSidebarGroup key={group} name={group}>
-              {groupFeatures.map(feature => {
-                const task = tasks.find(t => t.id === feature.id);
+              {groupFeatures.map((feature: any) => {
+                const task = tasks.find((t: any) => t.id === feature.id);
                 const isHovered = hoveredTask === feature.id;
                 
                 return (
@@ -470,9 +467,9 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
           <GanttFeatureList>
             {Object.entries(sortedGroupedFeatures).map(([group, groupFeatures]) => (
               <GanttFeatureListGroup key={`feature-group-${group}`}>
-                {groupFeatures.map(feature => {
+                {groupFeatures.map((feature: any) => {
                   // Find the corresponding task to get owner info
-                  const task = tasks.find(t => t.id === feature.id);
+                  const task = tasks.find((t: any) => t.id === feature.id);
                   
                   return (
                     <div className="flex" key={feature.id}>
@@ -537,7 +534,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
             ))}
           </GanttFeatureList>
           {/* Regular markers */}
-          {markers.map(marker => (
+          {markers.map((marker: any) => (
             <div
               key={marker.id}
               className="absolute top-0 h-full w-0.5 bg-blue-500 z-10 cursor-pointer hover:bg-blue-600"
@@ -554,7 +551,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
 
 
           {/* Milestone markers */}
-          {milestones.map((milestone, index) => {
+          {milestones.map((milestone:any, _index:any) => {
             console.log('Rendering milestone marker:', milestone.name, 'at date:', milestone.date, 'with color:', milestone.color);
             return (
               <div

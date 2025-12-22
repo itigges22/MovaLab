@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, departments: departments || [] }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/org-structure/departments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

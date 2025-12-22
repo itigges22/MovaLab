@@ -38,16 +38,16 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check EDIT_ISSUE permission
-    const canEditIssue = await hasPermission(userProfile, Permission.EDIT_ISSUE, undefined, supabase);
-    if (!canEditIssue) {
+    // Check MANAGE_ISSUES permission (consolidated from EDIT_ISSUE)
+    const canManageIssues = await hasPermission(userProfile, Permission.MANAGE_ISSUES, undefined, supabase);
+    if (!canManageIssues) {
       return NextResponse.json({ error: 'Insufficient permissions to edit issues' }, { status: 403 });
     }
 
@@ -55,7 +55,7 @@ export async function PUT(
     const { content, status } = body;
 
     // Build update object
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       updated_at: new Date().toISOString()
     };
 
@@ -75,7 +75,7 @@ export async function PUT(
       // Handle resolved metadata
       if (status === 'resolved') {
         updates.resolved_at = new Date().toISOString();
-        updates.resolved_by = user.id;
+        updates.resolved_by = (user as any).id;
       } else {
         updates.resolved_at = null;
         updates.resolved_by = null;
@@ -105,16 +105,16 @@ export async function PUT(
       .from('project_assignments')
       .select('id, removed_at')
       .eq('project_id', projectId)
-      .eq('user_id', user.id)
+      .eq('user_id', (user as any).id)
       .single();
 
     if (!existingAssignment) {
       // Insert new assignment
       await supabase.from('project_assignments').insert({
         project_id: projectId,
-        user_id: user.id,
+        user_id: (user as any).id,
         role_in_project: 'collaborator',
-        assigned_by: user.id
+        assigned_by: (user as any).id
       });
     } else if (existingAssignment.removed_at) {
       // Reactivate removed assignment
@@ -125,7 +125,7 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, issue });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/projects/[projectId]/issues/[issueId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -166,16 +166,16 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check DELETE_ISSUE permission
-    const canDeleteIssue = await hasPermission(userProfile, Permission.DELETE_ISSUE, undefined, supabase);
-    if (!canDeleteIssue) {
+    // Check MANAGE_ISSUES permission (consolidated from DELETE_ISSUE)
+    const canManageIssues = await hasPermission(userProfile, Permission.MANAGE_ISSUES, undefined, supabase);
+    if (!canManageIssues) {
       return NextResponse.json({ error: 'Insufficient permissions to delete issues' }, { status: 403 });
     }
 
@@ -192,7 +192,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/projects/[projectId]/issues/[issueId]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -60,11 +60,7 @@ export default function WorkflowEditorPage() {
   const [togglingActive, setTogglingActive] = useState(false);
   const [hasNodes, setHasNodes] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [templateId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -81,19 +77,17 @@ export default function WorkflowEditorPage() {
       const deptRes = await fetch('/api/org-structure/departments');
       const deptData = await deptRes.json();
       console.log('Workflow Editor - Loaded departments:', deptData);
-      if (deptData.success) {
-        setDepartments(deptData.departments || []);
-        console.log('Workflow Editor - Set departments:', deptData.departments?.length || 0);
-      }
+      const fetchedDepartments = deptData.success ? (deptData.departments || []) : [];
+      setDepartments(fetchedDepartments);
+      console.log('Workflow Editor - Set departments:', fetchedDepartments.length);
 
       // Load roles
       const roleRes = await fetch('/api/org-structure/roles');
       const roleData = await roleRes.json();
       console.log('Workflow Editor - Loaded roles:', roleData);
-      if (roleData.success) {
-        setRoles(roleData.roles || []);
-        console.log('Workflow Editor - Set roles:', roleData.roles?.length || 0);
-      }
+      const fetchedRoles = roleData.success ? (roleData.roles || []) : [];
+      setRoles(fetchedRoles);
+      console.log('Workflow Editor - Set roles:', fetchedRoles.length);
 
       // Load existing workflow nodes and connections
       const workflowRes = await fetch(`/api/admin/workflows/templates/${templateId}`);
@@ -103,25 +97,26 @@ export default function WorkflowEditorPage() {
         setHasNodes(true);
         // Convert workflow_nodes to React Flow nodes
         const nodes: Node<WorkflowNodeData>[] = workflowData.template.nodes.map((node: any) => {
-          const config: any = {};
+          const config: Record<string, unknown> = {};
+          const settings = node.settings as Record<string, unknown> | undefined;
 
           // Handle department nodes
-          if (node.settings?.department_id) {
-            config.departmentId = node.settings.department_id;
-            config.departmentName = departments.find(d => d.id === node.settings.department_id)?.name;
+          if (settings?.department_id) {
+            config.departmentId = settings.department_id;
+            config.departmentName = fetchedDepartments.find((d: Department) => d.id === settings.department_id)?.name;
           }
 
           // Handle role and approval nodes with entity_id
           if (node.entity_id) {
             if (node.node_type === 'role') {
               config.roleId = node.entity_id;
-              config.roleName = roles.find(r => r.id === node.entity_id)?.name;
+              config.roleName = fetchedRoles.find((r: Role) => r.id === node.entity_id)?.name;
             } else if (node.node_type === 'approval') {
               config.approverRoleId = node.entity_id;
-              config.approverRoleName = roles.find(r => r.id === node.entity_id)?.name;
-              config.requiredApprovals = node.settings?.required_approvals || 1;
-              config.allowFeedback = node.settings?.allow_feedback !== undefined ? node.settings.allow_feedback : true;
-              config.allowSendBack = node.settings?.allow_send_back !== undefined ? node.settings.allow_send_back : true;
+              config.approverRoleName = fetchedRoles.find((r: Role) => r.id === node.entity_id)?.name;
+              config.requiredApprovals = settings?.required_approvals || 1;
+              config.allowFeedback = settings?.allow_feedback !== undefined ? settings.allow_feedback : true;
+              config.allowSendBack = settings?.allow_send_back !== undefined ? settings.allow_send_back : true;
             }
           }
 
@@ -129,20 +124,20 @@ export default function WorkflowEditorPage() {
           if (node.node_type === 'form') {
             config.formTemplateId = node.form_template_id;
             config.formTemplateName = 'Form Template'; // TODO: Load from form_templates
-            config.allowAttachments = node.settings?.allow_attachments || false;
-            config.formFields = node.settings?.formFields || [];
-            config.formName = node.settings?.formName || '';
-            config.formDescription = node.settings?.formDescription || '';
-            config.isDraftForm = node.settings?.isDraftForm || false;
+            config.allowAttachments = settings?.allow_attachments || false;
+            config.formFields = settings?.formFields || [];
+            config.formName = settings?.formName || '';
+            config.formDescription = settings?.formDescription || '';
+            config.isDraftForm = settings?.isDraftForm || false;
           }
 
           // Handle conditional nodes
           if (node.node_type === 'conditional') {
-            config.conditionType = node.settings?.condition_type || 'form_value';
-            config.conditions = node.settings?.conditions || [];
+            config.conditionType = settings?.condition_type || 'form_value';
+            config.conditions = settings?.conditions || [];
             // Critical: Load sourceFormFieldId for form-based conditional routing
-            config.sourceFormFieldId = node.settings?.sourceFormFieldId;
-            config.sourceFormNodeId = node.settings?.sourceFormNodeId;
+            config.sourceFormFieldId = settings?.sourceFormFieldId;
+            config.sourceFormNodeId = settings?.sourceFormNodeId;
           }
 
           return {
@@ -161,25 +156,26 @@ export default function WorkflowEditorPage() {
         const edges: Edge[] = (workflowData.template.connections || []).map((conn: any) => {
           const edge: Edge = {
             // Use the connection's actual UUID if available, otherwise create a composite ID
-            id: conn.id || `${conn.from_node_id}-${conn.to_node_id}`,
-            source: conn.from_node_id,
-            target: conn.to_node_id,
+            id: (conn.id as string) || `${conn.from_node_id as string}-${conn.to_node_id as string}`,
+            source: conn.from_node_id as string,
+            target: conn.to_node_id as string,
             type: conn.condition ? 'labeled' : 'labeled', // Use labeled for all edges for consistent styling
             // Restore sourceHandle for conditional branch edges
-            sourceHandle: conn.condition?.sourceHandle || undefined,
+            sourceHandle: (conn.condition as Record<string, unknown> | undefined)?.sourceHandle as string | undefined || undefined,
           };
 
           // Add condition data if present (for decision-based routing)
           if (conn.condition) {
+            const condition = conn.condition as Record<string, unknown>;
             edge.data = {
-              label: conn.condition.label,
-              conditionValue: conn.condition.conditionValue,
-              conditionType: conn.condition.conditionType,
-              decision: conn.condition.decision,  // For approval node routing
+              label: condition.label,
+              conditionValue: condition.conditionValue,
+              conditionType: condition.conditionType,
+              decision: condition.decision,  // For approval node routing
               // Critical: Load form-based conditional routing fields
-              sourceFormFieldId: conn.condition.sourceFormFieldId,
-              value: conn.condition.value,
-              value2: conn.condition.value2,
+              sourceFormFieldId: condition.sourceFormFieldId,
+              value: condition.value,
+              value2: condition.value2,
             };
           }
 
@@ -189,13 +185,17 @@ export default function WorkflowEditorPage() {
         setInitialNodes(nodes);
         setInitialEdges(edges);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading workflow editor data:', error);
       toast.error('Failed to load workflow editor');
     } finally {
       setLoading(false);
     }
-  };
+  }, [templateId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = async (nodes: Node<WorkflowNodeData>[], edges: Edge[]) => {
     try {
@@ -229,7 +229,7 @@ export default function WorkflowEditorPage() {
       if (data.is_active !== undefined) {
         setIsActive(data.is_active);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving workflow:', error);
       throw error;
     }
@@ -258,7 +258,7 @@ export default function WorkflowEditorPage() {
 
       setIsActive(newIsActive);
       toast.success(newIsActive ? 'Workflow activated' : 'Workflow deactivated');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling workflow status:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to update workflow status');
     } finally {

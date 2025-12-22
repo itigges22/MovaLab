@@ -37,7 +37,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
@@ -45,13 +45,13 @@ export async function GET(
     }
 
     // Check VIEW_WORKFLOWS permission
-    const canView = await hasPermission(userProfile, Permission.VIEW_WORKFLOWS, undefined, supabase);
+    const canView = await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
     if (!canView) {
       return NextResponse.json({ error: 'Insufficient permissions to view workflows' }, { status: 403 });
     }
 
     // Verify user has access to the workflow instance's project
-    const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, id);
+    const accessCheck = await verifyWorkflowInstanceAccess(supabase, (user as any).id, id);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this workflow instance'
@@ -66,7 +66,7 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, instance }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/instances/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

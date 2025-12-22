@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Update each role's department_id
-    const roleIds = systemRoles.map(r => r.id);
+    const roleIds = systemRoles.map((r: any) => r.id);
     if (roleIds.length === 0) {
       return NextResponse.json({ 
         message: 'No roles to move',
@@ -111,11 +111,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: `Successfully moved ${systemRoles.length} role(s) to Internal Affairs department`,
       moved: systemRoles.length,
-      roles: systemRoles.map(r => r.name),
+      roles: systemRoles.map((r: any) => r.name),
       fromDepartment: systemDept.name,
       toDepartment: finalInternalAffairsDept.name
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/admin/move-system-roles:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

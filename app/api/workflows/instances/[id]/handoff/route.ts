@@ -38,17 +38,21 @@ export async function POST(
           )
         )
       `)
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     if (!userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check EXECUTE_WORKFLOWS permission
-    const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    // Check EXECUTE_WORKFLOWS permission with workflow instance context
+    // This checks both base permission AND workflow node assignment
+    // Users with EXECUTE_ANY_WORKFLOW override can bypass node assignment check
+    const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, { workflowInstanceId: id }, supabase);
     if (!canExecute) {
-      return NextResponse.json({ error: 'Insufficient permissions to execute workflows' }, { status: 403 });
+      return NextResponse.json({
+        error: 'Insufficient permissions to execute this workflow. You must be assigned to the current workflow node, or have EXECUTE_ANY_WORKFLOW override permission.'
+      }, { status: 403 });
     }
 
     // Validate request body
@@ -59,7 +63,7 @@ export async function POST(
     }
 
     // Verify user has access to the workflow instance's project
-    const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, id);
+    const accessCheck = await verifyWorkflowInstanceAccess(supabase, (user as any).id, id);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this workflow instance'
@@ -80,7 +84,7 @@ export async function POST(
     const historyEntry = await handoffWorkflow(supabase, {
       instanceId: id,
       toNodeId: validation.data.to_node_id,
-      handedOffBy: user.id,
+      handedOffBy: (user as any).id,
       handedOffTo: validation.data.handed_off_to || null,
       formResponseId: validation.data.form_response_id || null,
       notes: validation.data.notes || null,
@@ -88,7 +92,7 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, history_entry: historyEntry }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/workflows/instances/[id]/handoff:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

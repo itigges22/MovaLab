@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', user.id)
+      .eq('id', (user as any).id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
 
-    let approvals: any[] = [];
+    let approvals: Record<string, unknown>[] = [];
 
     if (isSuperadmin) {
       // Superadmins see ALL pending approvals across all users
@@ -72,31 +72,36 @@ export async function GET(request: NextRequest) {
       }
 
       if (!error && activeSteps) {
-        // Filter to only approval/form nodes in active workflow instances
+        // Filter to only approval nodes in active workflow instances
         const filteredSteps = activeSteps.filter((step: any) => {
-          const instance = step.workflow_instances;
+          const instance = step.workflow_instances as Record<string, unknown>;
           if (!instance) return false;
-          if (instance.status !== 'active') return false;
+          if ((instance.status as string) !== 'active') return false;
 
           // Get node data from snapshot (we removed the FK join because it may not exist)
-          const node = instance.started_snapshot?.nodes?.find((n: any) => n.id === step.node_id);
+          const snapshot = instance.started_snapshot as Record<string, unknown>;
+          const nodes = snapshot?.nodes as Record<string, unknown>[] | undefined;
+          const node = nodes?.find((n: any) => n.id === step.node_id);
 
           if (!node) {
             console.warn('[my-approvals] Node not found in snapshot:', { stepId: step.id, nodeId: step.node_id });
             return false;
           }
-          return ['approval', 'form'].includes(node.node_type);
+          return (node.node_type as string) === 'approval';
         });
 
         // Transform to match expected format
         approvals = filteredSteps.map((step: any) => {
           // Get node data from snapshot
-          const nodeData = step.workflow_instances.started_snapshot?.nodes?.find((n: any) => n.id === step.node_id);
+          const instance = step.workflow_instances as Record<string, unknown>;
+          const snapshot = instance.started_snapshot as Record<string, unknown>;
+          const nodes = snapshot?.nodes as Record<string, unknown>[] | undefined;
+          const nodeData = nodes?.find((n: any) => n.id === step.node_id);
 
           return {
-            ...step.workflow_instances,
+            ...instance,
             workflow_nodes: nodeData,
-            projects: step.workflow_instances.projects,
+            projects: instance.projects,
             active_step_id: step.id,
             current_node_id: step.node_id,
             assigned_user: step.assigned_user || null
@@ -105,14 +110,14 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // Regular users see only their pending approvals based on role
-      approvals = await getUserPendingApprovals(supabase, user.id);
+      approvals = await getUserPendingApprovals(supabase, (user as any).id);
     }
 
     return NextResponse.json({
       success: true,
       approvals,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/workflows/my-approvals:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

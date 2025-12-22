@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
-import { accountKanbanConfigService, KanbanColumn } from '@/lib/account-kanban-config';
+import { KanbanColumn } from '@/lib/account-kanban-config';
 import {
   DndContext,
   closestCenter,
@@ -140,7 +140,7 @@ export function KanbanConfigDialog({
         const newItems = arrayMove(items, oldIndex, newIndex);
         
         // Update the order property for each column
-        return newItems.map((item, index) => ({
+        return newItems.map((item:any, index:any) => ({
           ...item,
           order: index + 1,
         }));
@@ -170,9 +170,9 @@ export function KanbanConfigDialog({
       return;
     }
     setColumns(prev => {
-      const filtered = prev.filter(col => col.id !== columnId);
+      const filtered = prev.filter((col: any) => col.id !== columnId);
       // Update the order property for remaining columns
-      return filtered.map((item, index) => ({
+      return filtered.map((item:any, index:any) => ({
         ...item,
         order: index + 1,
       }));
@@ -180,7 +180,7 @@ export function KanbanConfigDialog({
   };
 
   const handleUpdateColumn = (columnId: string, field: keyof KanbanColumn, value: string | number) => {
-    setColumns(prev => prev.map(col => 
+    setColumns(prev => prev.map((col: any) => 
       col.id === columnId ? { ...col, [field]: value } : col
     ));
   };
@@ -206,7 +206,7 @@ export function KanbanConfigDialog({
         console.error('Failed to update kanban configuration:', result.error);
         toast.error(result.error || 'Failed to update kanban configuration');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving kanban config:', error);
       toast.error('An error occurred while saving kanban configuration');
     } finally {
@@ -244,8 +244,8 @@ export function KanbanConfigDialog({
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-                <SortableContext items={columns.map(col => col.id)} strategy={verticalListSortingStrategy}>
-                  {columns.map((column) => (
+                <SortableContext items={columns.map((col: any) => col.id)} strategy={verticalListSortingStrategy}>
+                  {columns.map((column:any) => (
                     <SortableColumnItem
                       key={column.id}
                       column={column}
@@ -286,7 +286,7 @@ export function KanbanConfigDialog({
           <div>
             <Label className="text-base font-medium">Preview</Label>
             <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
-              {columns.map((column) => (
+              {columns.map((column:any) => (
                 <Badge
                   key={column.id}
                   variant="outline"

@@ -218,7 +218,7 @@ export function validateRequestBody<T>(schema: z.ZodSchema<T>, body: any) {
   try {
     const data = schema.parse(body);
     return { success: true as const, data };
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       const firstError = error.issues[0];
       return {
@@ -240,13 +240,13 @@ export function validateRequestBody<T>(schema: z.ZodSchema<T>, body: any) {
 export function validateQueryParams<T>(schema: z.ZodSchema<T>, params: Record<string, string | string[]>) {
   try {
     // Convert single values from arrays if needed
-    const normalized: Record<string, any> = {};
+    const normalized: Record<string, string | string[]> = {};
     for (const [key, value] of Object.entries(params)) {
       normalized[key] = Array.isArray(value) ? value[0] : value;
     }
     const data = schema.parse(normalized);
     return { success: true as const, data };
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       const firstError = error.issues[0];
       return {
