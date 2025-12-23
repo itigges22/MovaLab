@@ -186,10 +186,13 @@ When requesting features:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). This means:
+By contributing, you agree that your contributions will be licensed under the Sustainable Use License. This means:
 
-- Your contributions remain open source
-- Any modifications must also be open source
-- If you run a modified version as a service, you must share the source code
+- You can use and modify the software for internal business purposes or personal use
+- You cannot host MovaLab as a commercial service or resell it
+- Your contributions help improve a product used by agencies worldwide
+- MovaLab remains source-available while protecting against commercial exploitation
 
-See the [LICENSE](LICENSE) file for details.
+This is not an OSI-approved open source license. MovaLab uses a "fair-code" model similar to n8n, Sentry, and other commercial source-available projects. If you have questions about what the license permits, please open an issue before contributing.
+
+See the [LICENSE](LICENSE) file for complete details.
