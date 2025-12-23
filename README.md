@@ -1,8 +1,10 @@
-# MovaLab - Professional Service Automation
+# MovaLab
 
-**Stop juggling disconnected tools. Start delivering exceptional client work.**
+**Professional Services Automation for the Modern Agency**
 
-MovaLab is an enterprise-grade project and resource management platform built for professional services organizations. Originally developed for a student-run marketing agency managing 11 client accounts across 8 departments with 60+ members, MovaLab consolidates what used to require Basecamp, Monday.com, Notion, MS Planner, and Slack into a single unified system.
+MovaLab is a cloud-based platform that consolidates agency operations into a single, intelligent system. Built for marketing agencies, creative studios, and consulting firms with 5-50 employees who are tired of juggling Monday.com, Notion, Harvest, Float, and spreadsheets just to answer "do we have capacity for this project?"
+
+Originally developed for a student-run marketing agency managing 11 client accounts across 8 departments with 60+ members, MovaLab replaces what used to require Basecamp, Monday.com, Notion, MS Planner, and Slack with a single unified system.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js&labelColor=aliceblue&color=bbd3dd&logoColor=%23000000)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=TypeScript&labelColor=aliceblue&color=bbd3dd)
@@ -11,56 +13,72 @@ MovaLab is an enterprise-grade project and resource management platform built fo
 
 ---
 
-## 🎯 What MovaLab Solves
+## 🎯 The Problem
 
 Professional services organizations struggle with:
-- **Tool fragmentation** - Projects in Monday.com, time in Toggl, communication in Slack, capacity in spreadsheets
-- **Lack of visibility** - Can't answer "who's overloaded?" or "do we have capacity?" without hours of investigation
-- **Organizational chaos** - Team rotations, unclear accountability, tribal knowledge lost when people leave
-- **Client communication** - "Any updates?" emails because clients have no visibility into progress
 
-**MovaLab provides a single source of truth** for projects, tasks, time tracking, capacity planning, workflows, and client communication.
+- **Tool fragmentation** — Projects in Monday.com, time in Toggl, communication in Slack, capacity in spreadsheets
+- **Lack of visibility** — Can't answer "who's overloaded?" or "do we have capacity?" without hours of investigation
+- **Organizational chaos** — Team rotations, unclear accountability, tribal knowledge lost when people leave
+- **Client communication** — "Any updates?" emails because clients have no visibility into progress
+- **Ignored SOPs** — 30-page PDFs that no one reads, informal workflows, inconsistent quality
+
+The result? Burnout, missed deadlines, over-commitment, and margins that erode with every project.
+
+## 💡 The Solution
+
+MovaLab replaces your fragmented tool stack with one unified platform:
+
+| What You Have Now | What MovaLab Provides |
+|-------------------|----------------------|
+| Monday/Asana/Basecamp | Project & task management (Kanban, Gantt, Table views) |
+| Harvest/Toggl | Time tracking (clock in/out + manual entry) |
+| Float/spreadsheets | Real-time capacity planning with proportional allocation |
+| Static SOP documents | Visual workflow builder with enforced handoffs |
+| Slack status updates | Automated project visibility for clients and leadership |
+
+**One platform. One source of truth. 40-60% reduction in software costs.**
 
 ---
 
 ## ✨ Core Features
 
 ### 📊 Intelligent Capacity Planning
-- **Proportional allocation** - Users on 3 accounts split their 40 hrs/week capacity proportionally (13.3 hrs each)
-- **Real-time utilization** - Track individual, department, and organization-wide capacity
-- **Multi-level analytics** - Individual → Department → Account → Organization views
-- **Prevents over-commitment** - Know if you can take new work before saying yes
+- **Proportional allocation** — Users on 3 accounts split their 40 hrs/week capacity proportionally (13.3 hrs each)
+- **Real-time utilization** — Track individual, department, and organization-wide capacity
+- **Multi-level analytics** — Individual → Department → Account → Organization views
+- **Prevents over-commitment** — Know if you can take new work before saying yes
 
 ### 🔄 Visual Workflow Automation
-- **Drag-and-drop workflow builder** - Transform SOPs into visual, enforceable workflows
-- **Node types** - Department handoffs, role assignments, client approvals, conditional branches
-- **Complete audit trail** - Track every transition, handoff, and approval
-- **Guardrails, not handcuffs** - Structure that guides without being rigid
+- **Drag-and-drop workflow builder** — Transform SOPs into visual, enforceable workflows
+- **Node types** — Department handoffs, role assignments, client approvals, conditional branches
+- **Complete audit trail** — Track every transition, handoff, and approval
+- **Guardrails, not handcuffs** — Structure that guides without being rigid
 
 ### ⏱️ Flexible Time Tracking
-- **Clock in/out** - Start timer, work, allocate hours across tasks when done
-- **Manual entry** - Log hours directly on specific tasks
-- **Auto clock-out** - Sessions auto-close after 16 hours (prevents forgotten sessions)
-- **User dashboard** - View, filter, and analyze logged time with charts and 14-day edit window
+- **Clock in/out** — Start timer, work, allocate hours across tasks when done
+- **Manual entry** — Log hours directly on specific tasks
+- **Auto clock-out** — Sessions auto-close after 16 hours (prevents forgotten sessions)
+- **User dashboard** — View, filter, and analyze logged time with charts and 14-day edit window
 
 ### 👥 Dynamic Permissions
-- **~40 consolidated permissions** across 15 categories (reduced from 136 via Phase 8-9 RBAC refactoring)
-- **Context-aware access** - Permissions adapt based on project assignments and account management
-- **Row Level Security** - Data access controlled at PostgreSQL level, not just application logic
-- **Hierarchical reporting** - Clear chains of accountability
+- **~40 consolidated permissions** across 15 categories (reduced from 136 via RBAC refactoring)
+- **Context-aware access** — Permissions adapt based on project assignments and account management
+- **Row Level Security** — Data access controlled at PostgreSQL level, not just application logic
+- **Hierarchical reporting** — Clear chains of accountability
 
 ### 📈 Multiple Task Views
-- **Kanban boards** - Drag-and-drop task management (To Do → In Progress → Review → Done)
-- **Gantt charts** - Timeline visualization with dependencies and critical paths
-- **Table views** - Sortable, filterable lists for bulk updates
-- **Workflow views** - Track projects through custom approval workflows
-- **Analytics dashboards** - Performance metrics, resource allocation, project health
+- **Kanban boards** — Drag-and-drop task management (To Do → In Progress → Review → Done)
+- **Gantt charts** — Timeline visualization with dependencies and critical paths
+- **Table views** — Sortable, filterable lists for bulk updates
+- **Workflow views** — Track projects through custom approval workflows
+- **Analytics dashboards** — Performance metrics, resource allocation, project health
 
 ### 🤝 Client Portal
-- **Project visibility** - Clients see real-time progress without pestering your team
-- **Built-in approvals** - Review, approve, or request revisions directly
-- **Feedback collection** - Post-project satisfaction scoring and insights
-- **Secure isolation** - Clients see only their own projects (RLS enforced)
+- **Project visibility** — Clients see real-time progress without pestering your team
+- **Built-in approvals** — Review, approve, or request revisions directly
+- **Feedback collection** — Post-project satisfaction scoring and insights
+- **Secure isolation** — Clients see only their own projects (RLS enforced)
 
 ---
 
@@ -94,7 +112,7 @@ Professional services organizations struggle with:
 
 1. **Clone and Install**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/itigges/MovaLab.git
    cd MovaLab
    npm install
    ```
@@ -105,7 +123,7 @@ Professional services organizations struggle with:
    ```env
    # Supabase (Required)
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
    # Rate Limiting (Optional - Production Recommended)
    UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
@@ -116,8 +134,6 @@ Professional services organizations struggle with:
    EXPOSE_ERROR_DETAILS=true
    LOG_LEVEL=debug
    ```
-
-   **⚠️ CRITICAL:** Use `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`, NOT the anon key. Anon keys bypass Row Level Security and create massive security vulnerabilities. Publishable keys respect RLS policies and protect your data.
 
 3. **Database Setup**
 
@@ -136,11 +152,11 @@ Professional services organizations struggle with:
 
 ### Initial Setup
 
-1. **Create Superadmin** - Sign up, visit `/superadmin-setup` to grant yourself admin privileges
-2. **Build Organization** - Create departments and roles via Admin → Roles
-3. **Invite Team** - Members sign up, you approve via Admin → Pending Users
-4. **Set Capacity** - Users set weekly availability in their profile
-5. **Create Accounts** - Add client accounts and start managing projects
+1. **Create Superadmin** — Sign up, visit `/superadmin-setup` to grant yourself admin privileges
+2. **Build Organization** — Create departments and roles via Admin → Roles
+3. **Invite Team** — Members sign up, you approve via Admin → Pending Users
+4. **Set Capacity** — Users set weekly availability in their profile
+5. **Create Accounts** — Add client accounts and start managing projects
 
 ---
 
@@ -201,32 +217,32 @@ Total team capacity proportionally split across assigned accounts. Prevents over
 Future commitments based on task estimates. Shows if you're over-committing before work begins.
 
 ### Actual Hours
-Real logged time - the ground truth of work performed. What you bill and what actually happened.
+Real logged time — the ground truth of work performed. What you bill and what actually happened.
 
 ### Utilization
 `(Actual ÷ Available) × 100`
-- **60-80%** - Healthy with buffer
-- **80-95%** - High productivity
-- **95-110%** - Risk of burnout
-- **>110%** - Critical, redistribute immediately
+- **60-80%** — Healthy with buffer
+- **80-95%** — High productivity
+- **95-110%** — Risk of burnout
+- **>110%** — Critical, redistribute immediately
 
 ---
 
-## 🎓 Perfect for Student Organizations
+## 🎯 Perfect for Small Creative Agencies
 
-MovaLab was built for a student-run agency, making it ideal where:
-- Members have limited tenure (2-4 years)
-- Roles rotate frequently as students develop
-- Capacity varies with academic schedules
-- Learning is the mission alongside delivery
-- Budgets are limited but quality expectations are high
+MovaLab is purpose-built for agencies where:
+- Teams wear multiple hats across several clients
+- Capacity is tight and over-commitment kills margins
+- Turnover means knowledge walks out the door
+- Enterprise tools are overkill (and overpriced)
+- You need structure without bureaucracy
 
-**Student-Friendly Features:**
-- Comprehensive onboarding in one place
-- Educational transparency (juniors learn from seniors)
-- Flexible capacity matching academic schedules
-- Built-in accountability with clear expectations
-- Professional-grade tools that prepare for industry careers
+**Agency-Friendly Features:**
+- Single source of truth across all client work
+- Proportional capacity planning that actually works
+- Workflows that enforce quality without slowing you down
+- Client portal that eliminates status update emails
+- Enterprise-grade security at SMB-friendly pricing
 
 ---
 
@@ -258,7 +274,9 @@ MovaLab was built for a student-run agency, making it ideal where:
 
 ## 🤝 Contributing
 
-Contributions welcome! Originally developed for a student-run marketing agency, MovaLab is designed to be adaptable for any professional services organization.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+MovaLab was originally developed in partnership with PRISM, a faculty-led, student-run marketing agency at Virginia Tech managing 11 client accounts with 60+ team members. It's designed to be adaptable for any professional services organization.
 
 For feature requests, bug reports, or questions about adapting MovaLab for your organization, please open an issue on GitHub or join our [Discord community](https://discord.gg/99SpYzNbcu).
 
@@ -276,10 +294,25 @@ For feature requests, bug reports, or questions about adapting MovaLab for your 
 
 ## 📄 License
 
-See the repository for license details. This project is **NOT MIT licensed** - check the LICENSE file for actual terms.
+MovaLab is licensed under the **Sustainable Use License**.
+
+**You can:**
+- Use MovaLab for your agency's internal operations
+- Self-host for your own business
+- Modify the code for your internal use
+- Offer consulting services helping others implement MovaLab
+
+**You cannot:**
+- Host MovaLab as a paid service for others
+- Resell or white-label MovaLab
+- Embed MovaLab in a commercial product
+
+This is a "fair-code" license similar to n8n and other source-available projects. It protects against commercial exploitation while allowing agencies to use and benefit from the platform.
+
+See [LICENSE](LICENSE) for complete terms.
 
 ---
 
-**Built by students, for students—delivering professional results without the professional price tag.**
+**Built for agencies who believe operational excellence — not just creative excellence — drives profitability.**
 
 *MovaLab: Because your team deserves better than spreadsheet chaos and Slack pandemonium.*
