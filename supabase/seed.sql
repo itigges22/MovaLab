@@ -19,11 +19,7 @@ BEGIN;
 -- ============================================================================
 
 TRUNCATE
-  workflow_sync_locks,
-  workflow_step_assignments,
-  workflow_node_assignments,
   workflow_active_steps,
-  workflow_approvals,
   client_feedback,
   client_portal_invitations,
   form_responses,
@@ -33,7 +29,6 @@ TRUNCATE
   workflow_nodes,
   workflow_templates,
   form_templates,
-  project_contributors,
   clock_sessions,
   task_week_allocations,
   time_entries,
@@ -49,7 +44,6 @@ TRUNCATE
   notifications,
   deliverables,
   task_dependencies,
-  task_assignments,
   tasks,
   projects,
   accounts,
@@ -57,9 +51,7 @@ TRUNCATE
   user_profiles,
   roles,
   departments,
-  milestones,
-  groups,
-  statuses
+  milestones
 CASCADE;
 
 -- ============================================================================

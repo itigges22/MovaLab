@@ -354,8 +354,9 @@ print_info "Giving PostgreSQL time to initialize..."
 
 # Simple approach: Wait a fixed time for database initialization
 # This is more reliable than trying to connect (requires psql which isn't on Windows)
-print_info "Waiting 5 seconds for all services to be ready..."
-sleep 5
+print_info "Waiting 10 seconds for all services to be ready..."
+print_info "(Services may take longer to start on first run)"
+sleep 10
 
 # Verify Supabase status shows services running
 if npx supabase status >/dev/null 2>&1; then

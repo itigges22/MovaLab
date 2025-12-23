@@ -59,30 +59,48 @@ async function runHealthChecks() {
   });
 
   // ============================================================================
-  // CHECK 1: Database Connection
+  // CHECK 1: Database Connection (with retry)
   // ============================================================================
   console.log('1️⃣  Testing database connection...');
-  try {
-    const { error } = await supabase.from('user_profiles').select('count').limit(1);
 
-    if (error) {
-      results.push({
-        name: 'Database Connection',
-        passed: false,
-        error: error.message,
-      });
-    } else {
-      results.push({
-        name: 'Database Connection',
-        passed: true,
-        details: 'Successfully connected to PostgreSQL',
-      });
+  let connectionSuccess = false;
+  let connectionError: string | null = null;
+  const maxRetries = 3;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 1) {
+        console.log(`   Retry ${attempt - 1}/${maxRetries - 1}...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between retries
+      }
+
+      const { error } = await supabase.from('user_profiles').select('count').limit(1);
+
+      if (error) {
+        connectionError = error.message;
+      } else {
+        connectionSuccess = true;
+        break;
+      }
+    } catch (error: any) {
+      connectionError = error.message || 'Connection failed';
+      if (error.message && error.message.includes('fetch failed')) {
+        connectionError = 'Cannot connect to Supabase API (localhost:54321). Services may still be starting.';
+      }
     }
-  } catch (error: any) {
+  }
+
+  if (connectionSuccess) {
+    results.push({
+      name: 'Database Connection',
+      passed: true,
+      details: 'Successfully connected to PostgreSQL',
+    });
+  } else {
     results.push({
       name: 'Database Connection',
       passed: false,
-      error: error.message || 'Connection failed',
+      error: connectionError || 'Connection failed after retries',
     });
   }
 
