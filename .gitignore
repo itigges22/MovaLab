@@ -49,13 +49,21 @@ next-env.d.ts
 *.bak
 *CHAT.md
 *chat.md
+# SQL files (EXCEPT migrations and seed data)
 *.sql
+!supabase/migrations/*.sql
+!supabase/seed.sql
 PERFORMANCE_REPORT.md
 README/local-debug/
 
 #Removing .env local files from the repo for security reasons.
 .env.local
 *.env
+
+# Supabase local development files
+supabase/.temp/
+supabase/.branches/
+supabase/.env
 
 # test scripts
 performance-test.js

@@ -101,14 +101,116 @@ MovaLab replaces your fragmented tool stack with one unified platform:
 
 ---
 
-## 🚀 Quick Setup
+## 🚀 Quick Setup (Local Development)
+
+> **✨ Zero-configuration Docker setup!** No cloud accounts needed. Everything runs locally.
+>
+> 📚 **First time?** See our [Complete Setup Guide](CONTRIBUTING.md#one-command-setup) for detailed instructions.
+
+### Prerequisites
+
+Before you begin, ensure you have:
+
+- ✅ **Node.js 18.0+** ([Download](https://nodejs.org/))
+- ✅ **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop)) - Must be running
+- ✅ **Windows users:** Git Bash (included with [Git for Windows](https://gitforwindows.org/)) or [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install)
+- ⏱️ **5 minutes** setup time
+
+### One-Command Setup
+
+```bash
+git clone https://github.com/itigges/MovaLab.git
+cd MovaLab
+./scripts/first-time-setup.sh
+```
+
+**That's it!** The script automatically:
+- ✅ Checks all prerequisites (Node, Docker, Supabase CLI)
+- ✅ Installs dependencies
+- ✅ Starts local Supabase (PostgreSQL + Auth + Storage + Studio)
+- ✅ Applies database migrations (42+ tables with RLS policies)
+- ✅ Loads seed data (8 test users, 3 accounts, 6 projects, 20 tasks)
+- ✅ Runs health checks and verifies everything works
+
+**Setup Flow:**
+```
+1. Clone repo → 2. Run script → 3. Script validates prerequisites →
+4. Starts Docker → 5. Runs migrations → 6. Creates test data →
+7. Health check ✅ → 8. Ready to code! 🚀
+```
+
+### Start Developing
+
+```bash
+npm run dev              # Start Next.js dev server
+```
+
+Open [http://localhost:3000](http://localhost:3000) and login:
+- **Email:** `superadmin@test.local`
+- **Password:** `Test1234!`
+
+---
+
+### 🆘 Need Help?
+
+**Having trouble?** We've got you covered:
+
+- 📖 **[Detailed Setup Guide](CONTRIBUTING.md#development-setup)** - Step-by-step with screenshots
+- 🔧 **[Troubleshooting Guide](docs/implementation/TESTING-REPORT.md#troubleshooting)** - Common issues and solutions
+- 🔄 **[Environment Switching](docs/implementation/ENVIRONMENT-SWITCHING.md)** - Switch between local Docker and cloud Supabase
+- 💬 **[Discord Community](https://discord.gg/99SpYzNbcu)** - Get help from other users
+
+**Quick fixes:**
+```bash
+npm run docker:health   # Check if everything is working
+npm run docker:reset    # Reset database if something went wrong
+```
+
+### Test User Accounts
+
+All test users have password: `Test1234!`
+
+| Email | Role | Purpose |
+|-------|------|---------|
+| `superadmin@test.local` | Superadmin | Full system access |
+| `exec@test.local` | Executive Director | Leadership, org-wide access |
+| `manager@test.local` | Account Manager | Multi-account oversight |
+| `pm@test.local` | Project Manager | Project coordination |
+| `designer@test.local` | Senior Designer | Creative work |
+| `dev@test.local` | Senior Developer | Technical implementation |
+| `contributor@test.local` | Contributor | Part-time contributor (20 hrs/week) |
+| `client@test.local` | Client | Client portal access |
+
+### Docker Commands
+
+```bash
+npm run docker:start      # Start Supabase services
+npm run docker:stop       # Stop Supabase (preserves data)
+npm run docker:reset      # Reset database and re-run migrations
+npm run docker:seed       # Reset database + create seed users
+npm run docker:studio     # Open Supabase Studio (database UI)
+npm run docker:health     # Verify setup
+```
+
+### Service URLs
+
+- **App:** http://localhost:3000
+- **Supabase Studio:** http://localhost:54323 (database UI)
+- **API:** http://localhost:54321
+- **PostgreSQL:** localhost:54322
+
+---
+
+## 🌐 Cloud Setup (Production)
+
+For deploying to production with cloud Supabase:
 
 ### Prerequisites
 - Node.js 18.0+
-- Supabase account (free tier works)
-- Upstash Redis (optional, for production rate limiting)
+- Supabase account ([free tier works](https://supabase.com))
+- Vercel/Netlify account (optional, for hosting)
 
-### Installation
+### Setup Steps
 
 1. **Clone and Install**
    ```bash
@@ -117,34 +219,37 @@ MovaLab replaces your fragmented tool stack with one unified platform:
    npm install
    ```
 
-2. **Environment Configuration**
+2. **Create Supabase Project**
+   - Go to [supabase.com](https://supabase.com)
+   - Create new project
+   - Note your project URL and publishable key
+
+3. **Pull Database Schema**
+   ```bash
+   supabase link --project-ref your-project-ref
+   supabase db pull
+   ```
+
+4. **Environment Configuration**
 
    Create `.env.local`:
    ```env
    # Supabase (Required)
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
 
    # Rate Limiting (Optional - Production Recommended)
    UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
    UPSTASH_REDIS_REST_TOKEN=your-token
    ENABLE_RATE_LIMIT=true
-
-   # Development (Optional)
-   EXPOSE_ERROR_DETAILS=true
-   LOG_LEVEL=debug
    ```
 
-3. **Database Setup**
+5. **Push Migrations**
+   ```bash
+   supabase db push
+   ```
 
-   In your Supabase SQL Editor, run migration files from `supabase/migrations/` in order to create:
-   - Core tables (users, accounts, projects, tasks, time_entries)
-   - Row Level Security policies
-   - Permission system (roles, departments, hierarchies)
-   - Capacity tracking tables
-   - Workflow system tables
-
-4. **Launch**
+6. **Launch**
    ```bash
    npm run dev
    ```
@@ -304,11 +409,24 @@ For feature requests, bug reports, or questions about adapting MovaLab for your 
 
 ## 🆘 Support & Documentation
 
-- **Developer Guide:** See `CLAUDE.md` for comprehensive development documentation
-- **Feature Documentation:** `/docs/architecture/FEATURELIST.md`
-- **Security Guide:** `/docs/security/SECURITY.md`
-- **Contributing Guide:** `CONTRIBUTING.md`
-- **Discord Community:** [Join our Discord](https://discord.gg/99SpYzNbcu)
+### Getting Started Guides
+
+- 📘 **[Contributing Guide](CONTRIBUTING.md)** - Complete setup walkthrough (START HERE!)
+- 🔧 **[Troubleshooting](docs/implementation/TESTING-REPORT.md)** - Common issues and solutions
+- 🔄 **[Environment Switching](docs/implementation/ENVIRONMENT-SWITCHING.md)** - Local Docker ↔ Cloud Supabase
+
+### Technical Documentation
+
+- 💻 **[Developer Guide](CLAUDE.md)** - Comprehensive development documentation
+- 📋 **[Feature List](docs/implementation/00-INDEX.md)** - Complete feature catalog
+- 🗄️ **[Database Schema](supabase/migrations/README.md)** - Migration guide and database structure
+- 🔒 **[Security Guide](docs/security/SECURITY.md)** - Security architecture and best practices
+
+### Get Help
+
+- 💬 **[Discord Community](https://discord.gg/99SpYzNbcu)** - Chat with other users and maintainers
+- 🐛 **[GitHub Issues](https://github.com/itigges/MovaLab/issues)** - Report bugs or request features
+- 📧 **Email Support** - For private inquiries
 
 ---
 

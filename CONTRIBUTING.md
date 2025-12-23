@@ -12,14 +12,20 @@ Thank you for your interest in contributing to MovaLab! This document provides g
 
 ## Development Setup
 
+> **✨ Zero-configuration setup!** Everything runs locally with Docker - no cloud accounts required.
+
 ### Prerequisites
 
-- Node.js 18.0 or higher
-- npm, pnpm, yarn, or bun
-- Supabase account (free tier works)
-- Git
+- **Node.js 18.0+** ([Download](https://nodejs.org/))
+- **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop))
+- **Git**
+- **Windows users:** Git Bash (included with [Git for Windows](https://gitforwindows.org/)) or [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install)
 
-### Getting Started
+That's it! No Supabase account, no cloud setup, no credentials management.
+
+> **💡 Windows Note:** The setup script requires bash. Use Git Bash (recommended) or WSL2. Open Git Bash and run `./scripts/first-time-setup.sh`
+
+### One-Command Setup
 
 1. **Fork the repository** on GitHub
 
@@ -29,70 +35,130 @@ Thank you for your interest in contributing to MovaLab! This document provides g
    cd MovaLab
    ```
 
-3. **Install dependencies**
+3. **Run the setup script**
    ```bash
-   bun install
-   # or: npm install
+   ./scripts/first-time-setup.sh
    ```
 
-4. **Set up Supabase** (see [Database Setup](#database-setup) below)
+   This script will automatically:
+   - ✅ Verify Node.js and Docker are installed
+   - ✅ Install Supabase CLI (if needed)
+   - ✅ Install npm dependencies
+   - ✅ Start local Supabase with Docker
+   - ✅ Apply all database migrations (35+ tables)
+   - ✅ Load seed data (8 users, 3 accounts, 6 projects, 20 tasks)
+   - ✅ Create test user accounts
+   - ✅ Run health checks
 
-5. **Set up environment variables**
-
-   Create `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-   ```
-
-6. **Start the development server**
+4. **Start developing**
    ```bash
-   bun run dev
-   # or: npm run dev
+   npm run dev
    ```
 
-7. **Open** [http://localhost:3000](http://localhost:3000)
+5. **Open** [http://localhost:3000](http://localhost:3000)
 
-## Database Setup
+### Login with Test Accounts
 
-MovaLab uses [Supabase](https://supabase.com) (PostgreSQL) with Row Level Security (RLS) for data protection. The database schema includes 45+ tables with complex relationships and security policies.
+All test users have the password: **`Test1234!`**
 
-### Creating Your Supabase Project
+| Email | Role | Purpose |
+|-------|------|---------|
+| `superadmin@test.local` | Superadmin | Full system access |
+| `exec@test.local` | Executive Director | Leadership view |
+| `manager@test.local` | Account Manager | Multi-account management |
+| `pm@test.local` | Project Manager | Project coordination |
+| `designer@test.local` | Senior Designer | Creative tasks |
+| `dev@test.local` | Senior Developer | Technical tasks |
+| `contributor@test.local` | Contributor | Part-time (20 hrs/week) |
+| `client@test.local` | Client | Client portal view |
 
-1. **Create a free account** at [supabase.com](https://supabase.com)
+## Docker-Based Development
 
-2. **Create a new project**
-   - Click "New Project"
-   - Choose your organization
-   - Enter a project name (e.g., "movalab-dev")
-   - Generate a strong database password (save this!)
-   - Select a region close to you
-   - Click "Create new project"
+MovaLab uses **local Supabase** (PostgreSQL + Auth + Storage) via Docker. Everything runs on your machine - no cloud dependencies.
 
-3. **Wait for setup** - This takes 1-2 minutes
+### Docker Commands
 
-4. **Get your credentials**
-   - Go to **Settings** → **API**
-   - Copy the **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - Copy the **anon/public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+```bash
+# Start/stop Supabase services
+npm run docker:start         # Start all services
+npm run docker:stop          # Stop services (preserves data)
 
-### Setting Up the Database Schema
+# Database management
+npm run docker:reset         # Reset DB, re-run migrations
+npm run docker:seed          # Reset DB + create seed users
+npm run docker:health        # Verify setup
 
-The database schema is managed through migrations. To set up your development database:
+# Database UI
+npm run docker:studio        # Open Supabase Studio at localhost:54323
+```
 
-#### Option 1: Request Schema Access (Recommended for Contributors)
+### Service URLs
 
-Contact the maintainers to get the current schema export:
-- Open a GitHub issue titled "Request: Database Schema for Development"
-- Or email the maintainer (see SECURITY.md)
+When Docker is running, you'll have access to:
 
-We'll provide you with:
-- A SQL file containing the complete schema
-- Instructions for running it in your Supabase project
+- **App:** http://localhost:3000
+- **Supabase Studio:** http://localhost:54323 (database admin UI)
+- **API:** http://localhost:54321
+- **PostgreSQL:** localhost:54322
 
-#### Option 2: Use Supabase CLI (Advanced)
+### Database Schema
 
-If you have access to the migration files:
+The database schema is defined in `/supabase/migrations/`:
+
+- **`20250123_02_functions_fixed.sql`** - Database functions with RLS fixes
+- **`20250123_03_views.sql`** - Analytics views
+- **`20250123_04_rls_policies_fixed.sql`** - Row Level Security policies
+- **`20250123_05_triggers.sql`** - Auto-triggers (user creation, timestamps)
+
+Migrations run automatically when you start Supabase.
+
+### Seed Data
+
+Test data is loaded from `/supabase/seed.sql`:
+
+- **5 Departments** (Leadership, Marketing, Design, Development, Operations)
+- **15 Roles** with permissions (Superadmin, Executive, PM, Designer, etc.)
+- **8 Test Users** with realistic profiles and availability
+- **3 Client Accounts** (Acme Corp, StartupXYZ, Local Business)
+- **6 Projects** with varying statuses
+- **20 Tasks** with dependencies and assignments
+- **2 Workflow Templates** (Blog Post Approval, Video Production)
+- **2 Form Templates** (Client Intake, Project Feedback)
+- **Sample time entries** and newsletters
+
+### Troubleshooting
+
+**Docker not running?**
+```bash
+# Check Docker status
+docker info
+
+# If not running, start Docker Desktop
+# Then: npm run docker:start
+```
+
+**Database connection failed?**
+```bash
+# Reset everything
+npm run docker:stop
+npm run docker:start
+npm run docker:health
+```
+
+**Migrations not applied?**
+```bash
+npm run docker:reset
+npx tsx scripts/create-seed-users.ts
+```
+
+**Still having issues?**
+- Run the health check: `npm run docker:health`
+- Check logs: `supabase status`
+- Ask for help in our [Discord](https://discord.gg/99SpYzNbcu)
+
+## Database Migrations (Advanced)
+
+If you need to add new tables or modify the schema:
 
 ```bash
 # Install Supabase CLI
