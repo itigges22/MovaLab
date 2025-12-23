@@ -27,12 +27,22 @@ trap error_exit ERR
 
 set -e  # Exit on error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Colors for output (disable if not a TTY to avoid PowerShell issues)
+if [ -t 1 ]; then
+  # Running in a TTY
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  BLUE='\033[0;34m'
+  NC='\033[0m' # No Color
+else
+  # Not a TTY (e.g., PowerShell) - disable colors
+  RED=''
+  GREEN=''
+  YELLOW=''
+  BLUE=''
+  NC=''
+fi
 
 # Helper functions
 print_header() {
@@ -196,13 +206,20 @@ print_header "🔐 Step 5: Configuring Environment Variables"
 
 if [ -f ".env.local" ]; then
   print_warning ".env.local already exists"
-  read -p "   Do you want to overwrite it? (y/N): " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    cp .env.local.template .env.local
-    print_success "Environment file created from template"
+
+  # Only prompt if running in a TTY (skip for PowerShell)
+  if [ -t 0 ]; then
+    read -p "   Do you want to overwrite it? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      cp .env.local.template .env.local
+      print_success "Environment file created from template"
+    else
+      print_info "Keeping existing .env.local file"
+    fi
   else
-    print_info "Keeping existing .env.local file"
+    # Not a TTY - keep existing file
+    print_info "Keeping existing .env.local file (non-interactive mode)"
   fi
 else
   if [ -f ".env.local.template" ]; then
