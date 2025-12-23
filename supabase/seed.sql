@@ -490,19 +490,19 @@ INSERT INTO workflow_templates (id, name, description, created_by, is_active) VA
 
 INSERT INTO workflow_nodes (id, workflow_template_id, node_type, label, position_x, position_y) VALUES
 -- Blog Post Approval workflow nodes
-('wn-start-001', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'start', 'Start', 100, 100),
-('wn-dept-001', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'department', 'Marketing Review', 300, 100),
-('wn-appr-001', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'approval', 'Manager Approval', 500, 100),
-('wn-dept-002', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'department', 'Design Graphics', 700, 100),
-('wn-end-001', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'end', 'Publish', 900, 100),
+('aaaaaaaa-bbbb-cccc-dddd-000000000001', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'start', 'Start', 100, 100),
+('aaaaaaaa-bbbb-cccc-dddd-000000000002', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'department', 'Marketing Review', 300, 100),
+('aaaaaaaa-bbbb-cccc-dddd-000000000003', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'approval', 'Manager Approval', 500, 100),
+('aaaaaaaa-bbbb-cccc-dddd-000000000004', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'department', 'Design Graphics', 700, 100),
+('aaaaaaaa-bbbb-cccc-dddd-000000000005', 'wwwwwwww-wwww-wwww-wwww-000000000001', 'end', 'Publish', 900, 100),
 
 -- Video Production workflow nodes
-('wn-start-002', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'start', 'Start', 100, 200),
-('wn-dept-003', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'department', 'Script Writing', 300, 200),
-('wn-appr-002', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'approval', 'Client Approval', 500, 200),
-('wn-dept-004', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'department', 'Video Filming', 700, 200),
-('wn-dept-005', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'department', 'Post-Production', 900, 200),
-('wn-end-002', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'end', 'Deliver', 1100, 200);
+('aaaaaaaa-bbbb-cccc-dddd-000000000006', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'start', 'Start', 100, 200),
+('aaaaaaaa-bbbb-cccc-dddd-000000000007', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'department', 'Script Writing', 300, 200),
+('aaaaaaaa-bbbb-cccc-dddd-000000000008', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'approval', 'Client Approval', 500, 200),
+('aaaaaaaa-bbbb-cccc-dddd-000000000009', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'department', 'Video Filming', 700, 200),
+('aaaaaaaa-bbbb-cccc-dddd-000000000010', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'department', 'Post-Production', 900, 200),
+('aaaaaaaa-bbbb-cccc-dddd-000000000011', 'wwwwwwww-wwww-wwww-wwww-000000000002', 'end', 'Deliver', 1100, 200);
 
 -- ============================================================================
 -- 14. WORKFLOW CONNECTIONS (define valid transitions)
@@ -510,17 +510,17 @@ INSERT INTO workflow_nodes (id, workflow_template_id, node_type, label, position
 
 INSERT INTO workflow_connections (workflow_template_id, from_node_id, to_node_id, label) VALUES
 -- Blog Post Approval connections
-('wwwwwwww-wwww-wwww-wwww-000000000001', 'wn-start-001', 'wn-dept-001', 'Draft Complete'),
-('wwwwwwww-wwww-wwww-wwww-000000000001', 'wn-dept-001', 'wn-appr-001', 'Content Ready'),
-('wwwwwwww-wwww-wwww-wwww-000000000001', 'wn-appr-001', 'wn-dept-002', 'Approved'),
-('wwwwwwww-wwww-wwww-wwww-000000000001', 'wn-dept-002', 'wn-end-001', 'Graphics Complete'),
+('wwwwwwww-wwww-wwww-wwww-000000000001', 'aaaaaaaa-bbbb-cccc-dddd-000000000001', 'aaaaaaaa-bbbb-cccc-dddd-000000000002', 'Draft Complete'),
+('wwwwwwww-wwww-wwww-wwww-000000000001', 'aaaaaaaa-bbbb-cccc-dddd-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000003', 'Content Ready'),
+('wwwwwwww-wwww-wwww-wwww-000000000001', 'aaaaaaaa-bbbb-cccc-dddd-000000000003', 'aaaaaaaa-bbbb-cccc-dddd-000000000004', 'Approved'),
+('wwwwwwww-wwww-wwww-wwww-000000000001', 'aaaaaaaa-bbbb-cccc-dddd-000000000004', 'aaaaaaaa-bbbb-cccc-dddd-000000000005', 'Graphics Complete'),
 
 -- Video Production connections
-('wwwwwwww-wwww-wwww-wwww-000000000002', 'wn-start-002', 'wn-dept-003', 'Concept Approved'),
-('wwwwwwww-wwww-wwww-wwww-000000000002', 'wn-dept-003', 'wn-appr-002', 'Script Ready'),
-('wwwwwwww-wwww-wwww-wwww-000000000002', 'wn-appr-002', 'wn-dept-004', 'Approved to Film'),
-('wwwwwwww-wwww-wwww-wwww-000000000002', 'wn-dept-004', 'wn-dept-005', 'Footage Captured'),
-('wwwwwwww-wwww-wwww-wwww-000000000002', 'wn-dept-005', 'wn-end-002', 'Editing Complete');
+('wwwwwwww-wwww-wwww-wwww-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000006', 'aaaaaaaa-bbbb-cccc-dddd-000000000007', 'Concept Approved'),
+('wwwwwwww-wwww-wwww-wwww-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000007', 'aaaaaaaa-bbbb-cccc-dddd-000000000008', 'Script Ready'),
+('wwwwwwww-wwww-wwww-wwww-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000008', 'aaaaaaaa-bbbb-cccc-dddd-000000000009', 'Approved to Film'),
+('wwwwwwww-wwww-wwww-wwww-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000009', 'aaaaaaaa-bbbb-cccc-dddd-000000000010', 'Footage Captured'),
+('wwwwwwww-wwww-wwww-wwww-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000010', 'aaaaaaaa-bbbb-cccc-dddd-000000000011', 'Editing Complete');
 
 -- ============================================================================
 -- 15. WORKFLOW INSTANCES (2 instances: 1 active, 1 completed)
@@ -528,13 +528,13 @@ INSERT INTO workflow_connections (workflow_template_id, from_node_id, to_node_id
 
 INSERT INTO workflow_instances (id, workflow_template_id, project_id, current_node_id, status, started_at, completed_at) VALUES
 -- Active blog post workflow for Marketing Campaign project
-('wi-active-001', 'wwwwwwww-wwww-wwww-wwww-000000000001',
- 'pppppppp-pppp-pppp-pppp-000000000002', 'wn-appr-001', 'active',
+('bbbbbbbb-cccc-dddd-eeee-000000000001', 'wwwwwwww-wwww-wwww-wwww-000000000001',
+ 'pppppppp-pppp-pppp-pppp-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000003', 'active',
  '2025-01-20 09:00:00', NULL),
 
 -- Completed video workflow for Brand Identity project
-('wi-complete-001', 'wwwwwwww-wwww-wwww-wwww-000000000002',
- 'pppppppp-pppp-pppp-pppp-000000000004', 'wn-end-002', 'completed',
+('bbbbbbbb-cccc-dddd-eeee-000000000002', 'wwwwwwww-wwww-wwww-wwww-000000000002',
+ 'pppppppp-pppp-pppp-pppp-000000000004', 'aaaaaaaa-bbbb-cccc-dddd-000000000011', 'completed',
  '2025-01-10 08:00:00', '2025-01-22 16:00:00');
 
 -- ============================================================================
@@ -543,12 +543,12 @@ INSERT INTO workflow_instances (id, workflow_template_id, project_id, current_no
 
 INSERT INTO workflow_history (workflow_instance_id, from_node_id, to_node_id, transitioned_by, transition_type, created_at) VALUES
 -- Completed video production workflow history
-('wi-complete-001', NULL, 'wn-start-002', '11111111-1111-1111-1111-000000000002', 'normal', '2025-01-10 08:00:00'),
-('wi-complete-001', 'wn-start-002', 'wn-dept-003', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-12 10:00:00'),
-('wi-complete-001', 'wn-dept-003', 'wn-appr-002', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-15 14:00:00'),
-('wi-complete-001', 'wn-appr-002', 'wn-dept-004', '11111111-1111-1111-1111-000000000008', 'normal', '2025-01-16 09:00:00'),
-('wi-complete-001', 'wn-dept-004', 'wn-dept-005', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-19 11:00:00'),
-('wi-complete-001', 'wn-dept-005', 'wn-end-002', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-22 16:00:00');
+('bbbbbbbb-cccc-dddd-eeee-000000000002', NULL, 'aaaaaaaa-bbbb-cccc-dddd-000000000006', '11111111-1111-1111-1111-000000000002', 'normal', '2025-01-10 08:00:00'),
+('bbbbbbbb-cccc-dddd-eeee-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000006', 'aaaaaaaa-bbbb-cccc-dddd-000000000007', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-12 10:00:00'),
+('bbbbbbbb-cccc-dddd-eeee-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000007', 'aaaaaaaa-bbbb-cccc-dddd-000000000008', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-15 14:00:00'),
+('bbbbbbbb-cccc-dddd-eeee-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000008', 'aaaaaaaa-bbbb-cccc-dddd-000000000009', '11111111-1111-1111-1111-000000000008', 'normal', '2025-01-16 09:00:00'),
+('bbbbbbbb-cccc-dddd-eeee-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000009', 'aaaaaaaa-bbbb-cccc-dddd-000000000010', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-19 11:00:00'),
+('bbbbbbbb-cccc-dddd-eeee-000000000002', 'aaaaaaaa-bbbb-cccc-dddd-000000000010', 'aaaaaaaa-bbbb-cccc-dddd-000000000011', '11111111-1111-1111-1111-000000000005', 'normal', '2025-01-22 16:00:00');
 
 -- ============================================================================
 -- 17. FORM TEMPLATES (2 reusable forms)

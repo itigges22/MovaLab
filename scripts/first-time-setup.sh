@@ -313,6 +313,124 @@ else
 fi
 
 # ============================================================================
+# STEP 6.5: Check for Existing Data and Offer Reset
+# ============================================================================
+print_header "🔍 Step 6.5: Checking Database State"
+
+# Check if database has existing data by counting user_profiles
+print_info "Checking for existing data..."
+
+# Get database connection URL from supabase status
+DB_URL=$(npx supabase status -o json 2>/dev/null | grep -o '"DB URL": "[^"]*"' | cut -d'"' -f4)
+
+if [ -n "$DB_URL" ]; then
+  # Query the database to check if user_profiles table has data
+  USER_COUNT=$(psql "$DB_URL" -t -c "SELECT COUNT(*) FROM user_profiles;" 2>/dev/null | xargs)
+
+  if [ -n "$USER_COUNT" ] && [ "$USER_COUNT" -gt 0 ]; then
+    print_warning "Database already contains $USER_COUNT user(s)"
+    echo ""
+    echo "   The database has existing data. This script can reset the database"
+    echo "   to a clean state with fresh seed data."
+    echo ""
+    echo "   ${RED}⚠️  WARNING: Resetting will DELETE ALL existing data!${NC}"
+    echo ""
+
+    # Only prompt if running in a TTY
+    if [ -t 0 ]; then
+      read -p "   Do you want to reset the database and reload seed data? (y/N): " -n 1 -r
+      echo
+      echo ""
+
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Resetting database..."
+        npx supabase db reset
+
+        if [ $? -eq 0 ]; then
+          print_success "Database reset successfully"
+        else
+          print_error "Database reset failed"
+          exit 1
+        fi
+      else
+        print_info "Skipping database reset - keeping existing data"
+        print_warning "Skipping seed user creation (database already has data)"
+
+        # Skip to health check
+        print_header "🏥 Step 8: Running Health Check"
+
+        if [ -f "scripts/docker-health-check.ts" ]; then
+          npx tsx scripts/docker-health-check.ts
+        else
+          print_warning "Health check script not found (this is optional)"
+        fi
+
+        # Skip to end
+        print_header "🎉 Setup Complete!"
+        echo ""
+        echo "Your MovaLab development environment is ready!"
+        echo ""
+        echo "📋 What's Next:"
+        echo ""
+        echo "1. Start the development server:"
+        echo "   ${GREEN}npm run dev${NC}"
+        echo ""
+        echo "2. Open your browser:"
+        echo "   ${BLUE}http://localhost:3000${NC}"
+        echo ""
+        echo "3. Access Supabase Studio (database UI):"
+        echo "   ${GREEN}npm run docker:studio${NC}"
+        echo "   or open: ${BLUE}http://localhost:54323${NC}"
+        echo ""
+        print_success "Happy coding! 🚀"
+        echo ""
+
+        # Keep window open on Windows
+        if [ "$IS_WINDOWS" = true ]; then
+          echo "Press Enter to close this window..."
+          read
+        fi
+
+        exit 0
+      fi
+    else
+      # Non-interactive mode - skip reset
+      print_info "Non-interactive mode - keeping existing data"
+      print_warning "Skipping seed user creation"
+
+      # Continue to health check
+      print_header "🏥 Step 8: Running Health Check"
+
+      if [ -f "scripts/docker-health-check.ts" ]; then
+        npx tsx scripts/docker-health-check.ts
+      else
+        print_warning "Health check script not found (this is optional)"
+      fi
+
+      # Skip to end
+      print_header "🎉 Setup Complete!"
+      echo ""
+      echo "Your MovaLab development environment is ready!"
+      echo ""
+      print_success "Happy coding! 🚀"
+      echo ""
+
+      # Keep window open on Windows
+      if [ "$IS_WINDOWS" = true ]; then
+        echo "Press Enter to close this window..."
+        read
+      fi
+
+      exit 0
+    fi
+  else
+    print_success "Database is empty - proceeding with initial setup"
+  fi
+else
+  print_warning "Could not connect to database - proceeding with setup"
+fi
+
+# ============================================================================
 # STEP 7: Create Seed Users
 # ============================================================================
 print_header "👥 Step 7: Creating Seed Users"
