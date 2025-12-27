@@ -43,6 +43,13 @@ interface NavigationItem {
   allowUnassigned?: boolean
 }
 
+interface AdminMenuItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  anyPermission: Permission[]
+}
+
 const navigationItems: NavigationItem[] = [
   {
     name: 'Welcome',
@@ -74,6 +81,49 @@ const navigationItems: NavigationItem[] = [
   // Profile removed from main nav - accessible via dropdown menu
 ]
 
+// Admin menu items with their required permissions
+const adminMenuItems: AdminMenuItem[] = [
+  {
+    name: 'Admin Dashboard',
+    href: '/admin',
+    icon: Settings,
+    anyPermission: [
+      Permission.MANAGE_USER_ROLES,
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_DEPARTMENTS,
+      Permission.MANAGE_ACCOUNTS,
+    ],
+  },
+  {
+    name: 'Workflows',
+    href: '/admin/workflows',
+    icon: GitBranch,
+    anyPermission: [Permission.MANAGE_WORKFLOWS, Permission.MANAGE_ALL_WORKFLOWS],
+  },
+  {
+    name: 'Role Management',
+    href: '/admin/roles',
+    icon: Shield,
+    anyPermission: [Permission.MANAGE_USER_ROLES, Permission.MANAGE_USERS],
+  },
+  {
+    name: 'Time Tracking',
+    href: '/admin/time-tracking',
+    icon: Clock,
+    anyPermission: [Permission.VIEW_ALL_TIME_ENTRIES, Permission.MANAGE_TIME],
+  },
+  {
+    name: 'Analytics',
+    href: '/analytics',
+    icon: BarChart3,
+    anyPermission: [
+      Permission.VIEW_ALL_ANALYTICS,
+      Permission.VIEW_ALL_DEPARTMENT_ANALYTICS,
+      Permission.VIEW_ALL_ACCOUNT_ANALYTICS,
+    ],
+  },
+]
+
 export function ClientNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
@@ -81,7 +131,7 @@ export function ClientNavigation() {
     navigationItems.filter((item: any) => item.allowUnassigned === true)
   )
   const [permissionsChecked, setPermissionsChecked] = useState(false)
-  const [hasAdminAccess, setHasAdminAccess] = useState(false)
+  const [visibleAdminItems, setVisibleAdminItems] = useState<AdminMenuItem[]>([])
   const { userProfile, signOut, loading } = useAuth()
   const pathname = usePathname()
 
@@ -137,7 +187,7 @@ export function ClientNavigation() {
     if (!isMounted || loading || !userProfile) {
       setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true))
       setPermissionsChecked(false)
-      setHasAdminAccess(false)
+      setVisibleAdminItems([])
       return
     }
 
@@ -154,10 +204,10 @@ export function ClientNavigation() {
         userIsSuperadmin,
       })
 
-      // Superadmin sees everything including admin
+      // Superadmin sees everything including all admin items
       if (userIsSuperadmin) {
         setVisibleItems(navigationItems)
-        setHasAdminAccess(true)
+        setVisibleAdminItems(adminMenuItems)
         setPermissionsChecked(true)
         return
       }
@@ -167,14 +217,14 @@ export function ClientNavigation() {
         const allowedItems = navigationItems.filter((item: any) => item.allowUnassigned === true)
         console.log('✅ ClientNavigation: Unassigned user - showing only Welcome')
         setVisibleItems(allowedItems)
-        setHasAdminAccess(false)
+        setVisibleAdminItems([])
         setPermissionsChecked(true)
         return
       }
 
-      // Check permissions for each item
+      // Check permissions for each navigation item
       const filtered: NavigationItem[] = []
-      
+
       for (const item of navigationItems) {
         // Items with no permission requirement should not be shown unless explicitly allowed
         if (!item.permission && (!item.anyPermission || item.anyPermission.length === 0)) {
@@ -217,24 +267,18 @@ export function ClientNavigation() {
         }
       }
 
-      // Check if user has any admin-level permissions
-      const adminPermissions = [
-        Permission.MANAGE_USER_ROLES,
-        Permission.MANAGE_USERS_IN_ACCOUNTS,
-        Permission.MANAGE_USERS_IN_DEPARTMENTS,
-        Permission.MANAGE_USERS,
-        Permission.MANAGE_DEPARTMENTS,
-        Permission.MANAGE_ACCOUNTS,
-        Permission.VIEW_ALL_ANALYTICS,
-        Permission.MANAGE_WORKFLOWS,
-        Permission.MANAGE_ALL_WORKFLOWS,
-      ]
-
-      let userHasAdminAccess = false
-      for (const perm of adminPermissions) {
-        if (await hasPermission(userProfile, perm)) {
-          userHasAdminAccess = true
-          break
+      // Check permissions for each admin menu item
+      const filteredAdminItems: AdminMenuItem[] = []
+      for (const adminItem of adminMenuItems) {
+        let hasAnyPerm = false
+        for (const perm of adminItem.anyPermission) {
+          if (await hasPermission(userProfile, perm)) {
+            hasAnyPerm = true
+            break
+          }
+        }
+        if (hasAnyPerm) {
+          filteredAdminItems.push(adminItem)
         }
       }
 
@@ -242,17 +286,18 @@ export function ClientNavigation() {
         userId: (userProfile as any)?.id,
         visibleItems: filtered.map((i: any) => i.name),
         filteredCount: filtered.length,
-        hasAdminAccess: userHasAdminAccess
+        visibleAdminItems: filteredAdminItems.map((i: any) => i.name),
       })
 
       setVisibleItems(filtered)
-      setHasAdminAccess(userHasAdminAccess)
+      setVisibleAdminItems(filteredAdminItems)
       setPermissionsChecked(true)
     }
 
     filterItems().catch((err: any) => {
       console.error('Error filtering ClientNavigation items:', err)
       setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true))
+      setVisibleAdminItems([])
       setPermissionsChecked(true)
     })
   }, [isMounted, loading, userProfile])
@@ -401,15 +446,15 @@ export function ClientNavigation() {
                   })
                 )}
                 
-                {/* Admin dropdown for users with admin access */}
-                {userProfile && hasAdminAccess && (
+                {/* Admin dropdown - only show if user has at least one admin permission */}
+                {userProfile && visibleAdminItems.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         className={cn(
                           'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          pathname.startsWith('/admin')
+                          pathname.startsWith('/admin') || pathname === '/analytics'
                             ? 'bg-blue-50 text-blue-700 border border-blue-200'
                             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                         )}
@@ -422,36 +467,17 @@ export function ClientNavigation() {
                     <DropdownMenuContent align="start" className="w-56">
                       <DropdownMenuLabel>Administration</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin" className="flex items-center">
-                          <Settings className="mr-2 h-4 w-4" />
-                          <span>Admin Dashboard</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/workflows" className="flex items-center">
-                          <GitBranch className="mr-2 h-4 w-4" />
-                          <span>Workflows</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/roles" className="flex items-center">
-                          <Shield className="mr-2 h-4 w-4" />
-                          <span>Role Management</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/time-tracking" className="flex items-center">
-                          <Clock className="mr-2 h-4 w-4" />
-                          <span>Time Tracking</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/analytics" className="flex items-center">
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          <span>Analytics</span>
-                        </Link>
-                      </DropdownMenuItem>
+                      {visibleAdminItems.map((item) => {
+                        const Icon = item.icon
+                        return (
+                          <DropdownMenuItem key={item.href} asChild>
+                            <Link href={item.href} className="flex items-center">
+                              <Icon className="mr-2 h-4 w-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        )
+                      })}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -695,75 +721,31 @@ export function ClientNavigation() {
                     </div>
                   )}
 
-                  {/* Admin section for mobile */}
-                  {userProfile && hasAdminAccess && (
+                  {/* Admin section for mobile - only show if user has at least one admin permission */}
+                  {userProfile && visibleAdminItems.length > 0 && (
                     <div className="pt-2 border-t">
                       <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
-                      <Link
-                        href="/admin"
-                        className={cn(
-                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          pathname === '/admin'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Settings className="w-4 h-4" />
-                        <span>Admin Dashboard</span>
-                      </Link>
-                      <Link
-                        href="/admin/workflows"
-                        className={cn(
-                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          pathname.startsWith('/admin/workflows')
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <GitBranch className="w-4 h-4" />
-                        <span>Workflows</span>
-                      </Link>
-                      <Link
-                        href="/admin/roles"
-                        className={cn(
-                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          pathname.startsWith('/admin/roles')
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Shield className="w-4 h-4" />
-                        <span>Role Management</span>
-                      </Link>
-                      <Link
-                        href="/admin/time-tracking"
-                        className={cn(
-                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          pathname.startsWith('/admin/time-tracking')
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Clock className="w-4 h-4" />
-                        <span>Time Tracking</span>
-                      </Link>
-                      <Link
-                        href="/analytics"
-                        className={cn(
-                          'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          pathname === '/analytics'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        <span>Analytics</span>
-                      </Link>
+                      {visibleAdminItems.map((item) => {
+                        const Icon = item.icon
+                        const isActive = pathname === item.href ||
+                          (item.href !== '/analytics' && pathname.startsWith(item.href))
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cn(
+                              'flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                              isActive
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                            )}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
