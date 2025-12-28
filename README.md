@@ -6,6 +6,8 @@ MovaLab is a cloud-based platform that consolidates agency operations into a sin
 
 Originally developed for a student-run marketing agency managing 11 client accounts across 8 departments with 60+ members, MovaLab replaces what used to require Basecamp, Monday.com, Notion, MS Planner, and Slack with a single unified system.
 
+**[Try the Live Demo](https://demo.movalab.dev)** | **[Visit movalab.dev](https://movalab.dev)**
+
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js&labelColor=aliceblue&color=bbd3dd&logoColor=%23000000)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=TypeScript&labelColor=aliceblue&color=bbd3dd)
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green?style=for-the-badge&logo=Supabase&labelColor=aliceblue&color=bbd3dd)
@@ -493,10 +495,17 @@ For feature requests, bug reports, or questions about adapting MovaLab for your 
 
 ## 🆘 Support & Documentation
 
+### Live Sites
+
+- 🌐 **[movalab.dev](https://movalab.dev)** - Main website and documentation
+- 🎮 **[demo.movalab.dev](https://demo.movalab.dev)** - Interactive demo (no signup required!)
+
 ### Getting Started Guides
 
 - 📘 **[Contributing Guide](CONTRIBUTING.md)** - Complete setup walkthrough (START HERE!)
-- 🔧 **[Troubleshooting](docs/implementation/TESTING-REPORT.md)** - Common issues and solutions
+- 🎮 **[Demo Mode Guide](docs/setup/DEMO_MODE.md)** - Running demos locally and in the cloud
+- 🐳 **[Docker Setup](docs/setup/docker-setup.md)** - Local development with Docker
+- 🚀 **[First Time Setup](docs/setup/FIRST_TIME_SETUP.md)** - Cloud deployment guide
 - 🔄 **[Environment Switching](docs/implementation/ENVIRONMENT-SWITCHING.md)** - Local Docker ↔ Cloud Supabase
 
 ### Technical Documentation
@@ -505,6 +514,7 @@ For feature requests, bug reports, or questions about adapting MovaLab for your 
 - 📋 **[Feature List](docs/implementation/00-INDEX.md)** - Complete feature catalog
 - 🗄️ **[Database Schema](supabase/migrations/README.md)** - Migration guide and database structure
 - 🔒 **[Security Guide](docs/security/SECURITY.md)** - Security architecture and best practices
+- 📚 **[All Documentation](docs/README.md)** - Full documentation index
 
 ### Get Help
 

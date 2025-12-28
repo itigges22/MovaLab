@@ -14,11 +14,12 @@ Demo mode allows you to showcase MovaLab without risking data corruption or requ
 6. [Local Demo Setup](#local-demo-setup)
 7. [Switching from Demo to Production](#switching-from-demo-to-production)
 8. [Cloud Demo Setup (Vercel)](#cloud-demo-setup-vercel)
-9. [Resetting and Clearing Demo Data](#resetting-and-clearing-demo-data)
-10. [Security Considerations](#security-considerations)
-11. [Technical Implementation](#technical-implementation)
-12. [Troubleshooting](#troubleshooting)
-13. [FAQ](#faq)
+9. [Automatic Daily Reset (Cron Job)](#automatic-daily-reset-cron-job)
+10. [Resetting and Clearing Demo Data](#resetting-and-clearing-demo-data)
+11. [Security Considerations](#security-considerations)
+12. [Technical Implementation](#technical-implementation)
+13. [Troubleshooting](#troubleshooting)
+14. [FAQ](#faq)
 
 ---
 
@@ -367,6 +368,117 @@ NEXT_PUBLIC_APP_URL=https://demo.your-domain.com
 | Production | `movalab-prod` | `false` | app.your-domain.com |
 | Demo | `movalab-demo` | `true` | demo.your-domain.com |
 | Local Dev | Docker | Either | localhost:3000 |
+
+---
+
+## Automatic Daily Reset (Cron Job)
+
+For cloud demo deployments, MovaLab includes a Vercel cron job that automatically resets demo data daily. This ensures the demo environment stays fresh with up-to-date sample data.
+
+### How It Works
+
+- **Runs daily at midnight UTC** (configured in `vercel.json`)
+- **Only runs when demo mode is enabled** - Will not execute on production deployments
+- **Generates fresh data with current dates** - All projects, tasks, time entries have dates relative to "today"
+- **Preserves demo users and accounts** - Only resets activity data (projects, tasks, time entries, etc.)
+
+### Setting Up the Cron Job (Vercel)
+
+#### Step 1: Generate a CRON_SECRET
+
+The cron endpoint requires authentication. Generate a random secret:
+
+```bash
+openssl rand -hex 32
+```
+
+#### Step 2: Get Your Service Role Key
+
+1. Go to your Supabase dashboard
+2. Navigate to **Settings** → **API**
+3. Copy the `service_role` key (the secret one, NOT the anon key)
+
+#### Step 3: Add Environment Variables in Vercel
+
+Go to your Vercel project → **Settings** → **Environment Variables** and add:
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `NEXT_PUBLIC_DEMO_MODE` | `true` | Enables demo mode (required for cron to run) |
+| `DEMO_MODE` | `true` | Server-side fallback |
+| `CRON_SECRET` | `<your-generated-secret>` | Authenticates cron requests |
+| `DEMO_SUPABASE_SERVICE_ROLE_KEY` | `<your-service-role-key>` | Bypasses RLS for data reset |
+
+**Important:** Scope these variables to only your demo environment if you have multiple deployments.
+
+#### Step 4: Verify Cron Registration
+
+After deploying:
+1. Go to **Vercel Dashboard** → Your project → **Settings** → **Crons**
+2. You should see `/api/cron/reset-demo-data` with schedule `0 0 * * *`
+
+### Testing the Cron Job
+
+You can manually trigger the cron job to verify it works:
+
+```bash
+curl -X GET 'https://demo.your-domain.com/api/cron/reset-demo-data' \
+  -H 'Authorization: Bearer YOUR_CRON_SECRET'
+```
+
+**Expected Responses:**
+
+| Response | Status | Meaning |
+|----------|--------|---------|
+| `{"success":true,"message":"Demo data reset successfully",...}` | 200 | Success |
+| `{"error":"Demo mode is not enabled",...}` | 403 | Demo mode not enabled (safe!) |
+| `{"error":"Unauthorized"}` | 401 | Wrong or missing CRON_SECRET |
+| `{"error":"Service role key not configured"}` | 500 | Missing DEMO_SUPABASE_SERVICE_ROLE_KEY |
+
+### Local Testing
+
+You can test the cron job locally, but you'll need to:
+
+1. Set the environment variables in `.env.local`:
+   ```bash
+   NEXT_PUBLIC_DEMO_MODE=true
+   DEMO_MODE=true
+   CRON_SECRET=test-secret-for-local
+   DEMO_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   ```
+
+2. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+3. Trigger the endpoint:
+   ```bash
+   curl -X GET 'http://localhost:3000/api/cron/reset-demo-data' \
+     -H 'Authorization: Bearer test-secret-for-local'
+   ```
+
+### What Gets Reset
+
+The cron job resets the following data with fresh, current-date-relative content:
+
+| Data Type | Description |
+|-----------|-------------|
+| **Projects** | 8 sample projects across 5 accounts |
+| **Tasks** | 13+ tasks with various statuses (done, in_progress, todo) |
+| **Project Assignments** | Team member assignments to projects |
+| **Account Members** | User-to-account relationships |
+| **Time Entries** | Recent time logs (past 7 days) |
+| **Project Updates** | Status updates and progress notes |
+| **Milestones** | Upcoming project milestones |
+| **User Availability** | Weekly capacity settings |
+
+### Security Notes
+
+- **The cron job ONLY runs when demo mode is enabled** - This is enforced as the first check
+- **Vercel authenticates cron requests** using the CRON_SECRET
+- **Service role key bypasses RLS** - Keep this secret secure
+- **Never set demo mode on production** - The cron job check will block execution, but best practice is to not set DEMO_MODE at all on production
 
 ---
 

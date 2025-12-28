@@ -1,16 +1,29 @@
 # MovaLab Documentation
 
+Welcome to the MovaLab documentation. This guide will help you get started with setting up, developing, and deploying MovaLab.
+
+**Live Demo:** [demo.movalab.dev](https://demo.movalab.dev)
+**Production:** [movalab.dev](https://movalab.dev)
+
+---
+
 ## Getting Started
 
 | Document | Description |
 |----------|-------------|
-| [FIRST_TIME_SETUP.md](./FIRST_TIME_SETUP.md) | **Cloud deployment setup** - How to create the first superadmin account |
-| [DEMO_MODE.md](./DEMO_MODE.md) | **Local development** - Running MovaLab with Docker and demo data |
-| [docker-setup.md](./docker-setup.md) | Docker environment configuration |
+| [FIRST_TIME_SETUP.md](./setup/FIRST_TIME_SETUP.md) | **Cloud deployment setup** - How to create the first superadmin account |
+| [DEMO_MODE.md](./setup/DEMO_MODE.md) | **Demo mode guide** - Running MovaLab in demo mode (local & cloud) |
+| [docker-setup.md](./setup/docker-setup.md) | **Docker setup** - Local development with Docker |
 
 ---
 
 ## Folder Structure
+
+### `/setup`
+Setup and deployment guides.
+- `FIRST_TIME_SETUP.md` - First-time cloud deployment setup
+- `DEMO_MODE.md` - Demo mode configuration (includes cron job setup)
+- `docker-setup.md` - Docker environment configuration
 
 ### `/architecture`
 System architecture, database design, and feature specifications.
@@ -34,12 +47,7 @@ Role-based access control (RBAC) documentation.
 
 ### `/workflows`
 Workflow system documentation and testing.
-- `WORKFLOW_DATABASE_AUDIT_REPORT.md` - Database audit
-- `WORKFLOW_DATABASE_VERIFICATION.md` - Verification procedures
-- `WORKFLOW_FORM_NODE_FIX.md` - Form node fixes
 - `CONDITIONAL_NODE_HANDLE_FIX.md` - Conditional node handle connection fix
-- `E2E_WORKFLOW_TEST_RESULTS.md` - End-to-end test results
-- `NOV26_E2E_WORKFLOW_TESTING.md` - Workflow testing session
 
 ### `/testing`
 Testing documentation, strategies, and audit reports.
@@ -54,12 +62,14 @@ Testing documentation, strategies, and audit reports.
 
 ### `/implementation`
 Implementation phases and progress reports.
-- `PHASE1_API_ROUTES.md` - Phase 1 API specifications
-- `PHASE1_API_ROUTES_IMPLEMENTATION.md` - Phase 1 implementation
-- `PHASE1_IMPLEMENTATION_COMPLETE.md` - Phase 1 completion report
-- `PHASE1_SYNTHESIS_REPORT.md` - Phase 1 synthesis
+- `00-INDEX.md` - Implementation index
+- `01-CORE-FEATURES.md` - Core features overview
+- `02-WORKFLOW-TIME-CLIENT.md` - Workflow and time tracking
+- `03-UI-DASHBOARDS-ADMIN.md` - UI and admin dashboards
+- `04-DATABASE-API-ARCHITECTURE.md` - Database and API architecture
+- `05-DOCKER-LOCAL-SETUP-COMPLETE.md` - Docker setup completion
+- `PHASE1_*.md` - Phase 1 implementation docs
 - `PHASE2_PROGRESS_REPORT.md` - Phase 2 progress
-- `PRODUCTION_ROADMAP_ADVANCED_ANALYTICS.md` - Future roadmap
 
 ### `/capacity`
 Capacity planning system documentation.
@@ -73,16 +83,17 @@ Database-related documentation and findings.
 - `DATABASE_SCOUT_INVENTORY.md` - Database inventory
 - `NESTED_QUERY_RLS_ISSUE.md` - RLS nested query issues
 
-### `/fixes`
-Bug fixes and resolution patterns.
-- `FIXES_APPLIED.md` - Applied fixes log
-- `AUTHENTICATED_CLIENT_FIX_PATTERN.md` - Auth client pattern
-- `BADGE_RACE_CONDITION_FIX.md` - Workflow badge display race condition fix
+---
 
-### `/session-logs`
-Development session progress logs.
-- `FINAL_STATUS.md` - Final project status
-- `STABILIZATION_COMPLETE.md` - Stabilization completion
-- `SESSION_ACCOMPLISHMENTS.md` - Session accomplishments
-- `SESSION_PROGRESS.md` - Progress tracking
-- `SESSION_SUMMARY_PHASE1_COMPLETION.md` - Phase 1 summary
+## Quick Links
+
+- **[Main README](../README.md)** - Project overview and quick start
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
+- **[CLAUDE.md](../CLAUDE.md)** - Comprehensive developer documentation
+
+---
+
+## Need Help?
+
+- **Discord:** [Join the MovaLab community](https://discord.gg/99SpYzNbcu)
+- **GitHub Issues:** [Report bugs or request features](https://github.com/itigges22/MovaLab/issues)
