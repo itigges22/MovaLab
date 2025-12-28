@@ -3,10 +3,30 @@ import { createClient } from '@supabase/supabase-js';
 
 // This endpoint resets demo data daily for demo.movalab.dev
 // Runs via Vercel Cron at midnight UTC
+// ONLY runs when DEMO_MODE is enabled
 
 const DEMO_PROJECT_URL = 'https://xxtelrazoeuirsnvdoml.supabase.co';
 
+// Check if demo mode is enabled
+function isDemoModeEnabled(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
+    process.env.DEMO_MODE === 'true'
+  );
+}
+
 export async function GET(request: NextRequest) {
+  // CRITICAL: Only run if demo mode is enabled
+  if (!isDemoModeEnabled()) {
+    return NextResponse.json(
+      {
+        error: 'Demo mode is not enabled',
+        message: 'This cron job only runs when NEXT_PUBLIC_DEMO_MODE=true or DEMO_MODE=true'
+      },
+      { status: 403 }
+    );
+  }
+
   // Verify this is a legitimate cron request from Vercel
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
