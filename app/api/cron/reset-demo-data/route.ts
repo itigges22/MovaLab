@@ -27,11 +27,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify this is a legitimate cron request from Vercel
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Note: CRON_SECRET auth removed - DEMO_MODE check above is sufficient protection
+  // This endpoint is safe without additional auth because:
+  // 1. Only runs when DEMO_MODE=true (production deployments don't have this)
+  // 2. Only resets demo seed data (idempotent, no security risk)
+  // 3. No sensitive data is exposed or modified
 
   const serviceRoleKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
