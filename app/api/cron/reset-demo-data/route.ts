@@ -41,34 +41,43 @@ export async function GET(request: NextRequest) {
   const supabase = createClient(DEMO_PROJECT_URL, serviceRoleKey);
 
   try {
-    // Step 0: Ensure all 5 departments exist
+    // Step 0: Ensure all 5 departments exist (use ON CONFLICT name since that's the unique constraint)
     const departmentsUpsert = `
-      INSERT INTO departments (id, name, description) VALUES
-        ('11111111-1111-1111-1111-111111111111', 'Leadership', 'Executive leadership and strategic direction'),
-        ('22222222-2222-2222-2222-222222222222', 'Marketing', 'Marketing and communications'),
-        ('33333333-3333-3333-3333-333333333333', 'Design', 'Creative and visual design'),
-        ('44444444-4444-4444-4444-444444444444', 'Development', 'Software development and engineering'),
-        ('55555555-5555-5555-5555-555555555555', 'Operations', 'Operations and project coordination')
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
+      INSERT INTO departments (name, description) VALUES
+        ('Leadership', 'Executive leadership and strategic direction'),
+        ('Marketing', 'Marketing and communications'),
+        ('Design', 'Creative and visual design'),
+        ('Development', 'Software development and engineering'),
+        ('Operations', 'Operations and project coordination')
+      ON CONFLICT (name) DO UPDATE SET
         description = EXCLUDED.description;
     `;
     const { error: deptError } = await supabase.rpc('exec_sql', { query: departmentsUpsert });
     if (deptError) console.error('Departments upsert error:', deptError);
 
-    // Ensure Operations Coordinator role exists
-    const opsRoleUpsert = `
-      INSERT INTO roles (id, name, department_id, permissions, is_system_role, hierarchy_level, description) VALUES
-        ('60606060-6060-6060-6060-606060606060', 'Operations Coordinator', '55555555-5555-5555-5555-555555555555',
-          '{"view_projects": true, "manage_time": true, "view_time_entries": true, "edit_own_availability": true, "view_departments": true, "view_newsletters": true}'::jsonb,
-          FALSE, 50, 'Operations and logistics')
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        department_id = EXCLUDED.department_id,
-        permissions = EXCLUDED.permissions;
-    `;
-    const { error: opsRoleError } = await supabase.rpc('exec_sql', { query: opsRoleUpsert });
-    if (opsRoleError) console.error('Operations role upsert error:', opsRoleError);
+    // Get the Operations department ID (it may have been created with a different UUID)
+    const { data: opsDept } = await supabase
+      .from('departments')
+      .select('id')
+      .eq('name', 'Operations')
+      .single();
+
+    const operationsDeptId = opsDept?.id;
+
+    // Ensure Operations Coordinator role exists (only if we have a valid department)
+    if (operationsDeptId) {
+      const opsRoleUpsert = `
+        INSERT INTO roles (name, department_id, permissions, is_system_role, hierarchy_level, description) VALUES
+          ('Operations Coordinator', '${operationsDeptId}',
+            '{"view_projects": true, "manage_time": true, "view_time_entries": true, "edit_own_availability": true, "view_departments": true, "view_newsletters": true}'::jsonb,
+            FALSE, 50, 'Operations and logistics')
+        ON CONFLICT (name) DO UPDATE SET
+          department_id = EXCLUDED.department_id,
+          permissions = EXCLUDED.permissions;
+      `;
+      const { error: opsRoleError } = await supabase.rpc('exec_sql', { query: opsRoleUpsert });
+      if (opsRoleError) console.error('Operations role upsert error:', opsRoleError);
+    }
 
     // Step 1: Clear existing seed data
     const clearQueries = [
@@ -596,11 +605,7 @@ function generateTaskWeekAllocations() {
     // Next week allocations
     { id: '99999999-0000-0000-0000-000000000006', task_id: '22222222-3333-4444-5555-000000000003', week_start_date: getWeekStart(7), allocated_hours: 32, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Continue frontend' },
     { id: '99999999-0000-0000-0000-000000000007', task_id: '22222222-3333-4444-5555-000000000009', week_start_date: getWeekStart(7), allocated_hours: 8, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Contact form' },
-    { id: '99999999-0000-0000-0000-000000000008', task_id: '22222222-3333-4444-5555-000000000005', week_start_date: getWeekStart(7), allocated_hours: 24, assigned_user_id: null, notes: 'QA testing - TBD' },
-    // Leadership time allocations (for capacity visibility)
-    { id: '99999999-0000-0000-0000-000000000009', task_id: null, week_start_date: getWeekStart(), allocated_hours: 8, assigned_user_id: '11111111-1111-1111-1111-000000000002', notes: 'Executive oversight' },
-    { id: '99999999-0000-0000-0000-000000000010', task_id: null, week_start_date: getWeekStart(), allocated_hours: 12, assigned_user_id: '11111111-1111-1111-1111-000000000003', notes: 'Account management' },
-    { id: '99999999-0000-0000-0000-000000000011', task_id: null, week_start_date: getWeekStart(), allocated_hours: 16, assigned_user_id: '11111111-1111-1111-1111-000000000004', notes: 'Project coordination' }
+    { id: '99999999-0000-0000-0000-000000000008', task_id: '22222222-3333-4444-5555-000000000005', week_start_date: getWeekStart(7), allocated_hours: 24, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'QA testing' }
   ];
 }
 
