@@ -427,7 +427,7 @@ export function WorkflowProgressButton({
             .eq('workflow_instance_id', workflowInstanceId)
             .eq('node_id', nodeIdToCheck)
             .eq('user_id', (userProfile as any).id)
-            .single();
+            .maybeSingle();
 
           if (nodeAssignment) {
             // User is explicitly assigned to this node - allow them to progress it
@@ -1096,10 +1096,10 @@ export function WorkflowProgressButton({
                   let userName = 'Unassigned';
                   if (step.assigned_user_id) {
                     const { data: userData } = await supabase
-                      .from('users')
+                      .from('user_profiles')
                       .select('name')
                       .eq('id', step.assigned_user_id as string)
-                      .single();
+                      .maybeSingle();
                     userName = (userData as any)?.name || 'Unknown User';
                   }
 
