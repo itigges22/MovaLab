@@ -385,6 +385,15 @@ function generateAssignments() {
     { id: '44444444-5555-6666-7777-000000000019', project_id: '11111111-2222-3333-4444-000000000004', user_id: '11111111-1111-1111-1111-000000000004', role_in_project: 'Project Manager', assigned_by: '11111111-1111-1111-1111-000000000003' },
     { id: '44444444-5555-6666-7777-000000000020', project_id: '11111111-2222-3333-4444-000000000004', user_id: '11111111-1111-1111-1111-000000000005', role_in_project: 'UX Designer', assigned_by: '11111111-1111-1111-1111-000000000004' },
     { id: '44444444-5555-6666-7777-000000000021', project_id: '11111111-2222-3333-4444-000000000004', user_id: '11111111-1111-1111-1111-000000000006', role_in_project: 'Developer', assigned_by: '11111111-1111-1111-1111-000000000004' },
+    // Andy Admin on all projects (admin access)
+    { id: '44444444-5555-6666-7777-000000000022', project_id: '11111111-2222-3333-4444-000000000001', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000023', project_id: '11111111-2222-3333-4444-000000000002', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000024', project_id: '11111111-2222-3333-4444-000000000003', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000025', project_id: '11111111-2222-3333-4444-000000000004', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000026', project_id: '11111111-2222-3333-4444-000000000005', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000027', project_id: '11111111-2222-3333-4444-000000000006', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000028', project_id: '11111111-2222-3333-4444-000000000007', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
+    { id: '44444444-5555-6666-7777-000000000029', project_id: '11111111-2222-3333-4444-000000000008', user_id: '11111111-1111-1111-1111-000000000009', role_in_project: 'Admin', assigned_by: '11111111-1111-1111-1111-000000000002' },
   ];
 }
 
@@ -409,6 +418,12 @@ function generateAccountMembers() {
     { id: '33333333-4444-5555-6666-000000000017', user_id: '11111111-1111-1111-1111-000000000002', account_id: 'aaaaaaaa-0000-0000-0000-000000000003' },
     { id: '33333333-4444-5555-6666-000000000018', user_id: '11111111-1111-1111-1111-000000000002', account_id: 'aaaaaaaa-0000-0000-0000-000000000004' },
     { id: '33333333-4444-5555-6666-000000000019', user_id: '11111111-1111-1111-1111-000000000002', account_id: 'aaaaaaaa-0000-0000-0000-000000000005' },
+    // Andy Admin on all accounts
+    { id: '33333333-4444-5555-6666-000000000020', user_id: '11111111-1111-1111-1111-000000000009', account_id: 'aaaaaaaa-0000-0000-0000-000000000001' },
+    { id: '33333333-4444-5555-6666-000000000021', user_id: '11111111-1111-1111-1111-000000000009', account_id: 'aaaaaaaa-0000-0000-0000-000000000002' },
+    { id: '33333333-4444-5555-6666-000000000022', user_id: '11111111-1111-1111-1111-000000000009', account_id: 'aaaaaaaa-0000-0000-0000-000000000003' },
+    { id: '33333333-4444-5555-6666-000000000023', user_id: '11111111-1111-1111-1111-000000000009', account_id: 'aaaaaaaa-0000-0000-0000-000000000004' },
+    { id: '33333333-4444-5555-6666-000000000024', user_id: '11111111-1111-1111-1111-000000000009', account_id: 'aaaaaaaa-0000-0000-0000-000000000005' },
   ];
 }
 
@@ -446,6 +461,15 @@ function generateTimeEntries() {
     { id: '66666666-7777-8888-9999-000000000025', task_id: null, user_id: '11111111-1111-1111-1111-000000000004', project_id: '11111111-2222-3333-4444-000000000008', hours_logged: 2.5, entry_date: getRelativeDate(-3), week_start_date: getWeekStart(), description: 'Bistro website progress review' },
     { id: '66666666-7777-8888-9999-000000000026', task_id: null, user_id: '11111111-1111-1111-1111-000000000004', project_id: '11111111-2222-3333-4444-000000000004', hours_logged: 3, entry_date: getRelativeDate(-4), week_start_date: getWeekStart(-7), description: 'Onboarding flow UAT coordination' },
     { id: '66666666-7777-8888-9999-000000000027', task_id: null, user_id: '11111111-1111-1111-1111-000000000004', project_id: '11111111-2222-3333-4444-000000000001', hours_logged: 3, entry_date: getRelativeDate(-5), week_start_date: getWeekStart(-7), description: 'Dashboard retrospective' },
+    // Andy Admin entries (admin oversight and system management)
+    { id: '66666666-7777-8888-9999-000000000028', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000001', hours_logged: 3, entry_date: getRelativeDate(0), week_start_date: getWeekStart(), description: 'System configuration and workflow setup' },
+    { id: '66666666-7777-8888-9999-000000000029', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000003', hours_logged: 2, entry_date: getRelativeDate(0), week_start_date: getWeekStart(), description: 'TechStart access management' },
+    { id: '66666666-7777-8888-9999-000000000030', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000002', hours_logged: 1.5, entry_date: getRelativeDate(-1), week_start_date: getWeekStart(), description: 'Mobile app project setup' },
+    { id: '66666666-7777-8888-9999-000000000031', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000005', hours_logged: 2, entry_date: getRelativeDate(-1), week_start_date: getWeekStart(), description: 'Green Energy workflow configuration' },
+    { id: '66666666-7777-8888-9999-000000000032', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000006', hours_logged: 3, entry_date: getRelativeDate(-2), week_start_date: getWeekStart(), description: 'E-commerce platform initial setup' },
+    { id: '66666666-7777-8888-9999-000000000033', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000008', hours_logged: 1.5, entry_date: getRelativeDate(-3), week_start_date: getWeekStart(), description: 'Local Bistro permissions audit' },
+    { id: '66666666-7777-8888-9999-000000000034', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000001', hours_logged: 2, entry_date: getRelativeDate(-4), week_start_date: getWeekStart(-7), description: 'Dashboard role configuration' },
+    { id: '66666666-7777-8888-9999-000000000035', task_id: null, user_id: '11111111-1111-1111-1111-000000000009', project_id: '11111111-2222-3333-4444-000000000004', hours_logged: 2.5, entry_date: getRelativeDate(-5), week_start_date: getWeekStart(-7), description: 'Onboarding workflow review' },
   ];
 }
 
@@ -487,6 +511,9 @@ function generateUserAvailability() {
     // Morgan Manager
     { id: '77777777-8888-9999-aaaa-000000000009', user_id: '11111111-1111-1111-1111-000000000003', week_start_date: getWeekStart(), available_hours: 35, notes: 'Account management focus' },
     { id: '77777777-8888-9999-aaaa-000000000010', user_id: '11111111-1111-1111-1111-000000000003', week_start_date: getWeekStart(7), available_hours: 35, notes: 'Account management focus' },
+    // Andy Admin
+    { id: '77777777-8888-9999-aaaa-000000000011', user_id: '11111111-1111-1111-1111-000000000009', week_start_date: getWeekStart(), available_hours: 40, notes: 'Full week available' },
+    { id: '77777777-8888-9999-aaaa-000000000012', user_id: '11111111-1111-1111-1111-000000000009', week_start_date: getWeekStart(7), available_hours: 40, notes: 'Full week available' },
   ];
 }
 
@@ -510,22 +537,22 @@ function generateWorkflowTemplates() {
   ];
 }
 
-// Workflow Nodes
+// Workflow Nodes - using 'role' instead of deprecated 'department' node type
 function generateWorkflowNodes() {
   return [
     // Standard Project Delivery workflow nodes
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000001', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'start', label: 'Project Kickoff', position_x: 100, position_y: 200, settings: {} },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000002', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'department', label: 'Design Phase', entity_id: '33333333-3333-3333-3333-333333333333', position_x: 300, position_y: 200, settings: { description: 'Design team creates mockups and wireframes' } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000003', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'approval', label: 'Design Approval', position_x: 500, position_y: 200, settings: { approvers: ['project_manager', 'client'] } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000004', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'department', label: 'Development Phase', entity_id: '44444444-4444-4444-4444-444444444444', position_x: 700, position_y: 200, settings: { description: 'Development team implements the approved designs' } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000005', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'approval', label: 'QA Review', position_x: 900, position_y: 200, settings: { approvers: ['qa_lead'] } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000006', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'approval', label: 'Client Sign-off', position_x: 1100, position_y: 200, settings: { approvers: ['client', 'account_manager'] } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000007', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'end', label: 'Project Complete', position_x: 1300, position_y: 200, settings: {} },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000001', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'start', label: 'Project Kickoff', position_x: 100, position_y: 200, step_order: 0, settings: {} },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000002', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'role', label: 'Design Phase', position_x: 300, position_y: 200, step_order: 1, settings: {} },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000003', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'approval', label: 'Design Approval', position_x: 500, position_y: 200, step_order: 2, settings: { required_approvals: 1 } },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000004', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'role', label: 'Development Phase', position_x: 700, position_y: 200, step_order: 3, settings: {} },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000005', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'approval', label: 'QA Review', position_x: 900, position_y: 200, step_order: 4, settings: { required_approvals: 1 } },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000006', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'approval', label: 'Client Sign-off', position_x: 1100, position_y: 200, step_order: 5, settings: { required_approvals: 1 } },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000007', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000001', node_type: 'end', label: 'Project Complete', position_x: 1300, position_y: 200, step_order: 6, settings: {} },
     // Quick Turnaround workflow nodes
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000008', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'start', label: 'Quick Start', position_x: 100, position_y: 200, settings: {} },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000009', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'department', label: 'Design & Dev', entity_id: '33333333-3333-3333-3333-333333333333', position_x: 300, position_y: 200, settings: { description: 'Concurrent design and development' } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000010', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'approval', label: 'Final Review', position_x: 500, position_y: 200, settings: { approvers: ['project_manager'] } },
-    { id: 'bbbbbbbb-aaaa-0000-0000-000000000011', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'end', label: 'Delivered', position_x: 700, position_y: 200, settings: {} }
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000008', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'start', label: 'Quick Start', position_x: 100, position_y: 200, step_order: 0, settings: {} },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000009', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'role', label: 'Design & Dev', position_x: 300, position_y: 200, step_order: 1, settings: {} },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000010', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'approval', label: 'Final Review', position_x: 500, position_y: 200, step_order: 2, settings: { required_approvals: 1 } },
+    { id: 'bbbbbbbb-aaaa-0000-0000-000000000011', workflow_template_id: 'aaaaaaaa-bbbb-0000-0000-000000000002', node_type: 'end', label: 'Delivered', position_x: 700, position_y: 200, step_order: 3, settings: {} }
   ];
 }
 
@@ -596,16 +623,21 @@ function generateProjectIssues() {
 // Task Week Allocations for capacity planning
 function generateTaskWeekAllocations() {
   return [
-    // Current week allocations
+    // Current week allocations - Dev Developer
     { id: '99999999-0000-0000-0000-000000000001', task_id: '22222222-3333-4444-5555-000000000003', week_start_date: getWeekStart(), allocated_hours: 24, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Frontend development sprint' },
     { id: '99999999-0000-0000-0000-000000000002', task_id: '22222222-3333-4444-5555-000000000004', week_start_date: getWeekStart(), allocated_hours: 16, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'API updates' },
     { id: '99999999-0000-0000-0000-000000000003', task_id: '22222222-3333-4444-5555-000000000008', week_start_date: getWeekStart(), allocated_hours: 20, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Responsive work' },
+    // Current week allocations - Dana Designer
     { id: '99999999-0000-0000-0000-000000000004', task_id: '22222222-3333-4444-5555-000000000011', week_start_date: getWeekStart(), allocated_hours: 8, assigned_user_id: '11111111-1111-1111-1111-000000000005', notes: 'Color palette finalization' },
     { id: '99999999-0000-0000-0000-000000000005', task_id: '22222222-3333-4444-5555-000000000013', week_start_date: getWeekStart(), allocated_hours: 16, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Ordering system' },
     // Next week allocations
     { id: '99999999-0000-0000-0000-000000000006', task_id: '22222222-3333-4444-5555-000000000003', week_start_date: getWeekStart(7), allocated_hours: 32, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Continue frontend' },
     { id: '99999999-0000-0000-0000-000000000007', task_id: '22222222-3333-4444-5555-000000000009', week_start_date: getWeekStart(7), allocated_hours: 8, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'Contact form' },
-    { id: '99999999-0000-0000-0000-000000000008', task_id: '22222222-3333-4444-5555-000000000005', week_start_date: getWeekStart(7), allocated_hours: 24, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'QA testing' }
+    { id: '99999999-0000-0000-0000-000000000008', task_id: '22222222-3333-4444-5555-000000000005', week_start_date: getWeekStart(7), allocated_hours: 24, assigned_user_id: '11111111-1111-1111-1111-000000000006', notes: 'QA testing' },
+    // Andy Admin allocations - admin tasks (using QA Testing task since admin helps with QA)
+    { id: '99999999-0000-0000-0000-000000000009', task_id: '22222222-3333-4444-5555-000000000005', week_start_date: getWeekStart(), allocated_hours: 8, assigned_user_id: '11111111-1111-1111-1111-000000000009', notes: 'QA coordination and testing support' },
+    { id: '99999999-0000-0000-0000-000000000010', task_id: '22222222-3333-4444-5555-000000000009', week_start_date: getWeekStart(), allocated_hours: 4, assigned_user_id: '11111111-1111-1111-1111-000000000009', notes: 'Contact form review' },
+    { id: '99999999-0000-0000-0000-000000000011', task_id: '22222222-3333-4444-5555-000000000005', week_start_date: getWeekStart(7), allocated_hours: 12, assigned_user_id: '11111111-1111-1111-1111-000000000009', notes: 'QA testing next week' }
   ];
 }
 

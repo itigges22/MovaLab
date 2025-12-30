@@ -991,8 +991,9 @@ CREATE TABLE IF NOT EXISTS "public"."workflow_nodes" (
     "form_template_id" "uuid",
     "position_x" double precision,
     "position_y" double precision,
+    "step_order" integer DEFAULT 0,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "workflow_nodes_node_type_check" CHECK (("node_type" = ANY (ARRAY['start'::"text", 'department'::"text", 'role'::"text", 'approval'::"text", 'form'::"text", 'conditional'::"text", 'sync'::"text", 'end'::"text"])))
+    CONSTRAINT "workflow_nodes_node_type_check" CHECK (("node_type" = ANY (ARRAY['start'::"text", 'role'::"text", 'approval'::"text", 'form'::"text", 'conditional'::"text", 'end'::"text"])))
 );
 
 
