@@ -134,6 +134,31 @@ export async function PUT(
     }
     console.log('[Workflow Save] Template verified');
 
+    // First, get the node IDs that belong to this template
+    console.log('[Workflow Save] Getting existing node IDs...');
+    const { data: existingNodes } = await supabase
+      .from('workflow_nodes')
+      .select('id')
+      .eq('workflow_template_id', templateId);
+
+    const existingNodeIds = existingNodes?.map(n => n.id) || [];
+    console.log('[Workflow Save] Found', existingNodeIds.length, 'existing nodes');
+
+    // Nullify current_node_id on any workflow_instances referencing these nodes
+    // This prevents FK constraint violations when deleting nodes
+    if (existingNodeIds.length > 0) {
+      console.log('[Workflow Save] Nullifying current_node_id on affected workflow_instances...');
+      const { error: nullifyError } = await supabase
+        .from('workflow_instances')
+        .update({ current_node_id: null })
+        .in('current_node_id', existingNodeIds);
+
+      if (nullifyError) {
+        console.error('[Workflow Save] Error nullifying current_node_id:', nullifyError);
+        // Continue anyway - this is a best effort to avoid FK issues
+      }
+    }
+
     // Delete existing nodes and connections for this template
     // Connections will be cascade deleted due to foreign key constraint
     console.log('[Workflow Save] Deleting existing nodes...');
