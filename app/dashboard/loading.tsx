@@ -1,5 +1,4 @@
-import { DashboardSkeleton } from '@/components/skeletons';
-
 export default function Loading() {
-  return <DashboardSkeleton />;
+  // Loading overlay handles visual feedback
+  return null;
 }

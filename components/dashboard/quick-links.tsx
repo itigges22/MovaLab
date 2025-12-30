@@ -51,7 +51,7 @@ const ALL_LINKS: QuickLink[] = [
     // No permission required - all users can view their own time
   },
   {
-    href: '/workflows',
+    href: '/admin/workflows',
     label: 'Workflows',
     icon: Workflow,
     permission: Permission.MANAGE_WORKFLOWS,

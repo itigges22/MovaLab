@@ -92,8 +92,8 @@ export function MyWorkflowsWidget() {
             <Workflow className="h-4 w-4 text-indigo-500" />
             My Workflows
           </div>
-          <Link href="/workflows" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            View All <ExternalLink className="h-3 w-3" />
+          <Link href="/projects" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            View Projects <ExternalLink className="h-3 w-3" />
           </Link>
         </CardTitle>
       </CardHeader>

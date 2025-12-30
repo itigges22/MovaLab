@@ -10,7 +10,7 @@ import { ClockWidget } from "@/components/clock-widget";
 import { AuthProviderWrapper } from "@/components/auth-provider-wrapper";
 import { SWRProvider } from "@/lib/swr-config";
 import { ResourceHints } from "@/components/resource-hints";
-import { NavigationProgressProvider } from "@/components/navigation-progress";
+import { LoadingProvider } from "@/components/loading-overlay";
 
 const raleway = Raleway({
   variable: "--font-raleway",
@@ -37,7 +37,7 @@ export default function RootLayout({
             <AuthProviderWrapper>
               <SWRProvider>
                 <Suspense fallback={null}>
-                  <NavigationProgressProvider>
+                  <LoadingProvider>
                     <ChunkErrorHandler />
                     <div className="min-h-screen bg-gray-50">
                       <Suspense fallback={
@@ -67,7 +67,7 @@ export default function RootLayout({
                         <ClockWidget />
                       </Suspense>
                     </div>
-                  </NavigationProgressProvider>
+                  </LoadingProvider>
                 </Suspense>
               </SWRProvider>
             </AuthProviderWrapper>

@@ -247,3 +247,19 @@ svg polyline {
 .animate-skeleton {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
+
+/* Slow pulse animation for loading logo */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}

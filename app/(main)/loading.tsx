@@ -1,5 +1,4 @@
-import { PageSkeleton } from '@/components/skeletons';
-
 export default function Loading() {
-  return <PageSkeleton />;
+  // Loading overlay handles visual feedback
+  return null;
 }
