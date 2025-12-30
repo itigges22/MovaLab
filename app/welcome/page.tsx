@@ -393,14 +393,14 @@ export default function WelcomePage() {
                 <Mail className="w-5 h-5 text-gray-500" />
                 <div>
                   <p className="text-sm font-medium">Email Support</p>
-                  <p className="text-sm text-gray-600">prismexec@gmail.com</p>
+                  <p className="text-sm text-gray-600">support@movalab.dev</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="w-5 h-5 text-gray-500" />
                 <div>
                   <p className="text-sm font-medium">Phone Support</p>
-                  <p className="text-sm text-gray-600">(919)-793-3536</p>
+                  <p className="text-sm text-gray-600">(555) 123-4567</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">

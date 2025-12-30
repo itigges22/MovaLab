@@ -158,27 +158,13 @@ fi
 # ============================================================================
 print_header "🗄️  Step 2: Checking Database Schema"
 
-if [ -f "supabase/migrations/20250123000000_schema_base.sql" ]; then
-  print_success "Base schema migration found"
+if [ -f "supabase/migrations/20250129000000_baseline.sql" ]; then
+  print_success "Baseline migration found"
 else
-  print_error "Base schema migration is missing"
+  print_error "Baseline migration is missing"
   echo ""
-  printf "   The file ${YELLOW}supabase/migrations/20250123000000_schema_base.sql${NC} does not exist.\n"
-  echo "   This file contains your database table schemas and must be generated"
-  echo "   from your cloud Supabase instance."
-  echo ""
-  printf "   ${BLUE}To generate it, run these commands:${NC}\n"
-  echo ""
-  printf "   ${GREEN}supabase link --project-ref oomnezdhkmsfjlihkmui${NC}\n"
-  printf "   ${GREEN}supabase db pull${NC}\n"
-  echo ""
-  printf "   This will create a file like: ${YELLOW}20250123XXXXXX_remote_schema.sql${NC}\n"
-  echo ""
-  echo "   Then rename it:"
-  printf "   ${GREEN}mv supabase/migrations/*_remote_schema.sql supabase/migrations/20250123000000_schema_base.sql${NC}\n"
-  echo ""
-  echo "   Finally, run this setup script again:"
-  printf "   ${GREEN}./scripts/first-time-setup.sh${NC}\n"
+  printf "   The file ${YELLOW}supabase/migrations/20250129000000_baseline.sql${NC} does not exist.\n"
+  echo "   Please ensure you have the complete repository."
   echo ""
   exit 1
 fi

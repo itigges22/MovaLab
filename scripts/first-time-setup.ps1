@@ -86,11 +86,11 @@ try {
 # ============================================================================
 Write-Header "Step 2: Checking Database Schema"
 
-if (Test-Path "supabase/migrations/20250123000000_schema_base.sql") {
-    Write-Success "Base schema migration found"
+if (Test-Path "supabase/migrations/20250129000000_baseline.sql") {
+    Write-Success "Baseline migration found"
 } else {
-    Write-Error2 "Base schema migration is missing"
-    Write-Host "`n   The file supabase/migrations/20250123000000_schema_base.sql does not exist."
+    Write-Error2 "Baseline migration is missing"
+    Write-Host "`n   The file supabase/migrations/20250129000000_baseline.sql does not exist."
     Write-Host "   Please ensure you have the complete repository."
     exit 1
 }

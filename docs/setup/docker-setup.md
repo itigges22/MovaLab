@@ -318,40 +318,32 @@ ENABLE_RATE_LIMIT=true
 
 ## Database Migrations
 
-### Migration Files
+### Migration File
 
-Located in `/supabase/migrations/`:
+MovaLab uses a **single consolidated baseline migration** for simplicity and reliability:
 
-1. **`20250123_01_schema_base.sql`** (Generated)
-   - Base table schemas (35+ tables)
-   - Primary keys, foreign keys, constraints
-   - Indexes for performance
-   - **Generate this:** `supabase db pull` (if using cloud)
+```
+supabase/migrations/20250129000000_baseline.sql
+```
 
-2. **`20250123_02_functions_fixed.sql`** ⚠️ CRITICAL
-   - `user_has_permission()` - Permission checker
-   - `user_is_superadmin()` - Superadmin checker
-   - `user_can_view_workflow()` - Workflow access
-   - `get_week_start_date()` - ISO week calculator
-   - `auto_clock_out_stale_sessions()` - Auto-close sessions
-   - **Purpose:** Fixes circular RLS dependency via `SECURITY DEFINER`
+This file contains **everything** needed for a complete MovaLab installation:
 
-3. **`20250123_03_views.sql`**
-   - `weekly_capacity_summary` - Aggregated capacity metrics
-   - Used for capacity planning dashboards
+| Component | Contents |
+|-----------|----------|
+| **Tables** | 36 tables with all columns, constraints, relationships |
+| **Functions** | 15+ PostgreSQL functions with `SECURITY DEFINER` |
+| **RLS Policies** | Complete Row Level Security for all tables |
+| **Triggers** | Auto-update timestamps, auto-create profiles |
+| **Indexes** | Performance indexes on frequently queried columns |
+| **Views** | `weekly_capacity_summary` for capacity calculations |
 
-4. **`20250123_04_rls_policies_fixed.sql`** ⚠️ CRITICAL
-   - One policy per operation per table (SELECT/INSERT/UPDATE/DELETE)
-   - Fixes 5 RLS security issues:
-     - Circular RLS dependency
-     - Duplicate policies
-     - Overly permissive policies
-     - Nested RLS queries
-     - Function access blocking
+**Why a single file?**
+- No dependency ordering issues
+- Easy to deploy to new environments
+- Consistent schema across local and cloud
+- Simpler troubleshooting
 
-5. **`20250123_05_triggers.sql`**
-   - Auto-create `user_profiles` when `auth.users` created
-   - Auto-update `updated_at` timestamps on row modification
+For detailed migration documentation, see [Database Migrations Guide](/docs/database/DATABASE_MIGRATIONS.md).
 
 ### Running Migrations
 
@@ -391,6 +383,23 @@ npm run docker:reset
    npm run docker:health
    npm run test:permissions
    ```
+
+### Deploying to Cloud
+
+To deploy migrations to Supabase Cloud:
+
+```bash
+# Link to your cloud project (one time)
+npm run cloud:link -- --project-ref YOUR_PROJECT_REF
+
+# Push migrations
+npm run cloud:migrate
+
+# Check status
+npm run cloud:status
+```
+
+For comprehensive cloud deployment instructions, see [Cloud Migration Guide](/docs/database/CLOUD_MIGRATION.md).
 
 ---
 
