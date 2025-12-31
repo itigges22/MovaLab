@@ -31,8 +31,14 @@ import {
   BarChart3
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { isSuperadmin, isUnassigned, hasPermission } from '@/lib/rbac'
+import { isSuperadmin, isUnassigned } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
+import {
+  computeUserPermissions,
+  hasPermissionSync,
+  hasAnyPermissionSync,
+  ComputedPermissions
+} from '@/lib/permission-utils'
 
 interface NavigationItem {
   name: string
@@ -191,18 +197,13 @@ export function ClientNavigation() {
       return
     }
 
-    async function filterItems() {
+    // OPTIMIZED: Use synchronous permission checking - no database calls needed!
+    // All permissions are pre-loaded in user profile's roles JSONB
+    function filterItemsSync() {
       setPermissionsChecked(false)
 
       const isActuallyUnassigned = isUnassigned(userProfile)
       const userIsSuperadmin = isSuperadmin(userProfile)
-
-      console.log('🔍 ClientNavigation Debug:', {
-        userEmail: (userProfile as any)?.email,
-        userId: (userProfile as any)?.id,
-        isActuallyUnassigned,
-        userIsSuperadmin,
-      })
 
       // Superadmin sees everything including all admin items
       if (userIsSuperadmin) {
@@ -215,42 +216,16 @@ export function ClientNavigation() {
       // Unassigned users ONLY see items with allowUnassigned === true
       if (isActuallyUnassigned) {
         const allowedItems = navigationItems.filter((item: any) => item.allowUnassigned === true)
-        console.log('✅ ClientNavigation: Unassigned user - showing only Welcome')
         setVisibleItems(allowedItems)
         setVisibleAdminItems([])
         setPermissionsChecked(true)
         return
       }
 
-      // Check permissions for navigation items IN PARALLEL for better performance
-      // Collect all unique permissions to check
-      const allNavPermissions: Permission[] = []
-      navigationItems.forEach(item => {
-        if (item.permission) allNavPermissions.push(item.permission)
-        if (item.anyPermission) allNavPermissions.push(...item.anyPermission)
-      })
-      adminMenuItems.forEach(item => {
-        allNavPermissions.push(...item.anyPermission)
-      })
+      // Pre-compute ALL permissions from user's roles - this is INSTANT (no DB call)
+      const computed: ComputedPermissions = computeUserPermissions(userProfile)
 
-      // Deduplicate permissions
-      const uniquePermissions = [...new Set(allNavPermissions)]
-
-      // Check all permissions in parallel
-      const permissionResults = await Promise.all(
-        uniquePermissions.map(async (perm) => ({
-          permission: perm,
-          hasPermission: await hasPermission(userProfile, perm)
-        }))
-      )
-
-      // Build a lookup map for O(1) access
-      const permissionMap = new Map<Permission, boolean>()
-      permissionResults.forEach(({ permission, hasPermission: has }) => {
-        permissionMap.set(permission, has)
-      })
-
-      // Now filter navigation items using the pre-computed permissions
+      // Now filter navigation items using SYNCHRONOUS permission checks
       const filtered: NavigationItem[] = []
       for (const item of navigationItems) {
         // Items with no permission requirement should not be shown unless explicitly allowed
@@ -261,18 +236,17 @@ export function ClientNavigation() {
           continue
         }
 
-        // Check single permission (from map)
+        // Check single permission (synchronous - instant!)
         if (item.permission) {
-          if (permissionMap.get(item.permission)) {
+          if (hasPermissionSync(computed, item.permission)) {
             filtered.push(item)
             continue
           }
         }
 
-        // Check any of multiple permissions (from map)
+        // Check any of multiple permissions (synchronous - instant!)
         if (item.anyPermission && item.anyPermission.length > 0) {
-          const hasAnyPerm = item.anyPermission.some(perm => permissionMap.get(perm))
-          if (hasAnyPerm) {
+          if (hasAnyPermissionSync(computed, item.anyPermission)) {
             filtered.push(item)
           }
         }
@@ -286,33 +260,28 @@ export function ClientNavigation() {
         }
       }
 
-      // Filter admin menu items using the pre-computed permissions
+      // Filter admin menu items using synchronous permission checks
       const filteredAdminItems: AdminMenuItem[] = []
       for (const adminItem of adminMenuItems) {
-        const hasAnyPerm = adminItem.anyPermission.some(perm => permissionMap.get(perm))
-        if (hasAnyPerm) {
+        if (hasAnyPermissionSync(computed, adminItem.anyPermission)) {
           filteredAdminItems.push(adminItem)
         }
       }
-
-      console.log('✅ ClientNavigation filter complete:', {
-        userId: (userProfile as any)?.id,
-        visibleItems: filtered.map((i: any) => i.name),
-        filteredCount: filtered.length,
-        visibleAdminItems: filteredAdminItems.map((i: any) => i.name),
-      })
 
       setVisibleItems(filtered)
       setVisibleAdminItems(filteredAdminItems)
       setPermissionsChecked(true)
     }
 
-    filterItems().catch((err: any) => {
+    // Call synchronously - no need for async/await anymore!
+    try {
+      filterItemsSync()
+    } catch (err: any) {
       console.error('Error filtering ClientNavigation items:', err)
       setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true))
       setVisibleAdminItems([])
       setPermissionsChecked(true)
-    })
+    }
   }, [isMounted, loading, userProfile])
 
   // Show loading state during hydration
