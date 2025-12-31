@@ -5,6 +5,7 @@
 
 import { createClientSupabase } from '../supabase';
 import { availabilityService } from './availability-service';
+import { DEFAULT_WEEKLY_HOURS } from '../constants';
 
 
 export interface UserCapacityMetrics {
@@ -119,8 +120,8 @@ class CapacityService {
       return null;
     }
 
-    // Default to 0 hours/week if no availability is set
-    const availableHours = availability?.available_hours ?? 0;
+    // Default to 40 hours/week if no availability is set
+    const availableHours = availability?.available_hours ?? DEFAULT_WEEKLY_HOURS;
 
     const weekAllocatedHours = allocError || !allocations
       ? 0

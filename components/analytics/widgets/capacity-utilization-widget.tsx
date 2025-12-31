@@ -205,12 +205,15 @@ export function CapacityUtilizationWidget() {
                 <LineChart data={capacityData}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" domain={[0, 120]} tickFormatter={(v) => `${v}%`} />
                   <Tooltip
-                    formatter={(value: number, name: string) => [
-                      `${value.toFixed(1)}h`,
-                      name.charAt(0).toUpperCase() + name.slice(1)
-                    ]}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'Utilization') {
+                        return [`${value}%`, name];
+                      }
+                      return [`${value.toFixed(1)}h`, name];
+                    }}
                   />
                   <Legend />
                   <Line
@@ -220,6 +223,7 @@ export function CapacityUtilizationWidget() {
                     strokeWidth={2}
                     dot={{ fill: '#10b981', r: 4 }}
                     name="Available"
+                    yAxisId="left"
                     connectNulls
                     isAnimationActive={false}
                   />
@@ -230,6 +234,7 @@ export function CapacityUtilizationWidget() {
                     strokeWidth={2}
                     dot={{ fill: '#f59e0b', r: 4 }}
                     name="Allocated"
+                    yAxisId="left"
                     connectNulls
                     isAnimationActive={false}
                   />
@@ -240,6 +245,19 @@ export function CapacityUtilizationWidget() {
                     strokeWidth={2}
                     dot={{ fill: '#3b82f6', r: 4 }}
                     name="Actual"
+                    yAxisId="left"
+                    connectNulls
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="utilization"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: '#8b5cf6', r: 4 }}
+                    name="Utilization"
+                    yAxisId="right"
                     connectNulls
                     isAnimationActive={false}
                   />

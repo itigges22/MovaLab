@@ -138,13 +138,30 @@ export async function PUT(
     const task = await taskServiceDB.updateTask(updateData)
 
     if (!task) {
-      return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
+      // Check if task exists
+      const { data: existingTask } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('id', taskId)
+        .single()
+
+      if (!existingTask) {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      }
+
+      console.error('Failed to update task - possible permission issue:', { taskId, userId: user.id })
+      return NextResponse.json({
+        error: 'Failed to update task. You may not have permission to modify this task.'
+      }, { status: 403 })
     }
 
     return NextResponse.json({ success: true, task })
   } catch (error: unknown) {
-    console.error('Error in PUT /api/tasks/[taskId]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error as Error
+    console.error('Error in PUT /api/tasks/[taskId]:', err.message, err.stack)
+    return NextResponse.json({
+      error: `Failed to update task: ${err.message || 'Unknown error'}`
+    }, { status: 500 })
   }
 }
 
@@ -237,13 +254,37 @@ export async function PATCH(
 
     if (updateError) {
       console.error('Error updating task:', updateError)
-      return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
+
+      // Check for specific error types
+      if (updateError.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      }
+
+      if (updateError.code === '42501' || updateError.message?.includes('permission')) {
+        return NextResponse.json({
+          error: 'You do not have permission to update this task'
+        }, { status: 403 })
+      }
+
+      // Check for foreign key violation (e.g., invalid assignee ID)
+      if (updateError.code === '23503') {
+        return NextResponse.json({
+          error: 'Invalid assignee. The selected user does not exist.'
+        }, { status: 400 })
+      }
+
+      return NextResponse.json({
+        error: `Failed to update task: ${updateError.message || 'Unknown error'}`
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, task })
   } catch (error: unknown) {
-    console.error('Error in PATCH /api/tasks/[taskId]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error as Error
+    console.error('Error in PATCH /api/tasks/[taskId]:', err.message, err.stack)
+    return NextResponse.json({
+      error: `Failed to update task: ${err.message || 'Unknown error'}`
+    }, { status: 500 })
   }
 }
 

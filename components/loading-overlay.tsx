@@ -9,6 +9,9 @@ interface LoadingContextType {
   progress: number;
   startLoading: () => void;
   stopLoading: () => void;
+  // Content-ready signaling for widgets/components
+  registerPendingContent: () => void;
+  markContentReady: () => void;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
@@ -16,13 +19,23 @@ const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 export function useLoading() {
   const context = useContext(LoadingContext);
   if (!context) {
-    throw new Error('useLoading must be used within a LoadingProvider');
+    // Return no-op functions for SSR or when context is not available
+    return {
+      isLoading: false,
+      progress: 0,
+      startLoading: () => {},
+      stopLoading: () => {},
+      registerPendingContent: () => {},
+      markContentReady: () => {},
+    };
   }
   return context;
 }
 
 // Minimum time to show loading overlay (ms)
 const MIN_LOADING_TIME = 800;
+// Maximum wait time for content to be ready (ms)
+const MAX_CONTENT_WAIT_TIME = 5000;
 
 export function LoadingProvider({ children }: { children: ReactNode }) {
   // Start with loading true for initial page load
@@ -33,10 +46,14 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const loadingStartTime = useRef<number>(Date.now());
   const pendingStop = useRef<boolean>(false);
+  const pendingContentCount = useRef<number>(0);
+  const contentReadyTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isTabVisible = useRef<boolean>(true);
 
   const startLoading = useCallback(() => {
     loadingStartTime.current = Date.now();
     pendingStop.current = false;
+    pendingContentCount.current = 0;
     setIsLoading(true);
     setProgress(0);
   }, []);
@@ -53,9 +70,30 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
       if (!pendingStop.current) {
         setIsLoading(false);
         setProgress(0);
+        pendingContentCount.current = 0;
       }
     }, remainingTime + 300);
   }, []);
+
+  // Register pending content - widgets call this when they start loading
+  const registerPendingContent = useCallback(() => {
+    pendingContentCount.current += 1;
+    // Clear any existing timeout since we have new pending content
+    if (contentReadyTimeout.current) {
+      clearTimeout(contentReadyTimeout.current);
+      contentReadyTimeout.current = null;
+    }
+  }, []);
+
+  // Mark content as ready - widgets call this when they finish loading
+  const markContentReady = useCallback(() => {
+    pendingContentCount.current = Math.max(0, pendingContentCount.current - 1);
+
+    // If all content is ready, stop loading
+    if (pendingContentCount.current === 0 && isLoading) {
+      stopLoading();
+    }
+  }, [isLoading, stopLoading]);
 
   // Simulate progress when loading
   useEffect(() => {
@@ -90,10 +128,26 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
     if (isInitialLoad) {
       // Wait for the page to be interactive before stopping
       const handleLoad = () => {
-        setTimeout(() => {
+        // Set a timeout to wait for content, but have a max wait time
+        contentReadyTimeout.current = setTimeout(() => {
+          // If we still have pending content after max wait, stop anyway
+          if (pendingContentCount.current > 0) {
+            console.warn(`Loading overlay timeout: ${pendingContentCount.current} pending content items`);
+          }
           setIsInitialLoad(false);
           stopLoading();
-        }, 300);
+        }, MAX_CONTENT_WAIT_TIME);
+
+        // Also check if no pending content, stop immediately
+        setTimeout(() => {
+          if (pendingContentCount.current === 0) {
+            if (contentReadyTimeout.current) {
+              clearTimeout(contentReadyTimeout.current);
+            }
+            setIsInitialLoad(false);
+            stopLoading();
+          }
+        }, MIN_LOADING_TIME);
       };
 
       if (document.readyState === 'complete') {
@@ -113,11 +167,17 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
   // Track route changes (but not on initial load)
   useEffect(() => {
     if (!isInitialLoad) {
-      stopLoading();
+      // When route changes, check if we should stop loading
+      // Give a small delay for any pending content to register
+      setTimeout(() => {
+        if (pendingContentCount.current === 0) {
+          stopLoading();
+        }
+      }, 500);
     }
   }, [pathname, searchParams, stopLoading, isInitialLoad]);
 
-  // Intercept navigation
+  // Intercept navigation (anchor clicks)
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -139,8 +199,45 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('click', handleClick, true);
   }, [pathname, startLoading]);
 
+  // Handle beforeunload (page refresh/close)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Show loading screen on page unload (refresh)
+      startLoading();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [startLoading]);
+
+  // Handle tab visibility changes (prevent reload on tab switch)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Tab became visible - if we were loading due to unload, cancel it
+        isTabVisible.current = true;
+        // Don't restart loading, just resume normal state
+        if (pendingStop.current) {
+          pendingStop.current = false;
+        }
+      } else {
+        isTabVisible.current = false;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   return (
-    <LoadingContext.Provider value={{ isLoading, progress, startLoading, stopLoading }}>
+    <LoadingContext.Provider value={{
+      isLoading,
+      progress,
+      startLoading,
+      stopLoading,
+      registerPendingContent,
+      markContentReady
+    }}>
       {children}
       <LoadingOverlay isVisible={isLoading} progress={progress} />
     </LoadingContext.Provider>
@@ -168,6 +265,7 @@ function LoadingOverlay({ isVisible, progress }: LoadingOverlayProps) {
 
   return (
     <div
+      data-testid="loading-overlay"
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white transition-opacity duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}

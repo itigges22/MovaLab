@@ -104,7 +104,7 @@ interface MyAnalyticsData {
     dueThisWeek: number;
     overdue: number;
     completedThisWeek: number;
-    urgent: { id: string; name: string; projectName: string; dueDate: string; status: string }[];
+    urgent: { id: string; name: string; projectId: string; projectName: string; dueDate: string; status: string }[];
   };
 }
 

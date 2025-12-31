@@ -263,7 +263,11 @@ export async function startWorkflowForProject(
       .single();
 
     if (instanceError || !instance) {
-      return { success: false, error: 'Failed to create workflow instance' };
+      console.error('Workflow instance creation error:', instanceError);
+      return {
+        success: false,
+        error: `Failed to create workflow instance: ${instanceError?.message || 'Unknown error'}`
+      };
     }
 
     // Update project with workflow instance

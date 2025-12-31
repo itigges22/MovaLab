@@ -30,6 +30,7 @@ export const newsletterService = {
   async getPublishedNewsletters(): Promise<Newsletter[]> {
     const supabase = createClientSupabase() as any;
 
+    // Optimized: Limit to 20 most recent newsletters
     const { data, error } = await supabase
       .from('newsletters')
       .select(`
@@ -37,7 +38,8 @@ export const newsletterService = {
         user_profiles:user_profiles(id, name, email, image)
       `)
       .eq('is_published', true)
-      .order('published_at', { ascending: false });
+      .order('published_at', { ascending: false })
+      .limit(20);
 
     if (error) {
       console.error('Error fetching newsletters:', error);

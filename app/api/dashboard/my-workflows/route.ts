@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
     }).filter(Boolean) || [];
 
     // 1. Get pending approvals (workflows awaiting user's action)
+    // Optimized: Limit to 50 most recent active steps to reduce load
     const { data: pendingApprovals } = await supabase
       .from('workflow_active_steps')
       .select(`
@@ -64,7 +65,9 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .order('activated_at', { ascending: false })
+      .limit(50);
 
     // Filter to approval nodes that match user's role/department
     const awaitingAction = (pendingApprovals || []).filter((step: any) => {
@@ -165,6 +168,7 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Optimized: Limit to 100 history entries to reduce load
     const { data: completedWorkflows } = await supabase
       .from('workflow_history')
       .select(`
@@ -179,7 +183,8 @@ export async function GET(request: NextRequest) {
       `)
       .eq('transitioned_by', userId)
       .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     const completedInstanceIds = new Set<string>();
     if (completedWorkflows) {

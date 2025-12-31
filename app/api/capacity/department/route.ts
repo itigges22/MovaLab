@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
+import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -194,11 +195,13 @@ export async function GET(request: NextRequest) {
 
         if (period === 'daily') {
           const weekStart = getWeekStartDate(periodStart);
-          const weeklyHours = userAvailability.get(weekStart) ?? 0;
+          // Use default 40 hours/week if not explicitly set
+          const weeklyHours = userAvailability.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
           totalAvailable += weeklyHours / 5;
         } else if (period === 'weekly') {
           const weekStart = getWeekStartDate(periodStart);
-          totalAvailable += userAvailability.get(weekStart) ?? 0;
+          // Use default 40 hours/week if not explicitly set
+          totalAvailable += userAvailability.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
         } else {
           const currentWeek = new Date(periodStart);
           const dayOfWeek = currentWeek.getDay();
@@ -207,7 +210,8 @@ export async function GET(request: NextRequest) {
 
           while (currentWeek <= periodEnd) {
             const weekStr = format(currentWeek, 'yyyy-MM-dd');
-            const weekHours = userAvailability.get(weekStr) ?? 0;
+            // Use default 40 hours/week if not explicitly set
+            const weekHours = userAvailability.get(weekStr) ?? DEFAULT_WEEKLY_HOURS;
             totalAvailable += weekHours;
             currentWeek.setDate(currentWeek.getDate() + 7);
           }

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
+import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -177,13 +178,13 @@ export async function GET(request: NextRequest) {
       if (period === 'daily') {
         // For daily, get the week's availability and divide by 5 (workdays)
         const weekStart = getWeekStartDate(periodStart);
-        const weeklyHours = availabilityMap.get(weekStart) ?? 0;
+        const weeklyHours = availabilityMap.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
         available = weeklyHours / 5; // Assume 5 workdays
         weeksInPeriod = 0.2;
       } else if (period === 'weekly') {
-        // Check if we have availability set for this week
+        // Check if we have availability set for this week (default to 40 hours)
         const weekStart = getWeekStartDate(periodStart);
-        available = availabilityMap.get(weekStart) ?? 0;
+        available = availabilityMap.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
         weeksInPeriod = 1;
       } else if (period === 'monthly' || period === 'quarterly') {
         // Sum up weekly availabilities that fall within this period
@@ -206,7 +207,7 @@ export async function GET(request: NextRequest) {
 
         while (currentWeek.getTime() <= endTime) {
           const weekStr = formatLocalDate(currentWeek);
-          const weekHours = availabilityMap.get(weekStr) ?? 0;
+          const weekHours = availabilityMap.get(weekStr) ?? DEFAULT_WEEKLY_HOURS;
           totalHours += weekHours;
           weeksInPeriod++;
           // Move to next week

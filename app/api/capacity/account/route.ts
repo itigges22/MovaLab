@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
+import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -219,18 +220,14 @@ export async function GET(request: NextRequest) {
 
         if (period === 'daily') {
           const weekStart = getWeekStartDate(periodStart);
-          const weeklyHours = userAvailability.get(weekStart);
-          // Only count if explicitly set, multiply by allocation factor
-          if (weeklyHours !== undefined) {
-            totalAvailable += (weeklyHours / 5) * allocationFactor;
-          }
+          // Use default 40 hours/week if not explicitly set
+          const weeklyHours = userAvailability.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
+          totalAvailable += (weeklyHours / 5) * allocationFactor;
         } else if (period === 'weekly') {
           const weekStart = getWeekStartDate(periodStart);
-          const weeklyHours = userAvailability.get(weekStart);
-          // Only count if explicitly set, multiply by allocation factor
-          if (weeklyHours !== undefined) {
-            totalAvailable += weeklyHours * allocationFactor;
-          }
+          // Use default 40 hours/week if not explicitly set
+          const weeklyHours = userAvailability.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
+          totalAvailable += weeklyHours * allocationFactor;
         } else {
           // For monthly/quarterly, sum all weeks in the period
           const currentWeek = new Date(periodStart);
@@ -240,11 +237,9 @@ export async function GET(request: NextRequest) {
 
           while (currentWeek < periodEnd) { // Changed from <= to < to avoid double-counting
             const weekStr = format(currentWeek, 'yyyy-MM-dd');
-            const weekHours = userAvailability.get(weekStr);
-            // Only count if explicitly set, multiply by allocation factor
-            if (weekHours !== undefined) {
-              totalAvailable += weekHours * allocationFactor;
-            }
+            // Use default 40 hours/week if not explicitly set
+            const weekHours = userAvailability.get(weekStr) ?? DEFAULT_WEEKLY_HOURS;
+            totalAvailable += weekHours * allocationFactor;
             currentWeek.setDate(currentWeek.getDate() + 7);
           }
         }

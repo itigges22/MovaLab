@@ -15,7 +15,7 @@ function isDemoModeEnabled(): boolean {
   );
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   // CRITICAL: Only run if demo mode is enabled
   if (!isDemoModeEnabled()) {
     return NextResponse.json(
