@@ -359,6 +359,148 @@ export function getPrimaryDepartment(userProfile: UserWithRoles | null): string 
 }
 
 // ================================================================================
+// ACCOUNT ACCESS HELPERS
+// ================================================================================
+
+/**
+ * Check if user is an account manager for any account
+ * @param userProfile - User profile
+ * @param supabaseClient - Supabase client (REQUIRED)
+ * @returns Promise<boolean>
+ */
+export async function isAccountManager(userProfile: UserWithRoles | null, supabaseClient: any): Promise<boolean> {
+  if (!userProfile || !supabaseClient) return false;
+
+  const userId = (userProfile as any).id;
+  if (!userId) return false;
+
+  const { data: accounts, error } = await supabaseClient
+    .from('accounts')
+    .select('id')
+    .eq('account_manager_id', userId)
+    .limit(1);
+
+  if (error) {
+    logger.error('Error checking account manager status', { userId }, error);
+    return false;
+  }
+
+  return (accounts?.length || 0) > 0;
+}
+
+/**
+ * Check if user can view accounts page
+ * Returns true if user:
+ * - Is superadmin
+ * - Has VIEW_ACCOUNTS permission
+ * - Has MANAGE_ACCOUNTS permission
+ * - Has VIEW_ALL_ACCOUNTS permission
+ * - Is an account manager for any account
+ *
+ * @param userProfile - User profile with roles
+ * @param supabaseClient - Supabase client (REQUIRED for server-side)
+ * @returns Promise<boolean>
+ */
+export async function canViewAccounts(userProfile: UserWithRoles | null, supabaseClient: any): Promise<boolean> {
+  if (!userProfile) return false;
+
+  // Superadmin bypass
+  if (isSuperadmin(userProfile)) return true;
+
+  // Check VIEW_ACCOUNTS, MANAGE_ACCOUNTS, or VIEW_ALL_ACCOUNTS permissions
+  const hasViewPermission = await hasAnyPermission(userProfile, [
+    Permission.VIEW_ACCOUNTS,
+    Permission.MANAGE_ACCOUNTS,
+    Permission.VIEW_ALL_ACCOUNTS
+  ], undefined, supabaseClient);
+
+  if (hasViewPermission) return true;
+
+  // Check if user is an account manager
+  return isAccountManager(userProfile, supabaseClient);
+}
+
+// ================================================================================
+// PROJECT ACCESS HELPER
+// ================================================================================
+
+/**
+ * Check if user has access to a specific project
+ * This is the simplified model: if you have project access, you can view/add issues, updates, tasks, notes
+ *
+ * Returns true if user:
+ * - Is superadmin
+ * - Has VIEW_ALL_PROJECTS permission (admin override)
+ * - Is assigned to the project (via project_assignments)
+ * - Is the creator of the project
+ * - Is the assigned_user on the project
+ * - Has a task assigned to them in the project
+ * - Is the account manager for the project's account
+ *
+ * @param userProfile - User profile with roles
+ * @param projectId - Project ID to check
+ * @param supabaseClient - Supabase client (REQUIRED for server-side)
+ * @returns Promise<boolean>
+ */
+export async function userHasProjectAccess(
+  userProfile: UserWithRoles | null,
+  projectId: string,
+  supabaseClient: any
+): Promise<boolean> {
+  if (!userProfile || !projectId || !supabaseClient) return false;
+
+  // Superadmin bypass
+  if (isSuperadmin(userProfile)) return true;
+
+  // Check admin override permissions
+  const hasOverride = await hasAnyPermission(userProfile, [
+    Permission.VIEW_ALL_PROJECTS,
+    Permission.MANAGE_ALL_PROJECTS
+  ], undefined, supabaseClient);
+
+  if (hasOverride) return true;
+
+  const userId = (userProfile as any).id;
+  if (!userId) return false;
+
+  // Import the context check from permission-checker
+  const { isAssignedToProject } = await import('./permission-checker');
+  const isAssigned = await isAssignedToProject(userId, projectId, supabaseClient);
+  if (isAssigned) return true;
+
+  // Check if user is account manager for the project's account
+  try {
+    const { data: project, error } = await supabaseClient
+      .from('projects')
+      .select('account_id')
+      .eq('id', projectId)
+      .single();
+
+    if (error || !project?.account_id) {
+      return false;
+    }
+
+    const { data: account, error: accountError } = await supabaseClient
+      .from('accounts')
+      .select('account_manager_id')
+      .eq('id', project.account_id)
+      .single();
+
+    if (accountError) {
+      return false;
+    }
+
+    if (account?.account_manager_id === userId) {
+      return true;
+    }
+  } catch (err) {
+    logger.error('Error checking account manager status for project access', { userId, projectId }, err);
+  }
+
+  return false;
+}
+
+// ================================================================================
 // EXPORTS
 // ================================================================================
 

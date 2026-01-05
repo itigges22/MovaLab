@@ -31,7 +31,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Permission } from '@/lib/permissions';
-import { isSuperadmin, isUnassigned, hasPermission } from '@/lib/rbac';
+import { isSuperadmin, isUnassigned, hasPermission, isAccountManager } from '@/lib/rbac';
+import { createClientSupabase } from '@/lib/supabase';
 
 interface NavigationItem {
   name: string;
@@ -67,8 +68,9 @@ const navigationItems: NavigationItem[] = [
     name: 'Accounts',
     href: '/accounts',
     icon: Users,
-    anyPermission: [Permission.VIEW_ACCOUNTS, Permission.VIEW_ALL_ACCOUNTS],
+    anyPermission: [Permission.VIEW_ACCOUNTS, Permission.VIEW_ALL_ACCOUNTS, Permission.MANAGE_ACCOUNTS],
     allowUnassigned: false, // Explicitly disallow for unassigned users
+    // Note: Account managers also have access - handled separately in filterItems
   },
   {
     name: 'Analytics',
@@ -260,6 +262,23 @@ export function Navigation() {
           }
           if (hasAnyPerm) {
             filtered.push(item);
+            continue;
+          }
+
+          // Special case: Account managers also get access to Accounts page
+          if (item.name === 'Accounts' && !hasAnyPerm) {
+            const supabase = createClientSupabase();
+            if (supabase) {
+              const isManager = await isAccountManager(userProfile, supabase);
+              // Check cancellation after async operation
+              if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
+                console.log('⚠️ Navigation filter cancelled during account manager check');
+                return;
+              }
+              if (isManager) {
+                filtered.push(item);
+              }
+            }
           }
         }
       }

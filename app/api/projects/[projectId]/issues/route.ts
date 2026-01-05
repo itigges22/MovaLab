@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
+import { userHasProjectAccess } from '@/lib/rbac';
 
 /**
  * GET /api/projects/[projectId]/issues
@@ -45,9 +44,9 @@ export async function GET(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check VIEW_ISSUES permission
-    const canViewIssues = await hasPermission(userProfile, Permission.VIEW_ISSUES, undefined, supabase);
-    if (!canViewIssues) {
+    // Check project access - if user has access to the project, they can view issues
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions to view issues' }, { status: 403 });
     }
 
@@ -125,9 +124,9 @@ export async function POST(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check MANAGE_ISSUES permission (consolidated from CREATE_ISSUE)
-    const canManageIssues = await hasPermission(userProfile, Permission.MANAGE_ISSUES, undefined, supabase);
-    if (!canManageIssues) {
+    // Check project access - if user has access to the project, they can create issues
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions to create issues' }, { status: 403 });
     }
 

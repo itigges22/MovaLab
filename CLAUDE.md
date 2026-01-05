@@ -952,9 +952,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 4. **Project Management (4):** MANAGE_PROJECTS, VIEW_PROJECTS, MANAGE_ALL_PROJECTS, VIEW_ALL_PROJECTS
 
-5. **Project Updates (3):** MANAGE_UPDATES, VIEW_UPDATES, VIEW_ALL_UPDATES
+5. **Project Updates (3):** MANAGE_UPDATES, VIEW_UPDATES, VIEW_ALL_UPDATES *(NOTE: These are defined but NOT checked in API - see Context-Aware Access below)*
 
-6. **Project Issues (2):** MANAGE_ISSUES, VIEW_ISSUES
+6. **Project Issues (2):** MANAGE_ISSUES, VIEW_ISSUES *(NOTE: These are defined but NOT checked in API - see Context-Aware Access below)*
 
 7. **Newsletter (2):** MANAGE_NEWSLETTERS, VIEW_NEWSLETTERS
 
@@ -985,6 +985,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 - User Time Entries Page (`/time-entries`): View logged time with charts, filters, and 14-day edit window
 - Workflow Node Assignment Enforcement: EXECUTE_WORKFLOWS now validates user assignment to current node
 - Granular Analytics Overrides: Department and account-level analytics permissions
+
+**Context-Aware Project Access (Phase 10 - Jan 2026):**
+Project sub-resources (issues, updates, tasks, notes) now use `userHasProjectAccess()` instead of individual permissions:
+
+```typescript
+// In lib/rbac.ts - use this for project sub-resource access
+import { userHasProjectAccess } from '@/lib/rbac';
+
+const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+// Returns true if user:
+// - Is superadmin
+// - Has VIEW_ALL_PROJECTS or MANAGE_ALL_PROJECTS
+// - Is assigned to the project (via project_assignments)
+// - Is the creator (created_by) or assignee (assigned_user_id)
+// - Is the account manager for the project's account
+```
+
+**IMPORTANT:** The `MANAGE_ISSUES`, `VIEW_ISSUES`, `MANAGE_UPDATES`, `VIEW_UPDATES` permissions are still defined in `lib/permissions.ts` but are **NOT checked in API routes**. They exist for backwards compatibility but have no effect. Project access grants access to all sub-resources.
+
+**Account Visibility Rules:**
+- `VIEW_ACCOUNTS` - Can see accounts user is member of OR manages
+- `VIEW_ALL_ACCOUNTS` - Can see ALL accounts in the system (admin override)
+- `MANAGE_ACCOUNTS` - Can edit accounts user has access to (does NOT grant viewing all accounts)
 
 ### Permission Storage & Retrieval
 
@@ -1108,6 +1131,53 @@ function getCacheKey(userId: string, permission: Permission, context?: Permissio
 **Cache invalidation:**
 - Automatic: Entries expire after 5 minutes
 - Manual: Clear cache when roles/permissions change
+
+### Permission Checking Patterns (Which to Use)
+
+**Pattern 1: `userHasProjectAccess()` - For project sub-resources**
+```typescript
+// Use for: issues, updates, tasks, notes, deliverables within a project
+import { userHasProjectAccess } from '@/lib/rbac';
+
+const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+if (!hasAccess) {
+  return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+}
+```
+
+**Pattern 2: `requireAuthAndPermission()` - For API route guards**
+```typescript
+// Use for: admin routes, role management, global operations
+import { requireAuthAndPermission } from '@/lib/server-guards';
+
+export async function POST(request: NextRequest) {
+  await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
+  // ... route logic
+}
+```
+
+**Pattern 3: `hasPermission()` with context - For complex checks**
+```typescript
+// Use for: permission checks with context (projectId, accountId, etc.)
+import { hasPermission } from '@/lib/rbac';
+
+const canEdit = await hasPermission(
+  userProfile,
+  Permission.MANAGE_PROJECTS,
+  { projectId, accountId },
+  supabase
+);
+```
+
+**When to Use Each:**
+| Scenario | Pattern |
+|----------|---------|
+| Project issues/updates/tasks | `userHasProjectAccess()` |
+| Admin-only endpoints | `requireAuthAndPermission()` |
+| Account-scoped operations | `hasPermission()` with context |
+| Role/user management | `requireAuthAndPermission()` |
+| Time entries (own) | Implicit access (no check needed) |
+| Workflow execution | `hasPermission()` with workflowInstanceId context |
 
 ---
 

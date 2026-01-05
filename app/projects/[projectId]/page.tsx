@@ -31,8 +31,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatDistance } from 'date-fns'
 import { accountService } from '@/lib/account-service'
 import { taskServiceDB, Task } from '@/lib/task-service-db'
-import { Permission } from '@/lib/permissions'
-import { hasPermission } from '@/lib/rbac'
+// Project access check is now simplified - if user can view project, they can add issues/updates
+// The API routes handle the actual permission validation via userHasProjectAccess()
 import { toast } from 'sonner'
 import { handleApiPermissionError } from '@/lib/permission-toast'
 import { WorkflowProgressButton } from '@/components/workflow-progress-button'
@@ -380,24 +380,19 @@ export default function ProjectDetailPage() {
   // Tasks will update when user saves changes or navigates to the page
   // Users can manually refresh the page if they need to see real-time updates
 
-  // Check update and issue permissions (separate from edit project permission)
-  // Uses async hasPermission() for proper superadmin bypass, caching, and permission evaluation
+  // Check update and issue permissions based on PROJECT ACCESS
+  // NEW SIMPLIFIED MODEL: If user has access to the project, they can add/edit issues and updates
+  // This replaces the old MANAGE_UPDATES/MANAGE_ISSUES permission checks
   useEffect(() => {
-    if (!userProfile) return
+    if (!userProfile || !project) return
 
-    const checkPermissions = async () => {
-      const [canManageUpdates, canManageIssues] = await Promise.all([
-        hasPermission(userProfile, Permission.MANAGE_UPDATES),
-        hasPermission(userProfile, Permission.MANAGE_ISSUES)
-      ])
-
-      setCanCreateUpdate(canManageUpdates) // Create is part of manage
-      setCanCreateIssue(canManageIssues)   // Create is part of manage
-      setCanEditIssue(canManageIssues)     // Edit is part of manage
-    }
-
-    checkPermissions()
-  }, [userProfile])
+    // If user can view the project (they're on this page), they can manage issues and updates
+    // The API routes will do the actual permission validation
+    // This is a simplified client-side check since the user already loaded the project
+    setCanCreateUpdate(true)
+    setCanCreateIssue(true)
+    setCanEditIssue(true)
+  }, [userProfile, project])
 
   // Calculate estimated hours based on tasks
   const calculateEstimatedHours = useCallback((projectTasks: Task[], projectData?: ProjectWithDetails | null) => {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
+import { userHasProjectAccess } from '@/lib/rbac';
 
 /**
  * PUT /api/projects/[projectId]/issues/[issueId]
@@ -45,9 +44,9 @@ export async function PUT(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check MANAGE_ISSUES permission (consolidated from EDIT_ISSUE)
-    const canManageIssues = await hasPermission(userProfile, Permission.MANAGE_ISSUES, undefined, supabase);
-    if (!canManageIssues) {
+    // Check project access - if user has access to the project, they can edit issues
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions to edit issues' }, { status: 403 });
     }
 
@@ -174,9 +173,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check MANAGE_ISSUES permission (consolidated from DELETE_ISSUE)
-    const canManageIssues = await hasPermission(userProfile, Permission.MANAGE_ISSUES, undefined, supabase);
-    if (!canManageIssues) {
+    // Check project access - if user has access to the project, they can delete issues
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions to delete issues' }, { status: 403 });
     }
 

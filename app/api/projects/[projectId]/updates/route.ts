@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { hasPermission } from '@/lib/rbac';
-import { Permission } from '@/lib/permissions';
+import { userHasProjectAccess } from '@/lib/rbac';
 
 /**
  * GET /api/projects/[projectId]/updates
@@ -45,24 +44,9 @@ export async function GET(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check VIEW_PROJECTS permission (updates are part of viewing a project)
-    const { data: project } = await supabase
-      .from('projects')
-      .select('account_id')
-      .eq('id', projectId)
-      .single();
-
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
-
-    // IMPORTANT: Pass the authenticated Supabase client to ensure proper RLS context
-    const canViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS, {
-      projectId,
-      accountId: project.account_id
-    }, supabase);
-
-    if (!canViewProjects) {
+    // Check project access - if user has access to the project, they can view updates
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions to view project updates' }, { status: 403 });
     }
 
@@ -137,9 +121,9 @@ export async function POST(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check MANAGE_UPDATES permission (consolidated from CREATE_UPDATE)
-    const canManageUpdates = await hasPermission(userProfile, Permission.MANAGE_UPDATES, undefined, supabase);
-    if (!canManageUpdates) {
+    // Check project access - if user has access to the project, they can create updates
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Insufficient permissions to create updates' }, { status: 403 });
     }
 
