@@ -494,7 +494,7 @@ export async function userHasProjectAccess(
       return true;
     }
   } catch (err) {
-    logger.error('Error checking account manager status for project access', { userId, projectId }, err);
+    logger.error('Error checking account manager status for project access', { userId, projectId }, err instanceof Error ? err : undefined);
   }
 
   return false;
