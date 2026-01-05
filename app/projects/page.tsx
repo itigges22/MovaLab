@@ -4,16 +4,15 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RoleGuard } from '@/components/role-guard'
 import { createClientSupabase } from '@/lib/supabase'
-import { FolderOpen, SortAsc, SortDesc, ExternalLink, Trash2, Plus } from 'lucide-react'
+import { FolderOpen, Plus } from 'lucide-react'
 import ProjectCreationDialog from '@/components/project-creation-dialog'
+import { ProjectDataTable, ProjectTableData, ProjectStatus, ProjectPriority } from '@/components/project-data-table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import Link from 'next/link'
-import { format } from 'date-fns'
+import { useRouter } from 'next/navigation'
 import { hasPermission, canViewProject, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 
@@ -21,24 +20,29 @@ type Project = any
 type Account = any
 type Department = any
 
+interface AssignedUserData {
+  id: string
+  name: string
+  email?: string
+  image?: string
+}
+
 interface ProjectWithDetails extends Project {
   account: Account
   departments: Department[]
   workflow_step?: string | null  // Current workflow step name
+  assigned_users?: AssignedUserData[]  // Users assigned to this project
 }
 
 
 export default function ProjectsPage() {
   const { userProfile } = useAuth()
+  const router = useRouter()
   const [projects, setProjects] = useState<ProjectWithDetails[]>([])
   const [visibleProjects, setVisibleProjects] = useState<ProjectWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Status filter removed - projects now use workflow steps instead of static status
-  const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [allDepartments, setAllDepartments] = useState<Department[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<ProjectWithDetails | null>(null)
@@ -266,13 +270,53 @@ export default function ProjectsPage() {
           }
         }
 
-        // Transform the data to include departments and workflow step
+        // Get assigned users for each project
+        const assignedUsersByProject: { [key: string]: AssignedUserData[] } = {}
+        if (fetchedProjectIds.length > 0) {
+          const { data: projectAssignments } = await supabase
+            .from('project_assignments')
+            .select(`
+              project_id,
+              user_profiles!project_assignments_user_id_fkey (
+                id,
+                name,
+                email,
+                image
+              )
+            `)
+            .in('project_id', fetchedProjectIds)
+            .is('removed_at', null)
+
+          if (projectAssignments) {
+            projectAssignments.forEach((pa: any) => {
+              const projectId = pa.project_id as string
+              if (!assignedUsersByProject[projectId]) {
+                assignedUsersByProject[projectId] = []
+              }
+              if (pa.user_profiles) {
+                const user = pa.user_profiles as any
+                // Avoid duplicates
+                if (!assignedUsersByProject[projectId].some(u => u.id === user.id)) {
+                  assignedUsersByProject[projectId].push({
+                    id: user.id,
+                    name: user.name || 'Unknown',
+                    email: user.email,
+                    image: user.image
+                  })
+                }
+              }
+            })
+          }
+        }
+
+        // Transform the data to include departments, workflow step, and assigned users
         const projectsWithDetails: ProjectWithDetails[] = (data || []).map((project: any) => {
           const projectId = project.id as string
           return {
             ...project,
             departments: departmentsByProject[projectId] || [],
-            workflow_step: workflowSteps[projectId] || null
+            workflow_step: workflowSteps[projectId] || null,
+            assigned_users: assignedUsersByProject[projectId] || []
           } as unknown as ProjectWithDetails
         })
 
@@ -336,19 +380,29 @@ export default function ProjectsPage() {
 
   // Status colors removed - projects now use workflow steps
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return { backgroundColor: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5' }
-      case 'high':
-        return { backgroundColor: '#fed7aa', color: '#ea580c', borderColor: '#fdba74' }
-      case 'medium':
-        return { backgroundColor: '#fef3c7', color: '#d97706', borderColor: '#fbbf24' }
-      case 'low':
-        return { backgroundColor: '#d1fae5', color: '#059669', borderColor: '#6ee7b7' }
-      default:
-        return { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' }
-    }
+  // Transform projects to ProjectTableData format for the new table component
+  const transformToTableData = (projects: ProjectWithDetails[]): ProjectTableData[] => {
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      workflowStep: project.workflow_step || undefined,
+      priority: (project.priority || 'medium') as ProjectPriority,
+      account: project.account?.name,
+      accountId: project.account_id,
+      hours: {
+        estimated: project.estimated_hours,
+        actual: project.actual_hours,
+        remaining: project.remaining_hours
+      },
+      deadline: project.end_date,
+      assignedUsers: (project.assigned_users || []).map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image
+      })),
+      status: (project.status || 'planning') as ProjectStatus
+    }))
   }
 
   // Check if user can delete a project
@@ -414,51 +468,12 @@ export default function ProjectsPage() {
     }
   }
 
-  // Open delete confirmation dialog
-  const openDeleteDialog = (project: ProjectWithDetails) => {
-    setProjectToDelete(project)
-    setDeleteDialogOpen(true)
-  }
-
-  // Filter and sort projects (use visibleProjects which are already permission-filtered)
-  const filteredAndSortedProjects = visibleProjects
+  // Filter projects by department (use visibleProjects which are already permission-filtered)
+  const filteredProjects = visibleProjects
     .filter((project: any) => {
-      // Status filter removed - projects now use workflow steps
-      if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false
       if (departmentFilter !== 'all' && !project.departments.some((dept: any) => dept.id === departmentFilter)) return false
       return true
     })
-    .sort((a, b) => {
-      let aValue: string | number, bValue: string | number
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase()
-          bValue = b.name.toLowerCase()
-          break
-        case 'priority':
-          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
-          aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 0
-          bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0
-          break
-        case 'deadline':
-          aValue = a.end_date ? new Date(a.end_date).getTime() : 0
-          bValue = b.end_date ? new Date(b.end_date).getTime() : 0
-          break
-        default:
-          return 0
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
-    .map((project: any) => ({
-      ...project,
-      daysUntilDeadline: project.end_date 
-        ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        : null
-    }))
 
   if (loading) {
     return (
@@ -524,181 +539,31 @@ export default function ProjectsPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Filters and Sorting */}
-                <div className="flex flex-wrap gap-2">
-                  {/* Status filter removed - projects now use workflow steps */}
+                    {/* Department Filter */}
+                    {allDepartments.length > 0 && (
+                      <div className="mb-4">
+                        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Filter by Department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {allDepartments.map((dept: any) => (
+                              <SelectItem key={dept.id} value={dept.id}>
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priority</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue placeholder="Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Departments</SelectItem>
-                      {allDepartments.map((dept: any) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={sortBy} onValueChange={(value: 'name' | 'priority' | 'deadline') => setSortBy(value)}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">Name</SelectItem>
-                      <SelectItem value="priority">Priority</SelectItem>
-                      <SelectItem value="deadline">Deadline</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-3"
-                  >
-                    {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-                  </Button>
-                </div>
-
-                {/* Projects Table */}
-                <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Departments</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAndSortedProjects.map((project:any) => (
-                      <tr key={project.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{project.name}</p>
-                            {project.description && (
-                              <p className="text-sm text-gray-600 truncate max-w-xs">
-                                {project.description}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          {project.workflow_step ? (
-                            <Badge
-                              className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300"
-                            >
-                              {project.workflow_step}
-                            </Badge>
-                          ) : (
-                            <span className="text-sm text-gray-400">No workflow</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge 
-                            className="text-xs whitespace-nowrap border"
-                            style={getPriorityColor(project.priority)}
-                          >
-                            {project.priority}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm text-gray-600">{project.account?.name || 'Unknown'}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            {project.departments.length > 0 ? (
-                              project.departments.map((dept: any) => (
-                                <Badge
-                                  key={dept.id}
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {dept.name}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-sm text-gray-400">No departments</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          {project.end_date ? (
-                            <div>
-                              <p className="text-sm text-gray-900">
-                                {format(new Date(project.end_date), 'MMM dd, yyyy')}
-                              </p>
-                              {project.daysUntilDeadline !== null && (
-                                <p className={`text-xs ${
-                                  project.daysUntilDeadline < 0 
-                                    ? 'text-red-600' 
-                                    : project.daysUntilDeadline <= 7 
-                                      ? 'text-yellow-600' 
-                                      : 'text-gray-600'
-                                }`}>
-                                  {project.daysUntilDeadline < 0 
-                                    ? `${Math.abs(project.daysUntilDeadline)} days overdue`
-                                    : `${project.daysUntilDeadline} days left`
-                                  }
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">No deadline</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                              className="h-8 w-8 p-0"
-                            >
-                              <Link href={`/projects/${project.id}`}>
-                                <ExternalLink className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={async () => {
-                                const canDelete = await canDeleteProject(project)
-                                if (canDelete) {
-                                  openDeleteDialog(project)
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    {/* Projects Table */}
+                    <ProjectDataTable
+                      projects={transformToTableData(filteredProjects)}
+                      defaultVisibleColumns={['name', 'workflowStep', 'priority', 'account', 'hours', 'deadline', 'assignedUsers', 'status']}
+                      onRowClick={(project) => router.push(`/projects/${project.id}`)}
+                    />
                   </>
                 )}
             </div>

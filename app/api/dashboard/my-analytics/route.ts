@@ -182,6 +182,25 @@ export async function GET(request: NextRequest) {
       last7Days.push(Math.round(dayHours * 10) / 10);
     }
 
+    // Build daily breakdown for current week (Mon-Sun) with real data
+    const dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const dailyBreakdown: { day: string; hours: number }[] = [];
+
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(weekStart);
+      dayDate.setDate(weekStart.getDate() + i);
+      const dayStr = format(dayDate, 'yyyy-MM-dd');
+
+      const dayHours = weekEntries
+        .filter(e => e.entry_date === dayStr)
+        .reduce((sum, e) => sum + (e.hours_logged || 0), 0);
+
+      dailyBreakdown.push({
+        day: dayNames[i],
+        hours: Math.round(dayHours * 10) / 10
+      });
+    }
+
     // Get weekly target from availability (default 40)
     const weeklyTarget = (availabilityResult.data as Availability)?.available_hours || 40;
 
@@ -296,6 +315,7 @@ export async function GET(request: NextRequest) {
           weeklyTarget,
           dailyAverage,
           weeklyTrend: last7Days,
+          dailyBreakdown,
         },
         tasks: {
           inProgress,

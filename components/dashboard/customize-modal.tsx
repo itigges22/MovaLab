@@ -66,6 +66,9 @@ interface CustomizeModalProps {
   onReset: () => Promise<void>;
 }
 
+// Widget layout types
+const FULL_WIDTH_WIDGETS = new Set(['projects', 'capacity', 'activity']);
+
 const WIDGET_INFO: Record<string, { label: string; icon: React.ElementType; description: string }> = {
   'projects': {
     label: 'My Projects',
@@ -168,6 +171,7 @@ function SortableWidgetItem({
     description: '',
   };
   const Icon = info.icon;
+  const isFullWidth = FULL_WIDTH_WIDGETS.has(widget.type);
 
   return (
     <div
@@ -191,9 +195,18 @@ function SortableWidgetItem({
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${!widget.visible && 'text-muted-foreground'}`}>
-          {info.label}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className={`text-sm font-medium ${!widget.visible && 'text-muted-foreground'}`}>
+            {info.label}
+          </p>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+            isFullWidth
+              ? 'bg-[#007EE5]/10 text-[#007EE5]'
+              : 'bg-muted text-muted-foreground'
+          }`}>
+            {isFullWidth ? 'Full Width' : 'Grid'}
+          </span>
+        </div>
         <p className="text-xs text-muted-foreground truncate">
           {info.description}
         </p>
@@ -296,7 +309,9 @@ export function CustomizeModal({
         <DialogHeader>
           <DialogTitle>Customize Dashboard</DialogTitle>
           <DialogDescription>
-            Drag to reorder widgets and toggle visibility. Changes are saved immediately.
+            Drag to reorder widgets and toggle visibility.
+            <span className="text-[#007EE5]"> Full Width</span> widgets span the entire row,
+            while <span className="text-muted-foreground">Grid</span> widgets flow into columns.
           </DialogDescription>
         </DialogHeader>
 

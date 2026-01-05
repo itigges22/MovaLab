@@ -53,71 +53,168 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #4a6b7a;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Brand Gray Scale */
+  --gray-900: #141414;
+  --gray-800: #282828;
+  --gray-700: #3c3c3c;
+  --gray-600: #475250;
+  --gray-500: #647878;
+  --gray-400: #787878;
+  --gray-350: #7B8994;
+  --gray-300: #3D464D;
+
+  /* Brand Accent Blue (Dropbox-style) */
+  --accent-blue: #007EE5;
+
+  /* Background & Foreground */
+  --background: #FFFFFF;
+  --foreground: #141414;
+
+  /* Cards */
+  --card: #FFFFFF;
+  --card-foreground: #141414;
+
+  /* Popovers */
+  --popover: #FFFFFF;
+  --popover-foreground: #141414;
+
+  /* Primary - Accent Blue */
+  --primary: #007EE5;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary */
+  --secondary: #F5F5F5;
+  --secondary-foreground: #3D464D;
+
+  /* Muted */
+  --muted: #F5F5F5;
+  --muted-foreground: #647878;
+
+  /* Accent */
+  --accent: #F5F5F5;
+  --accent-foreground: #3D464D;
+
+  /* Destructive - Muted Red */
+  --destructive: #9B2C2C;
+  --destructive-foreground: #FFFFFF;
+
+  /* Borders & Inputs */
+  --border: #E5E5E5;
+  --input: #E5E5E5;
+  --ring: #007EE5;
+
+  /* Chart Colors - Blue Primary + Gray Scale */
+  --chart-1: #007EE5;
+  --chart-2: #647878;
+  --chart-3: #787878;
+  --chart-4: #7B8994;
+  --chart-5: #3D464D;
+  --chart-6: #475250;
+  --chart-7: #282828;
+  --chart-8: #3c3c3c;
+
+  /* Sidebar - Light Style */
+  --sidebar-bg: #FAFAFA;
+  --sidebar-foreground: #3D464D;
+  --sidebar-border: #E5E5E5;
+  --sidebar-text: #3D464D;
+  --sidebar-text-muted: #647878;
+  --sidebar-text-active: #141414;
+  --sidebar-section-header: #787878;
+  --sidebar-active-bg: #F0F0F0;
+  --sidebar-active-border: #007EE5;
+  --sidebar-hover-bg: #F5F5F5;
+  --sidebar-profile-bg: #F0F0F0;
+
+  /* Legacy sidebar vars for shadcn compatibility */
+  --sidebar: #FAFAFA;
+  --sidebar-primary: #007EE5;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F0F0F0;
+  --sidebar-accent-foreground: #3D464D;
+  --sidebar-ring: #007EE5;
+
+  /* Status Colors - Muted/Professional */
+  --status-success: #4A5D3A;
+  --status-success-bg: #E8EDE5;
+  --status-warning: #8B7355;
+  --status-warning-bg: #F5F0E8;
+  --status-error: #9B2C2C;
+  --status-error-bg: #F5E8E8;
+  --status-info: #007EE5;
+  --status-info-bg: #E8F4FF;
+
+  /* Typography Scale (Compact) */
+  --text-2xs: 0.625rem;   /* 10px */
+  --text-xs: 0.6875rem;   /* 11px */
+  --text-sm: 0.75rem;     /* 12px */
+  --text-base: 0.8125rem; /* 13px */
+  --text-md: 0.875rem;    /* 14px */
+  --text-lg: 1rem;        /* 16px */
+  --text-xl: 1.125rem;    /* 18px */
+  --text-2xl: 1.25rem;    /* 20px */
+  --text-3xl: 1.5rem;     /* 24px */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #4a6b7a;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dark mode gray scale */
+  --gray-900: #E5E5E5;
+  --gray-800: #D4D4D4;
+  --gray-700: #A3A3A3;
+  --gray-600: #737373;
+  --gray-500: #525252;
+  --gray-400: #404040;
+  --gray-350: #363636;
+  --gray-300: #262626;
+
+  --background: #141414;
+  --foreground: #E5E5E5;
+  --card: #1E1E1E;
+  --card-foreground: #E5E5E5;
+  --popover: #1E1E1E;
+  --popover-foreground: #E5E5E5;
+  --primary: #007EE5;
+  --primary-foreground: #FFFFFF;
+  --secondary: #282828;
+  --secondary-foreground: #E5E5E5;
+  --muted: #282828;
+  --muted-foreground: #A3A3A3;
+  --accent: #282828;
+  --accent-foreground: #E5E5E5;
+  --destructive: #B91C1C;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #007EE5;
+
+  /* Chart colors - same blue primary + adjusted grays for dark */
+  --chart-1: #007EE5;
+  --chart-2: #A3A3A3;
+  --chart-3: #737373;
+  --chart-4: #525252;
+  --chart-5: #404040;
+  --chart-6: #363636;
+  --chart-7: #D4D4D4;
+  --chart-8: #E5E5E5;
+
+  --sidebar: #1E1E1E;
+  --sidebar-foreground: #E5E5E5;
+  --sidebar-primary: #007EE5;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #282828;
+  --sidebar-accent-foreground: #E5E5E5;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #007EE5;
+
+  /* Status colors for dark mode */
+  --status-success: #6B8B5A;
+  --status-success-bg: #2A3A25;
+  --status-warning: #A89070;
+  --status-warning-bg: #3A3025;
+  --status-error: #C53030;
+  --status-error-bg: #3A2525;
+  --status-info: #3B9EFF;
+  --status-info-bg: #1A3A5A;
 }
 
 @layer base {
@@ -130,23 +227,23 @@
   
   /* Custom text selection color */
   ::selection {
-    background-color: #4a6b7a !important;
+    background-color: #007EE5 !important;
     color: white !important;
   }
-  
+
   ::-moz-selection {
-    background-color: #4a6b7a !important;
+    background-color: #007EE5 !important;
     color: white !important;
   }
-  
+
   /* Ensure text selection works on all elements */
   *::selection {
-    background-color: #4a6b7a !important;
+    background-color: #007EE5 !important;
     color: white !important;
   }
-  
+
   *::-moz-selection {
-    background-color: #4a6b7a !important;
+    background-color: #007EE5 !important;
     color: white !important;
   }
   
@@ -179,17 +276,17 @@
   
   /* Ensure proper contrast for primary buttons */
   [data-slot="button"][class*="bg-primary"] {
-    background-color: #4a6b7a !important;
+    background-color: #007EE5 !important;
     color: white !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
-  
+
   [data-slot="button"][class*="bg-primary"]:hover {
-    background-color: #3d5a68 !important;
+    background-color: #0066BE !important;
   }
-  
+
   [data-slot="button"][class*="bg-primary"]:focus-visible {
-    outline: 2px solid #4a6b7a !important;
+    outline: 2px solid #007EE5 !important;
     outline-offset: 2px !important;
   }
 }
@@ -262,4 +359,16 @@ svg polyline {
 
 .animate-pulse-slow {
   animation: pulse-slow 2s ease-in-out infinite;
+}
+
+/* Masonry Grid Layout for Dashboard Widgets */
+.masonry-grid {
+  display: flex;
+  margin-left: -16px; /* Compensate for column padding */
+  width: auto;
+}
+
+.masonry-grid-column {
+  padding-left: 16px; /* Gap between columns */
+  background-clip: padding-box;
 }

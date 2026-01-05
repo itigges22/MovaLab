@@ -37,15 +37,16 @@ interface ProjectData {
   [key: string]: string | number;
 }
 
+// Brand colors - blue primary + gray variants
 const COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#f97316', // orange
+  '#007EE5', // accent blue (primary)
+  '#647878', // gray
+  '#787878', // gray
+  '#7B8994', // gray
+  '#3D464D', // gray
+  '#475250', // gray
+  '#4A5D3A', // olive (for variety)
+  '#282828', // dark gray
 ];
 
 export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
@@ -143,7 +144,7 @@ export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
       <Card>
         <CardContent className="p-6">
           <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007EE5] mx-auto"></div>
             <p className="text-sm text-gray-500 mt-2">Loading charts...</p>
           </div>
         </CardContent>
@@ -183,9 +184,9 @@ export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
               <Line
                 type="monotone"
                 dataKey="hours"
-                stroke="#3b82f6"
+                stroke="#007EE5"
                 strokeWidth={2}
-                dot={{ fill: '#3b82f6', r: 4 }}
+                dot={{ fill: '#007EE5', r: 4 }}
                 activeDot={{ r: 6 }}
               />
             </LineChart>
@@ -310,32 +311,32 @@ export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm font-medium text-blue-900">Most Active Project</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">
+            <div className="p-4 bg-[#007EE5]/10 dark:bg-[#007EE5]/20 rounded-lg">
+              <p className="text-sm font-medium text-[#475250] dark:text-[#7B8994]">Most Active Project</p>
+              <p className="text-2xl font-bold text-[#007EE5] mt-1">
                 {projectData.length > 0 ? projectData[0].name : 'N/A'}
               </p>
-              <p className="text-xs text-blue-700 mt-1">
+              <p className="text-xs text-[#647878] mt-1">
                 {projectData.length > 0 ? `${projectData[0].hours} hours` : ''}
               </p>
             </div>
 
-            <div className="p-4 bg-green-50 rounded-lg">
-              <p className="text-sm font-medium text-green-900">Total Projects</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">
+            <div className="p-4 bg-[#4A5D3A]/10 dark:bg-[#4A5D3A]/20 rounded-lg">
+              <p className="text-sm font-medium text-[#475250] dark:text-[#7B8994]">Total Projects</p>
+              <p className="text-2xl font-bold text-[#4A5D3A] dark:text-[#6B8B5A] mt-1">
                 {projectData.length}
               </p>
-              <p className="text-xs text-green-700 mt-1">Last 30 days</p>
+              <p className="text-xs text-[#647878] mt-1">Last 30 days</p>
             </div>
 
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <p className="text-sm font-medium text-purple-900">Average Daily Hours</p>
-              <p className="text-2xl font-bold text-purple-600 mt-1">
+            <div className="p-4 bg-[#647878]/10 dark:bg-[#647878]/20 rounded-lg">
+              <p className="text-sm font-medium text-[#475250] dark:text-[#7B8994]">Average Daily Hours</p>
+              <p className="text-2xl font-bold text-[#647878] mt-1">
                 {dailyData.length > 0
                   ? (totalHours / 30).toFixed(1)
                   : '0.0'}
               </p>
-              <p className="text-xs text-purple-700 mt-1">Per day (30-day average)</p>
+              <p className="text-xs text-[#787878] mt-1">Per day (30-day average)</p>
             </div>
           </div>
         </CardContent>

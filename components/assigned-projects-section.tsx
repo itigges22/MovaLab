@@ -4,19 +4,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   FolderOpen,
   AlertCircle,
-  Clock,
-  ArrowRight,
-  SortAsc,
-  SortDesc,
-  ExternalLink
+  ArrowRight
 } from 'lucide-react'
-import { format } from 'date-fns'
-import Link from 'next/link'
+import { ProjectDataTable, ProjectTableData, ProjectStatus, ProjectPriority } from '@/components/project-data-table'
 import { hasPermission, canViewProject, UserWithRoles } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { useProjects } from '@/lib/hooks/use-data'
@@ -57,9 +50,6 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
   const { projects: assignedProjects, isLoading: projectsLoading, error: projectsError } = useProjects((userProfile as any)?.id as string | undefined, 10)
   const [visibleProjects, setVisibleProjects] = useState<ProjectWithDetails[]>([])
   const [permissionsChecked, setPermissionsChecked] = useState(false)
-  const [priorityFilter, setPriorityFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'priority' | 'deadline'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({})
   const router = useRouter()
 
@@ -166,115 +156,42 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     fetchWorkflowSteps()
   }, [visibleProjects])
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return 'bg-red-100 text-red-800 border-red-200'
-      case 'high':
-        return 'bg-orange-100 text-orange-800 border-orange-200'
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'low':
-        return 'bg-green-100 text-green-800 border-green-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
-  const _formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Not set'
-    try {
-      return format(new Date(dateString), 'MMM dd, yyyy')
-    } catch {
-      return 'Invalid date'
-    }
-  }
-
-  // Filter and sort projects (use visibleProjects which are already permission-filtered)
-  const filteredAndSortedProjects = visibleProjects
-    .filter((project: any) => {
-      if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false
-      return true
-    })
-    .sort((a, b) => {
-      let aValue: string | number, bValue: string | number
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase()
-          bValue = b.name.toLowerCase()
-          break
-        case 'priority':
-          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
-          aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 0
-          bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0
-          break
-        case 'deadline':
-          aValue = a.end_date ? new Date(a.end_date).getTime() : 0
-          bValue = b.end_date ? new Date(b.end_date).getTime() : 0
-          break
-        default:
-          return 0
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
-    .map((project: any) => ({
-      ...project,
-      daysUntilDeadline: project.end_date
-        ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        : null,
-      workflow_step: workflowSteps[project.id] || null
+  // Transform projects to ProjectTableData format for the new table component
+  const transformToTableData = (projects: ProjectWithDetails[]): ProjectTableData[] => {
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      workflowStep: project.workflow_step || undefined,
+      priority: (project.priority || 'medium') as ProjectPriority,
+      account: project.account?.name,
+      accountId: project.account_id,
+      hours: {
+        estimated: project.estimated_hours || undefined,
+        actual: project.actual_hours || 0,
+        remaining: project.estimated_hours
+          ? Math.max(0, project.estimated_hours - (project.actual_hours || 0))
+          : undefined
+      },
+      deadline: project.end_date || undefined,
+      assignedUsers: [], // This section doesn't have assigned users data
+      status: (project.status || 'planning') as ProjectStatus
     }))
+  }
+
+  // Add workflow steps to visible projects
+  const projectsWithWorkflowSteps = visibleProjects.map((project: any) => ({
+    ...project,
+    workflow_step: workflowSteps[project.id] || null
+  }))
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col space-y-4">
-          <div className="flex items-center space-x-2">
-            <FolderOpen className="w-6 h-6 text-blue-600" />
-            <div>
-              <CardTitle>Your Assigned Projects</CardTitle>
-              <CardDescription>Projects you have been assigned to work on</CardDescription>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-full min-w-0">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={sortBy} onValueChange={(value: 'name' | 'priority' | 'deadline') => setSortBy(value)}>
-                <SelectTrigger className="w-full min-w-0">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="priority">Priority</SelectItem>
-                  <SelectItem value="deadline">Deadline</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="w-full sm:w-auto"
-              >
-                {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-              </Button>
-            </div>
+        <div className="flex items-center space-x-2">
+          <FolderOpen className="w-6 h-6 text-blue-600" />
+          <div>
+            <CardTitle>Your Assigned Projects</CardTitle>
+            <CardDescription>Projects you have been assigned to work on</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -301,101 +218,11 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Hours</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAndSortedProjects.map((project:any) => (
-                  <tr key={project.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{project.name}</p>
-                        {project.description && (
-                          <p className="text-sm text-gray-600 truncate max-w-xs">
-                            {project.description}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      {project.workflow_step ? (
-                        <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
-                          {project.workflow_step}
-                        </Badge>
-                      ) : (
-                        <span className="text-sm text-gray-400">No workflow</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant="outline" className={`${getPriorityColor(project.priority)} text-xs whitespace-nowrap`}>
-                        {project.priority}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-sm text-gray-600">{project.account?.name || 'Unknown'}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-semibold text-blue-600">
-                          {project.estimated_hours !== null && project.estimated_hours !== undefined
-                            ? `${Math.max(0, project.estimated_hours - (project.actual_hours || 0)).toFixed(1)}h left`
-                            : '-'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      {project.end_date ? (
-                        <div>
-                          <p className="text-sm text-gray-900">
-                            {format(new Date(project.end_date), 'MMM dd, yyyy')}
-                          </p>
-                          {project.daysUntilDeadline !== null && (
-                            <p className={`text-xs ${
-                              project.daysUntilDeadline < 0 
-                                ? 'text-red-600' 
-                                : project.daysUntilDeadline <= 7 
-                                  ? 'text-yellow-600' 
-                                  : 'text-gray-600'
-                            }`}>
-                              {project.daysUntilDeadline < 0 
-                                ? `${Math.abs(project.daysUntilDeadline)} days overdue`
-                                : `${project.daysUntilDeadline} days left`
-                              }
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">No deadline</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                        className="h-8 w-8 p-0"
-                      >
-                        <Link href={`/projects/${project.id}`}>
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ProjectDataTable
+            projects={transformToTableData(projectsWithWorkflowSteps)}
+            defaultVisibleColumns={['name', 'workflowStep', 'priority', 'account', 'hours', 'deadline', 'status']}
+            onRowClick={(project) => router.push(`/projects/${project.id}`)}
+          />
         )}
         
         {assignedProjects.length > 0 && (

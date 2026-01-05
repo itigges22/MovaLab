@@ -159,7 +159,7 @@ export function CapacityUtilizationWidget() {
             </Select>
           </div>
           {overAllocatedPeriods.length > 0 && (
-            <div className="flex items-center gap-2 text-amber-600 text-sm">
+            <div className="flex items-center gap-2 text-[#647878] text-sm">
               <AlertTriangle className="h-4 w-4" />
               <span>{overAllocatedPeriods.length} period(s) over-allocated</span>
             </div>
@@ -219,9 +219,9 @@ export function CapacityUtilizationWidget() {
                   <Line
                     type="monotone"
                     dataKey="available"
-                    stroke="#10b981"
+                    stroke="#4A5D3A"
                     strokeWidth={2}
-                    dot={{ fill: '#10b981', r: 4 }}
+                    dot={{ fill: '#4A5D3A', r: 4 }}
                     name="Available"
                     yAxisId="left"
                     connectNulls
@@ -230,9 +230,9 @@ export function CapacityUtilizationWidget() {
                   <Line
                     type="monotone"
                     dataKey="allocated"
-                    stroke="#f59e0b"
+                    stroke="#647878"
                     strokeWidth={2}
-                    dot={{ fill: '#f59e0b', r: 4 }}
+                    dot={{ fill: '#647878', r: 4 }}
                     name="Allocated"
                     yAxisId="left"
                     connectNulls
@@ -241,9 +241,9 @@ export function CapacityUtilizationWidget() {
                   <Line
                     type="monotone"
                     dataKey="actual"
-                    stroke="#3b82f6"
+                    stroke="#475250"
                     strokeWidth={2}
-                    dot={{ fill: '#3b82f6', r: 4 }}
+                    dot={{ fill: '#475250', r: 4 }}
                     name="Actual"
                     yAxisId="left"
                     connectNulls
@@ -252,10 +252,10 @@ export function CapacityUtilizationWidget() {
                   <Line
                     type="monotone"
                     dataKey="utilization"
-                    stroke="#8b5cf6"
+                    stroke="#007EE5"
                     strokeWidth={2}
                     strokeDasharray="5 5"
-                    dot={{ fill: '#8b5cf6', r: 4 }}
+                    dot={{ fill: '#007EE5', r: 4 }}
                     name="Utilization"
                     yAxisId="right"
                     connectNulls
@@ -282,9 +282,9 @@ export function CapacityUtilizationWidget() {
                   />
                   <Legend />
                   <ReferenceLine y={0} stroke="#666" />
-                  <Bar dataKey="available" fill="#10b981" name="Available" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="allocated" fill="#f59e0b" name="Allocated" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="actual" fill="#3b82f6" name="Actual" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="available" fill="#4A5D3A" name="Available" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="allocated" fill="#647878" name="Allocated" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="actual" fill="#475250" name="Actual" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -304,20 +304,20 @@ export function CapacityUtilizationWidget() {
               />
               <Bar dataKey="utilization" radius={[0, 4, 4, 0]}>
                 {capacityData.map((entry, index) => {
-                  let color = '#22c55e'; // green (60-85%)
-                  if (entry.utilization > 100) color = '#ef4444'; // red
-                  else if (entry.utilization > 85) color = '#f59e0b'; // amber
-                  else if (entry.utilization < 60) color = '#94a3b8'; // gray
+                  let color = '#4A5D3A'; // olive green (60-85%)
+                  if (entry.utilization > 100) color = '#3D464D'; // dark gray (over 100%)
+                  else if (entry.utilization > 85) color = '#647878'; // gray (85-100%)
+                  else if (entry.utilization < 60) color = '#787878'; // lighter gray (under 60%)
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
           <div className="flex justify-center gap-4 mt-2 text-xs">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-400" /> Under 60%</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500" /> 60-85%</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-500" /> 85-100%</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500" /> Over 100%</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#787878]" /> Under 60%</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#4A5D3A]" /> 60-85%</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#647878]" /> 85-100%</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#3D464D]" /> Over 100%</span>
           </div>
         </div>
       </div>

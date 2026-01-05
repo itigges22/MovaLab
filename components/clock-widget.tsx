@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Clock, Play, Square, Timer, List, Calendar, GripVertical } from 'lucide-react'
+import { Clock, Play, Square, Timer, List, Calendar, GripVertical, PanelLeftClose } from 'lucide-react'
 import { ClockOutDialog } from './clock-out-dialog'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -25,7 +25,12 @@ const DragAvailabilityCalendar = dynamic(() => import('@/components/drag-availab
   ssr: false
 })
 
-export function ClockWidget() {
+interface ClockWidgetProps {
+  onDock?: () => void;
+  isVisible?: boolean;
+}
+
+export function ClockWidget({ onDock, isVisible = true }: ClockWidgetProps) {
   const { userProfile, loading: authLoading } = useAuth()
   // Only fetch clock status when authenticated (prevents 404 on login pages)
   const isAuthenticated = !authLoading && !!userProfile
@@ -188,6 +193,11 @@ export function ClockWidget() {
     return null
   }
 
+  // Don't render if not visible (docked to sidebar)
+  if (!isVisible) {
+    return null
+  }
+
   // Compute position styles
   const positionStyles = position
     ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
@@ -263,6 +273,15 @@ export function ClockWidget() {
                   >
                     minimize
                   </button>
+                  {onDock && (
+                    <button
+                      onClick={onDock}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                      title="Dock to sidebar"
+                    >
+                      <PanelLeftClose className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -3,6 +3,8 @@
 // Account overview component - updated to fix module resolution
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ProjectDataTable, ProjectTableData, ProjectStatus, ProjectPriority } from '@/components/project-data-table';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,8 +21,6 @@ import {
   Trash2,
   ExternalLink,
   Move,
-  SortAsc,
-  SortDesc,
   Edit
 } from 'lucide-react';
 import { AccountWithProjects, AccountMetrics, UrgentItem, ProjectWithDetails, accountService } from '@/lib/account-service';
@@ -64,6 +64,7 @@ const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
 export function AccountOverview({ account, metrics, urgentItems, userProfile }: AccountOverviewProps) {
   // Account overview component
   // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), only table view remains
+  const router = useRouter();
   // Memoize account ID to avoid complex expressions in deps
   const accountId = useMemo(() => (account as any).id, [account]);
 
@@ -99,13 +100,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
   // Move Project Dialog State
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [projectToMove, setProjectToMove] = useState<ProjectWithDetails | null>(null);
-  
-  // Filter and Sort State
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'priority' | 'deadline'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  
+
   // Active Issues State
   const [activeIssues, setActiveIssues] = useState<(ProjectIssue & { project?: { id: string; name: string } })[]>([]);
   const [loadingActiveIssues, setLoadingActiveIssues] = useState(true);
@@ -140,27 +135,12 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         try {
           data = JSON.parse(responseText);
         } catch {
-          console.error('Failed to parse API response:', {
-            status: response.status,
-            statusText: response.statusText,
-            responseText: responseText.substring(0, 200)
-          });
           // Set empty array if response is not valid JSON
           setAccountMembers([]);
           return;
         }
         
         if (!response.ok) {
-          // Log the error details from the response - include full data object
-          console.error('Failed to load account members:', {
-            status: response.status,
-            statusText: response.statusText,
-            fullResponseData: data, // Log the entire response object
-            error: data?.error || 'Unknown error',
-            details: data?.details || data?.message || 'No details provided',
-            code: data?.code || 'No error code',
-            url: `/api/accounts/${accountId}/members`
-          });
           // Set empty array if error - don't crash the page
           setAccountMembers([]);
           return;
@@ -168,13 +148,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         
         // Success - set the members
         setAccountMembers((data.members as typeof accountMembers) || []);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-        console.error('Error loading account members:', {
-          error: errorMessage,
-          stack: errorStack
-        });
+      } catch {
         // Set empty array on error - don't crash the page
         setAccountMembers([]);
       }
@@ -223,8 +197,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
             }))
           );
         }
-      } catch (error: unknown) {
-        console.error('Error fetching remaining hours:', error);
+      } catch {
+        // Silently handle remaining hours fetch errors
       }
     }, [projects]);
 
@@ -252,12 +226,10 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
   // Load milestones from database
   const loadMilestones = useCallback(async () => {
       try {
-        console.log('AccountOverview: Loading milestones...');
         const fetchedMilestones = await getMilestones();
-        console.log('AccountOverview: Fetched milestones:', fetchedMilestones);
         setMilestones(fetchedMilestones);
-      } catch (error: unknown) {
-        console.error('Failed to load milestones:', error);
+      } catch {
+        // Silently handle milestone loading errors
       }
     }, []);
 
@@ -271,8 +243,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
       try {
         const issues = await projectIssuesService.getAccountActiveIssues(accountId);
         setActiveIssues(issues);
-      } catch (error: unknown) {
-        console.error('Failed to load active issues:', error);
+      } catch {
+        // Silently handle active issues load errors
       } finally {
         setLoadingActiveIssues(false);
       }
@@ -300,7 +272,6 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
           .order('updated_at', { ascending: false });
 
         if (error) {
-          console.error('Failed to load finished projects:', error);
           return;
         }
 
@@ -312,8 +283,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         } as unknown as ProjectWithDetails));
 
         setFinishedProjects(finished);
-      } catch (error: unknown) {
-        console.error('Failed to load finished projects:', error);
+      } catch {
+        // Silently handle finished projects load errors
       } finally {
         setLoadingFinishedProjects(false);
       }
@@ -351,12 +322,10 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         setActiveIssues(previousIssues);
         toast.error(result.error || 'Failed to update issue status');
       }
-    } catch (error: unknown) {
+    } catch {
       // Revert on error
       setActiveIssues(previousIssues);
-      console.error('Error updating issue status:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update issue status. Please try again.';
-      toast.error(errorMessage);
+      toast.error('Failed to update issue status. Please try again.');
     }
   };
 
@@ -365,8 +334,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
       try {
         const config = await accountKanbanConfigService.getOrCreateAccountKanbanConfig(accountId);
         setKanbanColumns(config.columns.sort((a, b) => a.order - b.order));
-      } catch (error: unknown) {
-        console.error('Error loading kanban config:', error);
+      } catch {
         setKanbanColumns(DEFAULT_KANBAN_COLUMNS);
       }
     }, [accountId]);
@@ -381,11 +349,10 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         const stored = localStorage.getItem(`kanban-custom-assignments-${accountId}`);
         if (stored) {
           const assignments = JSON.parse(stored);
-          console.log('Loaded custom column assignments from localStorage:', assignments);
           setCustomColumnAssignments(assignments);
         }
-      } catch (error: unknown) {
-        console.error('Error loading custom column assignments:', error);
+      } catch {
+        // Silently handle localStorage errors
       }
     }, [accountId]);
 
@@ -398,9 +365,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     if (Object.keys(customColumnAssignments).length > 0) {
       try {
         localStorage.setItem(`kanban-custom-assignments-${accountId}`, JSON.stringify(customColumnAssignments));
-        console.log('Saved custom column assignments to localStorage:', customColumnAssignments);
-      } catch (error: unknown) {
-        console.error('Error saving custom column assignments:', error);
+      } catch {
+        // Silently handle localStorage errors
       }
     }
   }, [customColumnAssignments, accountId]);
@@ -420,7 +386,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const _getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent':
         return { backgroundColor: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5' }
@@ -435,18 +401,34 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     }
   }
 
+  // Transform projects to ProjectTableData format for the new table component
+  const transformToTableData = (projectList: ProjectWithDetails[]): ProjectTableData[] => {
+    return projectList.map((project) => ({
+      id: project.id,
+      name: project.name,
+      workflowStep: project.workflow_step || undefined,
+      priority: (project.priority || 'medium') as ProjectPriority,
+      account: (account as any).name,
+      accountId: (account as any).id,
+      hours: {
+        estimated: project.estimated_hours || undefined,
+        actual: project.actual_hours || 0,
+        remaining: project.estimated_hours
+          ? Math.max(0, project.estimated_hours - (project.actual_hours || 0))
+          : undefined
+      },
+      deadline: project.end_date || undefined,
+      assignedUsers: [], // This section doesn't have assigned users data per project
+      status: (project.status || 'planning') as ProjectStatus
+    }))
+  }
+
   const handleDeleteProject = (projectId: string) => {
-    console.log('handleDeleteProject called with ID:', projectId);
     // Look in both active and finished projects
     const project = projects.find((p: any) => p.id === projectId) || finishedProjects.find((p: any) => p.id === projectId);
-    console.log('Found project:', project);
     if (project) {
-      console.log('Setting project to delete:', { id: project.id, name: project.name });
       setProjectToDelete({ id: project.id, name: project.name });
       setDeleteDialogOpen(true);
-      console.log('Dialog should now be open');
-    } else {
-      console.error('Project not found for ID:', projectId);
     }
   };
 
@@ -458,7 +440,6 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
       );
       
       if (!targetColumn) {
-        console.error('Could not find column for status:', newStatus);
         return;
       }
 
@@ -469,17 +450,12 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
 
       if (isCustomColumn && isApprovedColumn) {
         // For "Approved" columns, only update the custom column assignment (visual only)
-        console.log('Moving to custom Approved column - visual only, no database update');
-        
         setCustomColumnAssignments(prev => ({
           ...prev,
           [projectId]: targetColumn.id
         }));
-        
-        console.log('Custom column assignment updated for Approved column:', targetColumn.id);
       } else {
         // For standard columns, update the database status
-        console.log('Moving to standard column - updating database status');
 
         const supabase = createClientSupabase() as any;
         if (!supabase) return;
@@ -490,7 +466,6 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
           .eq('id', projectId);
 
         if (error) {
-          console.error('Error updating project status:', error);
           return;
         }
 
@@ -513,86 +488,29 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
       // Close the dialog
       setMoveDialogOpen(false);
       setProjectToMove(null);
-    } catch (error: unknown) {
-      console.error('Error moving project:', error);
+    } catch {
+      // Error moving project - silently handle
     }
   };
 
-  // Filter and sort projects (exclude completed - they show in Finished Projects section)
-  const filteredAndSortedProjects = projects
-    .filter((project: any) => {
-      // Exclude completed projects - they go to the Finished Projects section
-      if (project.status === 'complete') return false;
-      if (statusFilter !== 'all' && project.status !== statusFilter) return false;
-      if (priorityFilter !== 'all' && project.priority !== priorityFilter) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      let aValue: string | number, bValue: string | number;
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case 'priority':
-          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-          aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-          bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-          break;
-        case 'deadline':
-          aValue = a.end_date ? new Date(a.end_date).getTime() : 0;
-          bValue = b.end_date ? new Date(b.end_date).getTime() : 0;
-          break;
-        default:
-          return 0;
-      }
-      
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    })
-    .map((project: any) => ({
-      ...project,
-      daysUntilDeadline: project.end_date 
-        ? Math.ceil((new Date(project.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        : null
-    }));
+  // Filter out completed projects (they show in Finished Projects section)
+  const activeProjects = projects.filter((project: any) => project.status !== 'complete');
 
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
-    
-    console.log('Confirming delete for project:', projectToDelete.name);
 
     try {
-      console.log('Attempting to delete project...');
       const success = await accountService.deleteProject(projectToDelete.id);
-      console.log('Delete result:', success);
-      
+
       if (success) {
         // Remove from active projects
-        setProjects(prev => {
-          const filtered = prev.filter((p: any) => p.id !== projectToDelete.id);
-          console.log('Updated projects list:', filtered.length, 'projects remaining');
-          return filtered;
-        });
+        setProjects(prev => prev.filter((p: any) => p.id !== projectToDelete.id));
         // Also remove from finished projects
-        setFinishedProjects(prev => {
-          const filtered = prev.filter((p: any) => p.id !== projectToDelete.id);
-          console.log('Updated finished projects list:', filtered.length, 'projects remaining');
-          return filtered;
-        });
-        console.log('Project deleted successfully');
+        setFinishedProjects(prev => prev.filter((p: any) => p.id !== projectToDelete.id));
       } else {
-        console.error('Failed to delete project - service returned false');
         toast.error('Failed to delete project. Please try again.');
       }
-    } catch (error: unknown) {
-      console.error('Error deleting project:', error);
+    } catch {
       toast.error('Error deleting project. Please try again.');
     } finally {
       // Close dialog and reset state
@@ -627,24 +545,16 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     date: Date;
     color: string;
   }) => {
-    try {
-      console.log('AccountOverview: Creating milestone with data:', data);
-      const newMilestone = await createMilestone({
-        name: data.name,
-        description: data.description,
-        date: data.date,
-        color: data.color,
-      });
-      console.log('AccountOverview: Created milestone:', newMilestone);
-      const updatedMilestones = [...milestones, newMilestone].sort((a, b) => 
-        new Date(a.date).getTime() - new Date(b.date).getTime()
-      );
-      console.log('AccountOverview: Updated milestones array:', updatedMilestones);
-      setMilestones(updatedMilestones);
-    } catch (error: unknown) {
-      console.error('Failed to create milestone:', error);
-      throw error; // Re-throw to let the dialog handle the error
-    }
+    const newMilestone = await createMilestone({
+      name: data.name,
+      description: data.description,
+      date: data.date,
+      color: data.color,
+    });
+    const updatedMilestones = [...milestones, newMilestone].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    setMilestones(updatedMilestones);
   };
 
   // Helper function to map project status to kanban column
@@ -652,19 +562,11 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     return accountKanbanConfigService.getKanbanColumnForStatus(status, kanbanColumns);
   };
 
-  // Convert projects to Kanban format
-  const kanbanData = projects.map((project: any) => {
+  // Convert projects to Kanban format (kept for Move Project dialog compatibility)
+  const _kanbanData = projects.map((project: any) => {
     // Check if this project has a custom column assignment
     const customColumn = customColumnAssignments[project.id];
     const columnId = customColumn || getKanbanColumn(project.status);
-    
-    console.log('Mapping project to kanban:', {
-      projectId: project.id,
-      projectStatus: project.status,
-      customColumn,
-      mappedColumnId: columnId,
-      availableColumns: kanbanColumns.map((c: any) => c.id)
-    });
     
     return {
       id: project.id,
@@ -679,25 +581,16 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     };
   });
 
-  console.log('Kanban data:', kanbanData);
-  console.log('Kanban columns:', kanbanColumns);
-  console.log('Projects status mapping:', projects.map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    status: p.status,
-    mappedColumn: getKanbanColumn(p.status)
-  })));
-
   const getHealthScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 80) return 'text-[#4A5D3A]';
+    if (score >= 60) return 'text-[#647878]';
+    return 'text-[#3D464D]';
   };
 
   const getHealthScoreBg = (score: number) => {
-    if (score >= 80) return 'bg-green-100';
-    if (score >= 60) return 'bg-yellow-100';
-    return 'bg-red-100';
+    if (score >= 80) return 'bg-[#4A5D3A]/10';
+    if (score >= 60) return 'bg-[#647878]/10';
+    return 'bg-[#3D464D]/10';
   };
 
   return (
@@ -743,200 +636,37 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         {/* 1. Projects Card */}
         <Card>
           <CardHeader className="pb-4">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg sm:text-xl">Projects</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Manage and track your account projects
                 </p>
               </div>
-              <div className="space-y-4">
-                {/* New Project Button */}
-                <div className="flex items-center justify-end">
-                  {canCreateProject && (
-                    <TaskCreationDialog
-                      onTaskCreated={handleTaskCreated}
-                      accountId={(account as any).id}
-                      account={account as unknown as Record<string, unknown>}
-                      userProfile={userProfile}
-                      initialStartDate={projectDialogStartDate}
-                    >
-                      <Button className="flex items-center gap-2" size="sm">
-                        <PlusIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">New Project</span>
-                        <span className="sm:hidden">New</span>
-                      </Button>
-                    </TaskCreationDialog>
-                  )}
-                </div>
-
-                {/* Filter and Sort Controls */}
-                <div className="flex flex-wrap gap-2">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="planning">Planning</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="review">Review</SelectItem>
-                        <SelectItem value="on_hold">On Hold</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priority</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={sortBy} onValueChange={(value: 'name' | 'status' | 'priority' | 'deadline') => setSortBy(value)}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="name">Name</SelectItem>
-                        <SelectItem value="status">Status</SelectItem>
-                        <SelectItem value="priority">Priority</SelectItem>
-                        <SelectItem value="deadline">Deadline</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                      className="px-3"
-                    >
-                      {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-                    </Button>
-                  </div>
-              </div>
-              </div>
+              {canCreateProject && (
+                <TaskCreationDialog
+                  onTaskCreated={handleTaskCreated}
+                  accountId={(account as any).id}
+                  account={account as unknown as Record<string, unknown>}
+                  userProfile={userProfile}
+                  initialStartDate={projectDialogStartDate}
+                >
+                  <Button className="flex items-center gap-2" size="sm">
+                    <PlusIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">New Project</span>
+                    <span className="sm:hidden">New</span>
+                  </Button>
+                </TaskCreationDialog>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {/* Projects Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Project</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Workflow Step</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Account</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Est Hours</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Deadline</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSortedProjects.map((project:any) => (
-                    <tr key={project.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900">{project.name}</p>
-                          {project.description && (
-                            <p className="text-sm text-gray-600 line-clamp-2">
-                              {project.description}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {project.workflow_step ? (
-                          <Badge className="text-xs whitespace-nowrap border bg-blue-100 text-blue-800 border-blue-300">
-                            {project.workflow_step}
-                          </Badge>
-                        ) : (
-                          <span className="text-sm text-gray-400">No workflow</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          className="text-xs whitespace-nowrap border"
-                          style={getPriorityColor(project.priority)}
-                        >
-                          {project.priority}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-sm text-gray-600">{(account as any).name}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4 text-blue-500" />
-                          <span className="text-sm font-semibold text-blue-600">
-                            {project.estimated_hours ? `${project.estimated_hours}h` : '-'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {project.end_date ? (
-                          <div>
-                            <p className="text-sm text-gray-900">
-                              {format(new Date(project.end_date), 'MMM dd, yyyy')}
-                            </p>
-                            {(() => {
-                              const endDate = new Date(project.end_date);
-                              const now = new Date();
-                              const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                              return (
-                                <p className={`text-xs ${
-                                  daysUntilDeadline < 0
-                                    ? 'text-red-600'
-                                    : daysUntilDeadline <= 7
-                                      ? 'text-yellow-600'
-                                      : 'text-gray-600'
-                                }`}>
-                                  {daysUntilDeadline < 0
-                                    ? `${Math.abs(daysUntilDeadline)} days overdue`
-                                    : `${daysUntilDeadline} days left`
-                                  }
-                                </p>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">No deadline</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            asChild
-                            className="h-8 w-8 p-0"
-                          >
-                            <Link href={`/projects/${project.id}`}>
-                              <ExternalLink className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          {canDeleteProject && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteProject(project.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ProjectDataTable
+              projects={transformToTableData(activeProjects)}
+              defaultVisibleColumns={['name', 'workflowStep', 'priority', 'hours', 'deadline', 'status']}
+              onRowClick={(project) => router.push(`/projects/${project.id}`)}
+            />
           </CardContent>
         </Card>
 
@@ -944,7 +674,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
+              <AlertTriangle className="h-5 w-5 text-[#647878]" />
               Active Issues & Roadblocks
             </CardTitle>
             <CardDescription>
@@ -954,12 +684,12 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
           <CardContent>
             {loadingActiveIssues ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007EE5] mx-auto"></div>
                 <p className="text-sm text-muted-foreground mt-2">Loading issues...</p>
               </div>
             ) : activeIssues.length === 0 ? (
               <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <CheckCircle className="h-12 w-12 text-[#4A5D3A] mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground">No active issues. Everything is running smoothly!</p>
               </div>
             ) : (
@@ -969,8 +699,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
                     key={issue.id}
                     className={`p-4 border rounded-lg ${
                       issue.status === 'in_progress'
-                        ? 'bg-yellow-50 border-yellow-200'
-                        : 'bg-orange-50 border-orange-200'
+                        ? 'bg-[#647878]/10 border-[#647878]/30'
+                        : 'bg-[#3D464D]/10 border-[#3D464D]/30'
                     }`}
                   >
                     <div className="space-y-3">
@@ -1013,19 +743,19 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
                             <SelectContent>
                               <SelectItem value="open">
                                 <span className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                  <span className="w-2 h-2 rounded-full bg-[#3D464D]"></span>
                                   Open
                                 </span>
                               </SelectItem>
                               <SelectItem value="in_progress">
                                 <span className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                  <span className="w-2 h-2 rounded-full bg-[#647878]"></span>
                                   In Progress
                                 </span>
                               </SelectItem>
                               <SelectItem value="resolved">
                                 <span className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                  <span className="w-2 h-2 rounded-full bg-[#4A5D3A]"></span>
                                   Resolved
                                 </span>
                               </SelectItem>
@@ -1055,7 +785,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
           <CardContent>
             {urgentItems.length === 0 ? (
               <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <CheckCircle className="h-12 w-12 text-[#4A5D3A] mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground">No urgent items</p>
               </div>
             ) : (
@@ -1063,7 +793,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
                 {urgentItems.map((item:any, index:any) => (
                   <div key={index} className="flex items-center p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className={`h-2 w-2 rounded-full ${item.priority === 'high' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                      <div className={`h-2 w-2 rounded-full ${item.priority === 'high' ? 'bg-[#3D464D]' : 'bg-[#647878]'}`} />
                       <div>
                         <p className="text-sm font-medium">{item.title}</p>
                         <p className="text-xs text-muted-foreground">{item.description}</p>
@@ -1097,7 +827,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
 
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  <BarChart3 className="w-8 h-8 text-blue-600" />
+                  <BarChart3 className="w-8 h-8 text-[#007EE5]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
@@ -1108,18 +838,18 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
 
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
+                  <CheckCircle className="w-8 h-8 text-[#4A5D3A]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Completed Projects</p>
-                  <p className="text-2xl font-bold text-green-600">{metrics.completedProjects}</p>
+                  <p className="text-2xl font-bold text-[#4A5D3A]">{metrics.completedProjects}</p>
                   <p className="text-xs text-muted-foreground">Successfully finished</p>
                 </div>
               </div>
 
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  <Calendar className="w-8 h-8 text-amber-600" />
+                  <Calendar className="w-8 h-8 text-[#647878]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Upcoming Deadlines</p>
@@ -1130,18 +860,18 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
 
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                  <AlertTriangle className="w-8 h-8 text-[#3D464D]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Overdue Projects</p>
-                  <p className="text-2xl font-bold text-red-600">{metrics.overdueProjects}</p>
+                  <p className="text-2xl font-bold text-[#3D464D]">{metrics.overdueProjects}</p>
                   <p className="text-xs text-muted-foreground">Require attention</p>
                 </div>
               </div>
 
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  <Clock className="w-8 h-8 text-purple-600" />
+                  <Clock className="w-8 h-8 text-[#787878]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
@@ -1165,7 +895,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-[#4A5D3A]" />
                 Finished Projects
               </CardTitle>
               <CardDescription>
@@ -1175,7 +905,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
             <CardContent>
               {loadingFinishedProjects ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007EE5]" />
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1187,14 +917,14 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
                       <div className="flex-1 min-w-0">
                         <Link
                           href={`/projects/${project.id}`}
-                          className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                          className="text-sm font-medium text-gray-900 hover:text-[#007EE5] hover:underline"
                         >
                           {project.name}
                         </Link>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           {project.completed_at && (
                             <span className="flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              <CheckCircle className="h-3 w-3 text-[#4A5D3A]" />
                               Completed {format(new Date(project.completed_at), 'MMM d, yyyy')}
                             </span>
                           )}
@@ -1207,7 +937,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
-                        <Badge className="bg-green-100 text-green-800 text-xs">
+                        <Badge className="bg-[#4A5D3A]/10 text-[#4A5D3A] text-xs">
                           Complete
                         </Badge>
                         <Link href={`/projects/${project.id}`}>
@@ -1220,7 +950,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteProject(project.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-8 w-8 p-0 text-[#3D464D] hover:text-foreground hover:bg-muted"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1307,7 +1037,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
+            <DialogTitle className="flex items-center gap-2 text-[#3D464D]">
               <AlertTriangle className="h-5 w-5" />
               Delete Project?
             </DialogTitle>
@@ -1317,8 +1047,8 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
               <p className="text-sm text-muted-foreground">
                 You are about to delete <span className="font-semibold text-gray-900">&quot;{projectToDelete.name}&quot;</span>.
               </p>
-              <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <p className="text-sm text-red-800">
+              <div className="bg-[#3D464D]/10 border border-[#3D464D]/30 rounded-md p-3">
+                <p className="text-sm text-[#3D464D]">
                   ⚠️ <strong>Warning:</strong> This action cannot be undone. All project data, including updates, issues, and history will be permanently removed.
                 </p>
               </div>
@@ -1334,7 +1064,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
             <Button
               variant="destructive"
               onClick={confirmDeleteProject}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-[#3D464D] hover:bg-[#282828]"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Project

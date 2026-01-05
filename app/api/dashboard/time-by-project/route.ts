@@ -17,16 +17,16 @@ interface ProjectTime {
   color: string;
 }
 
-// Colors for the pie chart
+// Colors for the pie chart - Brand colors (blue primary + gray variants)
 const COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#84cc16', // lime
+  '#007EE5', // accent blue (primary)
+  '#647878', // gray
+  '#787878', // gray
+  '#7B8994', // gray
+  '#3D464D', // gray
+  '#475250', // gray
+  '#4A5D3A', // olive (for variety)
+  '#282828', // dark gray
 ];
 
 export async function GET(request: NextRequest) {

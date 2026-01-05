@@ -16,29 +16,29 @@ interface NetworkNodeData {
 }
 
 const statusColors: Record<string, string> = {
-  planning: '#94a3b8',
-  in_progress: '#3b82f6',
-  review: '#f59e0b',
-  complete: '#22c55e',
-  on_hold: '#ef4444',
-  active: '#22c55e',
-  inactive: '#94a3b8',
+  planning: '#787878',
+  in_progress: '#007EE5',
+  review: '#647878',
+  complete: '#4A5D3A',
+  on_hold: '#3D464D',
+  active: '#4A5D3A',
+  inactive: '#787878',
 };
 
 const typeStyles: Record<string, { bg: string; border: string; icon: React.ComponentType<{ className?: string }> }> = {
   user: {
-    bg: 'bg-blue-50 dark:bg-blue-950',
-    border: 'border-blue-400 dark:border-blue-600',
+    bg: 'bg-[#007EE5]/10 dark:bg-[#007EE5]/20',
+    border: 'border-[#007EE5]/40 dark:border-[#007EE5]/60',
     icon: User,
   },
   project: {
-    bg: 'bg-green-50 dark:bg-green-950',
-    border: 'border-green-400 dark:border-green-600',
+    bg: 'bg-[#4A5D3A]/10 dark:bg-[#4A5D3A]/20',
+    border: 'border-[#4A5D3A]/40 dark:border-[#4A5D3A]/60',
     icon: FolderKanban,
   },
   account: {
-    bg: 'bg-orange-50 dark:bg-orange-950',
-    border: 'border-orange-400 dark:border-orange-600',
+    bg: 'bg-[#647878]/10 dark:bg-[#647878]/20',
+    border: 'border-[#647878]/40 dark:border-[#647878]/60',
     icon: Building2,
   },
 };
