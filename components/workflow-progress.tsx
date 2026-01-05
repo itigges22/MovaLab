@@ -5,7 +5,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { createClientSupabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/hooks/useAuth';
 import {
   Play,
   GitBranch,
@@ -254,7 +253,6 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
   const [currentSteps, setCurrentSteps] = useState<CurrentStepInfo[]>([]);
   const [nextSteps, setNextSteps] = useState<NextStepInfo[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
-  const { userProfile } = useAuth();
 
   /**
    * Recursively find the actual actionable nodes, skipping sync/conditional nodes
@@ -468,7 +466,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
     } finally {
       setLoading(false);
     }
-  }, [workflowInstanceId, findActionableNextNodes, userProfile]);
+  }, [workflowInstanceId, findActionableNextNodes]);
 
   useEffect(() => {
     if (workflowInstanceId) {
