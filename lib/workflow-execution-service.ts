@@ -1546,7 +1546,7 @@ async function cancelParallelSiblingsAndSyncNodes(
     .in('status', ['active', 'waiting']);
 
   if (fetchError || !stepsToCancel) {
-    console.error('Error fetching steps to cancel:', fetchError);
+    logger.error('Error fetching steps to cancel', { fetchError });
     return { cancelledCount: 0 };
   }
 
@@ -1606,11 +1606,11 @@ async function cancelParallelSiblingsAndSyncNodes(
     .in('id', stepIds);
 
   if (updateError) {
-    console.error('Error cancelling sibling steps:', updateError);
+    logger.error('Error cancelling sibling steps', { updateError });
     return { cancelledCount: 0 };
   }
 
-  console.log('Cancelled parallel siblings and sync waiters:', {
+  logger.info('Cancelled parallel siblings and sync waiters', {
     workflowInstanceId,
     currentBranchId,
     forkPointBranch,
@@ -1692,7 +1692,7 @@ async function cancelParallelSiblingsAndSyncNodes(
             })
             .in('id', downstreamStepIds);
 
-          console.log('Cancelled downstream orphaned steps:', {
+          logger.info('Cancelled downstream orphaned steps', {
             count: downstreamStepIds.length,
             steps: orphanedDownstreamSteps.map((s: any) => ({ id: s.id, nodeId: s.node_id }))
           });
@@ -1996,7 +1996,7 @@ export async function isWorkflowComplete(
     .in('status', ['active', 'waiting']);
 
   if (error) {
-    console.error('Error checking workflow completion:', error);
+    logger.error('Error checking workflow completion', { error });
     return false;
   }
 
@@ -2052,7 +2052,7 @@ async function handleSyncNode(
   if (!lockAcquired) {
     // Another process is handling this sync, return early
     // The branch will still be marked as waiting in the main flow
-    console.log('Sync lock not acquired - another branch is handling sync:', {
+    logger.debug('Sync lock not acquired - another branch is handling sync', {
       syncNodeId,
       completingBranchId
     });
@@ -2065,7 +2065,7 @@ async function handleSyncNode(
     };
   }
 
-  console.log('Sync lock acquired:', { syncNodeId, completingBranchId });
+  logger.debug('Sync lock acquired', { syncNodeId, completingBranchId });
 
   // Get expected number of incoming branches
   const expectedBranches = getSyncNodeExpectedBranches(syncNodeId, connections);
@@ -2140,7 +2140,7 @@ async function handleSyncNode(
     }
   }
 
-  console.log('Sync node check:', {
+  logger.debug('Sync node check', {
     syncNodeId,
     expectedBranches,
     currentFlowId,
@@ -2206,10 +2206,10 @@ export async function progressWorkflowStep(
       // Use snapshot data (protects against template deletion/modification)
       nodes = instance.started_snapshot.nodes;
       connections = instance.started_snapshot.connections;
-      console.log('[progressWorkflowStep] Using snapshot data');
+      logger.debug('[progressWorkflowStep] Using snapshot data');
     } else {
       // Fallback to live tables for older instances without snapshot
-      console.log('[progressWorkflowStep] Falling back to live table queries');
+      logger.debug('[progressWorkflowStep] Falling back to live table queries');
       const { data: liveNodes } = await supabase
         .from('workflow_nodes')
         .select('*')
@@ -2318,7 +2318,7 @@ export async function progressWorkflowStep(
 
         // If node has no assignments AND step has no assignment, treat as "anyone can progress"
         if (nodeHasNoAssignments && stepHasNoAssignment) {
-          console.log('Node has no assignments - allowing any project member to progress:', {
+          logger.debug('Node has no assignments - allowing any project member to progress', {
             nodeId: currentNode.id,
             nodeLabel: currentNode.label,
             userId: currentUserId
@@ -2393,7 +2393,7 @@ export async function progressWorkflowStep(
       // The active step stores the aggregate_decision from handleSyncNode
       const aggregateDecision = activeStep?.aggregate_decision as 'all_approved' | 'any_rejected' | 'no_approvals' | null;
 
-      console.log('Sync node routing:', {
+      logger.debug('Sync node routing', {
         syncNodeId: currentNode.id,
         aggregateDecision,
         activeStepId: activeStep?.id
@@ -2414,14 +2414,14 @@ export async function progressWorkflowStep(
         if (rejectionEdge) {
           const targetNode = (nodes || []).find((n: any) => n.id === rejectionEdge.to_node_id);
           if (targetNode) nextNodes = [targetNode];
-          console.log('Sync routing to rejection path:', targetNode?.label);
+          logger.debug('Sync routing to rejection path', { label: targetNode?.label });
         } else {
           // No explicit rejection edge - use default edge if available
           const defaultEdge = outgoingFromSync.find((c: any) => !c.condition);
           if (defaultEdge) {
             const targetNode = (nodes || []).find((n: any) => n.id === defaultEdge.to_node_id);
             if (targetNode) nextNodes = [targetNode];
-            console.log('Sync routing to default path (no rejection edge):', targetNode?.label);
+            logger.debug('Sync routing to default path (no rejection edge)', { label: targetNode?.label });
           }
         }
       } else {
@@ -2436,14 +2436,14 @@ export async function progressWorkflowStep(
         if (approvedEdge) {
           const targetNode = (nodes || []).find((n: any) => n.id === approvedEdge.to_node_id);
           if (targetNode) nextNodes = [targetNode];
-          console.log('Sync routing to approved path:', targetNode?.label);
+          logger.debug('Sync routing to approved path', { label: targetNode?.label });
         } else {
           // No explicit approved edge - use default edge
           const defaultEdge = outgoingFromSync.find((c: any) => !c.condition);
           if (defaultEdge) {
             const targetNode = (nodes || []).find((n: any) => n.id === defaultEdge.to_node_id);
             if (targetNode) nextNodes = [targetNode];
-            console.log('Sync routing to default path:', targetNode?.label);
+            logger.debug('Sync routing to default path', { label: targetNode?.label });
           }
         }
       }
@@ -2465,12 +2465,12 @@ export async function progressWorkflowStep(
         // Extract them to the top level for conditional evaluation
         if (inlineFormData.responses && typeof inlineFormData.responses === 'object') {
           accumulatedFormData = { ...accumulatedFormData, ...(inlineFormData.responses as Record<string, Record<string, unknown>>) };
-          console.log('[progressWorkflowStep] Extracted inline form responses for conditional routing:', Object.keys(inlineFormData.responses));
+          logger.debug('[progressWorkflowStep] Extracted inline form responses for conditional routing', { keys: Object.keys(inlineFormData.responses) });
         } else {
           // Fallback: spread as-is (for non-nested form data)
           accumulatedFormData = { ...accumulatedFormData, ...inlineFormData };
         }
-        console.log('[progressWorkflowStep] Using inline form data for conditional routing');
+        logger.debug('[progressWorkflowStep] Using inline form data for conditional routing');
       }
 
       // If we have a form response ID, fetch that form's data
@@ -2483,7 +2483,7 @@ export async function progressWorkflowStep(
 
         if (formResponse?.response_data) {
           accumulatedFormData = { ...accumulatedFormData, ...formResponse.response_data };
-          console.log('[progressWorkflowStep] Added form response data for conditional routing');
+          logger.debug('[progressWorkflowStep] Added form response data for conditional routing');
         }
       }
 
@@ -2508,7 +2508,7 @@ export async function progressWorkflowStep(
           : (formResponsesData as unknown as { response_data?: unknown } | null)?.response_data;
         if (formResponseData && typeof formResponseData === 'object') {
           accumulatedFormData = { ...(formResponseData as any) };
-          console.log('[progressWorkflowStep] Fetched recent form data from history for conditional routing');
+          logger.debug('[progressWorkflowStep] Fetched recent form data from history for conditional routing');
         }
       }
 
@@ -2520,7 +2520,7 @@ export async function progressWorkflowStep(
 
         while (nextNode && nextNode.node_type === 'conditional' && routingIterations < maxIterations) {
           routingIterations++;
-          console.log(`[progressWorkflowStep] Auto-routing through conditional node: ${nextNode.label} (iteration ${routingIterations})`);
+          logger.debug(`[progressWorkflowStep] Auto-routing through conditional node: ${nextNode.label} (iteration ${routingIterations})`);
 
           // Try form-based routing first
           const conditionalNextNode = findConditionalNextNodeWithFormData(
@@ -2532,7 +2532,7 @@ export async function progressWorkflowStep(
 
           if (conditionalNextNode) {
             // Log the routing for history
-            console.log(`[progressWorkflowStep] Conditional routed to: ${conditionalNextNode.label}`);
+            logger.debug(`[progressWorkflowStep] Conditional routed to: ${conditionalNextNode.label}`);
             nextNode = conditionalNextNode;
           } else {
             // Fallback to legacy decision-based routing if no form match
@@ -2541,7 +2541,7 @@ export async function progressWorkflowStep(
               nextNode = legacyNext;
             } else {
               // No route found - break the loop
-              console.warn(`[progressWorkflowStep] No route found from conditional node: ${nextNode.label}`);
+              logger.warn(`[progressWorkflowStep] No route found from conditional node: ${nextNode.label}`);
               break;
             }
           }
@@ -2555,7 +2555,7 @@ export async function progressWorkflowStep(
     // CRITICAL: Validate rejection routing - prevent silent completion
     // If rejection was requested but no rejection path exists, fail gracefully
     if (decision === 'rejected' && nextNodes.length === 0) {
-      console.error('Rejection routing failed - no rejection target found', {
+      logger.error('Rejection routing failed - no rejection target found', {
         workflowInstanceId,
         currentNodeId: currentNode.id,
         currentNodeLabel: currentNode.label,
@@ -2571,7 +2571,7 @@ export async function progressWorkflowStep(
     if (decision === 'rejected' && nextNodes.length > 0) {
       const rejectionTarget = nextNodes[0];
       if (rejectionTarget.id === currentNode.id) {
-        console.error('Rejection routing creates immediate cycle', {
+        logger.error('Rejection routing creates immediate cycle', {
           workflowInstanceId,
           currentNodeId: currentNode.id,
           currentNodeLabel: currentNode.label,
@@ -2590,7 +2590,7 @@ export async function progressWorkflowStep(
       if (leadsBackToCurrent && rejectionTarget.node_type !== 'form') {
         // Forms are allowed to lead back to approvals (that's the revision loop)
         // But approval -> approval cycles without a form in between are problematic
-        console.warn('Rejection routing may create a short cycle', {
+        logger.warn('Rejection routing may create a short cycle', {
           workflowInstanceId,
           currentNodeLabel: currentNode.label,
           targetNodeLabel: rejectionTarget.label,
@@ -2653,7 +2653,7 @@ export async function progressWorkflowStep(
 
         const hasSiblingsWithWork = siblingProgress.siblingsWithProgress.length > 0;
 
-        console.log('Parallel rejection analysis:', {
+        logger.debug('Parallel rejection analysis', {
           downstreamSync: downstreamSync?.label || 'none',
           syncHasRejectionRoute,
           siblingsWithProgress: siblingProgress.siblingsWithProgress.length,
@@ -2672,7 +2672,7 @@ export async function progressWorkflowStep(
           nextNodes.length = 0;
           nextNodes.push(downstreamSync);
 
-          console.log('Smart rejection: Routing to sync node for aggregation');
+          logger.info('Smart rejection: Routing to sync node for aggregation');
 
           // Create project update explaining the routing
           if (instance.project_id) {
@@ -2702,7 +2702,7 @@ export async function progressWorkflowStep(
             activeStep?.id
           );
 
-          console.log('Traditional rejection: Cancelled', cancelledCount, 'sibling steps');
+          logger.info('Traditional rejection: Cancelled sibling steps', { cancelledCount });
 
           // Extract the fork point branch using our helper function
           targetBranchAfterRejection = extractForkPointBranch(currentBranchId);
@@ -2837,7 +2837,7 @@ export async function progressWorkflowStep(
               syncLeaderId = topUsers[randomIndex].userId;
             }
 
-            console.log('Sync leader selection:', {
+            logger.debug('Sync leader selection', {
               syncNodeId: nextNode.id,
               candidates: userMaxLevels,
               selectedLeader: syncLeaderId,
@@ -2873,7 +2873,7 @@ export async function progressWorkflowStep(
             .select()
             .single();
 
-          console.log('Created sync active step with aggregate decision:', {
+          logger.debug('Created sync active step with aggregate decision', {
             syncNodeId: nextNode.id,
             syncLeaderId,
             aggregateDecision: syncResult.aggregateDecision,
@@ -2941,7 +2941,7 @@ export async function progressWorkflowStep(
             .single();
 
           const roleName = roleInfo?.name || 'the required role';
-          console.error('No users available for role:', { nodeId: nextNode.id, roleName, entityId: nextNode.entity_id });
+          logger.error('No users available for role', { nodeId: nextNode.id, roleName, entityId: nextNode.entity_id });
 
           return {
             success: false,
@@ -2965,7 +2965,7 @@ export async function progressWorkflowStep(
             .single();
 
           const deptName = deptInfo?.name || 'the required department';
-          console.error('No users available for department:', { nodeId: nextNode.id, deptName, entityId: nextNode.entity_id });
+          logger.error('No users available for department', { nodeId: nextNode.id, deptName, entityId: nextNode.entity_id });
 
           return {
             success: false,
@@ -2995,7 +2995,7 @@ export async function progressWorkflowStep(
         // This happens when routing back to a node that was previously visited
         // (e.g., rejection routing back to a form node)
         if (insertError.code === '23505') {
-          console.log('Unique constraint hit - reactivating existing step:', {
+          logger.debug('Unique constraint hit - reactivating existing step', {
             workflowInstanceId,
             nodeId: nextNode.id,
             branchId: newBranchId
@@ -3017,7 +3017,7 @@ export async function progressWorkflowStep(
             .single();
 
           if (updateError) {
-            console.error('Failed to reactivate existing step:', {
+            logger.error('Failed to reactivate existing step', {
               error: updateError,
               workflowInstanceId,
               nodeId: nextNode.id,
@@ -3026,7 +3026,7 @@ export async function progressWorkflowStep(
             stepCreationError = updateError;
           } else {
             newStep = reactivatedStep;
-            console.log('Reactivated existing step:', {
+            logger.debug('Reactivated existing step', {
               stepId: reactivatedStep?.id,
               nodeId: nextNode.id,
               nodeLabel: nextNode.label,
@@ -3035,7 +3035,7 @@ export async function progressWorkflowStep(
           }
         } else {
           // Different error - log and track it
-          console.error('Failed to create active step:', {
+          logger.error('Failed to create active step', {
             error: insertError,
             errorCode: insertError.code,
             workflowInstanceId,
@@ -3047,7 +3047,7 @@ export async function progressWorkflowStep(
         }
       } else {
         newStep = insertedStep;
-        console.log('Created new active step:', {
+        logger.debug('Created new active step', {
           stepId: insertedStep?.id,
           nodeId: nextNode.id,
           nodeLabel: nextNode.label,
@@ -3155,7 +3155,7 @@ export async function progressWorkflowStep(
     // see the newly inserted steps yet, or where insert errors cause silent failures
     const workflowComplete = newActiveSteps.length === 0 && await isWorkflowComplete(supabase, workflowInstanceId);
 
-    console.log('Workflow completion check:', {
+    logger.debug('Workflow completion check', {
       workflowInstanceId,
       newActiveStepsCount: newActiveSteps.length,
       newActiveStepNodes: newActiveSteps.map((s: any) => s.node_id),
@@ -3166,7 +3166,7 @@ export async function progressWorkflowStep(
     // CRITICAL SAFETY CHECK: Rejection should NEVER complete the workflow
     // If we're here with decision='rejected' and workflowComplete=true, something went wrong
     if (workflowComplete && decision === 'rejected') {
-      console.error('CRITICAL: Workflow would complete after rejection - preventing this and returning error', {
+      logger.error('CRITICAL: Workflow would complete after rejection - preventing this and returning error', {
         workflowInstanceId,
         currentNodeLabel: currentNode.label,
         nextNodesCount: nextNodes.length,
@@ -3220,7 +3220,7 @@ export async function progressWorkflowStep(
       newActiveSteps
     };
   } catch (error: unknown) {
-    console.error('Error progressing workflow step:', error);
+    logger.error('Error progressing workflow step', {}, error as Error);
     return { success: false, error: 'Internal server error' };
   }
 }
