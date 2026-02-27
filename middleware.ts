@@ -19,6 +19,7 @@ const publicRoutes = [
   '/',
   '/login',
   '/signup',
+  '/setup',
   '/pending-approval',
   '/welcome',
   '/reset-password',

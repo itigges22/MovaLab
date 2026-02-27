@@ -66,7 +66,7 @@ export function isSuperadmin(userProfile: UserWithRoles | null): boolean {
   
   return userProfile.user_roles.some((ur: any) => {
     const roleName = ur.roles?.name?.toLowerCase();
-    return roleName === 'superadmin' || ur.roles?.is_system_role === true && roleName === 'superadmin';
+    return ur.roles?.is_system_role === true && roleName === 'superadmin';
   });
 }
 
