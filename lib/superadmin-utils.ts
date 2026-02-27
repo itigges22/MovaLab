@@ -1,5 +1,6 @@
 
 import { createClientSupabase } from './supabase'
+import { logger } from './debug-logger'
 
 interface SuperadminResult {
   success: boolean
@@ -24,10 +25,10 @@ export async function assignSuperadminRole() {
       throw new Error('User not authenticated')
     }
 
-    console.log('Assigning superadmin role to user:', user.id)
+    logger.info('Assigning superadmin role to user', { userId: user.id })
 
     // First, ensure the System department exists
-    console.log('Step 1: Creating/checking System Administration department...')
+    logger.debug('Step 1: Creating/checking System Administration department', {})
     
     // Check if department already exists
     const { data: existingDept, error: checkDeptError } = await supabase
@@ -39,13 +40,13 @@ export async function assignSuperadminRole() {
     let deptError = null
     if (checkDeptError && checkDeptError.code !== 'PGRST116') {
       // PGRST116 means no rows found, which is fine
-      console.error('Error checking for existing department:', checkDeptError)
+      logger.error('Error checking for existing department', {}, checkDeptError as unknown as Error)
       throw new Error(`Failed to check for existing department: ${checkDeptError.message}`)
     }
 
     if (!existingDept) {
       // Department doesn't exist, create it
-      console.log('System Administration department does not exist, creating...')
+      logger.debug('System Administration department does not exist, creating', {})
       const { error } = await supabase
         .from('departments')
         .insert({
@@ -56,22 +57,21 @@ export async function assignSuperadminRole() {
         })
       deptError = error
     } else {
-      console.log('System Administration department already exists, skipping creation')
+      logger.debug('System Administration department already exists, skipping creation', {})
     }
 
     if (deptError) {
-      console.error('Error creating system department:', {
+      logger.error('Error creating system department', {
         message: deptError.message,
         details: deptError.details,
         hint: deptError.hint,
         code: deptError.code,
-        fullError: deptError
       })
       // Don't throw here, just log - department might already exist
     }
 
     // Get the System department ID
-    console.log('Step 2: Getting System Administration department ID...')
+    logger.debug('Step 2: Getting System Administration department ID', {})
     let deptData = existingDept
     
     if (!deptData) {
@@ -83,12 +83,11 @@ export async function assignSuperadminRole() {
         .single()
 
       if (deptQueryError) {
-        console.error('Error querying system department:', {
+        logger.error('Error querying system department', {
           message: deptQueryError.message,
           details: deptQueryError.details,
           hint: deptQueryError.hint,
           code: deptQueryError.code,
-          fullError: deptQueryError
         })
         throw new Error(`Failed to find System Administration department: ${deptQueryError.message}`)
       }
@@ -101,7 +100,7 @@ export async function assignSuperadminRole() {
     }
 
     // Create the Superadmin role if it doesn't exist
-    console.log('Step 3: Creating Superadmin role...')
+    logger.debug('Step 3: Creating Superadmin role', {})
     
     // First check if the role already exists
     const { data: existingRole, error: checkError } = await supabase
@@ -112,14 +111,14 @@ export async function assignSuperadminRole() {
 
     if (checkError && checkError.code !== 'PGRST116') {
       // PGRST116 means no rows found, which is fine
-      console.error('Error checking for existing superadmin role:', checkError)
+      logger.error('Error checking for existing superadmin role', {}, checkError as unknown as Error)
       throw new Error(`Failed to check for existing superadmin role: ${checkError.message}`)
     }
 
     let roleError = null
     if (!existingRole) {
       // Role doesn't exist, create it
-      console.log('Superadmin role does not exist, creating...')
+      logger.debug('Superadmin role does not exist, creating', {})
       const { error } = await supabase
         .from('roles')
         .insert({
@@ -139,22 +138,21 @@ export async function assignSuperadminRole() {
         })
       roleError = error
     } else {
-      console.log('Superadmin role already exists, skipping creation')
+      logger.debug('Superadmin role already exists, skipping creation', {})
     }
 
     if (roleError) {
-      console.error('Error creating superadmin role:', {
+      logger.error('Error creating superadmin role', {
         message: roleError.message,
         details: roleError.details,
         hint: roleError.hint,
         code: roleError.code,
-        fullError: roleError
       })
       throw new Error(`Failed to create superadmin role: ${roleError.message}`)
     }
 
     // Get the Superadmin role ID
-    console.log('Step 4: Getting Superadmin role ID...')
+    logger.debug('Step 4: Getting Superadmin role ID', {})
     let roleData = existingRole
     
     if (!roleData) {
@@ -166,12 +164,11 @@ export async function assignSuperadminRole() {
         .single()
 
       if (roleQueryError) {
-        console.error('Error querying superadmin role:', {
+        logger.error('Error querying superadmin role', {
           message: roleQueryError.message,
           details: roleQueryError.details,
           hint: roleQueryError.hint,
           code: roleQueryError.code,
-          fullError: roleQueryError
         })
         throw new Error(`Failed to find Superadmin role: ${roleQueryError.message}`)
       }
@@ -184,9 +181,7 @@ export async function assignSuperadminRole() {
     }
 
     // Assign the superadmin role to the current user
-    console.log('Step 5: Assigning Superadmin role to user...')
-    console.log('User ID:', user.id)
-    console.log('Role ID:', roleData.id)
+    logger.debug('Step 5: Assigning Superadmin role to user', { userId: user.id, roleId: roleData.id })
     
     const { error: assignError } = await supabase
       .from('user_roles')
@@ -198,27 +193,26 @@ export async function assignSuperadminRole() {
       })
 
     if (assignError) {
-      console.error('Error assigning superadmin role:', {
+      logger.error('Error assigning superadmin role', {
         message: assignError.message,
         details: assignError.details,
         hint: assignError.hint,
         code: assignError.code,
-        fullError: assignError
       })
-      
+
       // If role already assigned, that's okay
       if (assignError.code === '23505') { // Unique constraint violation
-        console.log('Superadmin role already assigned to user')
+        logger.info('Superadmin role already assigned to user', {})
         return { success: true, message: 'Superadmin role already assigned' }
       }
       throw new Error(`Failed to assign superadmin role: ${assignError.message}`)
     }
 
-    console.log('Superadmin role assigned successfully')
+    logger.info('Superadmin role assigned successfully', {})
     return { success: true, message: 'Superadmin role assigned successfully' }
 
   } catch (error: unknown) {
-    console.error('Error assigning superadmin role:', error)
+    logger.error('Error assigning superadmin role', {}, error as Error)
     throw error
   }
 }
@@ -252,14 +246,14 @@ export async function checkSuperadminRole() {
       .eq('roles.name', 'Superadmin')
 
     if (error) {
-      console.error('Error checking superadmin role:', error)
+      logger.error('Error checking superadmin role', {}, error as unknown as Error)
       return false
     }
 
     return data && data.length > 0
 
   } catch (error: unknown) {
-    console.error('Error checking superadmin role:', error)
+    logger.error('Error checking superadmin role', {}, error as Error)
     return false
   }
 }
@@ -301,11 +295,11 @@ export async function removeSuperadminRole() {
       throw error
     }
 
-    console.log('Superadmin role removed successfully')
+    logger.info('Superadmin role removed successfully', {})
     return { success: true, message: 'Superadmin role removed successfully' }
 
   } catch (error: unknown) {
-    console.error('Error removing superadmin role:', error)
+    logger.error('Error removing superadmin role', {}, error as Error)
     throw error
   }
 }
@@ -322,7 +316,7 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
       throw new Error('Supabase not configured')
     }
 
-    console.log('Assigning superadmin role to email:', email)
+    logger.info('Assigning superadmin role to email', { email })
 
     // First, find the user by email
     const { data: userData, error: userError } = await supabase
@@ -335,7 +329,7 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
       return { success: false, message: 'User not found' }
     }
 
-    console.log('Found user:', userData.id)
+    logger.debug('Found user', { userId: userData.id })
 
     // Ensure the System department exists
     const { data: deptData, error: deptError } = await supabase
@@ -382,18 +376,18 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
       })
 
     if (assignError) {
-      console.error('Error assigning superadmin role:', assignError)
+      logger.error('Error assigning superadmin role', {}, assignError as unknown as Error)
       return { success: false, message: `Failed to assign superadmin role: ${assignError.message}` }
     }
 
-    console.log('Superadmin role assigned successfully to:', email)
+    logger.info('Superadmin role assigned successfully', { email })
     return { success: true, message: `Superadmin role assigned successfully to ${email}` }
 
   } catch (error: unknown) {
-    console.error('Error assigning superadmin role:', error)
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Failed to assign superadmin role' 
+    logger.error('Error assigning superadmin role', {}, error as Error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to assign superadmin role'
     }
   }
 }
@@ -439,10 +433,10 @@ export async function checkSuperadminRoleByEmail(email: string): Promise<Superad
     return { success: true, message: `${email} has superadmin role` }
 
   } catch (error: unknown) {
-    console.error('Error checking superadmin role:', error)
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Failed to check superadmin role' 
+    logger.error('Error checking superadmin role', {}, error as Error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to check superadmin role'
     }
   }
 }
@@ -489,18 +483,18 @@ export async function removeSuperadminRoleByEmail(email: string): Promise<Supera
       .eq('role_id', roleData.id)
 
     if (removeError) {
-      console.error('Error removing superadmin role:', removeError)
+      logger.error('Error removing superadmin role', {}, removeError as unknown as Error)
       return { success: false, message: `Failed to remove superadmin role: ${removeError.message}` }
     }
 
-    console.log('Superadmin role removed successfully from:', email)
+    logger.info('Superadmin role removed successfully', { email })
     return { success: true, message: `Superadmin role removed successfully from ${email}` }
 
   } catch (error: unknown) {
-    console.error('Error removing superadmin role:', error)
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Failed to remove superadmin role' 
+    logger.error('Error removing superadmin role', {}, error as Error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to remove superadmin role'
     }
   }
 }

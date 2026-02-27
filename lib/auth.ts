@@ -1,6 +1,7 @@
 
 import { createClientSupabase } from './supabase';
 import { UserProfile, UserRole, Role, Department } from './supabase';
+import { logger } from './debug-logger';
 
 // Authentication helper functions
 
@@ -19,7 +20,7 @@ export async function getCurrentUser() {
 
     // If error indicates expired session, try to refresh
     if (error && (error.message?.includes('session') || error.message?.includes('token') || error.message?.includes('expired'))) {
-      console.log('Session expired, attempting refresh...');
+      logger.debug('Session expired, attempting refresh...', {});
       try {
         const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
         if (!refreshError && session?.user) {
@@ -27,18 +28,18 @@ export async function getCurrentUser() {
           return session.user;
         }
       } catch (refreshErr) {
-        console.error('Error refreshing session:', refreshErr);
+        logger.error('Error refreshing session', {}, refreshErr as Error);
       }
     }
 
     if (error || !user) {
-      if (error) console.error('Error getting current user:', error);
+      if (error) logger.error('Error getting current user', {}, error as Error);
       return null;
     }
 
     return user;
   } catch (error: unknown) {
-    console.error('Error in getCurrentUser:', error);
+    logger.error('Error in getCurrentUser', {}, error as Error);
     return null;
   }
 }
@@ -84,7 +85,7 @@ async function fetchUserProfileOptimized(supabase: any, userId: string) {
     if (error.code === 'PGRST116') {
       return null;
     }
-    console.error('Error fetching user profile:', error);
+    logger.error('Error fetching user profile', {}, error as unknown as Error);
     return null;
   }
 
@@ -130,7 +131,7 @@ async function fetchUserProfileFallback(supabase: any, userId: string) {
     .eq('user_id', userId);
 
   if (rolesError) {
-    console.error('Error fetching user roles:', rolesError);
+    logger.error('Error fetching user roles', {}, rolesError as unknown as Error);
     return { ...profile, user_roles: [] };
   }
 
@@ -172,7 +173,7 @@ export async function getCurrentUserProfile() {
       })[];
     };
   } catch (error: unknown) {
-    console.error('Error in getCurrentUserProfile:', error);
+    logger.error('Error in getCurrentUserProfile', {}, error as Error);
     return null;
   }
 }
@@ -196,13 +197,13 @@ export async function signInWithEmail(email: string, password: string) {
     });
 
     if (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error', {}, error as Error);
       throw error;
     }
 
     return data;
   } catch (error: unknown) {
-    console.error('Error in signInWithEmail:', error);
+    logger.error('Error in signInWithEmail', {}, error as Error);
     throw error;
   }
 }
@@ -234,12 +235,11 @@ export async function signUpWithEmail(email: string, password: string, name: str
     });
 
     if (error) {
-      console.error('Sign up error:', {
+      logger.error('Sign up error', {
         message: error.message,
         details: (error as unknown as Record<string, unknown>).details,
         hint: (error as unknown as Record<string, unknown>).hint,
         code: error.code,
-        fullError: error
       });
       
       // Handle specific Supabase auth errors
@@ -274,7 +274,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
     // Note: User profile is automatically created by database trigger
     // See scripts/FIX-SIGNUP-RLS.sql for trigger setup
     if (process.env.NODE_ENV === 'development') {
-      console.log('User created successfully. Profile will be created by database trigger.');
+      logger.debug('User created successfully. Profile will be created by database trigger.', {});
     }
 
     return data;
@@ -286,10 +286,9 @@ export async function signUpWithEmail(email: string, password: string, name: str
     }
     
     // Log actual unexpected errors
-    console.error('Unexpected error in signUpWithEmail:', {
+    logger.error('Unexpected error in signUpWithEmail', {
       message: error instanceof Error ? error.message : 'Unknown error',
-      fullError: error
-    });
+    }, error as Error);
     throw error;
   }
 }
@@ -309,8 +308,7 @@ export async function createUserProfile(userId: string, email: string, name: str
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('Creating user profile for:', { userId, email, name });
-      console.log('Current auth user:', await supabase.auth.getUser());
+      logger.debug('Creating user profile for', { userId, email, name });
     }
 
     const { data, error } = await (supabase as any)
@@ -328,13 +326,12 @@ export async function createUserProfile(userId: string, email: string, name: str
       .single();
 
     if (error) {
-      console.error('=== DETAILED ERROR CREATING USER PROFILE ===');
-      console.error('Error message:', error.message);
-      console.error('Error details:', error.details);
-      console.error('Error hint:', error.hint);
-      console.error('Error code:', error.code);
-      console.error('Full error object:', JSON.stringify(error, null, 2));
-      console.error('==========================================');
+      logger.error('Error creating user profile', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
       
       // Check if it's an RLS policy error
       if (error.message?.includes('row-level security policy')) {
@@ -356,10 +353,9 @@ export async function createUserProfile(userId: string, email: string, name: str
 
     return data;
   } catch (error: unknown) {
-    console.error('Error in createUserProfile:', {
+    logger.error('Error in createUserProfile', {
       message: error instanceof Error ? error.message : 'Unknown error',
-      fullError: error
-    });
+    }, error as Error);
     throw error;
   }
 }
@@ -378,11 +374,11 @@ export async function signOut() {
     const { error } = await supabase.auth.signOut();
     
     if (error) {
-      console.error('Sign out error:', error);
+      logger.error('Sign out error', {}, error as Error);
       throw error;
     }
   } catch (error: unknown) {
-    console.error('Error in signOut:', error);
+    logger.error('Error in signOut', {}, error as Error);
     throw error;
   }
 }
@@ -405,11 +401,11 @@ export async function resetPassword(email: string) {
     });
 
     if (error) {
-      console.error('Password reset error:', error);
+      logger.error('Password reset error', {}, error as Error);
       throw error;
     }
   } catch (error: unknown) {
-    console.error('Error in resetPassword:', error);
+    logger.error('Error in resetPassword', {}, error as Error);
     throw error;
   }
 }
@@ -431,11 +427,11 @@ export async function updatePassword(newPassword: string) {
     });
 
     if (error) {
-      console.error('Password update error:', error);
+      logger.error('Password update error', {}, error as Error);
       throw error;
     }
   } catch (error: unknown) {
-    console.error('Error in updatePassword:', error);
+    logger.error('Error in updatePassword', {}, error as Error);
     throw error;
   }
 }
@@ -449,7 +445,7 @@ export async function isAuthenticated(): Promise<boolean> {
     const user = await getCurrentUser();
     return !!user;
   } catch (error: unknown) {
-    console.error('Error in isAuthenticated:', error);
+    logger.error('Error in isAuthenticated', {}, error as Error);
     return false;
   }
 }
@@ -471,7 +467,7 @@ export async function updateUserProfile(profileData: {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('Updating user profile via API:', profileData);
+      logger.debug('Updating user profile via API', profileData);
     }
 
     // Call the API endpoint which enforces permission checks
@@ -491,11 +487,11 @@ export async function updateUserProfile(profileData: {
 
     const data = await response.json();
     if (process.env.NODE_ENV === 'development') {
-      console.log('User profile updated successfully');
+      logger.debug('User profile updated successfully', {});
     }
     return data.profile;
   } catch (error: unknown) {
-    console.error('Error in updateUserProfile:', error);
+    logger.error('Error in updateUserProfile', {}, error as Error);
     throw error;
   }
 }
@@ -512,13 +508,13 @@ export async function getCurrentSession() {
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
-      console.error('Error getting session:', error);
+      logger.error('Error getting session', {}, error as Error);
       return null;
     }
 
     return session;
   } catch (error: unknown) {
-    console.error('Error in getCurrentSession:', error);
+    logger.error('Error in getCurrentSession', {}, error as Error);
     return null;
   }
 }
