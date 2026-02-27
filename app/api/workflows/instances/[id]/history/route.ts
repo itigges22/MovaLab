@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { getWorkflowHistory } from '@/lib/workflow-service';
 import { verifyWorkflowInstanceAccess } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/workflows/instances/[id]/history - Get complete workflow history
 export async function GET(
@@ -37,7 +38,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -51,7 +52,7 @@ export async function GET(
     }
 
     // Verify user has access to the workflow instance's project
-    const accessCheck = await verifyWorkflowInstanceAccess(supabase, (user as any).id, id);
+    const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, id);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this workflow instance'
@@ -63,7 +64,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, history }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/instances/[id]/history:', error);
+    logger.error('Error in GET /api/workflows/instances/[id]/history', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

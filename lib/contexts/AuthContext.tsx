@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       setLoading(false)
       return

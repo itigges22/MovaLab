@@ -1,5 +1,6 @@
 
 import { createClientSupabase } from './supabase';
+import type { AppSupabaseClient } from './supabase';
 
 // Helper functions for status mapping
 const getStatusDisplayName = (status: string) => {
@@ -102,9 +103,9 @@ export interface UrgentItem {
 
 class AccountService {
   // Get account by ID with related data
-  async getAccountById(accountId: string, userMap?: { [key: string]: Record<string, unknown> }, supabaseClient?: any): Promise<AccountWithProjects | null> {
+  async getAccountById(accountId: string, userMap?: { [key: string]: Record<string, unknown> }, supabaseClient?: AppSupabaseClient | null): Promise<AccountWithProjects | null> {
     try {
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
       if (!supabase) {
         return null;
       }
@@ -144,9 +145,9 @@ class AccountService {
   }
 
   // Get all accounts
-  async getAllAccounts(supabaseClient?: any): Promise<Account[]> {
+  async getAllAccounts(supabaseClient?: AppSupabaseClient | null): Promise<Account[]> {
     try {
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
       if (!supabase) {
         return [];
       }
@@ -167,9 +168,9 @@ class AccountService {
   }
 
   // Check if a user can edit a specific project
-  async canUserEditProject(userId: string, projectId: string, supabaseClient?: any): Promise<boolean> {
+  async canUserEditProject(userId: string, projectId: string, supabaseClient?: AppSupabaseClient | null): Promise<boolean> {
     try {
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
       if (!supabase) {
         return false;
       }
@@ -300,9 +301,9 @@ class AccountService {
   }
 
   // Check if a user can access a specific account
-  async canUserAccessAccount(userId: string, accountId: string, supabaseClient?: any): Promise<boolean> {
+  async canUserAccessAccount(userId: string, accountId: string, supabaseClient?: AppSupabaseClient | null): Promise<boolean> {
     try {
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
       if (!supabase) {
         return false;
       }
@@ -374,9 +375,9 @@ class AccountService {
   }
 
   // Check if user has FULL (edit) access to account (not just read-only via project stakeholder)
-  async hasFullAccountAccess(userId: string, accountId: string, supabaseClient?: any): Promise<boolean> {
+  async hasFullAccountAccess(userId: string, accountId: string, supabaseClient?: AppSupabaseClient | null): Promise<boolean> {
     try {
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
       if (!supabase) {
         return false;
       }
@@ -421,9 +422,9 @@ class AccountService {
   }
 
   // Get accounts that a user has access to (through projects, membership, or as account manager)
-  async getUserAccounts(userId: string, supabaseClient?: any): Promise<Account[]> {
+  async getUserAccounts(userId: string, supabaseClient?: AppSupabaseClient | null): Promise<Account[]> {
     try {
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
       if (!supabase) {
         return [];
       }
@@ -579,10 +580,10 @@ class AccountService {
 
   // Get projects for a specific account
   // Pass a supabase client to ensure proper auth context (server or client)
-  async getAccountProjects(accountId: string, userMap?: { [key: string]: Record<string, unknown> }, supabaseClient?: any): Promise<ProjectWithDetails[]> {
+  async getAccountProjects(accountId: string, userMap?: { [key: string]: Record<string, unknown> }, supabaseClient?: AppSupabaseClient | null): Promise<ProjectWithDetails[]> {
     try {
       // Use provided client, or fall back to singleton (less reliable)
-      const supabase = (supabaseClient || createClientSupabase() as any) as any;
+      const supabase = supabaseClient || createClientSupabase();
 
       if (!supabase) {
         return [];
@@ -637,7 +638,7 @@ class AccountService {
           if (!usersError && usersData && usersData.length > 0) {
             const typedUsers = usersData as unknown as User[];
             assignedUsersMap = typedUsers.reduce((acc, user) => {
-              acc[(user as any).id] = user as Record<string, unknown>;
+              acc[user.id] = user as Record<string, unknown>;
               return acc;
             }, {} as { [key: string]: Record<string, unknown> });
           } else if (!singleUserError && singleUserData) {
@@ -772,7 +773,7 @@ class AccountService {
   }
 
   // Get account metrics
-  async getAccountMetrics(accountId: string, supabaseClient?: any): Promise<AccountMetrics> {
+  async getAccountMetrics(accountId: string, supabaseClient?: AppSupabaseClient | null): Promise<AccountMetrics> {
     try {
       const projects = await this.getAccountProjects(accountId, undefined, supabaseClient);
       const now = new Date();
@@ -870,7 +871,7 @@ class AccountService {
   }
 
   // Get urgent items for an account
-  async getUrgentItems(accountId: string, supabaseClient?: any): Promise<UrgentItem[]> {
+  async getUrgentItems(accountId: string, supabaseClient?: AppSupabaseClient | null): Promise<UrgentItem[]> {
     try {
       const projects = await this.getAccountProjects(accountId, undefined, supabaseClient);
       const now = new Date();
@@ -950,7 +951,7 @@ class AccountService {
     assigned_user_id?: string;
   }, createdBy?: string): Promise<Project | null> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) {
         return null;
       }
@@ -987,7 +988,7 @@ class AccountService {
   // Update project
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) {
         return null;
       }
@@ -1033,7 +1034,7 @@ class AccountService {
   // Delete project
   async deleteProject(projectId: string): Promise<boolean> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) {
         return false;
       }
@@ -1056,7 +1057,7 @@ class AccountService {
   // Get all users for assignment
   async getAllUsers(): Promise<User[]> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) {
         return [];
       }
@@ -1110,13 +1111,13 @@ class AccountService {
           const { data: userRoles } = await supabase
             .from('user_roles')
             .select('role_id, roles:role_id(id, name, department_id)')
-            .eq('user_id', (user as any).id);
+            .eq('user_id', user.id);
 
           // Check if user has any account memberships
           const { data: accountMembers } = await supabase
             .from('account_members')
             .select('account_id')
-            .eq('user_id', (user as any).id);
+            .eq('user_id', user.id);
 
           const typedUserRoles = (userRoles || []) as unknown as UserRoleWithRole[];
 
@@ -1184,16 +1185,16 @@ class AccountService {
 
       // Clean up the data structure to match the expected User interface
       const cleanedUsers: User[] = filteredUsers.map((user:any) => ({
-        id: (user as any).id,
-        name: (user as any).name,
-        email: (user as any).email,
-        image: (user as any).image,
-        bio: (user as any).bio,
-        skills: (user as any).skills,
-        workload_sentiment: (user as any).workload_sentiment,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        bio: user.bio,
+        skills: user.skills,
+        workload_sentiment: user.workload_sentiment,
         is_superadmin: user.is_superadmin,
-        created_at: (user as any).created_at,
-        updated_at: (user as any).updated_at
+        created_at: user.created_at,
+        updated_at: user.updated_at
       }));
 
       return cleanedUsers;

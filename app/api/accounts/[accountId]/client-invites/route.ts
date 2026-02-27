@@ -4,6 +4,7 @@ import { getClientInvitationsByAccount } from '@/lib/client-portal-service';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { hasAccountAccessServer } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/accounts/[id]/client-invites - List client invitations for an account
 export async function GET(
@@ -36,7 +37,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -50,7 +51,7 @@ export async function GET(
     }
 
     // Verify user has access to this account
-    const hasAccess = await hasAccountAccessServer(supabase, (user as any).id, accountId);
+    const hasAccess = await hasAccountAccessServer(supabase, user.id, accountId);
     if (!hasAccess) {
       return NextResponse.json({
         error: 'You do not have access to this account'
@@ -62,7 +63,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, invitations }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/accounts/[id]/client-invites:', error);
+    logger.error('Error in GET /api/accounts/[id]/client-invites', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

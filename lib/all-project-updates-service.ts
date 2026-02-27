@@ -32,7 +32,7 @@ export const allProjectUpdatesService = {
    * Only shows updates from projects the user has access to
    */
   async getAllProjectUpdates(): Promise<AllProjectUpdate[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Unable to connect to database');
     }
@@ -71,7 +71,7 @@ export const allProjectUpdatesService = {
    * Get project updates for a specific user's projects only
    */
   async getUserProjectUpdates(): Promise<AllProjectUpdate[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Unable to connect to database');
     }

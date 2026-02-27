@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { acceptClientInvitation } from '@/lib/client-portal-service';
 import { validateRequestBody, acceptClientInvitationSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -37,7 +38,7 @@ export async function POST(
     // Accept invitation
     await acceptClientInvitation({
       token: token,
-      userId: (user as any).id,
+      userId: user.id,
       name: validation.data.name,
       companyPosition: validation.data.company_position
     });
@@ -48,7 +49,7 @@ export async function POST(
     }, { status: 200 });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in POST /api/client/accept-invite/[token]:', error);
+    logger.error('Error in POST /api/client/accept-invite/[token]', {}, error as Error);
 
     // Check if error is due to invalid/expired token
     if (error instanceof Error && err.message.includes('not found')) {

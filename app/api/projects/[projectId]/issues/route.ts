@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { userHasProjectAccess } from '@/lib/rbac';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * GET /api/projects/[projectId]/issues
@@ -37,7 +38,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -71,13 +72,13 @@ export async function GET(
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching issues:', error);
+      logger.error('Error fetching issues:', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch issues' }, { status: 500 });
     }
 
     return NextResponse.json({ issues: issues || [] });
   } catch (error: unknown) {
-    console.error('Error in GET /api/projects/[projectId]/issues:', error);
+    logger.error('Error in GET /api/projects/[projectId]/issues:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -117,7 +118,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -156,7 +157,7 @@ export async function POST(
       .insert({
         project_id: projectId,
         content: content.trim(),
-        created_by: (user as any).id,
+        created_by: user.id,
         status: 'open'
       })
       .select(`
@@ -166,7 +167,7 @@ export async function POST(
       .single();
 
     if (error) {
-      console.error('Error creating issue:', error);
+      logger.error('Error creating issue:', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to create issue' }, { status: 500 });
     }
 
@@ -175,16 +176,16 @@ export async function POST(
       .from('project_assignments')
       .select('id, removed_at')
       .eq('project_id', projectId)
-      .eq('user_id', (user as any).id)
+      .eq('user_id', user.id)
       .single();
 
     if (!existingAssignment) {
       // Insert new assignment
       await supabase.from('project_assignments').insert({
         project_id: projectId,
-        user_id: (user as any).id,
+        user_id: user.id,
         role_in_project: 'collaborator',
-        assigned_by: (user as any).id,
+        assigned_by: user.id,
         source_type: 'manual'
       });
     } else if (existingAssignment.removed_at) {
@@ -197,7 +198,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, issue }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/projects/[projectId]/issues:', error);
+    logger.error('Error in POST /api/projects/[projectId]/issues:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { formatDistanceToNow } from 'date-fns';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -181,7 +182,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/recent-activity:', error);
+    logger.error('Error in GET /api/dashboard/recent-activity', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

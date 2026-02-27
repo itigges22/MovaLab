@@ -6,6 +6,7 @@
 
 
 import { createClientSupabase } from '../supabase';
+import type { AppSupabaseClient } from '../supabase';
 
 type UserAvailability = any;
 type UserAvailabilityInsert = any;
@@ -43,9 +44,9 @@ class AvailabilityService {
   async getUserAvailability(
     userId: string,
     weekStartDate?: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient | null
   ): Promise<AvailabilityWithSchedule | null> {
-    const supabase = (supabaseClient || createClientSupabase()) as any;
+    const supabase = supabaseClient || createClientSupabase();
     if (!supabase) return null;
 
     const targetWeek = weekStartDate || this.getWeekStartDate();
@@ -77,7 +78,7 @@ class AvailabilityService {
     startWeek: string,
     endWeek: string
   ): Promise<AvailabilityWithSchedule[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) return [];
 
     const { data, error } = await supabase
@@ -105,9 +106,9 @@ class AvailabilityService {
     availableHours: number,
     scheduleData?: WeeklySchedule,
     notes?: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient | null
   ): Promise<AvailabilityWithSchedule | null> {
-    const supabase = (supabaseClient || createClientSupabase()) as any;
+    const supabase = supabaseClient || createClientSupabase();
     if (!supabase) return null;
 
     // Check if record exists
@@ -166,7 +167,7 @@ class AvailabilityService {
     userId: string,
     weekStartDate: string
   ): Promise<boolean> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) return false;
 
     const { error } = await supabase
@@ -194,7 +195,7 @@ class AvailabilityService {
     const source = await this.getUserAvailability(userId, sourceWeek);
     if (!source) return false;
 
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) return false;
 
     const insertData: UserAvailabilityInsert[] = targetWeeks.map((week: any) => ({
@@ -232,7 +233,7 @@ class AvailabilityService {
     departmentId: string,
     weekStartDate: string
   ): Promise<AvailabilityWithSchedule[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) return [];
 
     // Get all users in the department

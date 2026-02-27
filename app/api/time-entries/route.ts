@@ -57,11 +57,11 @@ export async function GET(request: NextRequest) {
       timeEntries = await timeEntryService.getProjectTimeEntries(projectId);
     } else {
       // Get time entries for a user (default to current user)
-      const targetUserId = userId ?? (userProfile as any).id;
+      const targetUserId = userId ?? userProfile.id;
       
       // Permission check for viewing other users' time entries
       // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
-      if (targetUserId !== (userProfile as any).id) {
+      if (targetUserId !== userProfile.id) {
         const canViewTeam = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
         if (!canViewTeam) {
           return NextResponse.json(
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       .from('time_entries')
       .insert({
         task_id: taskId,
-        user_id: (userProfile as any).id,
+        user_id: userProfile.id,
         project_id: projectId,
         hours_logged: hoursLogged,
         entry_date: entryDate,
@@ -245,7 +245,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check ownership or team permission
-    if (existingEntry.user_id !== (userProfile as any).id) {
+    if (existingEntry.user_id !== userProfile.id) {
       const canEditTeam = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
       if (!canEditTeam) {
         return NextResponse.json(
@@ -256,7 +256,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check 14-day edit limit (only for own entries)
-    if (existingEntry.user_id === (userProfile as any).id) {
+    if (existingEntry.user_id === userProfile.id) {
       const existingEntryDate = new Date(existingEntry.entry_date);
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
@@ -358,7 +358,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check ownership or team permission
-    if (existingEntry.user_id !== (userProfile as any).id) {
+    if (existingEntry.user_id !== userProfile.id) {
       const canEditTeam = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
       if (!canEditTeam) {
         return NextResponse.json(
@@ -369,7 +369,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check 14-day edit limit (only for own entries)
-    if (existingEntry.user_id === (userProfile as any).id) {
+    if (existingEntry.user_id === userProfile.id) {
       const entryDate = new Date(existingEntry.entry_date);
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);

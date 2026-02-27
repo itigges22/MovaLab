@@ -71,7 +71,7 @@ export interface HierarchyView {
 
 class OrganizationService {
   private async getSupabase() {
-    return createClientSupabase() as any;
+    return createClientSupabase();
   }
 
   // Get complete organization structure
@@ -169,8 +169,8 @@ class OrganizationService {
           dept.roles.forEach((role: any) => {
             if (role?.users) {
               role.users.forEach((user: any) => {
-                if ((user as any)?.id) {
-                  allUserIds.add((user as any).id);
+                if (user?.id) {
+                  allUserIds.add(user.id);
                 }
               });
             }

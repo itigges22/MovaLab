@@ -109,7 +109,7 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
     
     logger.debug('Auth check', {
       hasUser: !!user,
-      userId: (user as any)?.id,
+      userId: user?.id,
       hasSession: !!session,
       userError: userError?.message,
       sessionError: sessionError?.message,
@@ -149,12 +149,12 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (profileError) {
-      logger.error('Error fetching user profile', { 
-        userId: (user as any).id,
+      logger.error('Error fetching user profile', {
+        userId: user.id,
         errorMessage: profileError.message,
         errorCode: profileError.code,
         errorDetails: profileError.details,
@@ -164,11 +164,11 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
     }
     
     if (!userProfile) {
-      logger.error('User profile not found (null result)', { userId: (user as any).id });
+      logger.error('User profile not found (null result)', { userId: user.id });
       throw new AuthenticationError('User profile not found');
     }
-    
-    logger.debug('User profile fetched successfully', { userId: (user as any).id, hasRoles: !!userProfile.user_roles });
+
+    logger.debug('User profile fetched successfully', { userId: user.id, hasRoles: !!userProfile.user_roles });
 
     return userProfile as unknown as UserWithRoles;
   } catch (error: unknown) {
@@ -215,7 +215,7 @@ export async function requirePermission(
 
     if (!hasPermission) {
       logger.warn('Permission denied', {
-        userId: (userProfile as any).id,
+        userId: userProfile.id,
         permission,
         context
       });
@@ -259,7 +259,7 @@ export async function requireAnyPermission(
 
   // None of the permissions matched
   logger.warn('None of required permissions granted', {
-    userId: (userProfile as any).id,
+    userId: userProfile.id,
     permissions,
     context
   });
@@ -301,7 +301,7 @@ export async function requireAllPermissions(
 export async function requireSuperadmin(userProfile: UserWithRoles): Promise<void> {
   if (!isSuperadmin(userProfile)) {
     logger.warn('Superadmin access required but user is not superadmin', {
-      userId: (userProfile as any).id
+      userId: userProfile.id
     });
     throw new ForbiddenError('Superadmin access required');
   }
@@ -342,7 +342,7 @@ export async function requireOwnershipOrPermission(
   overridePermission?: Permission
 ): Promise<void> {
   // Check ownership
-  if ((userProfile as any).id === resourceOwnerId) {
+  if (userProfile.id === resourceOwnerId) {
     return;
   }
   

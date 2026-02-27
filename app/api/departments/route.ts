@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndAnyPermission, requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (error) {
-      console.error('Error fetching departments:', error);
+      logger.error('Error fetching departments', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch departments' }, { status: 500 });
     }
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating department:', error);
+      logger.error('Error creating department', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to create department' }, { status: 500 });
     }
 

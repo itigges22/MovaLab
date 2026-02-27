@@ -472,8 +472,8 @@ class ServerDepartmentService {
     const uniqueUsers = new Map<string, Record<string, unknown>>();
     (teamMembers || []).forEach((member: any) => {
       const user = member.user_profiles as Record<string, unknown>;
-      if (user && !uniqueUsers.has((user as any).id as string)) {
-        uniqueUsers.set((user as any).id as string, user);
+      if (user && !uniqueUsers.has(user.id as string)) {
+        uniqueUsers.set(user.id as string, user);
       }
     });
     const teamSize = uniqueUsers.size;
@@ -550,8 +550,8 @@ class ServerDepartmentService {
 
     // Calculate workload distribution with real data
     const workloadDistribution = Array.from(uniqueUsers.values()).map((user: any) => {
-      const actualHours = timeEntriesMap.get((user as any).id as string) || 0;
-      const availableHours = availabilityMap.get((user as any).id as string) || DEFAULT_WEEKLY_HOURS; // Default 40 hours/week if not set
+      const actualHours = timeEntriesMap.get(user.id as string) || 0;
+      const availableHours = availabilityMap.get(user.id as string) || DEFAULT_WEEKLY_HOURS; // Default 40 hours/week if not set
 
       // Calculate utilization percentage
       const workloadPercentage = availableHours > 0
@@ -569,9 +569,9 @@ class ServerDepartmentService {
       }
 
       return {
-        userId: (user as any).id as string,
-        userName: (user as any).name as string,
-        userImage: (user as any).image as string | null,
+        userId: user.id as string,
+        userName: user.name as string,
+        userImage: user.image as string | null,
         workloadPercentage,
         workloadSentiment,
         actualHours,

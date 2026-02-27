@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { getAllClientFeedback } from '@/lib/client-portal-service';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/admin/client-feedback - Admin view of all client feedback
 export async function GET(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, feedback }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/admin/client-feedback:', error);
+    logger.error('Error in GET /api/admin/client-feedback', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { clientRejectProject } from '@/lib/client-portal-service';
 import { z } from 'zod';
 import { validateRequestBody } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 const rejectProjectSchema = z.object({
   workflow_instance_id: z.string().uuid('Invalid workflow instance ID'),
@@ -42,7 +43,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -65,7 +66,7 @@ export async function POST(
     const result = await clientRejectProject({
       projectId: id,
       workflowInstanceId: validation.data.workflow_instance_id,
-      clientUserId: (user as any).id,
+      clientUserId: user.id,
       notes: validation.data.notes,
       issues: validation.data.issues || []
     });
@@ -75,7 +76,7 @@ export async function POST(
       message: 'Project rejected. Issues have been logged.'
     }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/client/portal/projects/[id]/reject:', error);
+    logger.error('Error in POST /api/client/portal/projects/[id]/reject', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { updateWorkflowNode, deleteWorkflowNode } from '@/lib/workflow-service';
 import { validateRequestBody, updateWorkflowNodeSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 // PATCH /api/admin/workflows/nodes/[nodeId] - Update workflow node
 export async function PATCH(
@@ -37,7 +38,7 @@ export async function PATCH(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -66,7 +67,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, node }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in PATCH /api/admin/workflows/nodes/[nodeId]:', error);
+    logger.error('Error in PATCH /api/admin/workflows/nodes/[nodeId]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -103,7 +104,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -121,7 +122,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Workflow node deleted successfully' }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/admin/workflows/nodes/[nodeId]:', error);
+    logger.error('Error in DELETE /api/admin/workflows/nodes/[nodeId]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

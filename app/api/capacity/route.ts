@@ -8,6 +8,7 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { capacityService } from '@/lib/services/capacity-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -58,10 +59,10 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case 'user': {
-        const userId = id ?? (userProfile as any).id;
+        const userId = id ?? userProfile.id;
         
         // Permission check
-        const isOwnData = userId === (userProfile as any).id;
+        const isOwnData = userId === userProfile.id;
         if (!isOwnData) {
           const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
           const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/capacity:', error);
+logger.error('Error in GET /api/capacity', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

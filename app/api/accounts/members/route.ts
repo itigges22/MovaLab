@@ -103,10 +103,10 @@ export async function GET(request: NextRequest) {
           account_id: member.account_id,
           created_at: member.created_at,
           user: userProfile ? {
-            id: (userProfile as any).id,
-            name: (userProfile as any).name,
-            email: (userProfile as any).email,
-            image: (userProfile as any).image,
+            id: userProfile.id,
+            name: userProfile.name,
+            email: userProfile.email,
+            image: userProfile.image,
             roles: userRoles.map((ur: any) => {
               const role = ur.roles as Record<string, unknown> | undefined;
               const department = role?.departments as Record<string, unknown> | undefined;

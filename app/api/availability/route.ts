@@ -8,6 +8,7 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { availabilityService } from '@/lib/services/availability-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -40,11 +41,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') ?? (userProfile as any).id;
+    const userId = searchParams.get('userId') ?? userProfile.id;
     const weekStartDate = searchParams.get('weekStartDate') ?? availabilityService.getWeekStartDate();
 
     // Permission check: can view own or has VIEW_TEAM_CAPACITY/VIEW_ALL_CAPACITY
-    const isOwnData = userId === (userProfile as any).id;
+    const isOwnData = userId === userProfile.id;
     if (!isOwnData) {
       const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
       const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/availability:', error);
+logger.error('Error in GET /api/availability', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Permission check: can only edit own availability
-    if (userId !== (userProfile as any).id) {
+    if (userId !== userProfile.id) {
       return NextResponse.json(
         { error: 'Can only edit your own availability' },
         { status: 403 }
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in POST /api/availability:', error);
+logger.error('Error in POST /api/availability', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -191,7 +192,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Permission check: can only delete own availability
-    if (userId !== (userProfile as any).id) {
+    if (userId !== userProfile.id) {
       return NextResponse.json(
         { error: 'Can only delete your own availability' },
         { status: 403 }
@@ -213,7 +214,7 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in DELETE /api/availability:', error);
+logger.error('Error in DELETE /api/availability', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

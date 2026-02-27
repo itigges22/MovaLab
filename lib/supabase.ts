@@ -576,3 +576,11 @@ export type ProjectAssignment = Database['public']['Tables']['project_assignment
 export type UserAvailability = Database['public']['Tables']['user_availability']['Row'];
 export type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
 export type TaskWeekAllocation = Database['public']['Tables']['task_week_allocations']['Row'];
+
+/**
+ * A Supabase client instance (browser or server).
+ * Use this type for function parameters that accept a Supabase client,
+ * instead of `any`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AppSupabaseClient = ReturnType<typeof createBrowserClient<any>>;

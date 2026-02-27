@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Node types that are allowed to have multiple outgoing edges
 const BRANCHING_NODE_TYPES = ['approval', 'conditional'];
@@ -38,7 +39,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -56,16 +57,16 @@ export async function PUT(
     try {
       body = await request.json();
     } catch (parseError) {
-      console.error('Error parsing request body:', parseError);
+      logger.error('Error parsing request body', {}, parseError as Error);
       return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
     }
 
     const { nodes, edges } = body;
 
     // Debug logging
-    console.log('[Workflow Save] Starting save for template:', templateId);
-    console.log('[Workflow Save] Received nodes:', nodes?.length || 0);
-    console.log('[Workflow Save] Received edges:', edges?.length || 0);
+    logger.debug('[Workflow Save] Starting save for template', { templateId });
+    logger.debug('[Workflow Save] Received nodes', { count: nodes?.length || 0 });
+    logger.debug('[Workflow Save] Received edges', { count: edges?.length || 0 });
 
     if (!nodes || !Array.isArray(nodes)) {
       return NextResponse.json({ error: 'Invalid nodes data - must be an array' }, { status: 400 });
@@ -75,7 +76,7 @@ export async function PUT(
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const node of nodes) {
       if (!node.id || !uuidRegex.test(node.id)) {
-        console.error('[Workflow Save] Invalid node ID format:', node.id);
+        logger.error('[Workflow Save] Invalid node ID format', { nodeId: node.id });
         return NextResponse.json({
           error: `Invalid node ID format: "${node.id}"`,
           details: 'Node IDs must be valid UUIDs. Please try deleting and re-creating the workflow nodes.'
@@ -121,7 +122,7 @@ export async function PUT(
     }
 
     // Verify the template exists
-    console.log('[Workflow Save] Verifying template exists:', templateId);
+    logger.debug('[Workflow Save] Verifying template exists', { templateId });
     const { data: template, error: templateError } = await supabase
       .from('workflow_templates')
       .select('id')
@@ -129,52 +130,52 @@ export async function PUT(
       .single();
 
     if (templateError || !template) {
-      console.error('[Workflow Save] Template not found:', templateError);
+      logger.error('[Workflow Save] Template not found', {}, templateError as Error);
       return NextResponse.json({ error: 'Workflow template not found' }, { status: 404 });
     }
-    console.log('[Workflow Save] Template verified');
+    logger.debug('[Workflow Save] Template verified');
 
     // First, get the node IDs that belong to this template
-    console.log('[Workflow Save] Getting existing node IDs...');
+    logger.debug('[Workflow Save] Getting existing node IDs');
     const { data: existingNodes } = await supabase
       .from('workflow_nodes')
       .select('id')
       .eq('workflow_template_id', templateId);
 
     const existingNodeIds = existingNodes?.map(n => n.id) || [];
-    console.log('[Workflow Save] Found', existingNodeIds.length, 'existing nodes');
+    logger.debug('[Workflow Save] Found existing nodes', { count: existingNodeIds.length });
 
     // Nullify current_node_id on any workflow_instances referencing these nodes
     // This prevents FK constraint violations when deleting nodes
     if (existingNodeIds.length > 0) {
-      console.log('[Workflow Save] Nullifying current_node_id on affected workflow_instances...');
+      logger.debug('[Workflow Save] Nullifying current_node_id on affected workflow_instances');
       const { error: nullifyError } = await supabase
         .from('workflow_instances')
         .update({ current_node_id: null })
         .in('current_node_id', existingNodeIds);
 
       if (nullifyError) {
-        console.error('[Workflow Save] Error nullifying current_node_id:', nullifyError);
+        logger.error('[Workflow Save] Error nullifying current_node_id', {}, nullifyError as Error);
         // Continue anyway - this is a best effort to avoid FK issues
       }
     }
 
     // Delete existing nodes and connections for this template
     // Connections will be cascade deleted due to foreign key constraint
-    console.log('[Workflow Save] Deleting existing nodes...');
+    logger.debug('[Workflow Save] Deleting existing nodes');
     const { error: deleteError } = await supabase
       .from('workflow_nodes')
       .delete()
       .eq('workflow_template_id', templateId);
 
     if (deleteError) {
-      console.error('[Workflow Save] Error deleting existing nodes:', deleteError);
+      logger.error('[Workflow Save] Error deleting existing nodes', {}, deleteError as Error);
       return NextResponse.json({
         error: 'Failed to clear existing workflow nodes',
         details: deleteError.message
       }, { status: 500 });
     }
-    console.log('[Workflow Save] Existing nodes deleted successfully');
+    logger.debug('[Workflow Save] Existing nodes deleted successfully');
 
     // Insert new nodes
     const nodeInserts = nodes.map((node: Record<string, unknown>, index: number) => {
@@ -209,22 +210,22 @@ export async function PUT(
       };
     });
 
-    console.log('[Workflow Save] Inserting', nodeInserts.length, 'nodes...');
-    console.log('[Workflow Save] First node sample:', JSON.stringify(nodeInserts[0], null, 2));
+    logger.debug('[Workflow Save] Inserting nodes', { count: nodeInserts.length });
+    logger.debug('[Workflow Save] First node sample', { node: nodeInserts[0] });
 
     const { error: nodesError } = await supabase
       .from('workflow_nodes')
       .insert(nodeInserts);
 
     if (nodesError) {
-      console.error('[Workflow Save] Error inserting nodes:', nodesError);
-      console.error('[Workflow Save] Node insert data:', JSON.stringify(nodeInserts, null, 2));
+      logger.error('[Workflow Save] Error inserting nodes', {}, nodesError as Error);
+      logger.error('[Workflow Save] Node insert data', { nodeInserts });
       return NextResponse.json({
         error: 'Failed to save workflow nodes',
         details: nodesError.message
       }, { status: 500 });
     }
-    console.log('[Workflow Save] Nodes inserted successfully');
+    logger.debug('[Workflow Save] Nodes inserted successfully');
 
     // Insert new connections/edges
     if (edges && Array.isArray(edges) && edges.length > 0) {
@@ -250,35 +251,35 @@ export async function PUT(
         };
       });
 
-      console.log('[Workflow Save] Inserting', connectionInserts.length, 'connections...');
-      console.log('[Workflow Save] First connection sample:', JSON.stringify(connectionInserts[0], null, 2));
+      logger.debug('[Workflow Save] Inserting connections', { count: connectionInserts.length });
+      logger.debug('[Workflow Save] First connection sample', { connection: connectionInserts[0] });
 
       const { error: connectionsError } = await supabase
         .from('workflow_connections')
         .insert(connectionInserts);
 
       if (connectionsError) {
-        console.error('[Workflow Save] Error inserting connections:', connectionsError);
-        console.error('[Workflow Save] Connection insert data:', JSON.stringify(connectionInserts, null, 2));
+        logger.error('[Workflow Save] Error inserting connections', {}, connectionsError as Error);
+        logger.error('[Workflow Save] Connection insert data', { connectionInserts });
         return NextResponse.json({
           error: 'Failed to save workflow connections',
           details: connectionsError.message
         }, { status: 500 });
       }
-      console.log('[Workflow Save] Connections inserted successfully');
+      logger.debug('[Workflow Save] Connections inserted successfully');
     }
 
     // Auto-deactivate workflow if it has no nodes (or only has nodes but no valid start/end)
     let isActive: boolean | undefined;
     if (nodes.length === 0) {
-      console.log('[Workflow Save] No nodes - auto-deactivating workflow');
+      logger.debug('[Workflow Save] No nodes - auto-deactivating workflow');
       const { error: deactivateError } = await supabase
         .from('workflow_templates')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', templateId);
 
       if (deactivateError) {
-        console.error('[Workflow Save] Error auto-deactivating workflow:', deactivateError);
+        logger.error('[Workflow Save] Error auto-deactivating workflow', {}, deactivateError as Error);
       } else {
         isActive = false;
       }
@@ -294,7 +295,7 @@ export async function PUT(
       is_active: isActive, // Include if it was auto-deactivated
     }, { status: 200 });
   } catch (error: unknown) {
-console.error('Error in PUT /api/admin/workflows/templates/[id]/steps:', error);
+logger.error('Error in PUT /api/admin/workflows/templates/[id]/steps', {}, error as Error);
     return NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'

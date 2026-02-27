@@ -93,7 +93,7 @@ class ClientDepartmentService {
    */
   async getAllDepartments(): Promise<Department[]> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) return [];
 
       const { data, error } = await supabase
@@ -118,7 +118,7 @@ class ClientDepartmentService {
    */
   async getDepartmentById(id: string): Promise<Department | null> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) {
         console.error('Supabase client not available');
         return null;
@@ -170,7 +170,7 @@ class ClientDepartmentService {
    */
   async getDepartmentMetrics(departmentId: string): Promise<DepartmentMetrics | null> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) return null;
 
       // Get department info
@@ -265,8 +265,8 @@ class ClientDepartmentService {
       const uniqueUsers = new Map();
       typedTeamMembers.forEach((member: any) => {
         const user = member.user_profiles;
-        if (user && !uniqueUsers.has((user as any).id)) {
-          uniqueUsers.set((user as any).id, user);
+        if (user && !uniqueUsers.has(user.id)) {
+          uniqueUsers.set(user.id, user);
         }
       });
       const teamSize = uniqueUsers.size;
@@ -315,9 +315,9 @@ class ClientDepartmentService {
         }
 
         return {
-          userId: (user as any).id as string,
-          userName: (user as any).name as string,
-          userImage: (user as any).image as string | null,
+          userId: user.id as string,
+          userName: user.name as string,
+          userImage: user.image as string | null,
           workloadPercentage,
           workloadSentiment
         };
@@ -352,7 +352,7 @@ class ClientDepartmentService {
    */
   async getDepartmentProjects(departmentId: string): Promise<DepartmentProject[]> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) return [];
 
       // Get all roles for this department
@@ -506,7 +506,7 @@ class ClientDepartmentService {
    */
   async createDepartment(name: string, description?: string): Promise<Department | null> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) return null;
 
       const { data, error } = await supabase
@@ -535,7 +535,7 @@ class ClientDepartmentService {
    */
   async updateDepartment(id: string, updates: { name?: string; description?: string }): Promise<Department | null> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) return null;
 
       const { data, error } = await supabase
@@ -565,7 +565,7 @@ class ClientDepartmentService {
    */
   async deleteDepartment(id: string): Promise<boolean> {
     try {
-      const supabase = createClientSupabase() as any;
+      const supabase = createClientSupabase();
       if (!supabase) return false;
 
       const { error } = await supabase

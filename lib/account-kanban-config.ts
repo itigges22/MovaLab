@@ -27,7 +27,7 @@ export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
 
 class AccountKanbanConfigService {
   private getSupabase() {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase client not available');
     }

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from('clock_sessions')
       .select('*')
-      .eq('user_id', (userProfile as any).id)
+      .eq('user_id', userProfile.id)
       .eq('is_active', true)
       .single();
 

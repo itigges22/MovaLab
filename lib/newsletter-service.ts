@@ -28,7 +28,7 @@ export const newsletterService = {
    * Get all published newsletters (for display on welcome page)
    */
   async getPublishedNewsletters(): Promise<Newsletter[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
 
     // Optimized: Limit to 20 most recent newsletters
     const { data, error } = await supabase
@@ -53,7 +53,7 @@ export const newsletterService = {
    * Get all newsletters for a user (for management)
    */
   async getUserNewsletters(): Promise<Newsletter[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -81,7 +81,7 @@ export const newsletterService = {
    * Create a new newsletter
    */
   async createNewsletter(input: NewsletterInput): Promise<Newsletter> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -133,7 +133,7 @@ export const newsletterService = {
    * Update a newsletter
    */
   async updateNewsletter(newsletterId: string, input: Partial<NewsletterInput>): Promise<Newsletter> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -166,7 +166,7 @@ export const newsletterService = {
    * Publish a newsletter
    */
   async publishNewsletter(newsletterId: string): Promise<Newsletter> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -200,7 +200,7 @@ export const newsletterService = {
    * Unpublish a newsletter
    */
   async unpublishNewsletter(newsletterId: string): Promise<Newsletter> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -234,7 +234,7 @@ export const newsletterService = {
    * Delete a newsletter
    */
   async deleteNewsletter(newsletterId: string): Promise<void> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {

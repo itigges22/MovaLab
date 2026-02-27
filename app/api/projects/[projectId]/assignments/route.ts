@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
+import { logger } from '@/lib/debug-logger'
 
 /**
  * GET /api/projects/[projectId]/assignments
@@ -62,7 +63,7 @@ export async function GET(
     const workflowInstance = workflowResult.data
 
     if (error) {
-      console.error('Error fetching project assignments:', error)
+      logger.error('Error fetching project assignments', {}, error as Error)
       return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 })
     }
 
@@ -251,7 +252,7 @@ export async function GET(
     })
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/projects/[projectId]/assignments:', error)
+    logger.error('Error in GET /api/projects/[projectId]/assignments', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -297,7 +298,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -323,7 +324,7 @@ export async function POST(
     // Check permissions
     const userIsSuperadmin = isSuperadmin(userProfile)
     const hasEditAllProjects = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS, undefined, supabase)
-    const isProjectCreator = project.created_by === (user as any).id
+    const isProjectCreator = project.created_by === user.id
 
     if (!userIsSuperadmin && !hasEditAllProjects && !isProjectCreator) {
       return NextResponse.json({
@@ -355,7 +356,7 @@ export async function POST(
         .eq('id', existingAssignment.id)
 
       if (updateError) {
-        console.error('Error reactivating assignment:', updateError)
+        logger.error('Error reactivating assignment', {}, updateError as Error)
         return NextResponse.json({ error: 'Failed to add team member' }, { status: 500 })
       }
     } else {
@@ -366,12 +367,12 @@ export async function POST(
           project_id: projectId,
           user_id: userId,
           role_in_project: roleInProject || 'member',
-          assigned_by: (user as any).id,
+          assigned_by: user.id,
           source_type: 'manual'
         })
 
       if (insertError) {
-        console.error('Error creating assignment:', insertError)
+        logger.error('Error creating assignment', {}, insertError as Error)
         return NextResponse.json({ error: 'Failed to add team member' }, { status: 500 })
       }
     }
@@ -379,7 +380,7 @@ export async function POST(
     return NextResponse.json({ success: true, message: 'Team member added successfully' })
 
   } catch (error: unknown) {
-    console.error('Error in POST /api/projects/[projectId]/assignments:', error)
+    logger.error('Error in POST /api/projects/[projectId]/assignments', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -425,7 +426,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -451,7 +452,7 @@ export async function DELETE(
     // Check permissions
     const userIsSuperadmin = isSuperadmin(userProfile)
     const hasEditAllProjects = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS, undefined, supabase)
-    const isProjectCreator = project.created_by === (user as any).id
+    const isProjectCreator = project.created_by === user.id
 
     if (!userIsSuperadmin && !hasEditAllProjects && !isProjectCreator) {
       return NextResponse.json({
@@ -468,7 +469,7 @@ export async function DELETE(
       .is('removed_at', null)
 
     if (updateError) {
-      console.error('Error removing assignment:', updateError)
+      logger.error('Error removing assignment', {}, updateError as Error)
       return NextResponse.json({ error: 'Failed to remove team member' }, { status: 500 })
     }
 
@@ -487,7 +488,7 @@ export async function DELETE(
         .eq('user_id', userId)
 
       if (nodeAssignmentError) {
-        console.error('Error removing workflow node assignments:', nodeAssignmentError)
+        logger.error('Error removing workflow node assignments', {}, nodeAssignmentError as Error)
         // Don't fail the whole operation, just log the error
       }
     }
@@ -495,7 +496,7 @@ export async function DELETE(
     return NextResponse.json({ success: true, message: 'Team member removed successfully' })
 
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/projects/[projectId]/assignments:', error)
+    logger.error('Error in DELETE /api/projects/[projectId]/assignments', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

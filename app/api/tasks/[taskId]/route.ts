@@ -97,7 +97,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -107,7 +107,7 @@ export async function PUT(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -198,7 +198,7 @@ export async function PATCH(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -208,7 +208,7 @@ export async function PATCH(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -326,7 +326,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -336,7 +336,7 @@ export async function DELETE(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }

@@ -92,7 +92,7 @@ export async function POST(
       .insert({
         user_id: userId,
         role_id: fallbackRole.id,
-        assigned_by: (userProfile as any).id,
+        assigned_by: userProfile.id,
         assigned_at: new Date().toISOString()
       });
 

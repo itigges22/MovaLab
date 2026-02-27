@@ -11,7 +11,7 @@ import { UserProfile, UserRole, Role, Department } from './supabase';
  */
 export async function getCurrentUser() {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) return null;
 
     // Try to get user - this will automatically refresh if needed
@@ -151,13 +151,13 @@ export async function getCurrentUserProfile() {
       return null;
     }
 
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       return null;
     }
 
     // Use optimized single query - fetches profile + roles + permissions in ONE call
-    const profile = await fetchUserProfileOptimized(supabase, (user as any).id);
+    const profile = await fetchUserProfileOptimized(supabase, user.id);
 
     if (!profile) {
       return null;
@@ -185,7 +185,7 @@ export async function getCurrentUserProfile() {
  */
 export async function signInWithEmail(email: string, password: string) {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -216,7 +216,7 @@ export async function signInWithEmail(email: string, password: string) {
  */
 export async function signUpWithEmail(email: string, password: string, name: string) {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -303,7 +303,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
  */
 export async function createUserProfile(userId: string, email: string, name: string) {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -370,7 +370,7 @@ export async function createUserProfile(userId: string, email: string, name: str
  */
 export async function signOut() {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -394,7 +394,7 @@ export async function signOut() {
  */
 export async function resetPassword(email: string) {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -421,7 +421,7 @@ export async function resetPassword(email: string) {
  */
 export async function updatePassword(newPassword: string) {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase not configured');
     }
@@ -506,7 +506,7 @@ export async function updateUserProfile(profileData: {
  */
 export async function getCurrentSession() {
   try {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) return null;
 
     const { data: { session }, error } = await supabase.auth.getSession();

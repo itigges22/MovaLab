@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
+import { logger } from '@/lib/debug-logger'
 
 /**
  * POST /api/projects/[projectId]/reopen
@@ -38,7 +39,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -63,7 +64,7 @@ export async function POST(
     // Check permissions - must be superadmin, have EDIT_ALL_PROJECTS, or be the project creator
     const userIsSuperadmin = isSuperadmin(userProfile)
     const hasEditAllProjects = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS, undefined, supabase)
-    const isProjectCreator = project.created_by === (user as any).id
+    const isProjectCreator = project.created_by === user.id
 
     if (!userIsSuperadmin && !hasEditAllProjects && !isProjectCreator) {
       return NextResponse.json({
@@ -88,7 +89,7 @@ export async function POST(
       .eq('id', projectId)
 
     if (updateError) {
-      console.error('Error reopening project:', updateError)
+      logger.error('Error reopening project', {}, updateError as Error)
       return NextResponse.json({ error: 'Failed to reopen project' }, { status: 500 })
     }
 
@@ -101,7 +102,7 @@ export async function POST(
       .not('removed_at', 'is', null)
 
     if (reactivateError) {
-      console.error('Error reactivating team assignments:', reactivateError)
+      logger.error('Error reactivating team assignments', {}, reactivateError as Error)
       // Continue anyway - this is not a critical failure
     }
 
@@ -127,7 +128,7 @@ export async function POST(
           project_id: projectId,
           user_id: project.created_by,
           role_in_project: 'creator',
-          assigned_by: (user as any).id
+          assigned_by: user.id
         })
     }
 
@@ -137,7 +138,7 @@ export async function POST(
     })
 
   } catch (error: unknown) {
-    console.error('Error in POST /api/projects/[projectId]/reopen:', error)
+    logger.error('Error in POST /api/projects/[projectId]/reopen', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 import {
   startOfWeek,
   endOfWeek,
@@ -338,7 +339,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/my-analytics:', error);
+    logger.error('Error in GET /api/dashboard/my-analytics', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

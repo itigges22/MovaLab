@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { getClientProjects } from '@/lib/client-portal-service';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/client/portal/projects - Get all projects for client's account
 export async function GET(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -36,11 +37,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get client projects
-    const projects = await getClientProjects((user as any).id);
+    const projects = await getClientProjects(user.id);
 
     return NextResponse.json({ success: true, projects }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/client/portal/projects:', error);
+    logger.error('Error in GET /api/client/portal/projects', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

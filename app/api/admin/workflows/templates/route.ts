@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { getWorkflowTemplates, getAllWorkflowTemplates, createWorkflowTemplate } from '@/lib/workflow-service';
 import { validateRequestBody, createWorkflowTemplateSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/admin/workflows/templates - List all workflow templates
 export async function GET(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, templates }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/admin/workflows/templates:', error);
+    logger.error('Error in GET /api/admin/workflows/templates', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -115,12 +116,12 @@ export async function POST(request: NextRequest) {
     const template = await createWorkflowTemplate(
       validation.data.name,
       validation.data.description || null,
-      (user as any).id
+      user.id
     );
 
     return NextResponse.json({ success: true, template }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/admin/workflows/templates:', error);
+    logger.error('Error in POST /api/admin/workflows/templates', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

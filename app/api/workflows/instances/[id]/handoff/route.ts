@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions';
 import { handoffWorkflow } from '@/lib/workflow-service';
 import { validateRequestBody, workflowHandoffSchema } from '@/lib/validation-schemas';
 import { verifyWorkflowInstanceAccess } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // POST /api/workflows/instances/[id]/handoff - Hand off work to next node
 export async function POST(
@@ -38,7 +39,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -63,7 +64,7 @@ export async function POST(
     }
 
     // Verify user has access to the workflow instance's project
-    const accessCheck = await verifyWorkflowInstanceAccess(supabase, (user as any).id, id);
+    const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, id);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this workflow instance'
@@ -84,7 +85,7 @@ export async function POST(
     const historyEntry = await handoffWorkflow(supabase, {
       instanceId: id,
       toNodeId: validation.data.to_node_id,
-      handedOffBy: (user as any).id,
+      handedOffBy: user.id,
       handedOffTo: validation.data.handed_off_to || null,
       formResponseId: validation.data.form_response_id || null,
       notes: validation.data.notes || null,
@@ -93,7 +94,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, history_entry: historyEntry }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/workflows/instances/[id]/handoff:', error);
+    logger.error('Error in POST /api/workflows/instances/[id]/handoff', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

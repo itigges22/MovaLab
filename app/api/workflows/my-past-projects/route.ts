@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Only filter by user if not superadmin
     if (!isSuperadmin) {
-      completedQuery = completedQuery.eq('user_id', (user as any).id);
+      completedQuery = completedQuery.eq('user_id', user.id);
     }
 
     const { data: completedAssignments, error: completedError } = await completedQuery;
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
 
     // Only filter by user if not superadmin
     if (!isSuperadmin) {
-      nodeQuery = nodeQuery.eq('user_id', (user as any).id);
+      nodeQuery = nodeQuery.eq('user_id', user.id);
     }
 
     const { data: nodeAssignments, error: nodeError } = await nodeQuery;

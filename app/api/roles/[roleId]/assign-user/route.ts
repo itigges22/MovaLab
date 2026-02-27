@@ -27,7 +27,7 @@ export async function POST(
     }
 
     // PRIVILEGE ESCALATION PROTECTION: Prevent users from assigning roles to themselves
-    if (userId === (userProfile as any).id) {
+    if (userId === userProfile.id) {
       return NextResponse.json({ 
         error: 'You cannot assign roles to yourself. Please contact an administrator.' 
       }, { status: 403 });
@@ -128,7 +128,7 @@ export async function POST(
       .insert({
         user_id: userId,
         role_id: roleId,
-        assigned_by: (userProfile as any).id,
+        assigned_by: userProfile.id,
         assigned_at: new Date().toISOString()
       });
 

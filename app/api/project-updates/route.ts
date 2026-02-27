@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    const userId = (userProfile as any).id;
+    const userId = userProfile.id;
 
     // Phase 9: Simplified permission check - VIEW_UPDATES (context-aware) or VIEW_ALL_UPDATES (override)
     const hasViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_UPDATES);

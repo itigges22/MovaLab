@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { userHasProjectAccess } from '@/lib/rbac';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * PUT /api/projects/[projectId]/issues/[issueId]
@@ -37,7 +38,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -74,7 +75,7 @@ export async function PUT(
       // Handle resolved metadata
       if (status === 'resolved') {
         updates.resolved_at = new Date().toISOString();
-        updates.resolved_by = (user as any).id;
+        updates.resolved_by = user.id;
       } else {
         updates.resolved_at = null;
         updates.resolved_by = null;
@@ -95,7 +96,7 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error('Error updating issue:', error);
+      logger.error('Error updating issue:', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to update issue' }, { status: 500 });
     }
 
@@ -104,16 +105,16 @@ export async function PUT(
       .from('project_assignments')
       .select('id, removed_at')
       .eq('project_id', projectId)
-      .eq('user_id', (user as any).id)
+      .eq('user_id', user.id)
       .single();
 
     if (!existingAssignment) {
       // Insert new assignment
       await supabase.from('project_assignments').insert({
         project_id: projectId,
-        user_id: (user as any).id,
+        user_id: user.id,
         role_in_project: 'collaborator',
-        assigned_by: (user as any).id,
+        assigned_by: user.id,
         source_type: 'manual'
       });
     } else if (existingAssignment.removed_at) {
@@ -126,7 +127,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, issue });
   } catch (error: unknown) {
-    console.error('Error in PUT /api/projects/[projectId]/issues/[issueId]:', error);
+    logger.error('Error in PUT /api/projects/[projectId]/issues/[issueId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -166,7 +167,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -187,13 +188,13 @@ export async function DELETE(
       .eq('project_id', projectId);
 
     if (error) {
-      console.error('Error deleting issue:', error);
+      logger.error('Error deleting issue:', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to delete issue' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/projects/[projectId]/issues/[issueId]:', error);
+    logger.error('Error in DELETE /api/projects/[projectId]/issues/[issueId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

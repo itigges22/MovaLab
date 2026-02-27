@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { clientApproveProject } from '@/lib/client-portal-service';
 import { z } from 'zod';
 import { validateRequestBody } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 const approveProjectSchema = z.object({
   workflow_instance_id: z.string().uuid('Invalid workflow instance ID'),
@@ -31,7 +32,7 @@ export async function POST(
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -54,7 +55,7 @@ export async function POST(
     const result = await clientApproveProject({
       projectId: id,
       workflowInstanceId: validation.data.workflow_instance_id,
-      clientUserId: (user as any).id,
+      clientUserId: user.id,
       notes: validation.data.notes || null
     });
 
@@ -63,7 +64,7 @@ export async function POST(
       message: 'Project approved successfully'
     }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/client/portal/projects/[id]/approve:', error);
+    logger.error('Error in POST /api/client/portal/projects/[id]/approve', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

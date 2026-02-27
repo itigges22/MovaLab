@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // If workflow_history_id is provided, verify user has access to that workflow
     if (validation.data.workflow_history_id) {
-      const accessCheck = await verifyWorkflowHistoryAccess(supabase, (user as any).id, validation.data.workflow_history_id);
+      const accessCheck = await verifyWorkflowHistoryAccess(supabase, user.id, validation.data.workflow_history_id);
       if (!accessCheck.hasAccess) {
         return NextResponse.json({
           error: accessCheck.error || 'You do not have access to this workflow'
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const response = await submitFormResponse({
       formTemplateId: validation.data.form_template_id,
       responseData: validation.data.response_data,
-      submittedBy: (user as any).id,
+      submittedBy: user.id,
       workflowHistoryId: validation.data.workflow_history_id || null
     });
 

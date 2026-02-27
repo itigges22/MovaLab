@@ -13,7 +13,7 @@ interface SuperadminResult {
  */
 export async function assignSuperadminRole() {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -24,7 +24,7 @@ export async function assignSuperadminRole() {
       throw new Error('User not authenticated')
     }
 
-    console.log('Assigning superadmin role to user:', (user as any).id)
+    console.log('Assigning superadmin role to user:', user.id)
 
     // First, ensure the System department exists
     console.log('Step 1: Creating/checking System Administration department...')
@@ -185,16 +185,16 @@ export async function assignSuperadminRole() {
 
     // Assign the superadmin role to the current user
     console.log('Step 5: Assigning Superadmin role to user...')
-    console.log('User ID:', (user as any).id)
+    console.log('User ID:', user.id)
     console.log('Role ID:', roleData.id)
     
     const { error: assignError } = await supabase
       .from('user_roles')
       .insert({
-        user_id: (user as any).id,
+        user_id: user.id,
         role_id: roleData.id,
         assigned_at: new Date().toISOString(),
-        assigned_by: (user as any).id // Use the current user's ID as the assigner
+        assigned_by: user.id // Use the current user's ID as the assigner
       })
 
     if (assignError) {
@@ -229,7 +229,7 @@ export async function assignSuperadminRole() {
  */
 export async function checkSuperadminRole() {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       return false
     }
@@ -248,7 +248,7 @@ export async function checkSuperadminRole() {
           name
         )
       `)
-      .eq('user_id', (user as any).id)
+      .eq('user_id', user.id)
       .eq('roles.name', 'Superadmin')
 
     if (error) {
@@ -270,7 +270,7 @@ export async function checkSuperadminRole() {
  */
 export async function removeSuperadminRole() {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -294,7 +294,7 @@ export async function removeSuperadminRole() {
     const { error } = await supabase
       .from('user_roles')
       .delete()
-      .eq('user_id', (user as any).id)
+      .eq('user_id', user.id)
       .eq('role_id', roleData.id)
 
     if (error) {
@@ -317,7 +317,7 @@ export async function removeSuperadminRole() {
  */
 export async function assignSuperadminRoleByEmail(email: string): Promise<SuperadminResult> {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -405,7 +405,7 @@ export async function assignSuperadminRoleByEmail(email: string): Promise<Supera
  */
 export async function checkSuperadminRoleByEmail(email: string): Promise<SuperadminResult> {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       throw new Error('Supabase not configured')
     }
@@ -454,7 +454,7 @@ export async function checkSuperadminRoleByEmail(email: string): Promise<Superad
  */
 export async function removeSuperadminRoleByEmail(email: string): Promise<SuperadminResult> {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       throw new Error('Supabase not configured')
     }

@@ -12,7 +12,7 @@ export function useSession() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       setLoading(false)
       return

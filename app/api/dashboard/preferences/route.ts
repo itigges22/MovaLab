@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     if (error && error.code !== 'PGRST116') {
       // PGRST116 = No rows returned - this is expected for new users
-      console.error('Error fetching dashboard preferences:', error);
+      logger.error('Error fetching dashboard preferences', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch preferences' },
         { status: 500 }
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/preferences:', error);
+    logger.error('Error in GET /api/dashboard/preferences', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }
@@ -151,7 +152,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error saving dashboard preferences:', error);
+      logger.error('Error saving dashboard preferences', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to save preferences', details: error.message },
         { status: 500 }
@@ -167,7 +168,7 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in PUT /api/dashboard/preferences:', error);
+    logger.error('Error in PUT /api/dashboard/preferences', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }
@@ -206,7 +207,7 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', userId);
 
     if (error) {
-      console.error('Error deleting dashboard preferences:', error);
+      logger.error('Error deleting dashboard preferences', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to reset preferences' },
         { status: 500 }
@@ -222,7 +223,7 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/dashboard/preferences:', error);
+    logger.error('Error in DELETE /api/dashboard/preferences', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

@@ -382,13 +382,13 @@ export async function checkPermission(
     }
 
     if (!userProfile.user_roles || !Array.isArray(userProfile.user_roles)) {
-      logger.debug('No user roles found', { action: 'checkPermission', permission, userId: (userProfile as any).id });
+      logger.debug('No user roles found', { action: 'checkPermission', permission, userId: userProfile.id });
       return false;
     }
 
     // Superadmin always has all permissions
     if (isSuperadmin(userProfile)) {
-      permissionCheck(permission, (userProfile as any).id, true, { action: 'checkPermission', reason: 'superadmin' });
+      permissionCheck(permission, userProfile.id, true, { action: 'checkPermission', reason: 'superadmin' });
       return true;
     }
 
@@ -397,18 +397,18 @@ export async function checkPermission(
     const roleIds = userRoles.map((ur: any) => ur?.role_id).filter(Boolean);
 
     if (roleIds.length === 0) {
-      logger.debug('No valid role IDs found', { action: 'checkPermission', permission, userId: (userProfile as any).id });
+      logger.debug('No valid role IDs found', { action: 'checkPermission', permission, userId: userProfile.id });
       return false;
     }
 
     // Fetch permissions for all user's roles
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
-      logger.error('Supabase client not available', { action: 'checkPermission', permission, userId: (userProfile as any).id });
+      logger.error('Supabase client not available', { action: 'checkPermission', permission, userId: userProfile.id });
       return false;
     }
 
-    databaseQuery('SELECT', 'roles', { action: 'checkPermission', permission, userId: (userProfile as any).id });
+    databaseQuery('SELECT', 'roles', { action: 'checkPermission', permission, userId: userProfile.id });
 
     const { data: roles, error } = await supabase
       .from('roles')
@@ -416,13 +416,13 @@ export async function checkPermission(
       .in('id', roleIds);
 
     if (error) {
-      databaseError('SELECT', 'roles', error, { action: 'checkPermission', permission, userId: (userProfile as any).id });
-      logger.error('Error fetching role permissions', { action: 'checkPermission', permission, userId: (userProfile as any).id }, error);
+      databaseError('SELECT', 'roles', error, { action: 'checkPermission', permission, userId: userProfile.id });
+      logger.error('Error fetching role permissions', { action: 'checkPermission', permission, userId: userProfile.id }, error);
       return false;
     }
 
     if (!roles || roles.length === 0) {
-      logger.debug('No roles found for user', { action: 'checkPermission', permission, userId: (userProfile as any).id });
+      logger.debug('No roles found for user', { action: 'checkPermission', permission, userId: userProfile.id });
       return false;
     }
 
@@ -438,7 +438,7 @@ export async function checkPermission(
           const userRole = userRoles.find((ur: { role_id: string; roles?: { departments?: { id: string } | null } | null }) => ur?.role_id === role.id);
           if (userRole?.roles?.departments?.id === context.departmentId) {
             const duration = Date.now() - startTime;
-            permissionCheck(permission, (userProfile as any).id, true, {
+            permissionCheck(permission, userProfile.id, true, {
               action: 'checkPermission',
               roleId: role.id,
               departmentId: context.departmentId,
@@ -448,7 +448,7 @@ export async function checkPermission(
           }
         } else {
           const duration = Date.now() - startTime;
-          permissionCheck(permission, (userProfile as any).id, true, {
+          permissionCheck(permission, userProfile.id, true, {
             action: 'checkPermission',
             roleId: role.id,
             duration
@@ -459,7 +459,7 @@ export async function checkPermission(
     }
 
     const duration = Date.now() - startTime;
-    permissionCheck(permission, (userProfile as any).id, false, {
+    permissionCheck(permission, userProfile.id, false, {
       action: 'checkPermission',
       duration,
       context: context?.departmentId ? { departmentId: context.departmentId } : undefined
@@ -471,7 +471,7 @@ export async function checkPermission(
     logger.error('Exception in checkPermission', {
       action: 'checkPermission',
       permission,
-      userId: (userProfile as any)?.id,
+      userId: userProfile?.id,
       duration
     }, error as Error);
     return false;
@@ -492,7 +492,7 @@ export async function getUserPermissions(userProfile: UserWithRoles | null): Pro
   const userRoles = userProfile.user_roles;
   const roleIds = userRoles.map((ur: any) => ur.role_id);
 
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
   if (!supabase) return [];
 
   const { data: roles, error } = await supabase
@@ -522,7 +522,7 @@ export async function getUserPermissions(userProfile: UserWithRoles | null): Pro
  * @returns Array of permissions for the role
  */
 export async function getRolePermissions(roleId: string): Promise<Permission[]> {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
   if (!supabase) return [];
 
   const { data: role, error } = await supabase
@@ -550,7 +550,7 @@ export async function updateRolePermissions(
   roleId: string,
   permissions: Record<Permission, boolean>
 ): Promise<boolean> {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
   if (!supabase) return false;
 
   const { error } = await supabase
@@ -571,7 +571,7 @@ function isSuperadmin(userProfile: UserWithRoles | null): boolean {
   if (!userProfile) return false;
 
   // Primary check: use the is_superadmin flag on user profile
-  if ((userProfile as any).is_superadmin) return true;
+  if (userProfile.is_superadmin) return true;
 
   // Fallback: check if user has a system role with superadmin-level permissions
   // This uses is_system_role flag, not hardcoded role names

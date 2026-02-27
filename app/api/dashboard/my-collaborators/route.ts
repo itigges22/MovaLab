@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
       .is('removed_at', null);
 
     if (assignmentError) {
-      console.error('Error fetching user assignments:', assignmentError);
+      logger.error('Error fetching user assignments', {}, assignmentError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch collaborators' },
         { status: 500 }
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       .is('removed_at', null);
 
     if (otherError) {
-      console.error('Error fetching other assignments:', otherError);
+      logger.error('Error fetching other assignments', {}, otherError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch collaborators' },
         { status: 500 }
@@ -186,7 +187,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/my-collaborators:', error);
+    logger.error('Error in GET /api/dashboard/my-collaborators', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

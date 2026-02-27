@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -222,7 +223,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/my-workflows:', error);
+    logger.error('Error in GET /api/dashboard/my-workflows', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

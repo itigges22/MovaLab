@@ -37,7 +37,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -52,7 +52,7 @@ export async function GET(
     }
 
     // Verify user has access to the form response (and its workflow if linked)
-    const accessCheck = await verifyFormResponseAccess(supabase, (user as any).id, id);
+    const accessCheck = await verifyFormResponseAccess(supabase, user.id, id);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this form response'

@@ -39,7 +39,7 @@ export interface ApprovalAction {
 
 class UserApprovalService {
   private async getSupabase(): Promise<any | null> {
-    return createClientSupabase() as any;
+    return createClientSupabase();
   }
 
   /**
@@ -309,7 +309,7 @@ class UserApprovalService {
           stats.total_pending++;
 
           // Group pending by date
-          const date = new Date((user.approval_requested_at || (user as any).created_at) as string).toISOString().split('T')[0];
+          const date = new Date((user.approval_requested_at || user.created_at) as string).toISOString().split('T')[0];
           stats.pending_by_date[date] = (stats.pending_by_date[date] || 0) + 1;
         }
       });

@@ -6,7 +6,7 @@ import { createClientSupabase } from './supabase';
  * @returns Object with check results
  */
 export async function checkDatabaseSchema() {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
   if (!supabase) {
     return {
       success: false,
@@ -108,7 +108,7 @@ export async function checkDatabaseSchema() {
  * @returns Test result
  */
 export async function testUserProfileCreation(userId: string, email: string, name: string) {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
   if (!supabase) {
     return {
       success: false,

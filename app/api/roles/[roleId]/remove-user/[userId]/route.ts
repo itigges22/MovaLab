@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
+import { logger } from '@/lib/debug-logger';
 
 export async function DELETE(
   request: NextRequest,
@@ -25,11 +26,11 @@ export async function DELETE(
 
     // PRIVILEGE ESCALATION PROTECTION: Prevent users from removing their own roles
     // (This is allowed but logged for audit purposes)
-    const isSelfRemoval = userId === (userProfile as any).id;
+    const isSelfRemoval = userId === userProfile.id;
     if (isSelfRemoval) {
       // Log self-removal attempt for audit
-      console.warn('User attempted to remove their own role', {
-        userId: (userProfile as any).id,
+      logger.warn('User attempted to remove their own role', {
+        userId: userProfile.id,
         roleId,
         timestamp: new Date().toISOString()
       });
@@ -78,13 +79,13 @@ export async function DELETE(
       .neq('role_id', roleId); // Exclude the role being removed
 
     if (otherRolesError) {
-      console.error('Error checking other roles:', otherRolesError);
+      logger.error('Error checking other roles', {}, otherRolesError as unknown as Error);
       return NextResponse.json({ error: 'Failed to check other roles' }, { status: 500 });
     }
 
     // If user has no other roles, assign to "No Assigned Role" first
     if (!otherRoles || otherRoles.length === 0) {
-      console.log(`🔄 User has no other roles, assigning to "No Assigned Role" first`);
+      logger.debug('User has no other roles, assigning to "No Assigned Role" first');
       
       // Get the fallback role
       const { data: fallbackRole, error: fallbackError } = await supabase
@@ -94,7 +95,7 @@ export async function DELETE(
         .single();
 
       if (fallbackError || !fallbackRole) {
-        console.error('Fallback role not found:', fallbackError);
+        logger.error('Fallback role not found', {}, fallbackError as unknown as Error);
         return NextResponse.json({ 
           error: 'Fallback role not found. Cannot remove user from their last role.' 
         }, { status: 500 });
@@ -106,20 +107,20 @@ export async function DELETE(
         .insert({
           user_id: userId,
           role_id: fallbackRole.id,
-          assigned_by: (userProfile as any).id,
+          assigned_by: userProfile.id,
           assigned_at: new Date().toISOString()
         });
 
       if (assignError) {
-        console.error('Error assigning user to fallback role:', assignError);
+        logger.error('Error assigning user to fallback role', {}, assignError as unknown as Error);
         return NextResponse.json({ 
           error: 'Failed to assign user to fallback role before removal' 
         }, { status: 500 });
       }
 
-      console.log(`✅ User ${targetUser.name} assigned to ${fallbackRole.name} before removal`);
+      logger.debug('User assigned to fallback role before removal', { data: { userName: targetUser.name, fallbackRole: fallbackRole.name } });
     } else {
-      console.log(`ℹ️ User ${targetUser.name} has ${otherRoles.length} other roles, proceeding with removal`);
+      logger.debug('User has other roles, proceeding with removal', { data: { userName: targetUser.name, otherRolesCount: otherRoles.length } });
     }
 
     // Now remove the assignment (user now has at least one other role or fallback role)
@@ -130,11 +131,11 @@ export async function DELETE(
       .eq('role_id', roleId);
 
     if (deleteError) {
-      console.error('Error removing user from role:', deleteError);
+      logger.error('Error removing user from role', {}, deleteError as unknown as Error);
       return NextResponse.json({ error: 'Failed to remove user from role' }, { status: 500 });
     }
 
-    console.log(`✅ User ${targetUser.name} successfully removed from ${role.name}`);
+    logger.debug('User successfully removed from role', { data: { userName: targetUser.name, roleName: role.name } });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

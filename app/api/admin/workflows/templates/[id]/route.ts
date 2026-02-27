@@ -9,6 +9,7 @@ import {
 } from '@/lib/workflow-service';
 import { validateRequestBody, updateWorkflowTemplateSchema } from '@/lib/validation-schemas';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 // GET /api/admin/workflows/templates/[id] - Get workflow template with nodes and connections
@@ -45,7 +46,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -67,7 +68,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, template }, { status: 200 });
   } catch (error: unknown) {
-console.error('Error in GET /api/admin/workflows/templates/[id]:', error);
+    logger.error('Error in GET /api/admin/workflows/templates/[id]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -106,7 +107,7 @@ export async function PATCH(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -191,7 +192,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, template }, { status: 200 });
   } catch (error: unknown) {
-console.error('Error in PATCH /api/admin/workflows/templates/[id]:', error);
+    logger.error('Error in PATCH /api/admin/workflows/templates/[id]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -234,7 +235,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -256,7 +257,7 @@ export async function DELETE(
       message: 'Workflow template deleted successfully. Existing projects will continue using their workflow snapshots.'
     }, { status: 200 });
   } catch (error: unknown) {
-console.error('Error in DELETE /api/admin/workflows/templates/[id]:', error);
+    logger.error('Error in DELETE /api/admin/workflows/templates/[id]', {}, error as Error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

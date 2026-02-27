@@ -570,8 +570,8 @@ class AssignmentService {
         if (!userMap.has(userId)) {
           userMap.set(userId, {
             user_id: userId,
-            user_name: (user as any).name,
-            user_email: (user as any).email,
+            user_name: user.name,
+            user_email: user.email,
             projects: [],
             accounts_accessible: new Set<string>(),
           });

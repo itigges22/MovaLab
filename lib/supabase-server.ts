@@ -154,7 +154,7 @@ export async function getUserProfileFromRequest(supabase: ReturnType<typeof crea
   const { data: profile, error: profileError } = await supabase
     .from('user_profiles')
     .select('*')
-    .eq('id', (user as any).id)
+    .eq('id', user.id)
     .single();
 
   if (profileError || !profile) {
@@ -182,7 +182,7 @@ export async function getUserProfileFromRequest(supabase: ReturnType<typeof crea
         )
       )
     `)
-    .eq('user_id', (user as any).id);
+    .eq('user_id', user.id);
 
   return {
     ...profile,

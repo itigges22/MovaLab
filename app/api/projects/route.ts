@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
-      logger.error('User profile not found', { action: 'create_project', userId: (user as any).id })
+      logger.error('User profile not found', { action: 'create_project', userId: user.id })
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       logger.warn('Invalid project creation data', {
         action: 'create_project',
-        userId: (user as any).id,
+        userId: user.id,
         error: validation.error
       })
       return NextResponse.json({ error: validation.error }, { status: 400 })
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (!canManageProjects) {
       logger.warn('Insufficient permissions to create project', {
         action: 'create_project',
-        userId: (user as any).id,
+        userId: user.id,
         accountId
       })
       return NextResponse.json({ error: 'Insufficient permissions to create projects' }, { status: 403 })
@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
         start_date: validation.data.start_date,
         end_date: validation.data.end_date,
         budget: validation.data.budget,
-        assigned_user_id: validation.data.assigned_user_id || (user as any).id,
-        created_by: (user as any).id,
+        assigned_user_id: validation.data.assigned_user_id || user.id,
+        created_by: user.id,
         created_at: new Date().toISOString()
       })
       .select()
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       logger.error('Failed to create project in database', {
         action: 'create_project',
-        userId: (user as any).id,
+        userId: user.id,
         accountId
       }, error as Error)
 
@@ -110,17 +110,17 @@ export async function POST(request: NextRequest) {
       .from('project_assignments')
       .insert({
         project_id: project.id,
-        user_id: (user as any).id,
+        user_id: user.id,
         role_in_project: 'Project Creator',
         assigned_at: new Date().toISOString(),
-        assigned_by: (user as any).id,
+        assigned_by: user.id,
         source_type: 'creator'
       })
 
     if (assignmentError) {
       logger.error('Failed to add creator to project assignments', {
         action: 'create_project',
-        userId: (user as any).id,
+        userId: user.id,
         projectId: project.id
       }, assignmentError as Error)
       // Don't fail the request, the project was created successfully
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('Project created successfully', {
       action: 'create_project',
-      userId: (user as any).id,
+      userId: user.id,
       projectId: project.id,
       accountId
     })

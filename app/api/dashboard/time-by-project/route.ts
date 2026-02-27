@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { startOfWeek, endOfWeek, format } from 'date-fns';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
       .lte('entry_date', weekEndStr);
 
     if (error) {
-      console.error('Error fetching time entries:', error);
+      logger.error('Error fetching time entries', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch time data' },
         { status: 500 }
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/time-by-project:', error);
+    logger.error('Error in GET /api/dashboard/time-by-project', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

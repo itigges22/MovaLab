@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Start the workflow
-    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, (user as any).id);
+    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, user.id);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });

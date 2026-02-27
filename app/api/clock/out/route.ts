@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from('clock_sessions')
       .select('*')
-      .eq('user_id', (userProfile as any).id)
+      .eq('user_id', userProfile.id)
       .eq('is_active', true)
       .single();
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     // Create time entries for each allocation
     const timeEntries = allocations.map((allocation: any) => ({
       task_id: allocation.taskId ?? null,
-      user_id: (userProfile as any).id,
+      user_id: userProfile.id,
       project_id: allocation.projectId,
       hours_logged: Math.round(allocation.hours * 100) / 100, // Round to 2 decimals
       entry_date: entryDate,

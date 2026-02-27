@@ -34,7 +34,7 @@ export const projectIssuesService = {
    * Get all issues for a project
    */
   async getProjectIssues(projectId: string): Promise<ProjectIssue[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     const { data, error } = await supabase
       .from('project_issues')
@@ -58,7 +58,7 @@ export const projectIssuesService = {
    * Get all active (open or in_progress) issues for a department
    */
   async getDepartmentActiveIssues(departmentId: string): Promise<(ProjectIssue & { project?: { id: string; name: string } })[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     // Get all roles for this department
     const { data: departmentRoles, error: rolesError } = await supabase
@@ -163,7 +163,7 @@ export const projectIssuesService = {
    * Get all active (open or in_progress) issues for an account
    */
   async getAccountActiveIssues(accountId: string): Promise<(ProjectIssue & { project?: { id: string; name: string } })[]> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     
     // First, get all project IDs for this account
     const { data: projects, error: projectsError } = await supabase
@@ -212,7 +212,7 @@ export const projectIssuesService = {
    * Create a new project issue
    */
   async createProjectIssue(input: ProjectIssueInput): Promise<ProjectIssue> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -248,7 +248,7 @@ export const projectIssuesService = {
     issueId: string, 
     status: 'open' | 'in_progress' | 'resolved'
   ): Promise<ProjectIssue> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -293,7 +293,7 @@ export const projectIssuesService = {
    * Update issue content
    */
   async updateIssueContent(issueId: string, content: string): Promise<ProjectIssue> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
 
     const { data, error } = await supabase
       .from('project_issues')
@@ -321,7 +321,7 @@ export const projectIssuesService = {
    * Delete a project issue
    */
   async deleteProjectIssue(issueId: string): Promise<void> {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
 
     const { error } = await supabase
       .from('project_issues')

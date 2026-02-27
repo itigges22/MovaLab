@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/debug-logger';
 
 // This endpoint resets demo data daily for demo.movalab.dev
 // Runs via Vercel Cron at midnight UTC
@@ -53,7 +54,7 @@ export async function GET(_request: NextRequest) {
         description = EXCLUDED.description;
     `;
     const { error: deptError } = await supabase.rpc('exec_sql', { query: departmentsUpsert });
-    if (deptError) console.error('Departments upsert error:', deptError);
+    if (deptError) logger.error('Departments upsert error', {}, deptError as unknown as Error);
 
     // Get the Operations department ID (it may have been created with a different UUID)
     const { data: opsDept } = await supabase
@@ -76,7 +77,7 @@ export async function GET(_request: NextRequest) {
           permissions = EXCLUDED.permissions;
       `;
       const { error: opsRoleError } = await supabase.rpc('exec_sql', { query: opsRoleUpsert });
-      if (opsRoleError) console.error('Operations role upsert error:', opsRoleError);
+      if (opsRoleError) logger.error('Operations role upsert error', {}, opsRoleError as unknown as Error);
     }
 
     // Step 1: Clear existing seed data
@@ -103,7 +104,7 @@ export async function GET(_request: NextRequest) {
 
     for (const query of clearQueries) {
       const { error } = await supabase.rpc('exec_sql', { query });
-      if (error) console.error('Clear error:', error);
+      if (error) logger.error('Clear error', {}, error as unknown as Error);
     }
 
     // Step 2: Insert fresh projects with current dates
@@ -215,83 +216,83 @@ export async function GET(_request: NextRequest) {
     ], { onConflict: 'id' });
 
     if (projectsError) {
-      console.error('Projects error:', projectsError);
+      logger.error('Projects error', {}, projectsError as unknown as Error);
     }
 
     // Step 3: Insert tasks
     const tasks = generateTasks();
     const { error: tasksError } = await supabase.from('tasks').upsert(tasks, { onConflict: 'id' });
-    if (tasksError) console.error('Tasks error:', tasksError);
+    if (tasksError) logger.error('Tasks error', {}, tasksError as unknown as Error);
 
     // Step 4: Insert project assignments
     const assignments = generateAssignments();
     const { error: assignmentsError } = await supabase.from('project_assignments').upsert(assignments, { onConflict: 'id' });
-    if (assignmentsError) console.error('Assignments error:', assignmentsError);
+    if (assignmentsError) logger.error('Assignments error', {}, assignmentsError as unknown as Error);
 
     // Step 5: Insert account members
     const members = generateAccountMembers();
     const { error: membersError } = await supabase.from('account_members').upsert(members, { onConflict: 'id' });
-    if (membersError) console.error('Members error:', membersError);
+    if (membersError) logger.error('Members error', {}, membersError as unknown as Error);
 
     // Step 6: Insert time entries
     const timeEntries = generateTimeEntries();
     const { error: timeError } = await supabase.from('time_entries').upsert(timeEntries, { onConflict: 'id' });
-    if (timeError) console.error('Time entries error:', timeError);
+    if (timeError) logger.error('Time entries error', {}, timeError as unknown as Error);
 
     // Step 7: Insert project updates
     const updates = generateProjectUpdates();
     const { error: updatesError } = await supabase.from('project_updates').upsert(updates, { onConflict: 'id' });
-    if (updatesError) console.error('Updates error:', updatesError);
+    if (updatesError) logger.error('Updates error', {}, updatesError as unknown as Error);
 
     // Step 8: Insert milestones
     const milestones = generateMilestones();
     const { error: milestonesError } = await supabase.from('milestones').upsert(milestones, { onConflict: 'id' });
-    if (milestonesError) console.error('Milestones error:', milestonesError);
+    if (milestonesError) logger.error('Milestones error', {}, milestonesError as unknown as Error);
 
     // Step 9: Insert user availability
     const availability = generateUserAvailability();
     const { error: availabilityError } = await supabase.from('user_availability').upsert(availability, { onConflict: 'id' });
-    if (availabilityError) console.error('Availability error:', availabilityError);
+    if (availabilityError) logger.error('Availability error', {}, availabilityError as unknown as Error);
 
     // Step 10: Insert workflow templates
     const workflowTemplates = generateWorkflowTemplates();
     const { error: templatesError } = await supabase.from('workflow_templates').upsert(workflowTemplates, { onConflict: 'id' });
-    if (templatesError) console.error('Workflow templates error:', templatesError);
+    if (templatesError) logger.error('Workflow templates error', {}, templatesError as unknown as Error);
 
     // Step 11: Insert workflow nodes
     const workflowNodes = generateWorkflowNodes();
     const { error: nodesError } = await supabase.from('workflow_nodes').upsert(workflowNodes, { onConflict: 'id' });
-    if (nodesError) console.error('Workflow nodes error:', nodesError);
+    if (nodesError) logger.error('Workflow nodes error', {}, nodesError as unknown as Error);
 
     // Step 12: Insert workflow connections
     const workflowConnections = generateWorkflowConnections();
     const { error: connectionsError } = await supabase.from('workflow_connections').upsert(workflowConnections, { onConflict: 'id' });
-    if (connectionsError) console.error('Workflow connections error:', connectionsError);
+    if (connectionsError) logger.error('Workflow connections error', {}, connectionsError as unknown as Error);
 
     // Step 13: Insert workflow instances
     const workflowInstances = generateWorkflowInstances();
     const { error: instancesError } = await supabase.from('workflow_instances').upsert(workflowInstances, { onConflict: 'id' });
-    if (instancesError) console.error('Workflow instances error:', instancesError);
+    if (instancesError) logger.error('Workflow instances error', {}, instancesError as unknown as Error);
 
     // Step 14: Insert newsletters
     const newsletters = generateNewsletters();
     const { error: newslettersError } = await supabase.from('newsletters').upsert(newsletters, { onConflict: 'id' });
-    if (newslettersError) console.error('Newsletters error:', newslettersError);
+    if (newslettersError) logger.error('Newsletters error', {}, newslettersError as unknown as Error);
 
     // Step 15: Insert project issues
     const projectIssues = generateProjectIssues();
     const { error: issuesError } = await supabase.from('project_issues').upsert(projectIssues, { onConflict: 'id' });
-    if (issuesError) console.error('Project issues error:', issuesError);
+    if (issuesError) logger.error('Project issues error', {}, issuesError as unknown as Error);
 
     // Step 16: Insert task week allocations
     const taskAllocations = generateTaskWeekAllocations();
     const { error: allocationsError } = await supabase.from('task_week_allocations').upsert(taskAllocations, { onConflict: 'id' });
-    if (allocationsError) console.error('Task allocations error:', allocationsError);
+    if (allocationsError) logger.error('Task allocations error', {}, allocationsError as unknown as Error);
 
     // Step 17: Insert project stakeholders
     const stakeholders = generateProjectStakeholders();
     const { error: stakeholdersError } = await supabase.from('project_stakeholders').upsert(stakeholders, { onConflict: 'id' });
-    if (stakeholdersError) console.error('Stakeholders error:', stakeholdersError);
+    if (stakeholdersError) logger.error('Stakeholders error', {}, stakeholdersError as unknown as Error);
 
     // Step 18: Update role permissions for demo (all internal users get manage_time, edit_own_availability, view_newsletters, view_issues)
     const rolePermissionsUpdate = `
@@ -300,7 +301,7 @@ export async function GET(_request: NextRequest) {
       WHERE name IN ('Executive Director', 'Account Manager', 'Project Manager', 'Senior Designer', 'Senior Developer', 'Junior Designer', 'Junior Developer', 'Admin');
     `;
     const { error: permError } = await supabase.rpc('exec_sql', { query: rolePermissionsUpdate });
-    if (permError) console.error('Role permissions update error:', permError);
+    if (permError) logger.error('Role permissions update error', {}, permError as unknown as Error);
 
     // Step 19: Add leadership permissions (manage_issues for managers and above)
     const leadershipPermissionsUpdate = `
@@ -309,7 +310,7 @@ export async function GET(_request: NextRequest) {
       WHERE name IN ('Executive Director', 'Account Manager', 'Project Manager', 'Admin');
     `;
     const { error: leadershipPermError } = await supabase.rpc('exec_sql', { query: leadershipPermissionsUpdate });
-    if (leadershipPermError) console.error('Leadership permissions update error:', leadershipPermError);
+    if (leadershipPermError) logger.error('Leadership permissions update error', {}, leadershipPermError as unknown as Error);
 
     // Step 20: Add admin-specific permissions to Admin role
     const adminPermissionsUpdate = `
@@ -318,7 +319,7 @@ export async function GET(_request: NextRequest) {
       WHERE name = 'Admin';
     `;
     const { error: adminPermError } = await supabase.rpc('exec_sql', { query: adminPermissionsUpdate });
-    if (adminPermError) console.error('Admin permissions update error:', adminPermError);
+    if (adminPermError) logger.error('Admin permissions update error', {}, adminPermError as unknown as Error);
 
     return NextResponse.json({
       success: true,
@@ -326,7 +327,7 @@ export async function GET(_request: NextRequest) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error resetting demo data:', error);
+    logger.error('Error resetting demo data', {}, error as Error);
     return NextResponse.json({
       error: 'Failed to reset demo data',
       details: error instanceof Error ? error.message : 'Unknown error'

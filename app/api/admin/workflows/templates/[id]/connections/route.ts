@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { createWorkflowConnection } from '@/lib/workflow-service';
 import { validateRequestBody, createWorkflowConnectionSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 // POST /api/admin/workflows/templates/[id]/connections - Create workflow connection
 export async function POST(
@@ -37,7 +38,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -67,7 +68,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, connection }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/admin/workflows/templates/[id]/connections:', error);
+    logger.error('Error in POST /api/admin/workflows/templates/[id]/connections', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

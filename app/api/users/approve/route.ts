@@ -40,37 +40,37 @@ export async function POST(request: NextRequest) {
       action: 'approveUser',
       targetUserId: userId,
       actionType: action,
-      approverId: (userProfile as any).id
+      approverId: userProfile.id
     });
 
     let success = false;
 
     if (action === 'approve') {
-      success = await userApprovalService.approveUser(userId, (userProfile as any).id, reason);
+      success = await userApprovalService.approveUser(userId, userProfile.id, reason);
       if (success) {
         userAction('approved', userId, { 
           action: 'approveUser',
-          approvedBy: (userProfile as any).id,
+          approvedBy: userProfile.id,
           reason
         });
         logger.info('User approved successfully', { 
           action: 'approveUser',
           userId,
-          approvedBy: (userProfile as any).id
+          approvedBy: userProfile.id
         });
       }
     } else if (action === 'reject') {
-      success = await userApprovalService.rejectUser(userId, (userProfile as any).id, reason);
+      success = await userApprovalService.rejectUser(userId, userProfile.id, reason);
       if (success) {
         userAction('rejected', userId, { 
           action: 'approveUser',
-          rejectedBy: (userProfile as any).id,
+          rejectedBy: userProfile.id,
           reason
         });
         logger.info('User rejected successfully', { 
           action: 'approveUser',
           userId,
-          rejectedBy: (userProfile as any).id
+          rejectedBy: userProfile.id
         });
       }
     }

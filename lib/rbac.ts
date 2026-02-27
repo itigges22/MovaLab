@@ -371,7 +371,7 @@ export function getPrimaryDepartment(userProfile: UserWithRoles | null): string 
 export async function isAccountManager(userProfile: UserWithRoles | null, supabaseClient: any): Promise<boolean> {
   if (!userProfile || !supabaseClient) return false;
 
-  const userId = (userProfile as any).id;
+  const userId = userProfile.id;
   if (!userId) return false;
 
   const { data: accounts, error } = await supabaseClient
@@ -460,7 +460,7 @@ export async function userHasProjectAccess(
 
   if (hasOverride) return true;
 
-  const userId = (userProfile as any).id;
+  const userId = userProfile.id;
   if (!userId) return false;
 
   // Import the context check from permission-checker

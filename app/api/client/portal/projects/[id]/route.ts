@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { getClientProjectById } from '@/lib/client-portal-service';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/client/portal/projects/[id] - Get project details with workflow status
 export async function GET(
@@ -34,7 +35,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -47,7 +48,7 @@ export async function GET(
     }
 
     // Get project details
-    const project = await getClientProjectById(id, (user as any).id);
+    const project = await getClientProjectById(id, user.id);
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });
@@ -55,7 +56,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, project }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/client/portal/projects/[id]:', error);
+    logger.error('Error in GET /api/client/portal/projects/[id]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

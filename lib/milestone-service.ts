@@ -21,7 +21,7 @@ export type MilestoneInput = {
  * Fetch all milestones from the database
  */
 export async function getMilestones(): Promise<Milestone[]> {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
   
   const { data, error } = await supabase
     .from('milestones')
@@ -40,7 +40,7 @@ export async function getMilestones(): Promise<Milestone[]> {
  * Create a new milestone
  */
 export async function createMilestone(input: MilestoneInput): Promise<Milestone> {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
 
   const { data, error } = await supabase
     .from('milestones')
@@ -68,7 +68,7 @@ export async function updateMilestone(
   id: string,
   input: Partial<MilestoneInput>
 ): Promise<Milestone> {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
 
   const updateData: Record<string, unknown> = {};
   if (input.name !== undefined) updateData.name = input.name;
@@ -95,7 +95,7 @@ export async function updateMilestone(
  * Delete a milestone
  */
 export async function deleteMilestone(id: string): Promise<void> {
-  const supabase = createClientSupabase() as any;
+  const supabase = createClientSupabase();
 
   const { error } = await supabase
     .from('milestones')

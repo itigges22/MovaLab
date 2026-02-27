@@ -23,11 +23,11 @@ export async function GET(request: NextRequest) {
     const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('id, name, email, bio, skills, image, created_at, updated_at')
-      .eq('id', (userProfile as any).id)
+      .eq('id', userProfile.id)
       .single();
 
     if (error) {
-      logger.error('Error fetching profile', { action: 'getProfile', userId: (userProfile as any).id }, error);
+      logger.error('Error fetching profile', { action: 'getProfile', userId: userProfile.id }, error);
       return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
     }
 
@@ -58,10 +58,10 @@ export async function PATCH(request: NextRequest) {
 
     // Validate that user can only update their own profile
     // (This is already enforced by requireAuthAndPermission, but adding explicit check for clarity)
-    if (body.id && body.id !== (userProfile as any).id) {
+    if (body.id && body.id !== userProfile.id) {
       logger.warn('User attempted to update another user\'s profile', {
         action: 'updateProfile',
-        userId: (userProfile as any).id,
+        userId: userProfile.id,
         attemptedId: body.id
       });
       return NextResponse.json(
@@ -86,7 +86,7 @@ export async function PATCH(request: NextRequest) {
 
     logger.info('Updating user profile', {
       action: 'updateProfile',
-      userId: (userProfile as any).id,
+      userId: userProfile.id,
       fields: Object.keys(updateData)
     });
 
@@ -94,18 +94,18 @@ export async function PATCH(request: NextRequest) {
     const { data: updatedProfile, error } = await supabase
       .from('user_profiles')
       .update(updateData)
-      .eq('id', (userProfile as any).id)
+      .eq('id', userProfile.id)
       .select('id, name, email, bio, skills, image, created_at, updated_at')
       .single();
 
     if (error) {
-      logger.error('Error updating profile', { action: 'updateProfile', userId: (userProfile as any).id }, error);
+      logger.error('Error updating profile', { action: 'updateProfile', userId: userProfile.id }, error);
       return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
     }
 
     logger.info('Profile updated successfully', {
       action: 'updateProfile',
-      userId: (userProfile as any).id
+      userId: userProfile.id
     });
 
     return NextResponse.json({ profile: updatedProfile });

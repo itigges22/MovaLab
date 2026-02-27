@@ -39,7 +39,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -71,12 +71,12 @@ export async function GET(
         const { data: assignment } = await supabase
           .from('project_assignments')
           .select('id')
-          .eq('user_id', (user as any).id)
+          .eq('user_id', user.id)
           .eq('project_id', projectId)
           .is('removed_at', null)
           .single();
 
-        if (!assignment && project.created_by !== (user as any).id && project.assigned_user_id !== (user as any).id) {
+        if (!assignment && project.created_by !== user.id && project.assigned_user_id !== user.id) {
           return NextResponse.json({ error: 'Insufficient permissions to view project' }, { status: 403 });
         }
       }
@@ -124,7 +124,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -187,16 +187,16 @@ export async function PUT(
         .from('project_assignments')
         .select('id, removed_at')
         .eq('project_id', projectId)
-        .eq('user_id', (user as any).id)
+        .eq('user_id', user.id)
         .single();
 
       if (!existingAssignment) {
         // Insert new assignment
         await supabase.from('project_assignments').insert({
           project_id: projectId,
-          user_id: (user as any).id,
+          user_id: user.id,
           role_in_project: 'collaborator',
-          assigned_by: (user as any).id,
+          assigned_by: user.id,
           source_type: 'manual'
         });
       } else if (existingAssignment.removed_at) {
@@ -266,7 +266,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {

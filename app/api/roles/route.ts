@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       // Log detailed error information
-      console.error('[GET /api/roles] Query error:', {
+      logger.error('[GET /api/roles] Query error', {
         message: error.message,
         code: error.code,
         details: error.details,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
       // If using authenticated client and getting RLS error, try service role as fallback
       if (!usingServiceRole && serviceRoleKey && (error.code === '42501' || error.message?.includes('permission denied') || error.message?.includes('RLS'))) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[GET /api/roles] RLS blocking access, trying service role fallback');
+          logger.debug('[GET /api/roles] RLS blocking access, trying service role fallback');
         }
         logger.warn('RLS blocking access, trying service role fallback', { action: 'getRoles' });
         const serviceSupabase = createClient(supabaseUrl, serviceRoleKey);
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
           .order('display_order', { ascending: true });
         
         if (fallbackError) {
-          console.error('[GET /api/roles] Fallback query also failed:', fallbackError);
+          logger.error('[GET /api/roles] Fallback query also failed', {}, fallbackError as unknown as Error);
           logger.error('Fallback query also failed', { 
             action: 'getRoles',
             error: fallbackError.message,
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
         }
 
         if (process.env.NODE_ENV === 'development') {
-          console.log('[GET /api/roles] Fallback query succeeded, got', fallbackRoles?.length || 0, 'roles');
+          logger.debug('[GET /api/roles] Fallback query succeeded', { data: fallbackRoles?.length || 0 });
         }
         // Use fallback results
         return await processRolesData(serviceSupabase, fallbackRoles as unknown as RoleData[] || []);
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
 
     // Log the query results for debugging
     if (process.env.NODE_ENV === 'development') {
-      console.log('[GET /api/roles] Query succeeded, got', roles?.length || 0, 'roles, usingServiceRole:', usingServiceRole);
+      logger.debug('[GET /api/roles] Query succeeded', { data: { rolesCount: roles?.length || 0, usingServiceRole } });
     }
     logger.info('Roles query result', {
       action: 'getRoles',
@@ -458,7 +458,7 @@ export async function POST(request: NextRequest) {
     // Check if database trigger overrode our hierarchy level
     if (role.hierarchy_level !== hierarchy_level) {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`⚠️  DATABASE TRIGGER OVERRIDE: Expected Level ${hierarchy_level}, got Level ${role.hierarchy_level}`);
+        logger.debug('DATABASE TRIGGER OVERRIDE: Expected level mismatch', { data: { expected: hierarchy_level, got: role.hierarchy_level } });
       }
       
       // Calculate the correct level based on reporting relationship
@@ -486,7 +486,7 @@ export async function POST(request: NextRequest) {
       
       if (correctLevel !== role.hierarchy_level) {
         if (process.env.NODE_ENV === 'development') {
-          console.log(`🔧 Correcting created role hierarchy level: ${role.hierarchy_level} → ${correctLevel}`);
+          logger.debug('Correcting created role hierarchy level', { data: { from: role.hierarchy_level, to: correctLevel } });
         }
         
         // Update with the correct level
@@ -499,9 +499,9 @@ export async function POST(request: NextRequest) {
           .eq('id', role.id);
         
         if (correctionError) {
-          console.error('❌ Error correcting created role hierarchy level:', correctionError);
+          logger.error('Error correcting created role hierarchy level', {}, correctionError as unknown as Error);
         } else {
-          console.log('✅ Created role hierarchy level corrected successfully!');
+          logger.debug('Created role hierarchy level corrected successfully');
           // Update the role object
           role.hierarchy_level = correctLevel;
         }

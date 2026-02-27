@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -99,11 +99,11 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
-      logger.error('User profile not found', { action: 'create_account', userId: (user as any).id })
+      logger.error('User profile not found', { action: 'create_account', userId: user.id })
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     if (!canManageAccounts) {
       logger.warn('Insufficient permissions to create account', {
         action: 'create_account',
-        userId: (user as any).id
+        userId: user.id
       })
       return NextResponse.json({ error: 'Insufficient permissions to create accounts' }, { status: 403 })
     }
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       logger.warn('Invalid account creation data', {
         action: 'create_account',
-        userId: (user as any).id,
+        userId: user.id,
         error: validation.error
       })
       return NextResponse.json({ error: validation.error }, { status: 400 })
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         primary_contact_name: validation.data.primary_contact_name || null,
         primary_contact_email: validation.data.primary_contact_email || null,
         status: validation.data.status || 'active',
-        account_manager_id: validation.data.account_manager_id || (user as any).id,
+        account_manager_id: validation.data.account_manager_id || user.id,
         created_at: new Date().toISOString()
       })
       .select()
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       logger.error('Failed to create account in database', {
         action: 'create_account',
-        userId: (user as any).id
+        userId: user.id
       }, error as Error)
 
       return NextResponse.json({
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('Account created successfully', {
       action: 'create_account',
-      userId: (user as any).id,
+      userId: user.id,
       accountId: account.id
     })
 

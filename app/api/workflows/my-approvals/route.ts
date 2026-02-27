@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // Regular users see only their pending approvals based on role
-      approvals = await getUserPendingApprovals(supabase, (user as any).id);
+      approvals = await getUserPendingApprovals(supabase, user.id);
     }
 
     return NextResponse.json({

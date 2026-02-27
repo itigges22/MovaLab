@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { userHasProjectAccess } from '@/lib/rbac';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * PUT /api/projects/[projectId]/updates/[updateId]
@@ -37,7 +38,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -73,13 +74,13 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error('Error updating update:', error);
+      logger.error('Error updating update:', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to update update' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, update });
   } catch (error: unknown) {
-    console.error('Error in PUT /api/projects/[projectId]/updates/[updateId]:', error);
+    logger.error('Error in PUT /api/projects/[projectId]/updates/[updateId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -119,7 +120,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -140,13 +141,13 @@ export async function DELETE(
       .eq('project_id', projectId);
 
     if (error) {
-      console.error('Error deleting update:', error);
+      logger.error('Error deleting update:', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to delete update' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/projects/[projectId]/updates/[updateId]:', error);
+    logger.error('Error in DELETE /api/projects/[projectId]/updates/[updateId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

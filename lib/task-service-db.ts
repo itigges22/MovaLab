@@ -68,7 +68,7 @@ export interface UpdateTaskData {
 
 class TaskServiceDB {
   private getSupabase() {
-    const supabase = createClientSupabase() as any;
+    const supabase = createClientSupabase();
     if (!supabase) {
       throw new Error('Supabase client not available');
     }
@@ -214,7 +214,7 @@ class TaskServiceDB {
         throw new Error('User not authenticated');
       }
       
-      console.log('Creating task with user:', (user as any).id);
+      console.log('Creating task with user:', user.id);
       console.log('Task creation data input:', data);
       
       const taskData: TaskInsert = {

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Only filter by user if not superadmin
     if (!isSuperadmin) {
-      query = query.eq('user_id', (user as any).id);
+      query = query.eq('user_id', user.id);
     }
 
     const { data: nodeAssignments, error: assignmentError } = await query;

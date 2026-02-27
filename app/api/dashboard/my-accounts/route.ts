@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       .eq('user_id', userId);
 
     if (membershipError) {
-      console.error('Error fetching account memberships:', membershipError);
+      logger.error('Error fetching account memberships', {}, membershipError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch accounts' },
         { status: 500 }
@@ -161,7 +162,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/my-accounts:', error);
+    logger.error('Error in GET /api/dashboard/my-accounts', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

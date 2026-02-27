@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { submitClientFeedback } from '@/lib/client-portal-service';
 import { validateRequestBody, submitClientFeedbackSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/debug-logger';
 
 // POST /api/client/portal/projects/[id]/feedback - Submit client feedback
 export async function POST(
@@ -35,7 +36,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -57,7 +58,7 @@ export async function POST(
     // Submit feedback
     const feedback = await submitClientFeedback({
       projectId: id,
-      clientUserId: (user as any).id,
+      clientUserId: user.id,
       satisfactionScore: validation.data.satisfaction_score || undefined,
       whatWentWell: validation.data.what_went_well || undefined,
       whatNeedsImprovement: validation.data.what_needs_improvement || undefined,
@@ -70,7 +71,7 @@ export async function POST(
       feedback
     }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/client/portal/projects/[id]/feedback:', error);
+    logger.error('Error in POST /api/client/portal/projects/[id]/feedback', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

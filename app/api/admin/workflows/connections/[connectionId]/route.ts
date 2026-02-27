@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { deleteWorkflowConnection } from '@/lib/workflow-service';
+import { logger } from '@/lib/debug-logger';
 
 // DELETE /api/admin/workflows/connections/[connectionId] - Delete workflow connection
 export async function DELETE(
@@ -36,7 +37,7 @@ export async function DELETE(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -54,7 +55,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Workflow connection deleted successfully' }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/admin/workflows/connections/[connectionId]:', error);
+    logger.error('Error in DELETE /api/admin/workflows/connections/[connectionId]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * GET /api/workflows/steps/assignments
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
       .order('position_y', { ascending: true });
 
     if (nodesError) {
-      console.error('Error fetching workflow nodes:', nodesError);
+      logger.error('Error fetching workflow nodes', {}, nodesError as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch workflow nodes' }, { status: 500 });
     }
 
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
       .eq('workflow_instance_id', workflowInstanceId);
 
     if (assignmentsError) {
-      console.error('Error fetching node assignments:', assignmentsError);
+      logger.error('Error fetching node assignments', {}, assignmentsError as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 });
     }
 
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
       nodes: nodesWithAssignments,
     });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/steps/assignments:', error);
+    logger.error('Error in GET /api/workflows/steps/assignments', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -218,7 +219,7 @@ export async function POST(request: NextRequest) {
     const { data: currentUserProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     const isSuperadmin = currentUserProfile?.is_superadmin === true;
@@ -241,7 +242,7 @@ export async function POST(request: NextRequest) {
       const projects = instance.projects as Record<string, unknown> | Record<string, unknown>[];
       const project = Array.isArray(projects) ? projects[0] : projects;
       const projectCreatedBy = project?.created_by;
-      if (projectCreatedBy !== (user as any).id) {
+      if (projectCreatedBy !== user.id) {
         return NextResponse.json(
           { error: 'Only the project creator or superadmins can assign users to workflow nodes' },
           { status: 403 }
@@ -272,7 +273,7 @@ export async function POST(request: NextRequest) {
         workflow_instance_id: workflowInstanceId,
         node_id: nodeId,
         user_id: userId,
-        assigned_by: (user as any).id,
+        assigned_by: user.id,
       })
       .select(`
         id,
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating node assignment:', error);
+      logger.error('Error creating node assignment', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 });
     }
 
@@ -297,7 +298,7 @@ export async function POST(request: NextRequest) {
       assignment,
     });
   } catch (error: unknown) {
-    console.error('Error in POST /api/workflows/steps/assignments:', error);
+    logger.error('Error in POST /api/workflows/steps/assignments', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -336,7 +337,7 @@ export async function DELETE(request: NextRequest) {
     const { data: currentUserProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     const isSuperadmin = currentUserProfile?.is_superadmin === true;
@@ -359,7 +360,7 @@ export async function DELETE(request: NextRequest) {
       const projects = instance.projects as Record<string, unknown> | Record<string, unknown>[];
       const project = Array.isArray(projects) ? projects[0] : projects;
       const projectCreatedBy = project?.created_by;
-      if (projectCreatedBy !== (user as any).id) {
+      if (projectCreatedBy !== user.id) {
         return NextResponse.json(
           { error: 'Only the project creator or superadmins can remove users from workflow nodes' },
           { status: 403 }
@@ -376,7 +377,7 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', userId);
 
     if (error) {
-      console.error('Error deleting node assignment:', error);
+      logger.error('Error deleting node assignment', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to delete assignment' }, { status: 500 });
     }
 
@@ -384,7 +385,7 @@ export async function DELETE(request: NextRequest) {
       success: true,
     });
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/workflows/steps/assignments:', error);
+    logger.error('Error in DELETE /api/workflows/steps/assignments', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

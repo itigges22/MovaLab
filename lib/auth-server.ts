@@ -62,7 +62,7 @@ export async function getCurrentUserProfileServer() {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (error) {

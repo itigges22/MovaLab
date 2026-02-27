@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       supabase,
       workflowInstanceId,
       activeStepId || null, // Pass null for legacy behavior
-      (user as any).id,
+      user.id,
       decision,
       feedback,
       formResponseId,

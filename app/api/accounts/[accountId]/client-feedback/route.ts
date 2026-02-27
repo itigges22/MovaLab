@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { hasAccountAccessServer } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/accounts/[id]/client-feedback - View feedback for specific account
 export async function GET(
@@ -35,7 +36,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -49,7 +50,7 @@ export async function GET(
     }
 
     // Verify user has access to this account
-    const hasAccess = await hasAccountAccessServer(supabase, (user as any).id, accountId);
+    const hasAccess = await hasAccountAccessServer(supabase, user.id, accountId);
     if (!hasAccess) {
       return NextResponse.json({
         error: 'You do not have access to this account'
@@ -76,13 +77,13 @@ export async function GET(
       .order('submitted_at', { ascending: false });
 
     if (feedbackError) {
-      console.error('Error fetching feedback:', feedbackError);
+      logger.error('Error fetching feedback', {}, feedbackError as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch feedback' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, feedback: feedback || [] }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/accounts/[id]/client-feedback:', error);
+    logger.error('Error in GET /api/accounts/[id]/client-feedback', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

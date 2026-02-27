@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions';
 import { startWorkflowInstance } from '@/lib/workflow-service';
 import { validateRequestBody, startWorkflowInstanceSchema } from '@/lib/validation-schemas';
 import { isAssignedToProjectServer } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // POST /api/workflows/instances/start - Start a workflow instance
 export async function POST(request: NextRequest) {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Verify user has access to the project if project_id is provided
     if (validation.data.project_id) {
-      const hasAccess = await isAssignedToProjectServer(supabase, (user as any).id, validation.data.project_id);
+      const hasAccess = await isAssignedToProjectServer(supabase, user.id, validation.data.project_id);
       if (!hasAccess) {
         return NextResponse.json({
           error: 'You do not have access to this project'
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, instance }, { status: 201 });
   } catch (error: unknown) {
-console.error('Error in POST /api/workflows/instances/start:', error);
+    logger.error('Error in POST /api/workflows/instances/start', {}, error as Error);
 
     // Return the actual error message for workflow validation errors
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';

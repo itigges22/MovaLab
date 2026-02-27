@@ -6,7 +6,7 @@ import { createClientSupabase } from './supabase'
  */
 export async function testDatabaseConnection() {
   try {
-    const supabase = createClientSupabase() as any
+    const supabase = createClientSupabase()
     if (!supabase) {
       throw new Error('Supabase not configured')
     }

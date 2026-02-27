@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const { data: session, error } = await supabase
       .from('clock_sessions')
       .select('*')
-      .eq('user_id', (userProfile as any).id)
+      .eq('user_id', userProfile.id)
       .eq('is_active', true)
       .single();
 
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     const { data: existingSession } = await supabase
       .from('clock_sessions')
       .select('id')
-      .eq('user_id', (userProfile as any).id)
+      .eq('user_id', userProfile.id)
       .eq('is_active', true)
       .single();
 
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error } = await supabase
       .from('clock_sessions')
       .insert({
-        user_id: (userProfile as any).id,
+        user_id: userProfile.id,
         clock_in_time: new Date().toISOString(),
         is_active: true
       })

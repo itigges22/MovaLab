@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { getFormResponseByHistoryId } from '@/lib/form-service';
 import { verifyWorkflowHistoryAccess } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/workflows/history/[historyId]/form - Get form response for workflow history entry
 export async function GET(
@@ -37,7 +38,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -52,7 +53,7 @@ export async function GET(
     }
 
     // Verify user has access to the workflow history's project
-    const accessCheck = await verifyWorkflowHistoryAccess(supabase, (user as any).id, historyId);
+    const accessCheck = await verifyWorkflowHistoryAccess(supabase, user.id, historyId);
     if (!accessCheck.hasAccess) {
       return NextResponse.json({
         error: accessCheck.error || 'You do not have access to this workflow history'
@@ -68,7 +69,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, response }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/history/[historyId]/form:', error);
+    logger.error('Error in GET /api/workflows/history/[historyId]/form', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

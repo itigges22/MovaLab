@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { subDays, format, differenceInDays } from 'date-fns';
+import { logger } from '@/lib/debug-logger';
 
 interface ErrorWithMessage extends Error {
   message: string;
@@ -209,7 +210,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-    console.error('Error in GET /api/analytics/workflows:', error);
+    logger.error('Error in GET /api/analytics/workflows', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions';
 import { sendClientInvitation } from '@/lib/client-portal-service';
 import { validateRequestBody, sendClientInvitationSchema } from '@/lib/validation-schemas';
 import { hasAccountAccessServer } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // POST /api/accounts/[id]/invite-client - Send client portal invitation
 export async function POST(
@@ -37,7 +38,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     if (!userProfile) {
@@ -51,7 +52,7 @@ export async function POST(
     }
 
     // Verify user has access to this account
-    const hasAccess = await hasAccountAccessServer(supabase, (user as any).id, accountId);
+    const hasAccess = await hasAccountAccessServer(supabase, user.id, accountId);
     if (!hasAccess) {
       return NextResponse.json({
         error: 'You do not have access to this account'
@@ -69,13 +70,13 @@ export async function POST(
     const invitation = await sendClientInvitation({
       accountId: accountId,
       email: validation.data.email,
-      invitedBy: (user as any).id,
+      invitedBy: user.id,
       expiresInDays: validation.data.expires_in_days
     });
 
     return NextResponse.json({ success: true, invitation }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/accounts/[id]/invite-client:', error);
+    logger.error('Error in POST /api/accounts/[id]/invite-client', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { requireAuthentication, requireAuthAndPermission, PermissionError } from
 import { Permission } from '@/lib/permissions';
 import { accountService } from '@/lib/account-service';
 import { isSuperadmin, hasPermission } from '@/lib/rbac';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface AuthErrorWithStatus extends Error {
@@ -57,18 +58,18 @@ export async function GET(
 ) {
   try {
     const { accountId } = await params;
-    console.log(`[GET /api/accounts/${accountId}/members] Starting request`);
+    logger.debug(`[GET /api/accounts/${accountId}/members] Starting request`);
     
     // Check authentication and access to this account
     // Uses same access logic as account detail page for consistency
     try {
       const user = await requireAuthentication(request);
-      console.log(`[GET /api/accounts/${accountId}/members] User authenticated: ${(user as any).id}`);
+      logger.debug(`[GET /api/accounts/${accountId}/members] User authenticated`, { userId: user.id });
 
       // Create API Supabase client for checking access
       const supabase = createApiSupabaseClient(request);
       if (!supabase) {
-        console.error('[GET /api/accounts/[accountId]/members] Supabase client not available');
+        logger.error('[GET /api/accounts/[accountId]/members] Supabase client not available');
         return NextResponse.json({
           error: 'Database connection failed',
           details: 'Supabase client not available'
@@ -77,55 +78,54 @@ export async function GET(
 
       // Check if user is superadmin (bypasses all permission checks)
       const userIsSuperadmin = isSuperadmin(user);
-      console.log(`[GET /api/accounts/${accountId}/members] Superadmin check: ${userIsSuperadmin}`);
+      logger.debug(`[GET /api/accounts/${accountId}/members] Superadmin check`, { isSuperadmin: userIsSuperadmin });
 
       let hasAccess = false;
 
       if (userIsSuperadmin) {
         hasAccess = true;
-        console.log(`[GET /api/accounts/${accountId}/members] User is superadmin - access granted`);
+        logger.debug(`[GET /api/accounts/${accountId}/members] User is superadmin - access granted`);
       } else {
         // Check if user has permission-based access using proper hasPermission function
         const hasViewAllAccounts = await hasPermission(user, Permission.VIEW_ALL_ACCOUNTS, undefined, supabase);
         const hasViewAccounts = await hasPermission(user, Permission.VIEW_ACCOUNTS, { accountId }, supabase);
 
-        console.log(`[GET /api/accounts/${accountId}/members] User permissions check: view_all_accounts=${hasViewAllAccounts}, view_accounts=${hasViewAccounts}`);
+        logger.debug(`[GET /api/accounts/${accountId}/members] User permissions check`, { hasViewAllAccounts, hasViewAccounts });
 
         if (hasViewAllAccounts) {
           hasAccess = true;
-          console.log(`[GET /api/accounts/${accountId}/members] User has VIEW_ALL_ACCOUNTS permission`);
+          logger.debug(`[GET /api/accounts/${accountId}/members] User has VIEW_ALL_ACCOUNTS permission`);
         } else if (hasViewAccounts) {
           hasAccess = true;
-          console.log(`[GET /api/accounts/${accountId}/members] User has VIEW_ACCOUNTS permission`);
+          logger.debug(`[GET /api/accounts/${accountId}/members] User has VIEW_ACCOUNTS permission`);
         }
       }
 
       // If no permission-based access, check service-level access
       // This uses the same logic as the account detail page
       if (!hasAccess) {
-        const hasServiceAccess = await accountService.canUserAccessAccount((user as any).id, accountId, supabase);
-        console.log(`[GET /api/accounts/${accountId}/members] Service-level access check: ${hasServiceAccess}`);
+        const hasServiceAccess = await accountService.canUserAccessAccount(user.id, accountId, supabase);
+        logger.debug(`[GET /api/accounts/${accountId}/members] Service-level access check`, { hasServiceAccess });
 
         if (hasServiceAccess) {
           hasAccess = true;
-          console.log(`[GET /api/accounts/${accountId}/members] User has service-level access (manager, member, or project access)`);
+          logger.debug(`[GET /api/accounts/${accountId}/members] User has service-level access (manager, member, or project access)`);
         }
       }
 
       if (!hasAccess) {
-        console.log(`[GET /api/accounts/${accountId}/members] User has no account access after all checks`);
+        logger.debug(`[GET /api/accounts/${accountId}/members] User has no account access after all checks`);
         throw new PermissionError('You don\'t have permission to view account members');
       }
 
-      console.log(`[GET /api/accounts/${accountId}/members] Access granted`);
+      logger.debug(`[GET /api/accounts/${accountId}/members] Access granted`);
     } catch (authError: unknown) {
       const err = authError as AuthErrorWithStatus;
-      console.error('[GET /api/accounts/[accountId]/members] Authentication/permission error:', {
-        error: err.message,
+      logger.error('[GET /api/accounts/[accountId]/members] Authentication/permission error', {
+        errorMessage: err.message,
         name: err.name,
-        status: err.status,
-        stack: err.stack
-      });
+        status: err.status
+      }, err);
       // Return proper JSON error response
       const status = err.status || (err.name === 'AuthenticationError' ? 401 : 403);
       const errorResponse = {
@@ -133,13 +133,13 @@ export async function GET(
         details: err.message || 'No details available',
         status: status
       };
-      console.log(`[GET /api/accounts/${accountId}/members] Returning error response:`, errorResponse);
+      logger.debug(`[GET /api/accounts/${accountId}/members] Returning error response`, { errorResponse });
       return NextResponse.json(errorResponse, { status });
     }
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
-      console.error('Supabase client not available');
+      logger.error('Supabase client not available');
       return NextResponse.json({
         error: 'Supabase client not available',
         details: 'Database connection failed'
@@ -155,15 +155,15 @@ export async function GET(
       .order('created_at', { ascending: false });
 
     if (membersError) {
-      console.error('[GET /api/accounts/[accountId]/members] Error fetching account members:', {
-        error: membersError.message,
+      logger.error('[GET /api/accounts/[accountId]/members] Error fetching account members', {
+        errorMessage: membersError.message,
         code: membersError.code,
         details: membersError.details,
         hint: membersError.hint
-      });
+      }, membersError as unknown as Error);
       // If table doesn't exist (PGRST116 or 42P01), return empty array instead of error
       if (membersError.code === 'PGRST116' || membersError.code === '42P01' || membersError.message?.includes('does not exist')) {
-        console.log('[GET /api/accounts/[accountId]/members] account_members table does not exist, returning empty array');
+        logger.debug('[GET /api/accounts/[accountId]/members] account_members table does not exist, returning empty array');
         return NextResponse.json({ members: [] });
       }
       const errorResponse = {
@@ -171,7 +171,7 @@ export async function GET(
         details: membersError.message || 'Unknown database error',
         code: membersError.code || 'UNKNOWN_ERROR'
       };
-      console.log(`[GET /api/accounts/${accountId}/members] Returning database error response:`, errorResponse);
+      logger.debug(`[GET /api/accounts/${accountId}/members] Returning database error response`, { errorResponse });
       return NextResponse.json(errorResponse, { status: 500 });
     }
 
@@ -186,7 +186,7 @@ export async function GET(
         .in('id', userIds);
 
       if (profilesError) {
-        console.error('[GET /api/accounts/[accountId]/members] Error fetching user profiles:', profilesError);
+        logger.error('[GET /api/accounts/[accountId]/members] Error fetching user profiles', {}, profilesError as Error);
         // Continue with members but without user details
       }
 
@@ -209,7 +209,7 @@ export async function GET(
         .in('user_id', userIds);
 
       if (rolesError) {
-        console.error('[GET /api/accounts/[accountId]/members] Error fetching user roles:', rolesError);
+        logger.error('[GET /api/accounts/[accountId]/members] Error fetching user roles', {}, rolesError as Error);
         // Continue without roles
       }
 
@@ -250,10 +250,10 @@ export async function GET(
         account_id: member.account_id,
         created_at: member.created_at,
         user: userProfile ? {
-          id: (userProfile as any).id,
-          name: (userProfile as any).name,
-          email: (userProfile as any).email,
-          image: (userProfile as any).image,
+          id: userProfile.id,
+          name: userProfile.name,
+          email: userProfile.email,
+          image: userProfile.image,
           roles: userRoles.map((ur: UserRoleData) => {
             const role = ur.roles;
             const department = role?.departments;
@@ -270,23 +270,22 @@ export async function GET(
       };
     });
     
-    console.log(`[GET /api/accounts/${accountId}/members] Successfully returning ${formattedMembers.length} members`);
+    logger.info(`[GET /api/accounts/${accountId}/members] Successfully returning members`, { count: formattedMembers.length });
     return NextResponse.json({ members: formattedMembers });
   } catch (error: unknown) {
     const err = error as AuthErrorWithStatus;
-    console.error('[GET /api/accounts/[accountId]/members] Unexpected error:', {
-      error: err.message,
+    logger.error('[GET /api/accounts/[accountId]/members] Unexpected error', {
+      errorMessage: err.message,
       name: err.name,
       status: err.status,
-      stack: err.stack
-    });
+    }, err);
     // Ensure we always return proper JSON
     const errorResponse = {
       error: err.message || 'Internal server error',
       details: err.message || 'An unexpected error occurred',
       status: err.status || 500
     };
-    console.log('[GET /api/accounts/[accountId]/members] Returning unexpected error response:', errorResponse);
+    logger.debug('[GET /api/accounts/[accountId]/members] Returning unexpected error response', { errorResponse });
     return NextResponse.json(errorResponse, { status: err.status || 500 });
   }
 }
@@ -340,7 +339,7 @@ export async function POST(
       .single();
     
     if (error) {
-      console.error('Error assigning user to account:', error);
+      logger.error('Error assigning user to account', {}, error as unknown as Error);
       
       // Provide more detailed error messages
       let errorMessage = 'Failed to assign user to account';
@@ -362,7 +361,7 @@ export async function POST(
     return NextResponse.json({ member: data, message: 'User assigned to account successfully' });
   } catch (error: unknown) {
     const err = error as AuthErrorWithStatus;
-    console.error('Error in POST /api/accounts/[accountId]/members:', error);
+    logger.error('Error in POST /api/accounts/[accountId]/members', {}, error as Error);
     if (err.status) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }

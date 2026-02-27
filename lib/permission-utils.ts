@@ -29,7 +29,7 @@ export function checkIsSuperadminSync(userProfile: UserWithRoles | null): boolea
   if (!userProfile) return false;
 
   // Check is_superadmin flag
-  if ((userProfile as any).is_superadmin) return true;
+  if (userProfile.is_superadmin) return true;
 
   // Check if user has Superadmin role
   if (!userProfile.user_roles || !Array.isArray(userProfile.user_roles)) return false;
@@ -76,7 +76,7 @@ export function computeUserPermissions(userProfile: UserWithRoles | null): Compu
     permissions: new Set(),
     isSuperadmin: false,
     isUnassigned: true,
-    userId: (userProfile as any)?.id || ''
+    userId: userProfile?.id || ''
   };
 
   if (!userProfile) return result;

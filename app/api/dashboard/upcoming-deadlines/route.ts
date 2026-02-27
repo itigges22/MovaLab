@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, addDays, differenceInDays, isPast, isToday } from 'date-fns';
+import { logger } from '@/lib/debug-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       .limit(20);
 
     if (tasksError) {
-      console.error('Error fetching task deadlines:', tasksError);
+      logger.error('Error fetching task deadlines', {}, tasksError as unknown as Error);
     }
 
     // Also get projects assigned to user with end dates (including overdue)
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
         .limit(20);
 
       if (projectsError) {
-        console.error('Error fetching project deadlines:', projectsError);
+        logger.error('Error fetching project deadlines', {}, projectsError as unknown as Error);
       } else {
         projects = projectData || [];
       }
@@ -187,7 +188,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error in GET /api/dashboard/upcoming-deadlines:', error);
+    logger.error('Error in GET /api/dashboard/upcoming-deadlines', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: (error as Error).message },
       { status: 500 }

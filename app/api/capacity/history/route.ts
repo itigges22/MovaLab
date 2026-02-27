@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') ?? (userProfile as any).id;
+    const userId = searchParams.get('userId') ?? userProfile.id;
     const period = (searchParams.get('period') ?? 'weekly') as TimePeriod;
 
     // Generate date ranges based on period

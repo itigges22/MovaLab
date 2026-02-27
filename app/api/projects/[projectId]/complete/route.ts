@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
+import { logger } from '@/lib/debug-logger'
 
 /**
  * POST /api/projects/[projectId]/complete
@@ -38,7 +39,7 @@ export async function POST(
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -54,7 +55,7 @@ export async function POST(
       .from('project_assignments')
       .select('id')
       .eq('project_id', projectId)
-      .eq('user_id', (user as any).id)
+      .eq('user_id', user.id)
       .is('removed_at', null)
       .maybeSingle()
 
@@ -71,7 +72,7 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    const isProjectCreator = project.created_by === (user as any).id
+    const isProjectCreator = project.created_by === user.id
 
     // If user has no access at all (not superadmin, no MANAGE_ALL_PROJECTS, not assigned, not creator), deny
     if (!userIsSuperadmin && !hasManageAllProjects && !hasProjectAssignment && !isProjectCreator) {
@@ -120,7 +121,7 @@ export async function POST(
       .eq('id', projectId)
 
     if (updateError) {
-      console.error('Error completing project:', updateError)
+      logger.error('Error completing project', {}, updateError as Error)
       return NextResponse.json({ error: 'Failed to complete project' }, { status: 500 })
     }
 
@@ -132,7 +133,7 @@ export async function POST(
       .is('removed_at', null)
 
     if (assignmentError) {
-      console.error('Error updating project assignments:', assignmentError)
+      logger.error('Error updating project assignments', {}, assignmentError as Error)
       // Don't fail the request, just log the error
     }
 
@@ -142,7 +143,7 @@ export async function POST(
     })
 
   } catch (error: unknown) {
-    console.error('Error in POST /api/projects/[projectId]/complete:', error)
+    logger.error('Error in POST /api/projects/[projectId]/complete', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

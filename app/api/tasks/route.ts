@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single()
 
     if (!userProfile) {
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     // Task permissions are now inherited from project access
     // Check if user has access to the project
     if (body.project_id) {
-      const hasAccess = await userHasProjectAccess(supabase, (user as any).id, body.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(supabase, user.id, body.project_id, userProfile)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       estimated_hours: body.estimated_hours !== undefined ? body.estimated_hours : null,
       remaining_hours: body.estimated_hours !== undefined ? body.estimated_hours : null,
       actual_hours: 0,
-      created_by: (user as any).id,
+      created_by: user.id,
       assigned_to: body.assigned_to || null
     }
 
@@ -143,16 +143,16 @@ export async function POST(request: NextRequest) {
         .from('project_assignments')
         .select('id, removed_at')
         .eq('project_id', body.project_id)
-        .eq('user_id', (user as any).id)
+        .eq('user_id', user.id)
         .single()
 
       if (!existingAssignment) {
         // Insert new assignment
         await supabase.from('project_assignments').insert({
           project_id: body.project_id,
-          user_id: (user as any).id,
+          user_id: user.id,
           role_in_project: 'collaborator',
-          assigned_by: (user as any).id
+          assigned_by: user.id
         })
       } else if (existingAssignment.removed_at) {
         // Reactivate removed assignment

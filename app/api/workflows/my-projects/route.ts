@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('is_superadmin')
-      .eq('id', (user as any).id)
+      .eq('id', user.id)
       .single();
 
     const isSuperadmin = userProfile?.is_superadmin === true;
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         });
     } else {
       // Regular users see only their assigned active projects
-      projects = await getUserActiveProjects(supabase, (user as any).id);
+      projects = await getUserActiveProjects(supabase, user.id);
     }
 
     return NextResponse.json({

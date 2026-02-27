@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { getActiveSteps, getAllActiveAndWaitingSteps, isWorkflowComplete } from '@/lib/workflow-execution-service';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * GET /api/workflows/instances/[id]/active-steps
@@ -83,7 +84,7 @@ export async function GET(
       activeBranches: activeSteps.length
     });
   } catch (error: unknown) {
-    console.error('Error fetching active steps:', error);
+    logger.error('Error fetching active steps', {}, error as Error);
     return NextResponse.json(
       { error: 'Failed to fetch active steps' },
       { status: 500 }
