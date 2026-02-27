@@ -91,7 +91,7 @@ export default function ProjectsPage() {
 
       try {
         setLoading(true)
-        const supabase = createClientSupabase() as any as any
+        const supabase = createClientSupabase()!
         if (!supabase) {
           throw new Error('Failed to create Supabase client')
         }
@@ -437,7 +437,7 @@ export default function ProjectsPage() {
         return
       }
 
-      const supabase = createClientSupabase() as any as any
+      const supabase = createClientSupabase()!
       if (!supabase) {
         throw new Error('Failed to create Supabase client')
       }

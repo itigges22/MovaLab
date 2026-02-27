@@ -65,7 +65,7 @@ export default function DepartmentCreateDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase() as any as any;
+      const supabase = createClientSupabase()!;
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }

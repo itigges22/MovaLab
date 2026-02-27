@@ -117,7 +117,7 @@ export default function ProjectCreationDialog({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const supabase = createClientSupabase() as any as any;
+        const supabase = createClientSupabase()!;
         if (!supabase) return;
 
         // Load accounts
@@ -179,7 +179,7 @@ export default function ProjectCreationDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase() as any as any;
+      const supabase = createClientSupabase()!;
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }

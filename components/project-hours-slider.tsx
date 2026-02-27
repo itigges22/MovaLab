@@ -88,7 +88,7 @@ export default function ProjectHoursSlider({
   const saveHours = async (newHours: number) => {
     setSaving(true);
     try {
-      const supabase = createClientSupabase() as any as any;
+      const supabase = createClientSupabase()!;
       if (!supabase) {
         console.error('Failed to create Supabase client');
         return;

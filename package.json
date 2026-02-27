@@ -1,5 +1,5 @@
 {
-  "name": "shadcntest",
+  "name": "movalab",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -30,11 +30,13 @@
     "test:production": "node node_modules/@playwright/test/cli.js test --project=production",
     "test:production:headed": "node node_modules/@playwright/test/cli.js test --project=production --headed",
     "test:production:debug": "node node_modules/@playwright/test/cli.js test --project=production --debug",
-    "test:unit": "npx tsx __tests__/lib/permission-checker.test.ts",
-    "test:integration": "npx tsx __tests__/integration/permissions-integration.test.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --dir __tests__/unit",
+    "test:integration": "vitest run --dir __tests__/integration",
     "debug:permissions": "npx tsx scripts/debug-permissions.ts",
     "validate:permissions": "npx tsx scripts/validate-permissions.ts",
-    "test:permissions": "npm run test:unit && npm run test:integration && npm run validate:permissions",
+    "test:permissions": "npm run test:unit && npm run validate:permissions",
     "fix:permissions": "npx tsx scripts/fix-permissions.ts",
     "check:users": "npx tsx scripts/check-user-status.ts",
     "setup:test-roles": "npx tsx scripts/comprehensive-permission-test.ts"
@@ -113,6 +115,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.1.0"
   }
 }

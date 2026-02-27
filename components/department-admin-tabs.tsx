@@ -80,7 +80,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
 
   const loadData = useCallback(async () => {
     try {
-      const supabase = createClientSupabase() as any as any;
+      const supabase = createClientSupabase()!;
       if (!supabase) return;
 
       // Load roles
@@ -172,7 +172,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
 
   const handleSaveSettings = async () => {
     try {
-      const supabase = createClientSupabase() as any as any;
+      const supabase = createClientSupabase()!;
       if (!supabase) return;
 
       const { error } = await (supabase as any)

@@ -405,7 +405,7 @@ export function handleGuardError(error: unknown): NextResponse {
  * Wrap an API handler with automatic error handling
  * @param handler - The API route handler
  * @returns Wrapped handler with error handling
- * 
+ *
  * Usage:
  * ```typescript
  * export const POST = withErrorHandling(async (request: Request) => {
@@ -416,11 +416,105 @@ export function handleGuardError(error: unknown): NextResponse {
  * ```
  */
 export function withErrorHandling(
-  handler: (request: NextRequest, context?: any) => Promise<NextResponse>
+  handler: (request: NextRequest, context?: { params: Record<string, string> }) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, context?: any): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: { params: Record<string, string> }): Promise<NextResponse> => {
     try {
       return await handler(request, context);
+    } catch (error: unknown) {
+      return handleGuardError(error);
+    }
+  };
+}
+
+// ================================================================================
+// API ROUTE WRAPPER (eliminates per-route boilerplate)
+// ================================================================================
+
+/**
+ * Context provided to withApiRoute handlers.
+ */
+export interface ApiRouteContext {
+  /** Authenticated user with roles */
+  user: UserWithRoles;
+  /** Supabase client scoped to the authenticated user (never null) */
+  supabase: NonNullable<ReturnType<typeof createApiSupabaseClient>>;
+  /** Route params (e.g. { projectId: '...' }) */
+  params: Record<string, string>;
+}
+
+/**
+ * Comprehensive API route wrapper that eliminates boilerplate.
+ *
+ * Handles: Supabase client creation, authentication, permission checks,
+ * and error responses. Your handler receives a pre-authenticated context.
+ *
+ * Usage:
+ * ```typescript
+ * // Simple authenticated route
+ * export const GET = withApiRoute(async (request, { user, supabase }) => {
+ *   const { data } = await supabase.from('projects').select('*');
+ *   return NextResponse.json(data);
+ * });
+ *
+ * // Route with permission check
+ * export const POST = withApiRoute(
+ *   async (request, { user, supabase }) => {
+ *     const body = await request.json();
+ *     const { data } = await supabase.from('projects').insert(body).select().single();
+ *     return NextResponse.json(data, { status: 201 });
+ *   },
+ *   { permission: Permission.MANAGE_PROJECTS }
+ * );
+ *
+ * // Route with contextual permission
+ * export const PUT = withApiRoute(
+ *   async (request, { user, supabase, params }) => {
+ *     const body = await request.json();
+ *     await supabase.from('projects').update(body).eq('id', params.projectId);
+ *     return NextResponse.json({ success: true });
+ *   },
+ *   {
+ *     permission: Permission.MANAGE_PROJECTS,
+ *     getContext: (_req, params) => ({ projectId: params.projectId }),
+ *   }
+ * );
+ * ```
+ */
+export function withApiRoute(
+  handler: (request: NextRequest, ctx: ApiRouteContext) => Promise<NextResponse>,
+  options?: {
+    /** Permission required to access this route */
+    permission?: Permission;
+    /** Derive permission context from request/params */
+    getContext?: (request: NextRequest, params: Record<string, string>) => PermissionContext;
+  }
+) {
+  return async (
+    request: NextRequest,
+    routeContext?: { params: Promise<Record<string, string>> | Record<string, string> }
+  ): Promise<NextResponse> => {
+    try {
+      const supabase = createApiSupabaseClient(request);
+      if (!supabase) {
+        return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+      }
+
+      const user = await requireAuthentication(request);
+
+      // Next.js 15 makes params a Promise in some cases
+      const params = routeContext?.params
+        ? (typeof (routeContext.params as Promise<Record<string, string>>).then === 'function'
+            ? await routeContext.params
+            : routeContext.params as Record<string, string>)
+        : {};
+
+      if (options?.permission) {
+        const permContext = options.getContext?.(request, params);
+        await requirePermission(user, options.permission, permContext, supabase);
+      }
+
+      return await handler(request, { user, supabase, params });
     } catch (error: unknown) {
       return handleGuardError(error);
     }

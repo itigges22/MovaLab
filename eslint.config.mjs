@@ -31,7 +31,7 @@ const eslintConfig = [
           destructuredArrayIgnorePattern: "^_",
         },
       ],
-      "@typescript-eslint/no-explicit-any": "off", // Disabled: Supabase PostgrestBuilder has complex types; security is enforced by RLS
+      "@typescript-eslint/no-explicit-any": "warn", // Warn on new `any` usage; existing occurrences will be cleaned up incrementally
       "react/no-unescaped-entities": "warn",
       "@next/next/no-html-link-for-pages": "warn",
       "@next/next/no-img-element": "warn",

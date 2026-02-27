@@ -1,18 +1,23 @@
 /**
  * Shared RBAC Types
- * 
+ *
  * This file contains shared types used across the RBAC system
- * to avoid circular dependencies between rbac.ts and permissions.ts
+ * to avoid circular dependencies between rbac.ts and permissions.ts.
+ *
+ * Types are re-exported from supabase.ts which has the real Database schema.
  */
 
+import type {
+  UserProfile,
+  Role,
+  UserRole,
+  Department,
+} from './supabase';
 
-// Database types
-export type UserProfile = any;
-export type Role = any;
-export type UserRole = any;
-export type Department = any;
+// Re-export database types so consumers don't need to change imports
+export type { UserProfile, Role, UserRole, Department };
 
-// Extended user profile with roles
+// Extended user profile with roles (the shape returned by Supabase joins)
 export interface UserWithRoles extends UserProfile {
   user_roles: Array<
     UserRole & {

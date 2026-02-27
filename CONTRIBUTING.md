@@ -145,10 +145,9 @@ When Docker is running, you'll have access to:
 
 The database schema is defined in `/supabase/migrations/`:
 
-- **`20250123_02_functions_fixed.sql`** - Database functions with RLS fixes
-- **`20250123_03_views.sql`** - Analytics views
-- **`20250123_04_rls_policies_fixed.sql`** - Row Level Security policies
-- **`20250123_05_triggers.sql`** - Auto-triggers (user creation, timestamps)
+- **`20250129000000_baseline.sql`** - Full baseline schema (tables, functions, views, RLS, triggers)
+- **`20251230120000_fix_workflow_instances_rls.sql`** - Workflow RLS policy fix
+- **`20251231000000_project_assignments_source_tracking.sql`** - Assignment source tracking
 
 Migrations run automatically when you start Supabase.
 
@@ -242,7 +241,7 @@ The schema includes these main areas:
 - **RLS is mandatory** - All tables have Row Level Security policies
 - **Don't disable RLS** - This protects data isolation between users
 - **Test with real auth** - Many features require authenticated users
-- **136 permissions** - The RBAC system has granular permission controls
+- **~40 permissions** - The RBAC system has granular permission controls (consolidated from 136 in Phase 9)
 
 ## Code Style
 
