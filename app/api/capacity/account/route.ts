@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     const earliestDate = ranges[0].startDate;
     const latestDate = ranges[ranges.length - 1].endDate;
 
-    console.log('[Capacity API] Account:', accountId, 'Period:', period, 'Date range:', earliestDate, 'to', latestDate);
+    logger.debug('[Capacity API] Account capacity request', { accountId, period, earliestDate, latestDate });
 
     // Get all projects for this account
     const { data: accountProjects, error: projectsError } = await supabase
@@ -68,11 +69,11 @@ export async function GET(request: NextRequest) {
       .eq('account_id', accountId);
 
     if (projectsError) {
-      console.error('[Capacity API] Error fetching projects:', projectsError);
+      logger.error('[Capacity API] Error fetching projects', {}, projectsError as unknown as Error);
     }
 
     const projectIds = (accountProjects || []).map((p: any) => p.id);
-    console.log('[Capacity API] Found', projectIds.length, 'projects for account');
+    logger.debug('[Capacity API] Found projects for account', { count: projectIds.length });
 
     if (projectIds.length === 0) {
       return NextResponse.json({
@@ -98,11 +99,11 @@ export async function GET(request: NextRequest) {
       .is('removed_at', null);
 
     if (assignmentsError) {
-      console.error('[Capacity API] Error fetching assignments:', assignmentsError);
+      logger.error('[Capacity API] Error fetching assignments', {}, assignmentsError as unknown as Error);
     }
 
     const userIds = Array.from(new Set((projectAssignmentsData || []).map((pa: any) => pa.user_id as string)));
-    console.log('[Capacity API] Found', userIds.length, 'unique users assigned to projects');
+    logger.debug('[Capacity API] Found unique users assigned to projects', { count: userIds.length });
 
     if (userIds.length === 0) {
       return NextResponse.json({
@@ -156,14 +157,18 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Debug logging
-    console.log('[Capacity API] Data fetched:');
-    console.log('  - Availability records:', availabilityData.data?.length || 0, availabilityData.error ? `(error: ${availabilityData.error.message})` : '');
-    console.log('  - Time entries:', timeEntriesData.data?.length || 0, timeEntriesData.error ? `(error: ${timeEntriesData.error.message})` : '');
-    console.log('  - Tasks:', tasksData.data?.length || 0, tasksData.error ? `(error: ${tasksData.error.message})` : '');
+    logger.debug('[Capacity API] Data fetched', {
+      availabilityRecords: availabilityData.data?.length || 0,
+      availabilityError: availabilityData.error?.message || null,
+      timeEntries: timeEntriesData.data?.length || 0,
+      timeEntriesError: timeEntriesData.error?.message || null,
+      tasks: tasksData.data?.length || 0,
+      tasksError: tasksData.error?.message || null,
+    });
 
     // Log sample availability data to check format
     if (availabilityData.data && availabilityData.data.length > 0) {
-      console.log('  - Sample availability:', JSON.stringify(availabilityData.data[0]));
+      logger.debug('[Capacity API] Sample availability', { sample: availabilityData.data[0] });
     }
 
     // Build a map of project end dates for tasks to inherit when they have no due_date
@@ -393,11 +398,11 @@ export async function GET(request: NextRequest) {
     });
 
     // Log final computed data
-    console.log('[Capacity API] Computed', dataPoints.length, 'data points');
+    logger.debug('[Capacity API] Computed data points', { count: dataPoints.length });
     const hasNonZero = dataPoints.some(dp => dp.available > 0 || dp.allocated > 0 || dp.actual > 0);
-    console.log('[Capacity API] Has non-zero data:', hasNonZero);
+    logger.debug('[Capacity API] Has non-zero data', { hasNonZero });
     if (dataPoints.length > 0) {
-      console.log('[Capacity API] Sample data point:', JSON.stringify(dataPoints[0]));
+      logger.debug('[Capacity API] Sample data point', { sample: dataPoints[0] });
     }
 
     return NextResponse.json({
@@ -407,7 +412,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/capacity/account:', error);
+logger.error('Error in GET /api/capacity/account', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

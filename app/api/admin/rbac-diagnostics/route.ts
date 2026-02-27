@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { hasPermission, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (usersError) {
-      console.error('Error fetching users for diagnostics:', usersError);
+      logger.error('Error fetching users for diagnostics:', {}, usersError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch users' },
         { status: 500 }
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (rolesError) {
-      console.error('Error fetching roles for diagnostics:', rolesError);
+      logger.error('Error fetching roles for diagnostics:', {}, rolesError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch roles' },
         { status: 500 }
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-    console.error('Error in GET /api/admin/rbac-diagnostics:', error);
+    logger.error('Error in GET /api/admin/rbac-diagnostics:', {}, err);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

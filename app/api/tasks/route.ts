@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, task }, { status: 201 })
   } catch (error: unknown) {
-    console.error('Error in POST /api/tasks:', error)
+    logger.error('Error in POST /api/tasks:', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

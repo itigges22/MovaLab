@@ -35,13 +35,13 @@ export async function GET(
         // No config found, return null (client will use defaults)
         return NextResponse.json({ config: null });
       }
-      console.error('Error fetching kanban config:', error);
+      logger.error('Error fetching kanban config', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch kanban config' }, { status: 500 });
     }
 
     return NextResponse.json({ config });
   } catch (error: unknown) {
-    console.error('Error in GET /api/accounts/[accountId]/kanban-config:', error);
+    logger.error('Error in GET /api/accounts/[accountId]/kanban-config', {}, error as Error);
     const err = error as { status?: number; message?: string };
     if (err.status) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -96,7 +96,7 @@ export async function PUT(
         .single();
 
       if (error) {
-        console.error('Error updating kanban config:', error);
+        logger.error('Error updating kanban config', {}, error as unknown as Error);
         return NextResponse.json({ error: 'Failed to update kanban config' }, { status: 500 });
       }
       config = data;
@@ -112,7 +112,7 @@ export async function PUT(
         .single();
 
       if (error) {
-        console.error('Error creating kanban config:', error);
+        logger.error('Error creating kanban config', {}, error as unknown as Error);
         return NextResponse.json({ error: 'Failed to create kanban config' }, { status: 500 });
       }
       config = data;
@@ -120,7 +120,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, config });
   } catch (error: unknown) {
-    console.error('Error in PUT /api/accounts/[accountId]/kanban-config:', error);
+    logger.error('Error in PUT /api/accounts/[accountId]/kanban-config', {}, error as Error);
     const err = error as { status?: number; message?: string };
     if (err.status) {
       return NextResponse.json({ error: err.message }, { status: err.status });

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       .eq('id', session.id);
 
     if (updateError) {
-      console.error('Error closing clock session:', updateError);
+      logger.error('Error closing clock session', {}, updateError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to close session', details: updateError.message },
         { status: 500 }
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in POST /api/clock/discard:', error);
+logger.error('Error in POST /api/clock/discard', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

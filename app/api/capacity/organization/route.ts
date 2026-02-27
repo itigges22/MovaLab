@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -347,7 +348,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/capacity/organization:', error);
+logger.error('Error in GET /api/capacity/organization', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

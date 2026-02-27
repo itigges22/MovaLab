@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error fetching clock session:', error);
+      logger.error('Error fetching clock session', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch clock status' },
         { status: 500 }
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/clock:', error);
+logger.error('Error in GET /api/clock', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating clock session:', error);
+      logger.error('Error creating clock session', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to clock in', details: error.message },
         { status: 500 }
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in POST /api/clock:', error);
+logger.error('Error in POST /api/clock', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

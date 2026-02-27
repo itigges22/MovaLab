@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 interface TimeAllocation {
   projectId: string;
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     // Warn if allocated hours significantly differ from actual (allow some flexibility)
     if (Math.abs(totalAllocated - totalHours) > 0.5) {
-      console.warn(`Clock session ${session.id}: Allocated ${totalAllocated}h but was clocked in for ${totalHours.toFixed(2)}h`);
+      logger.warn(`Clock session ${session.id}: Allocated ${totalAllocated}h but was clocked in for ${totalHours.toFixed(2)}h`, {});
     }
 
     // Calculate entry date (local time, not UTC)
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (entriesError) {
-      console.error('Error creating time entries:', entriesError);
+      logger.error('Error creating time entries', {}, entriesError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to create time entries', details: entriesError.message },
         { status: 500 }
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
       .eq('id', session.id);
 
     if (updateError) {
-      console.error('Error closing clock session:', updateError);
+      logger.error('Error closing clock session', {}, updateError as unknown as Error);
       // Don't fail the request since entries were created
     }
 
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error: unknown) {
-    console.error('Error in POST /api/clock/out:', error);
+    logger.error('Error in POST /api/clock/out', {}, error as Error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
       { error: 'Internal server error', message: errorMessage },

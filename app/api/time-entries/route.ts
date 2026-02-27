@@ -9,6 +9,7 @@ import { timeEntryService } from '@/lib/services/time-entry-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/time-entries:', error);
+logger.error('Error in GET /api/time-entries', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('Error inserting time entry:', insertError);
+      logger.error('Error inserting time entry', {}, insertError as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to log time', details: insertError.message },
         { status: 500 }
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in POST /api/time-entries:', error);
+logger.error('Error in POST /api/time-entries', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -288,7 +289,7 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in PATCH /api/time-entries:', error);
+logger.error('Error in PATCH /api/time-entries', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -397,7 +398,7 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in DELETE /api/time-entries:', error);
+logger.error('Error in DELETE /api/time-entries', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

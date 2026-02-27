@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { isSuperadmin } from '@/lib/rbac';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * POST /api/admin/move-system-roles
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       toDepartment: finalInternalAffairsDept.name
     });
   } catch (error: unknown) {
-    console.error('Error in POST /api/admin/move-system-roles:', error);
+    logger.error('Error in POST /api/admin/move-system-roles:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
