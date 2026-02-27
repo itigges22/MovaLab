@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { getUserPendingApprovals } from '@/lib/workflow-execution-service';
+import { logger } from '@/lib/debug-logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
         .eq('status', 'active');
 
       if (error) {
-        console.error('[my-approvals] Error querying active steps:', error);
+        logger.error('[my-approvals] Error querying active steps', {}, error as unknown as Error);
       }
 
       if (!error && activeSteps) {
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
           const node = nodes?.find((n: any) => n.id === step.node_id);
 
           if (!node) {
-            console.warn('[my-approvals] Node not found in snapshot:', { stepId: step.id, nodeId: step.node_id });
+            logger.warn('[my-approvals] Node not found in snapshot', { stepId: step.id, nodeId: step.node_id });
             return false;
           }
           return (node.node_type as string) === 'approval';
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
       approvals,
     });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/my-approvals:', error);
+    logger.error('Error in GET /api/workflows/my-approvals', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { getUserActiveProjects } from '@/lib/workflow-execution-service';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * GET /api/workflows/my-projects
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
       projects,
     });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/my-projects:', error);
+    logger.error('Error in GET /api/workflows/my-projects', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

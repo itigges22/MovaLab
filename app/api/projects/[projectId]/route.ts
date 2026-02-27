@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * GET /api/projects/[projectId]
@@ -84,7 +85,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, project });
   } catch (error: unknown) {
-    console.error('Error in GET /api/projects/[projectId]:', error);
+    logger.error('Error in GET /api/projects/[projectId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -177,7 +178,7 @@ export async function PUT(
       .single();
 
     if (updateError) {
-      console.error('Error updating project:', updateError);
+      logger.error('Error updating project:', {}, updateError as unknown as Error);
       return NextResponse.json({ error: 'Failed to update project' }, { status: 500 });
     }
 
@@ -210,7 +211,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, project: updatedProject });
   } catch (error: unknown) {
-    console.error('Error in PUT /api/projects/[projectId]:', error);
+    logger.error('Error in PUT /api/projects/[projectId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -301,13 +302,13 @@ export async function DELETE(
       .eq('id', projectId);
 
     if (deleteError) {
-      console.error('Error deleting project:', deleteError);
+      logger.error('Error deleting project:', {}, deleteError as unknown as Error);
       return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/projects/[projectId]:', error);
+    logger.error('Error in DELETE /api/projects/[projectId]:', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

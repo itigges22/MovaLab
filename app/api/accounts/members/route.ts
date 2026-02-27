@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface AuthErrorWithStatus extends Error {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       .order('name');
     
     if (accountsError) {
-      console.error('Error fetching accounts:', accountsError);
+      logger.error('Error fetching accounts', {}, accountsError as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
     }
     
@@ -79,10 +80,10 @@ export async function GET(request: NextRequest) {
     const accountsWithMembers = (accounts || []).map((account: any) => {
       // Handle case where account_members table doesn't exist
       if (membersError) {
-        console.error('Error fetching account members:', membersError);
+        logger.error('Error fetching account members', {}, membersError as unknown as Error);
         // If table doesn't exist, return empty members array
         if (membersError.code === 'PGRST116' || membersError.code === '42P01' || membersError.message?.includes('does not exist')) {
-          console.log('account_members table does not exist, returning empty members');
+          logger.debug('account_members table does not exist, returning empty members', {});
           return {
             ...account,
             members: [],
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ accounts: accountsWithMembers });
   } catch (error: unknown) {
     const err = error as AuthErrorWithStatus;
-    console.error('Error in GET /api/accounts/members:', error);
+    logger.error('Error in GET /api/accounts/members', {}, error as Error);
     if (err.status) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }

@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions';
 import { submitFormResponse } from '@/lib/form-service';
 import { validateRequestBody, submitFormResponseSchema } from '@/lib/validation-schemas';
 import { verifyWorkflowHistoryAccess } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // POST /api/workflows/forms/responses - Submit a form response
 export async function POST(request: NextRequest) {
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, response }, { status: 201 });
   } catch (error: unknown) {
-    console.error('Error in POST /api/workflows/forms/responses:', error);
+    logger.error('Error in POST /api/workflows/forms/responses', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

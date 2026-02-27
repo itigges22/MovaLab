@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * PATCH /api/accounts/[accountId]
@@ -68,7 +69,7 @@ export async function PATCH(
       .single();
 
     if (error) {
-      console.error('Error updating account:', error);
+      logger.error('Error updating account', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to update account' },
         { status: 500 }
@@ -77,7 +78,7 @@ export async function PATCH(
 
     return NextResponse.json({ account: data });
   } catch (error: unknown) {
-    console.error('Error in PATCH /api/accounts/[accountId]:', error);
+    logger.error('Error in PATCH /api/accounts/[accountId]', {}, error as Error);
     const err = error as { status?: number; message?: string };
     if (err.status) {
       return NextResponse.json({ error: err.message }, { status: err.status });

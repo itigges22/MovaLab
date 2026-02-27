@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { getFormResponseById } from '@/lib/form-service';
 import { verifyFormResponseAccess } from '@/lib/access-control-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/workflows/forms/responses/[id] - Get form response by ID
 export async function GET(
@@ -68,7 +69,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, response }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/forms/responses/[id]:', error);
+    logger.error('Error in GET /api/workflows/forms/responses/[id]', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

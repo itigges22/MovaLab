@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions'
 import { taskServiceDB, UpdateTaskData } from '@/lib/task-service-db'
 import type { UserWithRoles } from '@/lib/rbac-types'
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard'
+import { logger } from '@/lib/debug-logger'
 
 // Helper function to check if user has access to a project
 async function userHasProjectAccess(supabase: any, userId: string, projectId: string, userProfile: UserWithRoles): Promise<boolean> {
@@ -149,7 +150,7 @@ export async function PUT(
         return NextResponse.json({ error: 'Task not found' }, { status: 404 })
       }
 
-      console.error('Failed to update task - possible permission issue:', { taskId, userId: user.id })
+      logger.error('Failed to update task - possible permission issue:', { taskId, userId: user.id })
       return NextResponse.json({
         error: 'Failed to update task. You may not have permission to modify this task.'
       }, { status: 403 })
@@ -158,7 +159,7 @@ export async function PUT(
     return NextResponse.json({ success: true, task })
   } catch (error: unknown) {
     const err = error as Error
-    console.error('Error in PUT /api/tasks/[taskId]:', err.message, err.stack)
+    logger.error('Error in PUT /api/tasks/[taskId]:', {}, err)
     return NextResponse.json({
       error: `Failed to update task: ${err.message || 'Unknown error'}`
     }, { status: 500 })
@@ -253,7 +254,7 @@ export async function PATCH(
       .single()
 
     if (updateError) {
-      console.error('Error updating task:', updateError)
+      logger.error('Error updating task:', {}, updateError as unknown as Error)
 
       // Check for specific error types
       if (updateError.code === 'PGRST116') {
@@ -281,7 +282,7 @@ export async function PATCH(
     return NextResponse.json({ success: true, task })
   } catch (error: unknown) {
     const err = error as Error
-    console.error('Error in PATCH /api/tasks/[taskId]:', err.message, err.stack)
+    logger.error('Error in PATCH /api/tasks/[taskId]:', {}, err)
     return NextResponse.json({
       error: `Failed to update task: ${err.message || 'Unknown error'}`
     }, { status: 500 })
@@ -357,7 +358,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {
-    console.error('Error in DELETE /api/tasks/[taskId]:', error)
+    logger.error('Error in DELETE /api/tasks/[taskId]:', {}, error as Error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

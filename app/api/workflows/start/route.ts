@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { startWorkflowForProject } from '@/lib/workflow-execution-service';
+import { logger } from '@/lib/debug-logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       workflowInstanceId: result.workflowInstanceId,
     });
   } catch (error: unknown) {
-    console.error('Error in POST /api/workflows/start:', error);
+    logger.error('Error in POST /api/workflows/start', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

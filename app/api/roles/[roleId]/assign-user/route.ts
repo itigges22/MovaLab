@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 export async function POST(
   request: NextRequest,
@@ -77,7 +78,7 @@ export async function POST(
       .eq('user_id', userId);
 
     if (currentRolesError) {
-      console.error('Error fetching current roles:', currentRolesError);
+      logger.error('Error fetching current roles', {}, currentRolesError as unknown as Error);
       return NextResponse.json({ error: 'Failed to check current roles' }, { status: 500 });
     }
 
@@ -101,10 +102,10 @@ export async function POST(
     });
     
     if (noAssignedRole && !hasOtherRoles) {
-      console.log(`🔄 User is only in "No Assigned Role", will replace with new role`);
+      logger.debug('User is only in "No Assigned Role", will replace with new role', {});
       // Don't remove yet - we'll replace the assignment after adding the new role
     } else if (noAssignedRole && hasOtherRoles) {
-      console.log(`🔄 User has "No Assigned Role" + other roles, removing from "No Assigned Role"`);
+      logger.debug('User has "No Assigned Role" + other roles, removing from "No Assigned Role"', {});
       
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -113,13 +114,13 @@ export async function POST(
         .eq('role_id', noAssignedRole.role_id);
 
       if (deleteError) {
-        console.error('Error removing user from "No Assigned Role":', deleteError);
+        logger.error('Error removing user from "No Assigned Role"', {}, deleteError as unknown as Error);
         return NextResponse.json({ error: 'Failed to remove user from "No Assigned Role"' }, { status: 500 });
       }
 
-      console.log('✅ User removed from "No Assigned Role"');
+      logger.debug('User removed from "No Assigned Role"', {});
     } else {
-      console.log('ℹ️ User is not in "No Assigned Role", keeping existing roles');
+      logger.debug('User is not in "No Assigned Role", keeping existing roles', {});
     }
 
     // Create the new assignment
@@ -133,13 +134,13 @@ export async function POST(
       });
 
     if (insertError) {
-      console.error('Error assigning user to role:', insertError);
+      logger.error('Error assigning user to role', {}, insertError as unknown as Error);
       return NextResponse.json({ error: 'Failed to assign user to role' }, { status: 500 });
     }
 
     // If user was only in "No Assigned Role", remove it now (after adding new role)
     if (noAssignedRole && !hasOtherRoles) {
-      console.log(`🔄 Now removing user from "No Assigned Role" (user now has new role)`);
+      logger.debug('Now removing user from "No Assigned Role" (user now has new role)', {});
       
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -148,15 +149,15 @@ export async function POST(
         .eq('role_id', noAssignedRole.role_id);
 
       if (deleteError) {
-        console.error('Error removing user from "No Assigned Role" after assignment:', deleteError);
+        logger.error('Error removing user from "No Assigned Role" after assignment', {}, deleteError as unknown as Error);
         // Don't fail the request - user is already assigned to new role
-        console.log('⚠️ User assigned to new role but failed to remove from "No Assigned Role"');
+        logger.warn('User assigned to new role but failed to remove from "No Assigned Role"', {});
       } else {
-        console.log('✅ User removed from "No Assigned Role" after assignment');
+        logger.debug('User removed from "No Assigned Role" after assignment', {});
       }
     }
 
-    console.log(`✅ User ${targetUser.name} assigned to ${role.name} (removed from ${currentRoles?.length || 0} previous roles)`);
+    logger.info(`User ${targetUser.name} assigned to ${role.name}`, { previousRolesCount: currentRoles?.length || 0 });
 
     return NextResponse.json({ 
       success: true,

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -21,12 +22,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    console.log('🔄 REORDER API: Received request:', {
+    logger.debug('REORDER API: Received request', {
       roleId,
       newReportingRoleId,
       newHierarchyLevel: bodyHierarchyLevel,
-      newDisplayOrder,
-      fullBody: body
+      newDisplayOrder
     });
 
     // Check if role exists
@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest) {
           
           // Allow all roles to be reordered freely (including Superadmin)
     
-    console.log(`🔄 REORDER API: Reordering role ${roleId}:`, {
+    logger.debug(`REORDER API: Reordering role ${roleId}`, {
       roleName: role.name,
       newReportingRoleId,
       newHierarchyLevel,
@@ -69,11 +69,9 @@ export async function PATCH(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
     
-    console.log('🔄 REORDER API: Update payload:', updatePayload);
-    
-    console.log('🔧 Updating role with payload:', updatePayload);
-    
-    console.log('🔄 REORDER API: Executing database update...');
+    logger.debug('REORDER API: Update payload', { updatePayload });
+
+    logger.debug('REORDER API: Executing database update');
     const { error: updateError, data: updatedData } = await supabase
       .from('roles')
       .update(updatePayload)
@@ -81,20 +79,20 @@ export async function PATCH(request: NextRequest) {
       .select('id, name, hierarchy_level, display_order, reporting_role_id, updated_at');
 
     if (updateError) {
-      console.error('❌ REORDER API: Error updating role:', updateError);
+      logger.error('REORDER API: Error updating role', {}, updateError as Error);
       return NextResponse.json({ 
         error: 'Failed to update role', 
         details: updateError.message 
       }, { status: 500 });
     }
     
-    console.log('✅ REORDER API: Role updated successfully!');
-    console.log('📊 REORDER API: Updated role data from DB:', updatedData);
+    logger.debug('REORDER API: Role updated successfully');
+    logger.debug('REORDER API: Updated role data from DB', { updatedData });
     
     // Check if database trigger overrode our hierarchy level
     const actualLevel = updatedData?.[0]?.hierarchy_level;
     if (actualLevel !== newHierarchyLevel) {
-      console.log(`⚠️  DATABASE TRIGGER OVERRIDE: Expected Level ${newHierarchyLevel}, got Level ${actualLevel}`);
+      logger.warn(`DATABASE TRIGGER OVERRIDE: Expected Level ${newHierarchyLevel}, got Level ${actualLevel}`);
       
       // If the database overrode our level, we need to correct it
       if (newReportingRoleId) {
@@ -107,7 +105,7 @@ export async function PATCH(request: NextRequest) {
         
         if (parentRole) {
           const correctLevel = parentRole.hierarchy_level - 1;
-          console.log(`🔧 Correcting hierarchy level: ${actualLevel} → ${correctLevel} (parent is Level ${parentRole.hierarchy_level})`);
+          logger.debug(`Correcting hierarchy level: ${actualLevel} -> ${correctLevel} (parent is Level ${parentRole.hierarchy_level})`);
           
           // Update with the correct level
           const { error: correctionError } = await supabase
@@ -119,9 +117,9 @@ export async function PATCH(request: NextRequest) {
             .eq('id', roleId);
           
           if (correctionError) {
-            console.error('❌ Error correcting hierarchy level:', correctionError);
+            logger.error('Error correcting hierarchy level', {}, correctionError as Error);
           } else {
-            console.log('✅ Hierarchy level corrected successfully!');
+            logger.debug('Hierarchy level corrected successfully');
             // Update the response data
             if (updatedData?.[0]) {
               updatedData[0].hierarchy_level = correctLevel;
@@ -138,7 +136,7 @@ export async function PATCH(request: NextRequest) {
         }
         
         if (correctLevel !== actualLevel) {
-          console.log(`🔧 Correcting top-level role hierarchy: ${actualLevel} → ${correctLevel}`);
+          logger.debug(`Correcting top-level role hierarchy: ${actualLevel} -> ${correctLevel}`);
           
           const { error: correctionError } = await supabase
             .from('roles')
@@ -149,9 +147,9 @@ export async function PATCH(request: NextRequest) {
             .eq('id', roleId);
           
           if (correctionError) {
-            console.error('❌ Error correcting hierarchy level:', correctionError);
+            logger.error('Error correcting top-level hierarchy level', {}, correctionError as Error);
           } else {
-            console.log('✅ Top-level hierarchy level corrected successfully!');
+            logger.debug('Top-level hierarchy level corrected successfully');
             // Update the response data
             if (updatedData?.[0]) {
               updatedData[0].hierarchy_level = correctLevel;
@@ -161,12 +159,14 @@ export async function PATCH(request: NextRequest) {
       }
     }
     
-    console.log('📊 REORDER API: Final role state:', updatedData?.[0] ? {
-      name: updatedData[0].name,
-      hierarchy_level: updatedData[0].hierarchy_level,
-      display_order: updatedData[0].display_order,
-      reporting_role_id: updatedData[0].reporting_role_id
-    } : 'No data returned');
+    logger.debug('REORDER API: Final role state', {
+      roleData: updatedData?.[0] ? {
+        name: updatedData[0].name,
+        hierarchy_level: updatedData[0].hierarchy_level,
+        display_order: updatedData[0].display_order,
+        reporting_role_id: updatedData[0].reporting_role_id
+      } : 'No data returned'
+    });
 
     // Note: We're skipping sibling reordering for now as it causes delays
     // display_order is primarily for visual ordering within the same level

@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import type { UserWithRoles } from '@/lib/rbac-types'
+import { logger } from '@/lib/debug-logger'
 
 // Helper function to check if user has access to a project
 async function userHasProjectAccess(supabase: any, userId: string, projectId: string, userProfile: UserWithRoles): Promise<boolean> {
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (taskError) {
-      console.error('Error creating task:', taskError)
+      logger.error('Error creating task:', {}, taskError as unknown as Error)
       return NextResponse.json({ error: 'Failed to create task: ' + taskError.message }, { status: 500 })
     }
 

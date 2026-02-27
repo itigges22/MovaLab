@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 export async function POST(
   request: NextRequest,
@@ -68,7 +69,7 @@ export async function POST(
       .eq('role_id', roleId);
 
     if (deleteError) {
-      console.error('Error removing user from role:', deleteError);
+      logger.error('Error removing user from role', {}, deleteError as unknown as Error);
       return NextResponse.json({ error: 'Failed to remove user from role' }, { status: 500 });
     }
 
@@ -80,7 +81,7 @@ export async function POST(
       .single();
 
     if (fallbackError || !fallbackRole) {
-      console.error('Fallback role not found:', fallbackError);
+      logger.error('Fallback role not found', {}, fallbackError as unknown as Error);
       return NextResponse.json({ 
         error: 'Fallback role not found. User removed from role but not reassigned.' 
       }, { status: 500 });
@@ -97,13 +98,13 @@ export async function POST(
       });
 
     if (assignError) {
-      console.error('Error assigning user to fallback role:', assignError);
+      logger.error('Error assigning user to fallback role', {}, assignError as unknown as Error);
       return NextResponse.json({ 
         error: 'User removed from role but failed to assign to fallback role' 
       }, { status: 500 });
     }
 
-    console.log(`✅ User ${targetUser.name} removed from ${role.name} and assigned to ${fallbackRole.name}`);
+    logger.info(`User ${targetUser.name} removed from ${role.name} and assigned to ${fallbackRole.name}`, {});
 
     return NextResponse.json({ 
       success: true,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 /**
  * GET /api/workflows/my-pipeline
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
     const { data: nodeAssignments, error: assignmentError } = await query;
 
     if (assignmentError) {
-      console.error('Error fetching node assignments:', assignmentError);
+      logger.error('Error fetching node assignments', {}, assignmentError as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch pipeline projects' }, { status: 500 });
     }
 
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
       projects: pipelineProjects
     });
   } catch (error: unknown) {
-    console.error('Error in GET /api/workflows/my-pipeline:', error);
+    logger.error('Error in GET /api/workflows/my-pipeline', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

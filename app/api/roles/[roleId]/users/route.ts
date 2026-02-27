@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +34,7 @@ export async function GET(
       .eq('role_id', roleId);
 
     if (error) {
-      console.error('Error fetching role users:', error);
+      logger.error('Error fetching role users', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
     }
 
