@@ -398,13 +398,13 @@ class TaskServiceDB {
         throw error;
       }
 
-      console.log('Updated task from database:', updatedTask);
+      logger.debug('Updated task from database', { updatedTask });
       const mappedTask = updatedTask ? this.mapTaskRowToTask(updatedTask) : null;
-      console.log('Mapped task result:', mappedTask);
+      logger.debug('Mapped task result', { mappedTask });
       
       return mappedTask;
     } catch (error: unknown) {
-      console.error('Error in updateRemainingHours:', error);
+      logger.error('Error in updateRemainingHours', {}, error as Error);
       throw error;
     }
   }
@@ -422,13 +422,13 @@ class TaskServiceDB {
         .eq('id', taskId);
 
       if (error) {
-        console.error('Error deleting task:', error);
+        logger.error('Error deleting task', { error });
         throw error;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in deleteTask:', error);
+      logger.error('Error in deleteTask', {}, error as Error);
       return false;
     }
   }
