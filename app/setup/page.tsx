@@ -163,12 +163,25 @@ function SetupPageContent() {
           <CardContent className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-medium text-gray-900 mb-2">To complete setup:</h3>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
-                <li>Add <code className="bg-gray-200 px-1 rounded">SETUP_SECRET=your-secret-key</code> to your environment variables</li>
-                <li>Restart your application</li>
+              <ol className="list-decimal list-inside space-y-3 text-sm text-gray-600">
+                <li>
+                  Generate a secret key:
+                  <code className="block bg-gray-200 px-2 py-1 rounded mt-1 text-xs">openssl rand -hex 32</code>
+                </li>
+                <li>
+                  Add it to your environment:
+                  <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                    <li><strong>Local dev:</strong> Add <code className="bg-gray-200 px-1 rounded">SETUP_SECRET=your-key</code> to <code className="bg-gray-200 px-1 rounded">.env.local</code></li>
+                    <li><strong>Vercel:</strong> Add <code className="bg-gray-200 px-1 rounded">SETUP_SECRET</code> in Settings → Environment Variables</li>
+                  </ul>
+                </li>
+                <li>Restart your application (or redeploy on Vercel)</li>
                 <li>Return to this page and enter your secret key</li>
               </ol>
             </div>
+            <p className="text-xs text-gray-500">
+              See <code className="bg-gray-100 px-1 rounded">docs/setup/FIRST_TIME_SETUP.md</code> for the full guide.
+            </p>
             <Button variant="outline" asChild className="w-full">
               <Link href="/">Go to Home</Link>
             </Button>
@@ -196,7 +209,7 @@ function SetupPageContent() {
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-medium text-gray-900 mb-2">Setup Steps:</h3>
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
-                <li>Run the SQL setup script in Supabase (if not done)</li>
+                <li>Push database schema: <code className="bg-gray-200 px-1 rounded text-xs">supabase db push</code> (if not done)</li>
                 <li>Sign up for an account</li>
                 <li>Return to this page with your setup secret</li>
               </ol>
@@ -233,7 +246,7 @@ function SetupPageContent() {
             <h3 className="font-medium text-gray-900">Prerequisites:</h3>
             <div className="flex items-center gap-2 text-sm">
               <Database className="h-4 w-4 text-green-600" />
-              <span className="text-gray-600">SQL schema setup script executed</span>
+              <span className="text-gray-600">Database schema deployed</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Key className="h-4 w-4 text-green-600" />

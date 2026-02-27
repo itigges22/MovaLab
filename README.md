@@ -293,6 +293,7 @@ For deploying to production with cloud Supabase:
 
 ### Prerequisites
 - Node.js 18.0+
+- [Supabase CLI](https://supabase.com/docs/guides/cli) installed (`npm install -g supabase`)
 - Supabase account ([free tier works](https://supabase.com))
 - Vercel/Netlify account (optional, for hosting)
 
@@ -306,48 +307,64 @@ For deploying to production with cloud Supabase:
    ```
 
 2. **Create Supabase Project**
-   - Go to [supabase.com](https://supabase.com)
-   - Create new project
-   - Note your project URL and publishable key
+   - Go to [supabase.com/dashboard](https://supabase.com/dashboard) → **New Project**
+   - Choose a name, set a database password, pick a region
+   - Wait for the project to finish provisioning
 
-3. **Pull Database Schema**
+3. **Find Your Credentials** (in the Supabase Dashboard)
+   - Go to **Project Settings** → **API**
+   - Copy the **Project URL** (e.g., `https://abcdefg.supabase.co`)
+   - Copy the **anon/public key** (this is your publishable key)
+   - Copy the **Project Reference** from the URL: `https://supabase.com/dashboard/project/<project-ref>`
+
+4. **Push Database Schema**
    ```bash
    supabase link --project-ref your-project-ref
-   supabase db pull
-   ```
-
-4. **Environment Configuration**
-
-   Create `.env.local`:
-   ```env
-   # Supabase (Required)
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
-
-   # Rate Limiting (Optional - Production Recommended)
-   UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
-   UPSTASH_REDIS_REST_TOKEN=your-token
-   ENABLE_RATE_LIMIT=true
-   ```
-
-5. **Push Migrations**
-   ```bash
    supabase db push
    ```
+   This applies all migrations (42+ tables, RLS policies, functions) to your cloud database.
 
-6. **Launch**
+5. **Generate a Setup Secret**
+   ```bash
+   openssl rand -hex 32
+   ```
+   Save this value — you'll need it in the next step and during first-time setup.
+
+6. **Environment Configuration**
+
+   Copy the template and fill in your values:
+   ```bash
+   cp .env.local.template .env.local
+   ```
+
+   Edit `.env.local` — comment out the local Docker section and uncomment the cloud section:
+   ```env
+   # Supabase (Required)
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-public-key
+
+   # First-Time Setup (Required for initial superadmin creation)
+   SETUP_SECRET=your-generated-secret-from-step-5
+   ```
+
+   > **For Vercel:** Add these same variables in your Vercel project's **Settings → Environment Variables**.
+
+7. **Launch**
    ```bash
    npm run dev
    ```
    Open [http://localhost:3000](http://localhost:3000)
 
-### Initial Setup
+### Initial Setup (First-Time Only)
 
-1. **Create Superadmin** — Sign up, visit `/superadmin-setup` to grant yourself admin privileges
-2. **Build Organization** — Create departments and roles via Admin → Roles
-3. **Invite Team** — Members sign up, you approve via Admin → Pending Users
-4. **Set Capacity** — Users set weekly availability in their profile
-5. **Create Accounts** — Add client accounts and start managing projects
+1. **Sign Up** — Create an account at `/signup` with your email
+2. **Become Superadmin** — Navigate to `/setup?key=YOUR_SETUP_SECRET` and enter your secret key
+3. **Build Organization** — Create departments and roles via Admin → Roles
+4. **Invite Team** — Members sign up, you approve via Admin → Pending Users
+5. **Set Capacity** — Users set weekly availability in their profile
+6. **Create Accounts** — Add client accounts and start managing projects
+
+> **Detailed guide:** See [docs/setup/FIRST_TIME_SETUP.md](docs/setup/FIRST_TIME_SETUP.md) for the complete walkthrough with troubleshooting.
 
 ---
 

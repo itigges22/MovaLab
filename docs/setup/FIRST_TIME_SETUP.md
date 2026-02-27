@@ -18,29 +18,36 @@ MovaLab solves this with a **secure one-time setup mechanism** that:
 ## Prerequisites
 
 Before starting, ensure you have:
-- A Supabase project with the MovaLab schema deployed
-- Access to your Supabase SQL Editor
+- [Supabase CLI](https://supabase.com/docs/guides/cli) installed (`npm install -g supabase`)
+- A Supabase project created at [supabase.com/dashboard](https://supabase.com/dashboard)
 - Access to your deployment's environment variables (Vercel, etc.)
 
 ---
 
 ## Setup Steps
 
-### Step 1: Run the Base Schema SQL Script
+### Step 1: Push the Database Schema
 
-The base schema script creates essential roles and departments needed for the application to function.
+The database migrations create all tables, RLS policies, functions, departments, and roles.
 
-1. Open your Supabase Dashboard
-2. Navigate to **SQL Editor**
-3. Copy the contents of `supabase/setup-base-schema.sql`
-4. Paste and run the script
+```bash
+# Link your local repo to your cloud Supabase project
+supabase link --project-ref your-project-ref
+
+# Push all migrations to cloud database
+supabase db push
+```
+
+> **Where to find your project ref:** In the Supabase Dashboard URL: `https://supabase.com/dashboard/project/<project-ref>`
 
 **What this creates:**
+- 42+ tables with Row Level Security policies
 - 5 core departments (Leadership, Marketing, Design, Development, Operations)
 - 15 predefined roles with appropriate permissions
 - System roles (Superadmin, Client, No Assigned Role)
+- Database functions (auto clock-out, week start date, etc.)
 
-> **Note:** The script uses `ON CONFLICT DO NOTHING`, so it's safe to run multiple times.
+> **Note:** Migrations are idempotent and safe to run multiple times.
 
 ### Step 2: Configure the Setup Secret
 
