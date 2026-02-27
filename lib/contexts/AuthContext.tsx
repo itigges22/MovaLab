@@ -6,6 +6,7 @@ import { createClientSupabase } from '../supabase'
 import { getCurrentUserProfile, signOut } from '../auth'
 import { UserWithRoles } from '../rbac'
 import { clearPermissionCache } from '../permission-checker'
+import { logger } from '../debug-logger'
 
 interface AuthContextType {
   user: User | null
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isMounted) return
 
         if (error) {
-          console.error('Error getting session:', error)
+          logger.error('Error getting session', {}, error as Error)
           setError(error.message)
           setLoading(false)
           return
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             })
             .catch(error => {
               if (isMounted) {
-                console.error('Error loading initial user profile:', error)
+                logger.error('Error loading initial user profile', {}, error as Error)
                 setUserProfile(null)
                 setLoading(false)
               }
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error: unknown) {
         if (isMounted) {
-          console.error('Error in getInitialSession:', error)
+          logger.error('Error in getInitialSession', {}, error as Error)
           setError('Failed to load user session')
           setUser(null)
           setUserProfile(null)
@@ -127,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             })
             .catch(error => {
               if (isMounted && currentProfileRequest === profileRequest) {
-                console.error('Error loading user profile:', error)
+                logger.error('Error loading user profile', {}, error as Error)
                 setUserProfile(null)
                 setLoading(false)
               }
@@ -147,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   }
                 })
                 .catch((refreshErr: any) => {
-                  console.error('Error refreshing session:', refreshErr)
+                  logger.error('Error refreshing session', {}, refreshErr as Error)
                   setUser(null)
                   setUserProfile(null)
                   setLoading(false)
@@ -178,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       setUserProfile(null)
     } catch (error: unknown) {
-      console.error('Error signing out:', error)
+      logger.error('Error signing out', {}, error as Error)
       setError('Failed to sign out')
     } finally {
       setLoading(false)
@@ -193,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await getCurrentUserProfile()
       setUserProfile(profile)
     } catch (error: unknown) {
-      console.error('Error refreshing profile:', error)
+      logger.error('Error refreshing profile', {}, error as Error)
       setError('Failed to refresh profile')
     } finally {
       setLoading(false)

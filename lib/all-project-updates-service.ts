@@ -1,4 +1,5 @@
 import { createClientSupabase } from '@/lib/supabase';
+import { logger } from '@/lib/debug-logger';
 
 
 export type AllProjectUpdate = {
@@ -60,7 +61,7 @@ export const allProjectUpdatesService = {
       .limit(50); // Limit to most recent 50 updates
 
     if (error) {
-      console.error('Error fetching all project updates:', error);
+      logger.error('Error fetching all project updates', {}, error as Error);
       throw error;
     }
 
@@ -88,7 +89,7 @@ export const allProjectUpdatesService = {
       .or(`created_by.eq.${session.user.id},assigned_user_id.eq.${session.user.id}`);
 
     if (projectsError) {
-      console.error('Error fetching user projects:', projectsError);
+      logger.error('Error fetching user projects', {}, projectsError as Error);
       throw projectsError;
     }
 
@@ -117,7 +118,7 @@ export const allProjectUpdatesService = {
       .limit(30); // Limit to most recent 30 updates
 
     if (error) {
-      console.error('Error fetching user project updates:', error);
+      logger.error('Error fetching user project updates', {}, error as Error);
       throw error;
     }
 

@@ -1,5 +1,6 @@
 
 import { createClientSupabase } from './supabase'
+import { logger } from './debug-logger'
 
 /**
  * Test database connection and check if superadmin role exists
@@ -11,7 +12,7 @@ export async function testDatabaseConnection() {
       throw new Error('Supabase not configured')
     }
 
-    console.log('Testing database connection...')
+    logger.info('Testing database connection', {})
 
     // Test 1: Check if we can connect to departments table
     const { data: deptData, error: deptError } = await supabase
@@ -20,11 +21,11 @@ export async function testDatabaseConnection() {
       .limit(5)
 
     if (deptError) {
-      console.error('Department query error:', deptError)
+      logger.error('Department query error', {}, deptError as Error)
       return { success: false, error: `Department query failed: ${deptError.message}` }
     }
 
-    console.log('Departments found:', deptData)
+    logger.debug('Departments found', { data: deptData })
 
     // Test 2: Check if Superadmin department exists
     const { data: systemDept, error: systemDeptError } = await supabase
@@ -34,11 +35,11 @@ export async function testDatabaseConnection() {
       .maybeSingle() // Use maybeSingle() to allow 0 or 1 results
 
     if (systemDeptError) {
-      console.error('Superadmin department query error:', systemDeptError)
+      logger.error('Superadmin department query error', {}, systemDeptError as Error)
       return { success: false, error: `Superadmin department query failed: ${systemDeptError.message}` }
     }
 
-    console.log('Superadmin department:', systemDept)
+    logger.debug('Superadmin department', { data: systemDept })
 
     // Test 3: Check if Superadmin role exists
     const { data: superadminRole, error: roleError } = await supabase
@@ -48,20 +49,20 @@ export async function testDatabaseConnection() {
       .maybeSingle() // Use maybeSingle() to allow 0 or 1 results
 
     if (roleError) {
-      console.error('Superadmin role query error:', roleError)
+      logger.error('Superadmin role query error', {}, roleError as Error)
       return { success: false, error: `Superadmin role query failed: ${roleError.message}` }
     }
 
-    console.log('Superadmin role:', superadminRole)
+    logger.debug('Superadmin role', { data: superadminRole })
 
     // Test 4: Check current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError) {
-      console.error('User query error:', userError)
+      logger.error('User query error', {}, userError as Error)
       return { success: false, error: `User query failed: ${userError.message}` }
     }
 
-    console.log('Current user:', (user as any)?.id)
+    logger.debug('Current user', { userId: (user as any)?.id })
 
     return { 
       success: true, 
@@ -74,7 +75,7 @@ export async function testDatabaseConnection() {
     }
 
   } catch (error: unknown) {
-    console.error('Database test error:', error)
+    logger.error('Database test error', {}, error as Error)
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 

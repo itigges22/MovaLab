@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
+import { logger } from './debug-logger';
 
 // Configure global fetch timeout to prevent connection timeout errors
 const FETCH_TIMEOUT = 30000; // 30 seconds
@@ -22,7 +23,7 @@ const isSupabaseConfigured = () => {
 // Server component Supabase client (for use in server components)
 export const createServerSupabase = async () => {
   if (!isSupabaseConfigured()) {
-    console.error('Supabase not configured: Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY');
+    logger.error('Supabase not configured: Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', {});
     return null;
   }
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -65,7 +66,7 @@ export const createServerSupabase = async () => {
 // We must parse cookies from the request headers instead
 export const createApiSupabaseClient = (request: NextRequest) => {
   if (!isSupabaseConfigured()) {
-    console.error('Supabase not configured: Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY');
+    logger.error('Supabase not configured: Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', {});
     return null;
   }
 

@@ -1,6 +1,7 @@
 
 import { createClientSupabase } from './supabase';
 import { addDays } from 'date-fns';
+import { logger } from './debug-logger';
 
 export interface User {
   id: string;
@@ -111,14 +112,14 @@ class SupabaseTaskService {
       await this.ensureTablesExist();
       this.initialized = true;
     } catch (error: unknown) {
-      console.error('Error initializing Supabase:', error);
+      logger.error('Error initializing Supabase', {}, error as Error);
       this.initialized = true;
     }
   }
 
   private async testSupabaseConnection() {
     try {
-      console.log('Testing Supabase connection...');
+      logger.debug('Testing Supabase connection...');
       
       // Test basic connection
       const supabase = this.getSupabase();
@@ -128,14 +129,14 @@ class SupabaseTaskService {
         .limit(1);
         
       if (error) {
-        console.error('Supabase connection test failed:', error);
+        logger.error('Supabase connection test failed', { error });
         throw error;
       }
-      
-      console.log('✅ Supabase connection successful');
+
+      logger.info('Supabase connection successful');
       return true;
     } catch (error: unknown) {
-      console.error('❌ Supabase connection test failed:', error);
+      logger.error('Supabase connection test failed', {}, error as Error);
       throw error;
     }
   }
@@ -147,12 +148,12 @@ class SupabaseTaskService {
       const { error: usersError } = await supabase.from('users').select('id').limit(1);
       
       if (usersError && usersError.code === 'PGRST116') {
-        console.log('Tables do not exist. Please run the SQL script in your Supabase dashboard.');
-        console.log('Go to: https://supabase.com/dashboard -> SQL Editor');
-        console.log('Copy and paste the contents of supabase-schema.sql');
+        logger.info('Tables do not exist. Please run the SQL script in your Supabase dashboard.');
+        logger.info('Go to: https://supabase.com/dashboard -> SQL Editor');
+        logger.info('Copy and paste the contents of supabase-schema.sql');
       }
     } catch (error: unknown) {
-      console.error('Error checking tables:', error);
+      logger.error('Error checking tables', {}, error as Error);
     }
   }
 
@@ -183,7 +184,7 @@ class SupabaseTaskService {
 
       return (data || []).map(this.mapDatabaseTaskToTask);
     } catch (_error: unknown) {
-      console.warn('Supabase not available, using fallback data');
+      logger.warn('Supabase not available, using fallback data');
       return this.getFallbackTasks();
     }
   }
@@ -219,7 +220,7 @@ class SupabaseTaskService {
       if (error) throw error;
       return data ? this.mapDatabaseTaskToTask(data) : null;
     } catch (error: unknown) {
-      console.error('Error fetching task:', error);
+      logger.error('Error fetching task', {}, error as Error);
       return null;
     }
   }
@@ -231,11 +232,11 @@ class SupabaseTaskService {
     // If Supabase is not available, use fallback task creation
     const supabase = this.getSupabase();
     if (!supabase) {
-      console.log('Supabase not available, using fallback task creation');
+      logger.debug('Supabase not available, using fallback task creation');
       return this.createFallbackTask(data);
     }
-    
-    console.log('Creating task in Supabase:', data);
+
+    logger.debug('Creating task in Supabase', { data });
     
     try {
       const { data: taskData, error } = await this.getSupabase()
@@ -260,38 +261,37 @@ class SupabaseTaskService {
         .single();
 
       if (error) {
-        console.error('Database error creating task:', error);
-        console.error('Error details:', {
+        logger.error('Database error creating task', {
           code: error.code,
           message: error.message,
           details: error.details,
-          hint: error.hint
+          hint: error.hint,
+          fullError: JSON.stringify(error, null, 2),
+          taskData: JSON.stringify(data, null, 2)
         });
-        console.error('Full error object:', JSON.stringify(error, null, 2));
-        console.error('Task data being inserted:', JSON.stringify(data, null, 2));
-        
+
         // Check if it's a table not found error
         if (error.code === 'PGRST116' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
-          console.error('❌ Database tables do not exist. Please run the SQL setup script in your Supabase dashboard.');
-          console.error('Go to: https://supabase.com/dashboard -> SQL Editor');
-          console.error('Copy and paste the contents of simple-setup.sql');
+          logger.error('Database tables do not exist. Please run the SQL setup script in your Supabase dashboard.');
+          logger.error('Go to: https://supabase.com/dashboard -> SQL Editor');
+          logger.error('Copy and paste the contents of simple-setup.sql');
         } else if (error.code === 'PGRST301' || error.message?.includes('permission')) {
-          console.error('❌ Permission denied. Check your Supabase RLS policies.');
-          console.error('Make sure the policies allow public access for development.');
+          logger.error('Permission denied. Check your Supabase RLS policies.');
+          logger.error('Make sure the policies allow public access for development.');
         } else if (error.message?.includes('foreign key')) {
-          console.error('❌ Foreign key constraint error. Check if referenced records exist.');
-          console.error('Make sure users, groups, and statuses are properly inserted.');
+          logger.error('Foreign key constraint error. Check if referenced records exist.');
+          logger.error('Make sure users, groups, and statuses are properly inserted.');
         } else {
-          console.error('❌ Unknown database error. Check the full error details above.');
+          logger.error('Unknown database error. Check the full error details above.');
         }
         
         return this.createFallbackTask(data);
       }
       
-      console.log('Task created successfully in database:', taskData);
+      logger.info('Task created successfully in database', { taskData });
       return taskData ? this.mapDatabaseTaskToTask(taskData) : null;
     } catch (error: unknown) {
-      console.error('Error creating task:', error);
+      logger.error('Error creating task', {}, error as Error);
       return this.createFallbackTask(data);
     }
   }
@@ -303,7 +303,7 @@ class SupabaseTaskService {
     // If Supabase is not available, return null (fallback mode)
     const supabase = this.getSupabase();
     if (!supabase) {
-      console.log('Supabase not available, cannot update task');
+      logger.debug('Supabase not available, cannot update task');
       return null;
     }
     
@@ -316,7 +316,7 @@ class SupabaseTaskService {
         .single();
       
       if (checkError) {
-        console.log('Task not found in database, skipping update:', data.id);
+        logger.debug('Task not found in database, skipping update', { taskId: data.id });
         return null;
       }
       const updateData: Record<string, unknown> = {};
@@ -344,8 +344,7 @@ class SupabaseTaskService {
         .single();
 
       if (error) {
-        console.error('Database error updating task:', error);
-        console.error('Error details:', {
+        logger.error('Database error updating task', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -355,7 +354,7 @@ class SupabaseTaskService {
       }
       return taskData ? this.mapDatabaseTaskToTask(taskData) : null;
     } catch (error: unknown) {
-      console.error('Error updating task:', error);
+      logger.error('Error updating task', {}, error as Error);
       return null;
     }
   }
@@ -373,7 +372,7 @@ class SupabaseTaskService {
       if (error) throw error;
       return true;
     } catch (error: unknown) {
-      console.error('Error deleting task:', error);
+      logger.error('Error deleting task', {}, error as Error);
       return false;
     }
   }
@@ -408,7 +407,7 @@ class SupabaseTaskService {
           if (error) throw error;
           return data || [];
         } catch (error: unknown) {
-          console.error('Error fetching users:', error);
+          logger.error('Error fetching users', {}, error as Error);
           return this.getFallbackUsers();
         }
       }
@@ -419,12 +418,12 @@ class SupabaseTaskService {
         
         const supabase = this.getSupabase();
     if (!supabase) {
-          console.log('Supabase not available, using fallback user creation');
+          logger.debug('Supabase not available, using fallback user creation');
           return this.createFallbackUser(data);
         }
 
         try {
-          console.log('Creating user in Supabase:', data);
+          logger.debug('Creating user in Supabase', { data });
           const { data: userData, error } = await this.getSupabase()
             .from('users')
             .insert({
@@ -436,30 +435,29 @@ class SupabaseTaskService {
             .single();
 
           if (error) {
-            console.error('Database error creating user:', error);
-            console.error('Error details:', {
+            logger.error('Database error creating user', {
               code: error.code,
               message: error.message,
               details: error.details,
               hint: error.hint
             });
-            
+
             // Check for RLS policy issues
             if (Object.keys(error).length === 0 || error.message?.includes('policy') || error.message?.includes('permission')) {
-              console.error('❌ This appears to be a Row Level Security (RLS) policy issue.');
-              console.error('Please run the fix-rls-policies.sql script in your Supabase SQL Editor.');
-              console.error('Go to: https://supabase.com/dashboard -> SQL Editor');
+              logger.error('This appears to be a Row Level Security (RLS) policy issue.');
+              logger.error('Please run the fix-rls-policies.sql script in your Supabase SQL Editor.');
+              logger.error('Go to: https://supabase.com/dashboard -> SQL Editor');
             }
-            
-            console.log('Falling back to local user creation');
+
+            logger.debug('Falling back to local user creation');
             return this.createFallbackUser(data);
           }
 
-          console.log('User created successfully:', userData);
+          logger.info('User created successfully', { userData });
           return userData;
         } catch (error: unknown) {
-          console.error('Error creating user:', error);
-          console.log('Falling back to local user creation');
+          logger.error('Error creating user', {}, error as Error);
+          logger.debug('Falling back to local user creation');
           return this.createFallbackUser(data);
         }
       }
@@ -470,7 +468,7 @@ class SupabaseTaskService {
         
         // Prevent deletion of the default "Unassigned" user
         if (id === 'default-user') {
-          console.log('Cannot delete the default "Unassigned" user');
+          logger.debug('Cannot delete the default "Unassigned" user');
           return false;
         }
         
@@ -488,7 +486,7 @@ class SupabaseTaskService {
             .limit(1);
 
           if (checkError) {
-            console.error('Error checking tasks for user:', checkError);
+            logger.error('Error checking tasks for user', { checkError });
             return false;
           }
 
@@ -517,8 +515,7 @@ class SupabaseTaskService {
                 .single();
 
               if (createError) {
-                console.error('Error creating default user:', createError);
-                console.error('Error details:', {
+                logger.error('Error creating default user', {
                   code: createError.code,
                   message: createError.message,
                   details: createError.details,
@@ -536,11 +533,11 @@ class SupabaseTaskService {
               .eq('owner_id', id);
 
             if (updateError) {
-              console.error('Error reassigning tasks to default user:', updateError);
+              logger.error('Error reassigning tasks to default user', { updateError });
               return false;
             }
 
-            console.log(`Reassigned ${tasksAssignedToUser.length} tasks to default user before deleting user`);
+            logger.info(`Reassigned ${tasksAssignedToUser.length} tasks to default user before deleting user`);
           }
 
           // Now delete the user
@@ -550,13 +547,13 @@ class SupabaseTaskService {
             .eq('id', id);
 
           if (error) {
-            console.error('Database error deleting user:', error);
+            logger.error('Database error deleting user', { error });
             return false;
           }
 
           return true;
         } catch (error: unknown) {
-          console.error('Error deleting user:', error);
+          logger.error('Error deleting user', {}, error as Error);
           return false;
         }
       }
@@ -574,7 +571,7 @@ class SupabaseTaskService {
           if (error) throw error;
           return data || [];
         } catch (error: unknown) {
-          console.error('Error fetching groups:', error);
+          logger.error('Error fetching groups', {}, error as Error);
           return this.getFallbackGroups();
         }
       }
@@ -585,13 +582,13 @@ class SupabaseTaskService {
         
         const supabase = this.getSupabase();
     if (!supabase) {
-          console.log('Supabase not available, using fallback group creation');
+          logger.debug('Supabase not available, using fallback group creation');
           return this.createFallbackGroup(data);
         }
 
         try {
-          console.log('Creating group in Supabase:', data);
-          console.log('Supabase client status:', {
+          logger.debug('Creating group in Supabase', { data });
+          logger.debug('Supabase client status', {
             isConnected: !!supabase,
             url: process.env.NEXT_PUBLIC_SUPABASE_URL,
             hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
@@ -607,41 +604,34 @@ class SupabaseTaskService {
             .single();
 
           if (error) {
-            console.error('Database error creating group:', error);
-            console.error('Error type:', typeof error);
-            console.error('Error keys:', Object.keys(error));
-            console.error('Error details:', {
+            logger.error('Database error creating group', {
+              errorType: typeof error,
+              errorKeys: Object.keys(error),
               code: error.code,
               message: error.message,
               details: error.details,
               hint: error.hint
             });
-            
+
             // Check for empty error objects (common with RLS issues)
             if (Object.keys(error).length === 0) {
-              console.error('❌ Empty error object detected - this usually indicates:');
-              console.error('1. Row Level Security (RLS) policy blocking the operation');
-              console.error('2. Network connectivity issues');
-              console.error('3. Supabase service unavailable');
-              console.error('Please check your Supabase dashboard and RLS policies.');
+              logger.error('Empty error object detected - this usually indicates: 1. RLS policy blocking, 2. Network issues, 3. Supabase unavailable');
             }
-            
+
             // Check for RLS policy issues
             if (error.message?.includes('policy') || error.message?.includes('permission') || error.message?.includes('RLS')) {
-              console.error('❌ This appears to be a Row Level Security (RLS) policy issue.');
-              console.error('Please run the fix-rls-policies.sql script in your Supabase SQL Editor.');
-              console.error('Go to: https://supabase.com/dashboard -> SQL Editor');
+              logger.error('This appears to be a Row Level Security (RLS) policy issue. Please run the fix-rls-policies.sql script in your Supabase SQL Editor.');
             }
-            
-            console.log('Falling back to local group creation');
+
+            logger.debug('Falling back to local group creation');
             return this.createFallbackGroup(data);
           }
 
-          console.log('Group created successfully:', groupData);
+          logger.info('Group created successfully', { groupData });
           return groupData;
         } catch (error: unknown) {
-          console.error('Error creating group:', error);
-          console.log('Falling back to local group creation');
+          logger.error('Error creating group', {}, error as Error);
+          logger.debug('Falling back to local group creation');
           return this.createFallbackGroup(data);
         }
       }
@@ -652,7 +642,7 @@ class SupabaseTaskService {
         
         // Prevent deletion of the default "General" group
         if (id === 'general') {
-          console.log('Cannot delete the default "General" group');
+          logger.debug('Cannot delete the default "General" group');
           return false;
         }
         
@@ -670,7 +660,7 @@ class SupabaseTaskService {
             .limit(1);
 
           if (checkError) {
-            console.error('Error checking tasks for group:', checkError);
+            logger.error('Error checking tasks for group', { checkError });
             return false;
           }
 
@@ -698,8 +688,7 @@ class SupabaseTaskService {
                 .single();
 
               if (createError) {
-                console.error('Error creating default group:', createError);
-                console.error('Error details:', {
+                logger.error('Error creating default group', {
                   code: createError.code,
                   message: createError.message,
                   details: createError.details,
@@ -717,11 +706,11 @@ class SupabaseTaskService {
               .eq('group_id', id);
 
             if (updateError) {
-              console.error('Error moving tasks to default group:', updateError);
+              logger.error('Error moving tasks to default group', { updateError });
               return false;
             }
 
-            console.log(`Moved ${tasksUsingGroup.length} tasks to default group before deleting group`);
+            logger.info(`Moved ${tasksUsingGroup.length} tasks to default group before deleting group`);
           }
 
           // Now delete the group
@@ -731,13 +720,13 @@ class SupabaseTaskService {
             .eq('id', id);
 
           if (error) {
-            console.error('Database error deleting group:', error);
+            logger.error('Database error deleting group', { error });
             return false;
           }
 
           return true;
         } catch (error: unknown) {
-          console.error('Error deleting group:', error);
+          logger.error('Error deleting group', {}, error as Error);
           return false;
         }
       }
@@ -755,7 +744,7 @@ class SupabaseTaskService {
       if (error) throw error;
       return data || [];
     } catch (error: unknown) {
-      console.error('Error fetching statuses:', error);
+      logger.error('Error fetching statuses', {}, error as Error);
       return [];
     }
   }
@@ -971,28 +960,28 @@ class SupabaseTaskService {
     await this.initialize();
     
     const supabase = this.getSupabase();
-    console.log('Getting milestones, supabase available:', !!supabase);
+    logger.debug('Getting milestones', { supabaseAvailable: !!supabase });
     if (!supabase) {
-      console.log('No supabase, using fallback milestones');
+      logger.debug('No supabase, using fallback milestones');
       return this.getFallbackMilestones();
     }
     
     try {
-      console.log('Querying milestones from database...');
+      logger.debug('Querying milestones from database...');
       const { data, error } = await this.getSupabase()
         .from('milestones')
         .select('*')
         .order('date', { ascending: true });
 
       if (error) {
-        console.error('Database error getting milestones:', error);
+        logger.error('Database error getting milestones', { error });
         throw error;
       }
 
-      console.log('Database milestones result:', data);
+      logger.debug('Database milestones result', { data });
       return (data || []).map(this.mapDatabaseMilestoneToMilestone);
     } catch (error: unknown) {
-      console.warn('Supabase not available, using fallback milestones', error);
+      logger.warn('Supabase not available, using fallback milestones', { error });
       return this.getFallbackMilestones();
     }
   }
@@ -1017,13 +1006,13 @@ class SupabaseTaskService {
         .single();
 
       if (error) {
-        console.error('Database error creating milestone:', error);
+        logger.error('Database error creating milestone', { error });
         return this.createFallbackMilestone(data);
       }
 
       return this.mapDatabaseMilestoneToMilestone(milestoneData);
     } catch (error: unknown) {
-      console.error('Error creating milestone:', error);
+      logger.error('Error creating milestone', {}, error as Error);
       return this.createFallbackMilestone(data);
     }
   }
@@ -1050,13 +1039,13 @@ class SupabaseTaskService {
         .single();
 
       if (error) {
-        console.error('Database error updating milestone:', error);
+        logger.error('Database error updating milestone', { error });
         return null;
       }
 
       return this.mapDatabaseMilestoneToMilestone(milestoneData);
     } catch (error: unknown) {
-      console.error('Error updating milestone:', error);
+      logger.error('Error updating milestone', {}, error as Error);
       return null;
     }
   }
@@ -1075,13 +1064,13 @@ class SupabaseTaskService {
         .eq('id', id);
 
       if (error) {
-        console.error('Database error deleting milestone:', error);
+        logger.error('Database error deleting milestone', { error });
         return false;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error deleting milestone:', error);
+      logger.error('Error deleting milestone', {}, error as Error);
       return false;
     }
   }

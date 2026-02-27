@@ -338,7 +338,7 @@ async function hasBasePermission(userProfile: UserWithRoles | null, permission: 
       const permissions = role.permissions as Record<string, boolean> || {};
       // Debug: Log what we're checking
       if (process.env.NODE_ENV === 'development' && (permission === 'manage_time' || permission === 'view_newsletters')) {
-        console.log('🔐 Permission check DETAIL:', {
+        logger.debug('Permission check DETAIL', {
           permission,
           roleName: role.name,
           roleId: role.id,

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
     const { data: timeEntries, error } = await query;
 
     if (error) {
-      console.error('Error fetching time entries:', error);
+      logger.error('Error fetching time entries', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to fetch time entries', details: error.message },
         { status: 500 }
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-console.error('Error in GET /api/admin/time-entries:', error);
+logger.error('Error in GET /api/admin/time-entries', {}, error as Error);
     return NextResponse.json(
       { error: 'Internal server error', message: err.message },
       { status: 500 }

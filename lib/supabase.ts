@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { logger } from './debug-logger';
 
 // Get Supabase publishable key
 const getSupabasePublishableKey = () => {
@@ -38,7 +39,7 @@ export const createClientSupabase = () => {
   // Create new instance only if none exists (browser only)
   try {
     if (!supabaseUrl || !supabasePublishableKey) {
-      console.error('Supabase environment variables are not set');
+      logger.error('Supabase environment variables are not set', {});
       return null;
     }
     clientInstance = createBrowserClient(supabaseUrl, supabasePublishableKey);
@@ -50,9 +51,9 @@ export const createClientSupabase = () => {
       clientInstance.auth.onAuthStateChange((event: string, _session: any) => {
         if (process.env.NODE_ENV === 'development') {
           if (event === 'TOKEN_REFRESHED') {
-            console.log('Session token refreshed automatically');
+            logger.debug('Session token refreshed automatically', {});
           } else if (event === 'SIGNED_OUT') {
-            console.log('User signed out');
+            logger.info('User signed out', {});
           }
         }
       });
@@ -60,7 +61,7 @@ export const createClientSupabase = () => {
     
     return clientInstance;
   } catch (error: unknown) {
-    console.error('Error creating Supabase client:', error);
+    logger.error('Error creating Supabase client', {}, error as Error);
     return null;
   }
 };

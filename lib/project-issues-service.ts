@@ -1,4 +1,5 @@
 import { createClientSupabase } from '@/lib/supabase';
+import { logger } from '@/lib/debug-logger';
 
 export type ProjectIssue = {
   id: string;
@@ -47,7 +48,7 @@ export const projectIssuesService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching project issues:', error);
+      logger.error('Error fetching project issues', {}, error as Error);
       throw error;
     }
 
@@ -67,7 +68,7 @@ export const projectIssuesService = {
       .eq('department_id', departmentId);
 
     if (rolesError) {
-      console.error('Error fetching department roles:', rolesError);
+      logger.error('Error fetching department roles', {}, rolesError as Error);
       throw rolesError;
     }
 
@@ -84,7 +85,7 @@ export const projectIssuesService = {
       .in('role_id', roleIds);
 
     if (userRolesError) {
-      console.error('Error fetching users for department:', userRolesError);
+      logger.error('Error fetching users for department', {}, userRolesError as Error);
       throw userRolesError;
     }
 
@@ -108,7 +109,7 @@ export const projectIssuesService = {
       .is('removed_at', null);
 
     if (assignmentsError) {
-      console.error('Error fetching project assignments:', assignmentsError);
+      logger.error('Error fetching project assignments', {}, assignmentsError as Error);
       throw assignmentsError;
     }
 
@@ -143,7 +144,7 @@ export const projectIssuesService = {
       .order('created_at', { ascending: false });
 
     if (issuesError) {
-      console.error('Error fetching department issues:', issuesError);
+      logger.error('Error fetching department issues', {}, issuesError as Error);
       throw issuesError;
     }
 
@@ -172,7 +173,7 @@ export const projectIssuesService = {
       .eq('account_id', accountId);
 
     if (projectsError) {
-      console.error('Error fetching projects:', projectsError);
+      logger.error('Error fetching projects', {}, projectsError as Error);
       throw projectsError;
     }
 
@@ -195,7 +196,7 @@ export const projectIssuesService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching account issues:', error);
+      logger.error('Error fetching account issues', {}, error as Error);
       throw error;
     }
 
@@ -234,7 +235,7 @@ export const projectIssuesService = {
       .single();
 
     if (error) {
-      console.error('Error creating project issue:', error);
+      logger.error('Error creating project issue', {}, error as Error);
       throw error;
     }
 
@@ -282,7 +283,7 @@ export const projectIssuesService = {
       .single();
 
     if (error) {
-      console.error('Error updating issue status:', error);
+      logger.error('Error updating issue status', {}, error as Error);
       throw error;
     }
 
@@ -310,7 +311,7 @@ export const projectIssuesService = {
       .single();
 
     if (error) {
-      console.error('Error updating issue content:', error);
+      logger.error('Error updating issue content', {}, error as Error);
       throw error;
     }
 
@@ -329,7 +330,7 @@ export const projectIssuesService = {
       .eq('id', issueId);
 
     if (error) {
-      console.error('Error deleting project issue:', error);
+      logger.error('Error deleting project issue', {}, error as Error);
       throw error;
     }
   },

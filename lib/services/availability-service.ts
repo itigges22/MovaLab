@@ -7,6 +7,7 @@
 
 import { createClientSupabase } from '../supabase';
 import type { AppSupabaseClient } from '../supabase';
+import { logger } from '../debug-logger';
 
 type UserAvailability = any;
 type UserAvailabilityInsert = any;
@@ -63,7 +64,7 @@ class AvailabilityService {
         // No record found - return default
         return null;
       }
-      console.error('Error fetching user availability:', error);
+      logger.error('Error fetching user availability', {}, error as Error);
       return null;
     }
 
@@ -90,7 +91,7 @@ class AvailabilityService {
       .order('week_start_date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching user availability range:', error);
+      logger.error('Error fetching user availability range', {}, error as Error);
       return [];
     }
 
@@ -129,7 +130,7 @@ class AvailabilityService {
         .single();
 
       if (error) {
-        console.error('Error updating user availability:', error);
+        logger.error('Error updating user availability', {}, error as Error);
         return null;
       }
 
@@ -152,7 +153,7 @@ class AvailabilityService {
         .single();
 
       if (error) {
-        console.error('Error inserting user availability:', error);
+        logger.error('Error inserting user availability', {}, error as Error);
         return null;
       }
 
@@ -177,7 +178,7 @@ class AvailabilityService {
       .eq('week_start_date', weekStartDate);
 
     if (error) {
-      console.error('Error deleting user availability:', error);
+      logger.error('Error deleting user availability', {}, error as Error);
       return false;
     }
 
@@ -212,7 +213,7 @@ class AvailabilityService {
       .upsert(insertData as any);
 
     if (error) {
-      console.error('Error copying availability:', error);
+      logger.error('Error copying availability', {}, error as Error);
       return false;
     }
 
@@ -243,7 +244,7 @@ class AvailabilityService {
       .eq('roles.department_id', departmentId);
 
     if (rolesError || !userRoles) {
-      console.error('Error fetching department users:', rolesError);
+      logger.error('Error fetching department users', {}, rolesError as Error);
       return [];
     }
 
@@ -256,7 +257,7 @@ class AvailabilityService {
       .eq('week_start_date', weekStartDate);
 
     if (error) {
-      console.error('Error fetching department availability:', error);
+      logger.error('Error fetching department availability', {}, error as Error);
       return [];
     }
 

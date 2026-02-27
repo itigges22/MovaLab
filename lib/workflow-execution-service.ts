@@ -6,7 +6,7 @@
  * to maintain authentication context from API routes
  */
 
-
+import { logger } from './debug-logger';
 
 // Type guard helpers
 function isString(value: unknown): value is string {
@@ -89,7 +89,7 @@ async function captureWorkflowSnapshot(
       .eq('workflow_template_id', workflowTemplateId);
 
     if (nodesError || !nodes) {
-      console.error('Error capturing workflow nodes snapshot:', nodesError);
+      logger.error('Error capturing workflow nodes snapshot', { nodesError });
       return null;
     }
 
@@ -100,7 +100,7 @@ async function captureWorkflowSnapshot(
       .eq('workflow_template_id', workflowTemplateId);
 
     if (connectionsError) {
-      console.error('Error capturing workflow connections snapshot:', connectionsError);
+      logger.error('Error capturing workflow connections snapshot', { connectionsError });
       return null;
     }
 
@@ -112,7 +112,7 @@ async function captureWorkflowSnapshot(
       .order('handed_off_at', { ascending: true });
 
     if (historyError) {
-      console.error('Error capturing workflow history snapshot:', historyError);
+      logger.error('Error capturing workflow history snapshot', { historyError });
       // Continue without history - not a critical failure
     }
 
@@ -158,7 +158,7 @@ async function captureWorkflowSnapshot(
       nodeAssignments
     };
   } catch (error: unknown) {
-    console.error('Error capturing workflow snapshot:', error);
+    logger.error('Error capturing workflow snapshot', {}, error as Error);
     return null;
   }
 }
@@ -179,7 +179,7 @@ export async function startWorkflowForProject(
   try {
     // Validate workflowTemplateId
     if (!workflowTemplateId || workflowTemplateId === '' || workflowTemplateId === 'undefined') {
-      console.error('Invalid workflow template ID:', workflowTemplateId);
+      logger.error('Invalid workflow template ID', { workflowTemplateId });
       return { success: false, error: 'Invalid workflow template ID' };
     }
 
@@ -191,12 +191,12 @@ export async function startWorkflowForProject(
       .single();
 
     if (templateError || !template) {
-      console.error('Workflow template not found:', workflowTemplateId);
+      logger.error('Workflow template not found', { workflowTemplateId });
       return { success: false, error: 'Workflow template not found' };
     }
 
     if (!template.is_active) {
-      console.error('Workflow template is not active:', workflowTemplateId);
+      logger.error('Workflow template is not active', { workflowTemplateId });
       return {
         success: false,
         error: `Workflow "${template.name}" is not active. Please activate it in the workflow editor before using.`
@@ -210,19 +210,19 @@ export async function startWorkflowForProject(
       .eq('workflow_template_id', workflowTemplateId)
       .order('position_y');
 
-    console.log('Workflow nodes query result:', {
+    logger.debug('Workflow nodes query result', {
       templateId: workflowTemplateId,
       nodesCount: nodes?.length || 0,
       error: nodesError?.message || null
     });
 
     if (nodesError) {
-      console.error('Error loading workflow nodes:', nodesError);
+      logger.error('Error loading workflow nodes', { nodesError });
       return { success: false, error: `Failed to load workflow nodes: ${nodesError.message}` };
     }
 
     if (!nodes || nodes.length === 0) {
-      console.error('No workflow nodes found for template:', workflowTemplateId);
+      logger.error('No workflow nodes found for template', { workflowTemplateId });
       return {
         success: false,
         error: `Workflow "${template.name}" has no nodes configured. Please add at least Start and End nodes in the workflow editor.`
@@ -263,7 +263,7 @@ export async function startWorkflowForProject(
       .single();
 
     if (instanceError || !instance) {
-      console.error('Workflow instance creation error:', instanceError);
+      logger.error('Workflow instance creation error', { instanceError });
       return {
         success: false,
         error: `Failed to create workflow instance: ${instanceError?.message || 'Unknown error'}`
@@ -277,11 +277,11 @@ export async function startWorkflowForProject(
       .eq('id', projectId);
 
     if (projectUpdateError) {
-      console.error('Failed to link workflow to project:', projectUpdateError);
+      logger.error('Failed to link workflow to project', { projectUpdateError });
       // Don't fail the whole operation - workflow instance was created successfully
       // The link can be established via workflow_instances.project_id
     } else {
-      console.log('Successfully linked workflow instance to project:', {
+      logger.info('Successfully linked workflow instance to project', {
         projectId,
         workflowInstanceId: instance.id
       });
@@ -315,7 +315,7 @@ export async function startWorkflowForProject(
 
     return { success: true, workflowInstanceId: instance.id };
   } catch (error: unknown) {
-    console.error('Error starting workflow:', error);
+    logger.error('Error starting workflow', {}, error as Error);
     return { success: false, error: 'Internal server error' };
   }
 }
@@ -414,10 +414,10 @@ export async function progressWorkflow(
       // Use the snapshot - this ensures template changes don't affect in-progress workflows
       nodes = instance.started_snapshot.nodes;
       connections = instance.started_snapshot.connections;
-      console.log('[Workflow] Using snapshot data for instance:', workflowInstanceId);
+      logger.debug('[Workflow] Using snapshot data for instance', { workflowInstanceId });
     } else {
       // Fallback for older instances without snapshot - query live tables
-      console.log('[Workflow] No snapshot found, querying live tables for instance:', workflowInstanceId);
+      logger.debug('[Workflow] No snapshot found, querying live tables for instance', { workflowInstanceId });
       const { data: liveNodes } = await supabase
         .from('workflow_nodes')
         .select('*')
@@ -657,7 +657,7 @@ export async function progressWorkflow(
 
     return { success: true, nextNode: nextNode || undefined };
   } catch (error: unknown) {
-    console.error('Error progressing workflow:', error);
+    logger.error('Error progressing workflow', {}, error as Error);
     return { success: false, error: 'Internal server error' };
   }
 }
@@ -838,7 +838,7 @@ function evaluateFormCondition(
       return fieldValue === false || fieldValue === 'false' || fieldValue === 'no' || !fieldValue;
 
     default:
-      console.warn(`[evaluateFormCondition] Unknown condition type: ${condition.conditionType}`);
+      logger.warn(`[evaluateFormCondition] Unknown condition type: ${condition.conditionType}`);
       return false;
   }
 }
@@ -860,11 +860,11 @@ function findConditionalNextNodeWithFormData(
   // Get all outgoing connections from this conditional node
   const outgoingConnections = connections.filter((c: any) => c.from_node_id === conditionalNode.id);
 
-  console.log('[findConditionalNextNodeWithFormData] Evaluating conditional routing:', {
+  logger.debug('[findConditionalNextNodeWithFormData] Evaluating conditional routing', {
     conditionalNodeId: conditionalNode.id,
     conditionalNodeLabel: conditionalNode.label,
     formDataKeys: Object.keys(formData),
-    formDataValues: formData, // Log actual values for debugging
+    formDataValues: formData,
     outgoingConnectionCount: outgoingConnections.length,
     connectionConditions: outgoingConnections.map((c: any) => {
       const condition = c.condition;
@@ -906,7 +906,7 @@ function findConditionalNextNodeWithFormData(
         { sourceFormFieldId, conditionType, value: isString(value) ? value : undefined },
         flatFormData
       );
-      console.log('[findConditionalNextNodeWithFormData] Condition evaluation:', {
+      logger.debug('[findConditionalNextNodeWithFormData] Condition evaluation', {
         fieldId: sourceFormFieldId,
         conditionType,
         expectedValue: value,
@@ -916,7 +916,7 @@ function findConditionalNextNodeWithFormData(
 
       if (matches) {
         const targetNode = nodes.find((n: any) => n.id === connection.to_node_id);
-        console.log('[findConditionalNextNodeWithFormData] Found matching condition path:', targetNode?.label);
+        logger.debug('[findConditionalNextNodeWithFormData] Found matching condition path', { label: targetNode?.label });
         return targetNode || null;
       }
     }
@@ -932,14 +932,14 @@ function findConditionalNextNodeWithFormData(
 
   if (defaultConnection) {
     const defaultNode = nodes.find((n: any) => n.id === defaultConnection.to_node_id);
-    console.log('[findConditionalNextNodeWithFormData] Using default path:', defaultNode?.label);
+    logger.debug('[findConditionalNextNodeWithFormData] Using default path', { label: defaultNode?.label });
     return defaultNode || null;
   }
 
   // Last resort - use first connection
   if (outgoingConnections.length > 0) {
     const fallbackNode = nodes.find((n: any) => n.id === outgoingConnections[0].to_node_id);
-    console.log('[findConditionalNextNodeWithFormData] Using fallback (first connection):', fallbackNode?.label);
+    logger.debug('[findConditionalNextNodeWithFormData] Using fallback (first connection)', { label: fallbackNode?.label });
     return fallbackNode || null;
   }
 
@@ -1004,7 +1004,7 @@ async function assignProjectToNode(
 
       if (existingActive) {
         // User already has an active assignment - skip (don't overwrite their source)
-        console.log(`[assignProjectToNode] User ${userId} already assigned to project ${projectId}, skipping`);
+        logger.debug(`[assignProjectToNode] User ${userId} already assigned to project ${projectId}, skipping`);
         continue;
       }
 
@@ -1067,7 +1067,7 @@ async function assignProjectToNode(
         .upsert(accountMembers, { onConflict: 'user_id,account_id', ignoreDuplicates: true });
     }
   } catch (error: unknown) {
-    console.error('Error assigning project to node:', error);
+    logger.error('Error assigning project to node', {}, error as Error);
   }
 }
 
@@ -1135,7 +1135,7 @@ async function assignProjectToParallelNodes(
 
       if (existingActive) {
         // User already has an active assignment - skip
-        console.log(`[assignProjectToParallelNodes] User ${userId} already assigned to project ${projectId}, skipping`);
+        logger.debug(`[assignProjectToParallelNodes] User ${userId} already assigned to project ${projectId}, skipping`);
         continue;
       }
 
@@ -1198,13 +1198,13 @@ async function assignProjectToParallelNodes(
         .upsert(accountMembers, { onConflict: 'user_id,account_id', ignoreDuplicates: true });
     }
 
-    console.log('Assigned project to parallel nodes:', {
+    logger.info('Assigned project to parallel nodes', {
       projectId,
       userCount: userNodeMap.size,
       nodeCount: assignments.length
     });
   } catch (error: unknown) {
-    console.error('Error assigning project to parallel nodes:', error);
+    logger.error('Error assigning project to parallel nodes', {}, error as Error);
   }
 }
 
@@ -1248,12 +1248,12 @@ async function completeProject(
       .select('id');
 
     const resolvedCount = resolvedIssues?.length || 0;
-    console.log('Project completed:', {
+    logger.info('Project completed', {
       projectId,
       resolvedIssuesCount: resolvedCount
     });
   } catch (error: unknown) {
-    console.error('Error completing project:', error);
+    logger.error('Error completing project', {}, error as Error);
   }
 }
 
@@ -1311,7 +1311,7 @@ export async function getUserPendingApprovals(supabase: any, userId: string): Pr
       .eq('status', 'active');
 
     if (error) {
-      console.error('Error querying active workflow steps:', error);
+      logger.error('Error querying active workflow steps', { error });
       return [];
     }
 
@@ -1349,7 +1349,7 @@ export async function getUserPendingApprovals(supabase: any, userId: string): Pr
       const node = nodes.find((n: unknown) => isRecord(n) && n.id === step.node_id);
 
       if (!node) {
-        console.warn('Could not find node data for active step:', {
+        logger.warn('Could not find node data for active step', {
           stepId: step.id,
           nodeId: step.node_id,
           hasSnapshot: !!instance.started_snapshot
@@ -1363,21 +1363,21 @@ export async function getUserPendingApprovals(supabase: any, userId: string): Pr
 
       // CHECK 1: User is specifically assigned to this step (e.g., sync leader, manual assignment)
       if (step.assigned_user_id === userId) {
-        console.log('Pending approval matched via assigned_user_id:', { stepId: step.id, nodeLabel: node.label });
+        logger.debug('Pending approval matched via assigned_user_id', { stepId: step.id, nodeLabel: node.label });
         return true;
       }
 
       // CHECK 2: User is assigned via workflow_node_assignments table
       const nodeKey = `${step.workflow_instance_id}:${step.node_id}`;
       if (assignedNodeKeys.has(nodeKey)) {
-        console.log('Pending approval matched via workflow_node_assignments:', { stepId: step.id, nodeLabel: node.label });
+        logger.debug('Pending approval matched via workflow_node_assignments', { stepId: step.id, nodeLabel: node.label });
         return true;
       }
 
       // CHECK 3: User has the required role for this node
       const entityId = node.entity_id;
       if (isString(entityId) && roleIds.includes(entityId)) {
-        console.log('Pending approval matched via role:', { stepId: step.id, nodeLabel: node.label, entityId });
+        logger.debug('Pending approval matched via role', { stepId: step.id, nodeLabel: node.label, entityId });
         return true;
       }
 
@@ -1409,7 +1409,7 @@ export async function getUserPendingApprovals(supabase: any, userId: string): Pr
       };
     });
 
-    console.log('Pending approvals query (parallel-aware):', {
+    logger.debug('Pending approvals query (parallel-aware)', {
       userId,
       roleIds,
       totalActiveSteps: activeSteps?.length || 0,
@@ -1419,7 +1419,7 @@ export async function getUserPendingApprovals(supabase: any, userId: string): Pr
 
     return result;
   } catch (error: unknown) {
-    console.error('Error fetching pending workflow tasks:', error);
+    logger.error('Error fetching pending workflow tasks', {}, error as Error);
     return [];
   }
 }
@@ -1452,7 +1452,7 @@ export async function getUserActiveProjects(supabase: any, userId: string): Prom
 
     return activeProjects;
   } catch (error: unknown) {
-    console.error('Error fetching active projects:', error);
+    logger.error('Error fetching active projects', {}, error as Error);
     return [];
   }
 }
@@ -1478,7 +1478,7 @@ export async function getActiveSteps(
     .order('activated_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching active steps:', error);
+    logger.error('Error fetching active steps', { error });
     return [];
   }
 
@@ -1502,7 +1502,7 @@ export async function getAllActiveAndWaitingSteps(
     .order('activated_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching active/waiting steps:', error);
+    logger.error('Error fetching active/waiting steps', { error });
     return [];
   }
 

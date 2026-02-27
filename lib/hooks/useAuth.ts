@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClientSupabase } from '../supabase'
+import { logger } from '../debug-logger'
 
 // Re-export the optimized useAuth from AuthContext
 // This prevents duplicate auth calls by sharing state across all components
@@ -24,13 +25,13 @@ export function useSession() {
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('Error getting session:', error)
+          logger.error('Error getting session', {}, error as Error)
           return
         }
 
         setSession(session)
       } catch (error: unknown) {
-        console.error('Error in getInitialSession:', error)
+        logger.error('Error in getInitialSession', {}, error as Error)
       } finally {
         setLoading(false)
       }

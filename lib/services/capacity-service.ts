@@ -7,6 +7,7 @@ import { createClientSupabase } from '../supabase';
 import type { AppSupabaseClient } from '../supabase';
 import { availabilityService } from './availability-service';
 import { DEFAULT_WEEKLY_HOURS } from '../constants';
+import { logger } from '../debug-logger';
 
 
 export interface UserCapacityMetrics {
@@ -117,7 +118,7 @@ class CapacityService {
     ]);
 
     if (userError || !userProfile) {
-      console.error('Error fetching user profile:', userError);
+      logger.error('Error fetching user profile', {}, userError as Error);
       return null;
     }
 
@@ -239,12 +240,12 @@ class CapacityService {
     ]);
 
     if (deptError || !department) {
-      console.error('Error fetching department:', deptError);
+      logger.error('Error fetching department', {}, deptError as Error);
       return null;
     }
 
     if (rolesError || !userRoles) {
-      console.error('Error fetching department users:', rolesError);
+      logger.error('Error fetching department users', {}, rolesError as Error);
       return null;
     }
 
@@ -317,7 +318,7 @@ class CapacityService {
     ]);
 
     if (projError || !project) {
-      console.error('Error fetching project:', projError);
+      logger.error('Error fetching project', {}, projError as Error);
       return null;
     }
 
@@ -399,7 +400,7 @@ class CapacityService {
       .select('id');
 
     if (deptsError || !departments) {
-      console.error('Error fetching departments:', deptsError);
+      logger.error('Error fetching departments', {}, deptsError as Error);
       return null;
     }
 

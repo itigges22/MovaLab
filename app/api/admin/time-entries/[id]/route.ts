@@ -3,6 +3,7 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
+import { logger } from '@/lib/debug-logger';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -76,7 +77,7 @@ export async function PATCH(
       .single();
 
     if (error) {
-      console.error('Error updating time entry:', error);
+      logger.error('Error updating time entry', {}, error as unknown as Error);
       return NextResponse.json(
         { success: false, error: 'Failed to update time entry' },
         { status: 500 }
@@ -89,7 +90,7 @@ export async function PATCH(
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-    console.error('Error in PATCH /api/admin/time-entries/[id]:', error);
+    logger.error('Error in PATCH /api/admin/time-entries/[id]', {}, error as Error);
     return NextResponse.json(
       { success: false, error: 'Internal server error', message: err.message },
       { status: 500 }
@@ -145,7 +146,7 @@ export async function DELETE(
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting time entry:', error);
+      logger.error('Error deleting time entry', {}, error as unknown as Error);
       return NextResponse.json(
         { success: false, error: 'Failed to delete time entry' },
         { status: 500 }
@@ -158,7 +159,7 @@ export async function DELETE(
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;
-    console.error('Error in DELETE /api/admin/time-entries/[id]:', error);
+    logger.error('Error in DELETE /api/admin/time-entries/[id]', {}, error as Error);
     return NextResponse.json(
       { success: false, error: 'Internal server error', message: err.message },
       { status: 500 }

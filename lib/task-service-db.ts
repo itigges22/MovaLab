@@ -1,6 +1,7 @@
 
 
 import { createClientSupabase } from './supabase';
+import { logger } from './debug-logger';
 
 type _TaskRow = any;
 type TaskInsert = any;
@@ -82,7 +83,7 @@ class TaskServiceDB {
   async getTasksByProject(projectId: string): Promise<Task[]> {
     // Guard against invalid projectId
     if (!projectId || typeof projectId !== 'string') {
-      console.warn('getTasksByProject called with invalid projectId:', projectId);
+      logger.warn('getTasksByProject called with invalid projectId', { projectId });
       return [];
     }
 
@@ -101,7 +102,7 @@ class TaskServiceDB {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching tasks:', {
+        logger.error('Error fetching tasks', {
           message: error.message,
           code: error.code,
           details: error.details,
@@ -125,7 +126,7 @@ class TaskServiceDB {
         .in('task_id', taskIds);
 
       if (timeError) {
-        console.error('Error fetching time entries:', {
+        logger.error('Error fetching time entries', {
           message: timeError.message,
           code: timeError.code,
           details: timeError.details,
@@ -157,12 +158,11 @@ class TaskServiceDB {
       });
     } catch (error: unknown) {
       const err = error as { message?: string; code?: string; stack?: string };
-      console.error('Error in getTasksByProject:', {
+      logger.error('Error in getTasksByProject', {
         message: err?.message || 'Unknown error',
         code: err?.code,
-        projectId,
-        stack: err?.stack?.slice(0, 500)
-      });
+        projectId
+      }, error as Error);
       return [];
     }
   }
@@ -186,13 +186,13 @@ class TaskServiceDB {
         .single();
 
       if (error) {
-        console.error('Error fetching task:', error);
+        logger.error('Error fetching task', { error });
         return null;
       }
 
       return data ? this.mapTaskRowToTask(data) : null;
     } catch (error: unknown) {
-      console.error('Error in getTaskById:', error);
+      logger.error('Error in getTaskById', {}, error as Error);
       return null;
     }
   }
@@ -207,15 +207,15 @@ class TaskServiceDB {
       // Verify user session
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        console.error('Auth check failed in createTask:', {
+        logger.error('Auth check failed in createTask', {
           authError,
           hasUser: !!user
         });
         throw new Error('User not authenticated');
       }
       
-      console.log('Creating task with user:', user.id);
-      console.log('Task creation data input:', data);
+      logger.debug('Creating task with user', { userId: user.id });
+      logger.debug('Task creation data input', { data });
       
       const taskData: TaskInsert = {
         name: data.name,
@@ -232,7 +232,7 @@ class TaskServiceDB {
         assigned_to: data.assigned_to || null,
       };
 
-      console.log('Task data being inserted:', taskData);
+      logger.debug('Task data being inserted', { taskData });
 
       // Type assertion needed due to complex joined query
       const result = await (supabase as any)
@@ -249,31 +249,29 @@ class TaskServiceDB {
       const { data: newTask, error } = result as { data: Record<string, unknown> | null; error: any };
 
       if (error) {
-        console.error('Error creating task:', {
+        logger.error('Error creating task', {
           message: error.message,
           details: error.details,
           hint: error.hint,
-          code: error.code,
-          full: error
+          code: error.code
         });
         throw error;
       }
 
-      console.log('New task from database:', newTask);
+      logger.debug('New task from database', { newTask });
       const mappedTask = newTask ? this.mapTaskRowToTask(newTask as Record<string, unknown>) : null;
-      console.log('Mapped new task:', mappedTask);
+      logger.debug('Mapped new task', { mappedTask });
 
       return mappedTask;
     } catch (error: unknown) {
       const err = error as { message?: string; details?: string; hint?: string; code?: string; name?: string; stack?: string };
-      console.error('Error in createTask:', {
+      logger.error('Error in createTask', {
         message: err?.message,
         details: err?.details,
         hint: err?.hint,
         code: err?.code,
-        name: err?.name,
-        stack: err?.stack
-      });
+        name: err?.name
+      }, error as Error);
       return null;
     }
   }
@@ -315,7 +313,7 @@ class TaskServiceDB {
           updateData.actual_hours = Math.max(0, estimated - remaining);
           // Also set remaining to 0 since task is complete
           updateData.remaining_hours = 0;
-          console.log(`Task ${data.id} marked done: actual_hours=${updateData.actual_hours} (estimated=${estimated}, remaining=${remaining})`);
+          logger.info(`Task marked done`, { taskId: data.id, actual_hours: updateData.actual_hours, estimated, remaining });
         }
       }
 
@@ -335,13 +333,13 @@ class TaskServiceDB {
       const { data: updatedTask, error } = result as { data: Record<string, unknown> | null; error: any };
 
       if (error) {
-        console.error('Error updating task:', error);
+        logger.error('Error updating task', { error });
         throw error;
       }
 
       return updatedTask ? this.mapTaskRowToTask(updatedTask) : null;
     } catch (error: unknown) {
-      console.error('Error in updateTask:', error);
+      logger.error('Error in updateTask', {}, error as Error);
       return null;
     }
   }
@@ -354,7 +352,7 @@ class TaskServiceDB {
     try {
       const supabase = this.getSupabase();
       
-      console.log('updateRemainingHours called with:', {
+      logger.debug('updateRemainingHours called with', {
         taskId,
         remainingHours,
         estimatedHours
@@ -375,10 +373,10 @@ class TaskServiceDB {
         updateData.status = 'done';
         // actual_hours = estimated - remaining (since remaining is 0, actual = estimated)
         updateData.actual_hours = estimatedHours || 0;
-        console.log(`Task ${taskId} auto-completed: actual_hours=${updateData.actual_hours}`);
+        logger.info('Task auto-completed', { taskId, actual_hours: updateData.actual_hours });
       }
       
-      console.log('Updating task with data:', updateData);
+      logger.debug('Updating task with data', { updateData });
 
       // Type assertion needed due to complex joined query
       const result = await (supabase as any)
@@ -396,7 +394,7 @@ class TaskServiceDB {
       const { data: updatedTask, error } = result as { data: Record<string, unknown> | null; error: any };
 
       if (error) {
-        console.error('Error updating remaining hours:', error);
+        logger.error('Error updating remaining hours', { error });
         throw error;
       }
 

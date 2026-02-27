@@ -1,4 +1,5 @@
 import { createClientSupabase } from '@/lib/supabase';
+import { logger } from '@/lib/debug-logger';
 
 export type ProjectUpdate = {
   id: string;
@@ -37,7 +38,7 @@ export const projectUpdatesService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching project updates:', error);
+      logger.error('Error fetching project updates', {}, error as Error);
       throw error;
     }
 
@@ -69,7 +70,7 @@ export const projectUpdatesService = {
       .single();
 
     if (error) {
-      console.error('Error creating project update:', error);
+      logger.error('Error creating project update', {}, error as Error);
       throw error;
     }
 
@@ -96,7 +97,7 @@ export const projectUpdatesService = {
       .single();
 
     if (error) {
-      console.error('Error updating project update:', error);
+      logger.error('Error updating project update', {}, error as Error);
       throw error;
     }
 
@@ -115,7 +116,7 @@ export const projectUpdatesService = {
       .eq('id', updateId);
 
     if (error) {
-      console.error('Error deleting project update:', error);
+      logger.error('Error deleting project update', {}, error as Error);
       throw error;
     }
   },

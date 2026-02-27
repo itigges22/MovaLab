@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/org-structure/roles - Get all roles with user counts
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (error) {
-      console.error('Error fetching roles:', error);
+      logger.error('Error fetching roles', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 });
     }
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, roles: rolesWithCounts }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/org-structure/roles:', error);
+    logger.error('Error in GET /api/org-structure/roles', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

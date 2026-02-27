@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET - Check if setup is available
 export async function GET(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (countError) {
-      console.error('Error checking superadmins:', countError);
+      logger.error('Error checking superadmins', {}, countError as unknown as Error);
       return NextResponse.json({ error: 'Failed to check setup status' }, { status: 500 });
     }
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
           : 'SETUP_SECRET environment variable not configured.'
     });
   } catch (error) {
-    console.error('Error in GET /api/setup:', error);
+    logger.error('Error in GET /api/setup', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (checkError) {
-      console.error('Error checking existing superadmins:', checkError);
+      logger.error('Error checking existing superadmins', {}, checkError as unknown as Error);
       return NextResponse.json({ error: 'Failed to check existing superadmins' }, { status: 500 });
     }
 
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id);
 
     if (updateError) {
-      console.error('Error promoting to superadmin:', updateError);
+      logger.error('Error promoting to superadmin', {}, updateError as unknown as Error);
       return NextResponse.json({ error: 'Failed to promote to superadmin' }, { status: 500 });
     }
 
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[SETUP] User ${profile.email} promoted to superadmin`);
+    logger.info(`User ${profile.email} promoted to superadmin`, { userId: profile.id });
 
     return NextResponse.json({
       success: true,
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error in POST /api/setup:', error);
+    logger.error('Error in POST /api/setup', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

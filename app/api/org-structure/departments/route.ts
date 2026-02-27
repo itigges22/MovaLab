@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/debug-logger';
 
 // GET /api/org-structure/departments - Get all departments
 export async function GET(request: NextRequest) {
@@ -21,13 +22,13 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (error) {
-      console.error('Error fetching departments:', error);
+      logger.error('Error fetching departments', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to fetch departments' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, departments: departments || [] }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/org-structure/departments:', error);
+    logger.error('Error in GET /api/org-structure/departments', {}, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

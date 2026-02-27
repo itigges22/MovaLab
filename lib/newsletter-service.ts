@@ -1,4 +1,5 @@
 import { createClientSupabase } from '@/lib/supabase';
+import { logger } from '@/lib/debug-logger';
 
 
 export type Newsletter = {
@@ -42,7 +43,7 @@ export const newsletterService = {
       .limit(20);
 
     if (error) {
-      console.error('Error fetching newsletters:', error);
+      logger.error('Error fetching newsletters', {}, error as Error);
       throw error;
     }
 
@@ -70,7 +71,7 @@ export const newsletterService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching user newsletters:', error);
+      logger.error('Error fetching user newsletters', {}, error as Error);
       throw error;
     }
 
@@ -95,7 +96,7 @@ export const newsletterService = {
       .limit(1);
 
     if (tableError) {
-      console.error('Newsletters table error:', tableError);
+      logger.error('Newsletters table error', {}, tableError as Error);
       throw new Error(`Newsletters table not accessible: ${tableError.message}. Please run the create-newsletters.sql script first.`);
     }
 
@@ -115,8 +116,7 @@ export const newsletterService = {
       .single();
 
     if (error) {
-      console.error('Error creating newsletter:', error);
-      console.error('Error details:', {
+      logger.error('Error creating newsletter', {
         message: error.message,
         code: error.code,
         details: error.details,
@@ -155,7 +155,7 @@ export const newsletterService = {
       .single();
 
     if (error) {
-      console.error('Error updating newsletter:', error);
+      logger.error('Error updating newsletter', {}, error as Error);
       throw error;
     }
 
@@ -189,7 +189,7 @@ export const newsletterService = {
       .single();
 
     if (error) {
-      console.error('Error publishing newsletter:', error);
+      logger.error('Error publishing newsletter', {}, error as Error);
       throw error;
     }
 
@@ -223,7 +223,7 @@ export const newsletterService = {
       .single();
 
     if (error) {
-      console.error('Error unpublishing newsletter:', error);
+      logger.error('Error unpublishing newsletter', {}, error as Error);
       throw error;
     }
 
@@ -248,7 +248,7 @@ export const newsletterService = {
       .eq('created_by', session.user.id);
 
     if (error) {
-      console.error('Error deleting newsletter:', error);
+      logger.error('Error deleting newsletter', {}, error as Error);
       throw error;
     }
   }

@@ -1,5 +1,6 @@
 import { createClientSupabase } from './supabase';
 import { Department, Project } from './supabase';
+import { logger } from './debug-logger';
 
 // Client-side department service for managing department data and analytics
 
@@ -102,13 +103,13 @@ class ClientDepartmentService {
         .order('name');
 
       if (error) {
-        console.error('Error fetching departments:', error);
+        logger.error('Error fetching departments', { error });
         return [];
       }
 
       return data || [];
     } catch (error: unknown) {
-      console.error('Error in getAllDepartments:', error);
+      logger.error('Error in getAllDepartments', {}, error as Error);
       return [];
     }
   }
@@ -120,16 +121,16 @@ class ClientDepartmentService {
     try {
       const supabase = createClientSupabase();
       if (!supabase) {
-        console.error('Supabase client not available');
+        logger.error('Supabase client not available', {});
         return null;
       }
 
       if (!id || id.trim() === '') {
-        console.error('Invalid department ID provided:', id);
+        logger.error('Invalid department ID provided', { id });
         return null;
       }
 
-      console.log('Fetching department with ID:', id);
+      logger.debug('Fetching department with ID', { id });
 
       const { data, error } = await supabase
         .from('departments')
@@ -138,7 +139,7 @@ class ClientDepartmentService {
         .single();
 
       if (error) {
-        console.error('Error fetching department:', {
+        logger.error('Error fetching department', {
           id,
           errorCode: error.code,
           errorMessage: error.message,
@@ -149,18 +150,17 @@ class ClientDepartmentService {
       }
 
       if (!data) {
-        console.log('No department found with ID:', id);
+        logger.debug('No department found with ID', { id });
         return null;
       }
 
-      console.log('Successfully fetched department:', data.name);
+      logger.debug('Successfully fetched department', { name: data.name });
       return data;
     } catch (error: unknown) {
-      console.error('Error in getDepartmentById:', {
+      logger.error('Error in getDepartmentById', {
         id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      }, error instanceof Error ? error : undefined);
       return null;
     }
   }
@@ -184,7 +184,7 @@ class ClientDepartmentService {
         .eq('department_id', departmentId);
 
       if (rolesError) {
-        console.error('Error fetching department roles:', rolesError);
+        logger.error('Error fetching department roles', { error: rolesError });
       }
 
       const roleIds = departmentRoles?.map((role: any) => role.id) || [];
@@ -211,7 +211,7 @@ class ClientDepartmentService {
         .in('role_id', roleIds);
 
       if (teamError) {
-        console.error('Error fetching team members:', teamError);
+        logger.error('Error fetching team members', { error: teamError });
         return null;
       }
 
@@ -229,7 +229,7 @@ class ClientDepartmentService {
           .is('removed_at', null);
 
         if (projAssignError) {
-          console.error('Error fetching project assignments:', projAssignError);
+          logger.error('Error fetching project assignments', { error: projAssignError });
         } else if (projectAssignments && projectAssignments.length > 0) {
           const projectIds = Array.from(new Set(projectAssignments.map((assignment: any) => assignment.project_id)));
 
@@ -246,7 +246,7 @@ class ClientDepartmentService {
             .in('id', projectIds);
 
           if (projectsError) {
-            console.error('Error fetching department projects:', projectsError);
+            logger.error('Error fetching department projects', { error: projectsError });
           } else {
             projects = projectsData || [];
           }
@@ -342,7 +342,7 @@ class ClientDepartmentService {
         recentProjects: activeProjects.slice(0, 5) as unknown as Project[] // Last 5 projects
       };
     } catch (error: unknown) {
-      console.error('Error in getDepartmentMetrics:', error);
+      logger.error('Error in getDepartmentMetrics', {}, error as Error);
       return null;
     }
   }
@@ -362,14 +362,14 @@ class ClientDepartmentService {
         .eq('department_id', departmentId);
 
       if (rolesError) {
-        console.error('Error fetching department roles:', rolesError);
+        logger.error('Error fetching department roles', { error: rolesError });
         return [];
       }
 
       const roleIds = departmentRoles?.map((role: any) => role.id) || [];
 
       if (roleIds.length === 0) {
-        console.log('No roles found for department:', departmentId);
+        logger.debug('No roles found for department', { departmentId });
         return [];
       }
 
@@ -380,14 +380,14 @@ class ClientDepartmentService {
         .in('role_id', roleIds);
 
       if (userRolesError) {
-        console.error('Error fetching users for department:', userRolesError);
+        logger.error('Error fetching users for department', { error: userRolesError });
         return [];
       }
 
       const userIds = Array.from(new Set(usersInDept?.map((ur: any) => ur.user_id) || []));
 
       if (userIds.length === 0) {
-        console.log('No users found for department:', departmentId);
+        logger.debug('No users found for department', { departmentId });
         return [];
       }
 
@@ -399,12 +399,12 @@ class ClientDepartmentService {
         .is('removed_at', null);
 
       if (projAssignmentsError) {
-        console.error('Error fetching project assignments:', projAssignmentsError);
+        logger.error('Error fetching project assignments', { error: projAssignmentsError });
         return [];
       }
 
       if (!projectAssignments || projectAssignments.length === 0) {
-        console.log('No project assignments found for department:', departmentId);
+        logger.debug('No project assignments found for department', { departmentId });
         return [];
       }
 
@@ -424,7 +424,7 @@ class ClientDepartmentService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching department projects:', error);
+        logger.error('Error fetching department projects', { error });
         return [];
       }
 
@@ -445,7 +445,7 @@ class ClientDepartmentService {
         .in('tasks.project_id', projectIds);
 
       if (taskAssignmentsError) {
-        console.error('Error fetching task assignments:', taskAssignmentsError);
+        logger.error('Error fetching task assignments', { error: taskAssignmentsError });
       }
 
       const typedProjects = (projects as ProjectWithRelations[]) || [];
@@ -496,7 +496,7 @@ class ClientDepartmentService {
         };
       });
     } catch (error: unknown) {
-      console.error('Error in getDepartmentProjects:', error);
+      logger.error('Error in getDepartmentProjects', {}, error as Error);
       return [];
     }
   }
@@ -519,13 +519,13 @@ class ClientDepartmentService {
         .single();
 
       if (error) {
-        console.error('Error creating department:', error);
+        logger.error('Error creating department', { error });
         return null;
       }
 
       return data;
     } catch (error: unknown) {
-      console.error('Error in createDepartment:', error);
+      logger.error('Error in createDepartment', {}, error as Error);
       return null;
     }
   }
@@ -549,13 +549,13 @@ class ClientDepartmentService {
         .single();
 
       if (error) {
-        console.error('Error updating department:', error);
+        logger.error('Error updating department', { error });
         return null;
       }
 
       return data;
     } catch (error: unknown) {
-      console.error('Error in updateDepartment:', error);
+      logger.error('Error in updateDepartment', {}, error as Error);
       return null;
     }
   }
@@ -574,13 +574,13 @@ class ClientDepartmentService {
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting department:', error);
+        logger.error('Error deleting department', { error });
         return false;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in deleteDepartment:', error);
+      logger.error('Error in deleteDepartment', {}, error as Error);
       return false;
     }
   }

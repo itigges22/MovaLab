@@ -1,4 +1,5 @@
 import { createClientSupabase } from '@/lib/supabase';
+import { logger } from '@/lib/debug-logger';
 
 export type Milestone = {
   id: string;
@@ -29,7 +30,7 @@ export async function getMilestones(): Promise<Milestone[]> {
     .order('date', { ascending: true });
 
   if (error) {
-    console.error('Error fetching milestones:', error);
+    logger.error('Error fetching milestones', {}, error as Error);
     throw new Error(`Failed to fetch milestones: ${error.message}`);
   }
 
@@ -54,7 +55,7 @@ export async function createMilestone(input: MilestoneInput): Promise<Milestone>
     .single();
 
   if (error) {
-    console.error('Error creating milestone:', error);
+    logger.error('Error creating milestone', {}, error as Error);
     throw new Error(`Failed to create milestone: ${error.message}`);
   }
 
@@ -84,7 +85,7 @@ export async function updateMilestone(
     .single();
 
   if (error) {
-    console.error('Error updating milestone:', error);
+    logger.error('Error updating milestone', {}, error as Error);
     throw new Error(`Failed to update milestone: ${error.message}`);
   }
 
@@ -103,7 +104,7 @@ export async function deleteMilestone(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting milestone:', error);
+    logger.error('Error deleting milestone', {}, error as Error);
     throw new Error(`Failed to delete milestone: ${error.message}`);
   }
 }

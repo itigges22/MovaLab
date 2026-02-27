@@ -228,7 +228,7 @@ class OrganizationService {
         max_depth: maxDepth,
       };
     } catch (error: unknown) {
-      console.error('Error in getHierarchyView:', error);
+      logger.error('Error in getHierarchyView', {}, error as Error);
       return null;
     }
   }
@@ -253,7 +253,7 @@ class OrganizationService {
         .order('name');
 
       if (error) {
-        console.error('Error fetching department view:', error);
+        logger.error('Error fetching department view', {}, error as Error);
         return null;
       }
 
@@ -266,7 +266,7 @@ class OrganizationService {
         })),
       }));
     } catch (error: unknown) {
-      console.error('Error in getDepartmentView:', error);
+      logger.error('Error in getDepartmentView', {}, error as Error);
       return null;
     }
   }
@@ -292,13 +292,13 @@ class OrganizationService {
         .eq('user_roles.roles.department_id', departmentId);
 
       if (error) {
-        console.error('Error fetching users by department:', error);
+        logger.error('Error fetching users by department', {}, error as Error);
         return [];
       }
 
       return users || [];
     } catch (error: unknown) {
-      console.error('Error in getUsersByDepartment:', error);
+      logger.error('Error in getUsersByDepartment', {}, error as Error);
       return [];
     }
   }
@@ -317,13 +317,13 @@ class OrganizationService {
         .eq('role_id', roleId);
 
       if (error) {
-        console.error('Error fetching users by role:', error);
+        logger.error('Error fetching users by role', {}, error as Error);
         return [];
       }
 
       return userRoles.map((ur: any) => ur.user_profiles).filter(Boolean);
     } catch (error: unknown) {
-      console.error('Error in getUsersByRole:', error);
+      logger.error('Error in getUsersByRole', {}, error as Error);
       return [];
     }
   }
@@ -357,7 +357,7 @@ class OrganizationService {
         `);
 
       if (error) {
-        console.error('Error fetching role statistics:', error);
+        logger.error('Error fetching role statistics', {}, error as Error);
         return {
           total_roles: 0,
           roles_by_department: {},
@@ -396,7 +396,7 @@ class OrganizationService {
         custom_roles: customRoles,
       };
     } catch (error: unknown) {
-      console.error('Error in getRoleStatistics:', error);
+      logger.error('Error in getRoleStatistics', {}, error as Error);
       return {
         total_roles: 0,
         roles_by_department: {},
@@ -434,7 +434,7 @@ class OrganizationService {
         `);
 
       if (error) {
-        console.error('Error fetching user statistics:', error);
+        logger.error('Error fetching user statistics', {}, error as Error);
         return {
           total_users: 0,
           users_by_department: {},
@@ -472,7 +472,7 @@ class OrganizationService {
         users_with_multiple_roles: usersWithMultipleRoles,
       };
     } catch (error: unknown) {
-      console.error('Error in getUserStatistics:', error);
+      logger.error('Error in getUserStatistics', {}, error as Error);
       return {
         total_users: 0,
         users_by_department: {},
@@ -513,13 +513,13 @@ class OrganizationService {
         .limit(50);
 
       if (error) {
-        console.error('Error searching users:', error);
+        logger.error('Error searching users', {}, error as Error);
         return [];
       }
 
       return users || [];
     } catch (error: unknown) {
-      console.error('Error in searchUsers:', error);
+      logger.error('Error in searchUsers', {}, error as Error);
       return [];
     }
   }
@@ -536,13 +536,13 @@ class OrganizationService {
         .limit(50);
 
       if (error) {
-        console.error('Error searching roles:', error);
+        logger.error('Error searching roles', {}, error as Error);
         return [];
       }
 
       return roles || [];
     } catch (error: unknown) {
-      console.error('Error in searchRoles:', error);
+      logger.error('Error in searchRoles', {}, error as Error);
       return [];
     }
   }

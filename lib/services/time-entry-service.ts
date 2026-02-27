@@ -5,6 +5,7 @@
 
 
 import { createClientSupabase } from '../supabase';
+import { logger } from '../debug-logger';
 
 type TimeEntry = any;
 type TimeEntryInsert = any;
@@ -71,7 +72,7 @@ class TimeEntryService {
       .single();
 
     if (error) {
-      console.error('Error logging time:', error);
+      logger.error('Error logging time', {}, error as Error);
       return null;
     }
 
@@ -111,7 +112,7 @@ class TimeEntryService {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching user time entries:', error);
+      logger.error('Error fetching user time entries', {}, error as Error);
       return [];
     }
 
@@ -137,7 +138,7 @@ class TimeEntryService {
       .order('entry_date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching task time entries:', error);
+      logger.error('Error fetching task time entries', {}, error as Error);
       return [];
     }
 
@@ -172,7 +173,7 @@ class TimeEntryService {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching project time entries:', error);
+      logger.error('Error fetching project time entries', {}, error as Error);
       return [];
     }
 
@@ -196,7 +197,7 @@ class TimeEntryService {
       .eq('week_start_date', weekStartDate);
 
     if (error) {
-      console.error('Error fetching weekly summary:', error);
+      logger.error('Error fetching weekly summary', {}, error as Error);
       return { totalHours: 0, entriesCount: 0 };
     }
 
@@ -245,7 +246,7 @@ class TimeEntryService {
       .single();
 
     if (error) {
-      console.error('Error updating time entry:', error);
+      logger.error('Error updating time entry', {}, error as Error);
       return null;
     }
 
@@ -265,7 +266,7 @@ class TimeEntryService {
       .eq('id', entryId);
 
     if (error) {
-      console.error('Error deleting time entry:', error);
+      logger.error('Error deleting time entry', {}, error as Error);
       return false;
     }
 
@@ -295,7 +296,7 @@ class TimeEntryService {
       .lte('entry_date', endDate.toISOString().split('T')[0]);
 
     if (error) {
-      console.error('Error fetching time entries by week:', error);
+      logger.error('Error fetching time entries by week', {}, error as Error);
       return {};
     }
 

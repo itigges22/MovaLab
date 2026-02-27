@@ -206,13 +206,13 @@ class RoleManagementService {
         .single();
 
       if (error) {
-        console.error('Error updating role:', error);
+        logger.error('Error updating role', { error });
         return null;
       }
 
       return role;
     } catch (error: unknown) {
-      console.error('Error in updateRole:', error);
+      logger.error('Error in updateRole', {}, error as Error);
       return null;
     }
   }
@@ -250,13 +250,13 @@ class RoleManagementService {
         .eq('id', roleId);
 
       if (error) {
-        console.error('Error deleting role:', error);
+        logger.error('Error deleting role', { error });
         return false;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in deleteRole:', error);
+      logger.error('Error in deleteRole', {}, error as Error);
       return false;
     }
   }
@@ -350,7 +350,7 @@ class RoleManagementService {
         .order('hierarchy_level', { ascending: false });
 
       if (error) {
-        console.error('Error fetching roles:', error);
+        logger.error('Error fetching roles', { error });
         return [];
       }
 
@@ -361,7 +361,7 @@ class RoleManagementService {
         user_count: role.user_roles?.[0]?.count || 0,
       }));
     } catch (error: unknown) {
-      console.error('Error in getAllRoles:', error);
+      logger.error('Error in getAllRoles', {}, error as Error);
       return [];
     }
   }
@@ -383,7 +383,7 @@ class RoleManagementService {
         .order('hierarchy_level', { ascending: false });
 
       if (error) {
-        console.error('Error fetching roles by department:', error);
+        logger.error('Error fetching roles by department', { error });
         return [];
       }
 
@@ -394,7 +394,7 @@ class RoleManagementService {
         user_count: role.user_roles?.[0]?.count || 0,
       }));
     } catch (error: unknown) {
-      console.error('Error in getRolesByDepartment:', error);
+      logger.error('Error in getRolesByDepartment', {}, error as Error);
       return [];
     }
   }
@@ -559,13 +559,13 @@ class RoleManagementService {
         .eq('id', roleId);
 
       if (error) {
-        console.error('Error updating role reporting:', error);
+        logger.error('Error updating role reporting', { error });
         return false;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in updateRoleReporting:', error);
+      logger.error('Error in updateRoleReporting', {}, error as Error);
       return false;
     }
   }
@@ -595,7 +595,7 @@ class RoleManagementService {
         .eq('user_id', userId);
 
       if (currentRolesError) {
-        console.error('Error fetching current roles:', currentRolesError);
+        logger.error('Error fetching current roles', { error: currentRolesError });
         // Continue anyway - this is not a critical error
       }
 
@@ -605,7 +605,7 @@ class RoleManagementService {
 
       // If user has "No Assigned Role" + other roles, remove "No Assigned Role" first
       if (noAssignedRole && hasOtherRoles) {
-        console.log(`🔄 User has "No Assigned Role" + other roles, removing from "No Assigned Role"`);
+        logger.info('User has "No Assigned Role" + other roles, removing from "No Assigned Role"', { userId });
         await supabase
           .from('user_roles')
           .delete()
@@ -624,13 +624,13 @@ class RoleManagementService {
         });
 
       if (error) {
-        console.error('Error assigning user to role:', error);
+        logger.error('Error assigning user to role', { error });
         return false;
       }
 
       // If user was ONLY in "No Assigned Role", remove it now (after adding new role)
       if (noAssignedRole && !hasOtherRoles) {
-        console.log(`🔄 User was only in "No Assigned Role", now removing it`);
+        logger.info('User was only in "No Assigned Role", now removing it', { userId });
         const { error: deleteError } = await supabase
           .from('user_roles')
           .delete()
@@ -638,14 +638,14 @@ class RoleManagementService {
           .eq('role_id', noAssignedRole.role_id);
 
         if (deleteError) {
-          console.error('Error removing user from "No Assigned Role" after assignment:', deleteError);
+          logger.error('Error removing user from "No Assigned Role" after assignment', { error: deleteError });
           // Don't fail the request - user is already assigned to new role
         }
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in assignUserToRole:', error);
+      logger.error('Error in assignUserToRole', {}, error as Error);
       return false;
     }
   }
@@ -672,13 +672,13 @@ class RoleManagementService {
         .eq('role_id', roleId);
 
       if (error) {
-        console.error('Error removing user from role:', error);
+        logger.error('Error removing user from role', { error });
         return false;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in removeUserFromRole:', error);
+      logger.error('Error in removeUserFromRole', {}, error as Error);
       return false;
     }
   }
@@ -696,13 +696,13 @@ class RoleManagementService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('Error fetching user roles:', error);
+        logger.error('Error fetching user roles', { error });
         return [];
       }
 
       return userRoles.map((ur: any) => ur.roles).filter(Boolean) as Role[];
     } catch (error: unknown) {
-      console.error('Error in getUserRoles:', error);
+      logger.error('Error in getUserRoles', {}, error as Error);
       return [];
     }
   }
@@ -723,7 +723,7 @@ class RoleManagementService {
         .eq('role_id', roleId);
 
       if (error) {
-        console.error('Error fetching role users:', error);
+        logger.error('Error fetching role users', { error });
         return [];
       }
 
@@ -734,7 +734,7 @@ class RoleManagementService {
         user: ur.user_profiles,
       }));
     } catch (error: unknown) {
-      console.error('Error in getRoleUsers:', error);
+      logger.error('Error in getRoleUsers', {}, error as Error);
       return [];
     }
   }
@@ -765,13 +765,13 @@ class RoleManagementService {
         .eq('id', roleId);
 
       if (error) {
-        console.error('Error updating role permissions:', error);
+        logger.error('Error updating role permissions', { error });
         return false;
       }
 
       return true;
     } catch (error: unknown) {
-      console.error('Error in updateRolePermissions:', error);
+      logger.error('Error in updateRolePermissions', {}, error as Error);
       return false;
     }
   }
@@ -788,7 +788,7 @@ class RoleManagementService {
         .single();
 
       if (error || !role) {
-        console.error('Error fetching role permissions:', error);
+        logger.error('Error fetching role permissions', { error });
         return [];
       }
 
@@ -798,7 +798,7 @@ class RoleManagementService {
         .map(([permission]) => permission as Permission)
         .filter((permission: any) => Object.values(Permission).includes(permission));
     } catch (error: unknown) {
-      console.error('Error in getRolePermissions:', error);
+      logger.error('Error in getRolePermissions', {}, error as Error);
       return [];
     }
   }
@@ -830,7 +830,7 @@ class RoleManagementService {
 
       return false;
     } catch (error: unknown) {
-      console.error('Error checking circular reference:', error);
+      logger.error('Error checking circular reference', {}, error as Error);
       return true; // Assume circular to be safe
     }
   }
@@ -876,7 +876,7 @@ class RoleManagementService {
 
       return { valid: true };
     } catch (error: unknown) {
-      console.error('Error validating role assignment:', error);
+      logger.error('Error validating role assignment', {}, error as Error);
       return { valid: false, message: 'Validation failed' };
     }
   }
@@ -894,7 +894,7 @@ class RoleManagementService {
 
       return { valid: true };
     } catch (error: unknown) {
-      console.error('Error validating role hierarchy:', error);
+      logger.error('Error validating role hierarchy', {}, error as Error);
       return { valid: false, message: 'Validation failed' };
     }
   }

@@ -1,6 +1,7 @@
 import { createServerSupabase } from './supabase-server';
 import { Department, Project } from './supabase';
 import { DEFAULT_WEEKLY_HOURS } from './constants';
+import { logger } from './debug-logger';
 
 // Department service for managing department data and analytics
 
@@ -110,13 +111,13 @@ class ServerDepartmentService {
         .order('name');
 
       if (error) {
-        console.error('Error fetching departments:', error);
+        logger.error('Error fetching departments', {}, error as Error);
         return [];
       }
 
       return data || [];
     } catch (error: unknown) {
-      console.error('Error in getAllDepartments:', error);
+      logger.error('Error in getAllDepartments', {}, error as Error);
       return [];
     }
   }
@@ -136,13 +137,13 @@ class ServerDepartmentService {
         .single();
 
       if (error) {
-        console.error('Error fetching department:', error);
+        logger.error('Error fetching department', {}, error as Error);
         return null;
       }
 
       return data;
     } catch (error: unknown) {
-      console.error('Error in getDepartmentById:', error);
+      logger.error('Error in getDepartmentById', {}, error as Error);
       return null;
     }
   }
@@ -163,14 +164,14 @@ class ServerDepartmentService {
         .eq('department_id', departmentId);
 
       if (rolesError) {
-        console.error('Error fetching department roles:', rolesError);
+        logger.error('Error fetching department roles', {}, rolesError as Error);
         return [];
       }
 
       const roleIds = departmentRoles?.map((role: any) => role.id) || [];
 
       if (roleIds.length === 0) {
-        console.log('No roles found for department:', departmentId);
+        logger.debug('No roles found for department', { departmentId });
         return [];
       }
 
@@ -181,14 +182,14 @@ class ServerDepartmentService {
         .in('role_id', roleIds);
 
       if (userRolesError) {
-        console.error('Error fetching users for department:', userRolesError);
+        logger.error('Error fetching users for department', {}, userRolesError as Error);
         return [];
       }
 
       const userIds = Array.from(new Set(usersInDept?.map((ur: any) => ur.user_id) || []));
 
       if (userIds.length === 0) {
-        console.log('No users found for department:', departmentId);
+        logger.debug('No users found for department', { departmentId });
         return [];
       }
 
@@ -200,12 +201,12 @@ class ServerDepartmentService {
         .is('removed_at', null);
 
       if (projAssignError) {
-        console.error('Error fetching project assignments:', projAssignError);
+        logger.error('Error fetching project assignments', {}, projAssignError as Error);
         return [];
       }
 
       if (!projectAssignments || projectAssignments.length === 0) {
-        console.log('No project assignments found for department:', departmentId);
+        logger.debug('No project assignments found for department', { departmentId });
         return [];
       }
 
@@ -225,7 +226,7 @@ class ServerDepartmentService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching department projects:', error);
+        logger.error('Error fetching department projects', {}, error as Error);
         return [];
       }
 
@@ -245,7 +246,7 @@ class ServerDepartmentService {
         .in('tasks.project_id', projectIds);
 
       if (assignmentsError) {
-        console.error('Error fetching project assignments:', assignmentsError);
+        logger.error('Error fetching project assignments', {}, assignmentsError as Error);
       }
 
       const typedProjects = (projects as ProjectWithRelations[]) || [];
@@ -294,7 +295,7 @@ class ServerDepartmentService {
         };
       });
     } catch (error: unknown) {
-      console.error('Error in getDepartmentProjects:', error);
+      logger.error('Error in getDepartmentProjects', {}, error as Error);
       return [];
     }
   }
@@ -313,7 +314,7 @@ class ServerDepartmentService {
       .single();
 
     if (departmentError) {
-      console.error('Error fetching department for metrics:', departmentError);
+      logger.error('Error fetching department for metrics', {}, departmentError as Error);
       return null;
     }
 
@@ -324,7 +325,7 @@ class ServerDepartmentService {
       .eq('department_id', departmentId);
 
     if (rolesQueryError) {
-      console.error('Error fetching department roles for projects:', rolesQueryError);
+      logger.error('Error fetching department roles for projects', {}, rolesQueryError as Error);
       return null;
     }
 
@@ -354,7 +355,7 @@ class ServerDepartmentService {
       .in('role_id', roleIds);
 
     if (userRolesQueryError) {
-      console.error('Error fetching users for department:', userRolesQueryError);
+      logger.error('Error fetching users for department', {}, userRolesQueryError as Error);
       return null;
     }
 
@@ -369,7 +370,7 @@ class ServerDepartmentService {
       .is('removed_at', null);
 
     if (assignmentsError) {
-      console.error('Error fetching project assignments for department metrics:', {
+      logger.error('Error fetching project assignments for department metrics', {
         message: assignmentsError.message,
         code: assignmentsError.code,
         details: assignmentsError.details,
@@ -418,7 +419,7 @@ class ServerDepartmentService {
         .in('id', projectIds);
 
       if (projectsError) {
-        console.error('Error fetching projects for department metrics:', {
+        logger.error('Error fetching projects for department metrics', {
           message: projectsError.message,
           code: projectsError.code,
           details: projectsError.details,
@@ -440,7 +441,7 @@ class ServerDepartmentService {
       .in('role_id', roleIds);
 
     if (userRolesError) {
-      console.error('Error fetching user roles for department metrics:', userRolesError);
+      logger.error('Error fetching user roles for department metrics', {}, userRolesError as Error);
     }
 
     // Get user profiles separately
@@ -454,7 +455,7 @@ class ServerDepartmentService {
         .in('id', userProfileIds);
 
       if (profilesError) {
-        console.error('Error fetching user profiles for department metrics:', profilesError);
+        logger.error('Error fetching user profiles for department metrics', {}, profilesError as Error);
       } else {
         // Map user_roles to user_profiles
         teamMembers = (profilesData || []).map((profile: any) => ({

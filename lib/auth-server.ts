@@ -1,5 +1,6 @@
 import { createServerSupabase } from './supabase-server';
 import { UserProfile, UserRole, Role, Department } from './supabase';
+import { logger } from './debug-logger';
 
 // Server-side authentication helper functions
 
@@ -15,13 +16,13 @@ export async function getCurrentUserServer() {
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error || !user) {
-      console.error('Error getting current user:', error);
+      logger.error('Error getting current user', {}, error as Error);
       return null;
     }
 
     return user;
   } catch (error: unknown) {
-    console.error('Error in getCurrentUserServer:', error);
+    logger.error('Error in getCurrentUserServer', {}, error as Error);
     return null;
   }
 }
@@ -66,7 +67,7 @@ export async function getCurrentUserProfileServer() {
       .single();
 
     if (error) {
-      console.error('Error getting user profile:', error);
+      logger.error('Error getting user profile', {}, error as Error);
       return null;
     }
 
@@ -78,7 +79,7 @@ export async function getCurrentUserProfileServer() {
       })[];
     };
   } catch (error: unknown) {
-    console.error('Error in getCurrentUserProfileServer:', error);
+    logger.error('Error in getCurrentUserProfileServer', {}, error as Error);
     return null;
   }
 }
@@ -92,7 +93,7 @@ export async function isAuthenticatedServer(): Promise<boolean> {
     const user = await getCurrentUserServer();
     return !!user;
   } catch (error: unknown) {
-    console.error('Error in isAuthenticatedServer:', error);
+    logger.error('Error in isAuthenticatedServer', {}, error as Error);
     return false;
   }
 }
@@ -109,13 +110,13 @@ export async function getCurrentSessionServer() {
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
-      console.error('Error getting session:', error);
+      logger.error('Error getting session', {}, error as Error);
       return null;
     }
 
     return session;
   } catch (error: unknown) {
-    console.error('Error in getCurrentSessionServer:', error);
+    logger.error('Error in getCurrentSessionServer', {}, error as Error);
     return null;
   }
 }
