@@ -55,7 +55,17 @@ export function DemoLoginForm() {
         }, 1000);
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      const rawMessage = err instanceof Error ? err.message : 'Login failed';
+      let errorMessage = rawMessage;
+
+      if (rawMessage.includes('Supabase not configured')) {
+        errorMessage = 'Database not connected. Make sure Docker is running and you have run: npm run docker:seed';
+      } else if (rawMessage.includes('Invalid login credentials')) {
+        errorMessage = 'Demo user not found in database. Run "npm run docker:seed" to create demo users.';
+      } else if (rawMessage.includes('fetch') || rawMessage.includes('network') || rawMessage.includes('Failed to fetch')) {
+        errorMessage = 'Cannot reach the database. Make sure Docker and Supabase are running. Try: npm run docker:start';
+      }
+
       setError(errorMessage);
       setIsLoading(null);
     }

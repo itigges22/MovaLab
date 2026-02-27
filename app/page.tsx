@@ -6,10 +6,12 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { LoginForm } from "@/components/login-form"
 import { DemoLoginForm } from "@/components/demo-login-form"
 import { isDemoMode } from "@/lib/demo-mode"
+import { isSupabaseConfigured } from "@/lib/supabase"
 
 export default function Home() {
   const { user, userProfile, loading } = useAuth()
   const router = useRouter()
+  const supabaseReady = isSupabaseConfigured()
 
   useEffect(() => {
     if (!loading && user) {
@@ -52,6 +54,24 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className={demoMode ? "w-full max-w-2xl" : "max-w-md w-full"}>
+        {/* Show setup instructions when database is not configured */}
+        {!supabaseReady && (
+          <div className="mb-6 p-4 border border-amber-300 bg-amber-50 rounded-lg">
+            <h2 className="text-sm font-semibold text-amber-800 mb-2">Database Not Connected</h2>
+            <p className="text-sm text-amber-700 mb-3">
+              Supabase is not configured. To get started:
+            </p>
+            <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+              <li>Copy <code className="bg-amber-100 px-1 rounded text-xs">.env.local.template</code> to <code className="bg-amber-100 px-1 rounded text-xs">.env.local</code></li>
+              <li>Install and start Docker Desktop</li>
+              <li>Run <code className="bg-amber-100 px-1 rounded text-xs">npm run dev:demo</code> to start with demo data</li>
+            </ol>
+            <p className="text-xs text-amber-600 mt-3">
+              See the README for detailed setup instructions.
+            </p>
+          </div>
+        )}
+
         {!demoMode && (
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">

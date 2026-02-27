@@ -6,7 +6,8 @@
  * 1. Verifies Docker is available and running
  * 2. Starts Supabase containers (if not already running)
  * 3. Waits for services to be ready
- * 4. Starts Next.js with demo mode enabled
+ * 4. Seeds demo data (users, roles, projects, etc.)
+ * 5. Starts Next.js with demo mode enabled
  *
  * Usage: node scripts/start-demo.js
  * Or via npm: npm run dev:demo
@@ -136,6 +137,53 @@ function checkEnvForCloudCredentials() {
   return { isCloud: false, hasEnv: true };
 }
 
+// Check if demo data has been seeded by querying for a known demo user
+async function checkIfSeedNeeded() {
+  const http = require('http');
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      // Query the REST API for the exec@test.local user profile
+      const options = {
+        hostname: '127.0.0.1',
+        port: 54321,
+        path: '/rest/v1/user_profiles?email=eq.exec@test.local&select=id',
+        method: 'GET',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU',
+          'Content-Type': 'application/json',
+        },
+        timeout: 5000,
+      };
+
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            // If we got an array with results, seed data exists
+            resolve(Array.isArray(parsed) && parsed.length > 0 ? false : true);
+          } catch {
+            // If we can't parse (e.g., table doesn't exist), needs seed
+            resolve(true);
+          }
+        });
+      });
+
+      req.on('error', () => resolve(true)); // On error, assume needs seed
+      req.on('timeout', () => { req.destroy(); resolve(true); });
+      req.end();
+    });
+
+    return result;
+  } catch {
+    // If anything fails, assume we need to seed
+    return true;
+  }
+}
+
 // Main function
 async function main() {
   log.header('MovaLab Demo Mode Startup');
@@ -219,7 +267,33 @@ async function main() {
   }
   log.success('Supabase API is ready');
 
-  // Step 5: Start Next.js with demo mode
+  // Step 5: Seed demo data if needed
+  log.info('Checking if demo data needs to be seeded...');
+  const needsSeed = await checkIfSeedNeeded();
+
+  if (needsSeed) {
+    log.info('Seeding demo data (users, roles, projects, etc.)...');
+    log.info('(This may take 30-60 seconds on first run)');
+    console.log('');
+
+    try {
+      // Run db reset which applies migrations + seed.sql, then create auth users
+      exec('npx supabase db reset', { stdio: 'inherit' });
+      log.success('Database schema and seed data applied');
+
+      // Create auth users (seed.sql only creates profiles, this creates auth entries)
+      exec('npx tsx scripts/create-seed-users.ts', { stdio: 'inherit' });
+      log.success('Demo users created');
+    } catch (error) {
+      log.error('Failed to seed demo data');
+      log.info('Try running manually: npm run docker:seed');
+      log.warn('Continuing anyway - demo login may not work without seed data');
+    }
+  } else {
+    log.success('Demo data already exists');
+  }
+
+  // Step 6: Start Next.js with demo mode
   log.header('Starting Next.js in Demo Mode');
 
   console.log('');

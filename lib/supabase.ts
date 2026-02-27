@@ -7,7 +7,7 @@ const getSupabasePublishableKey = () => {
 };
 
 // Check if Supabase is configured (runtime check)
-const isSupabaseConfigured = () => {
+export const isSupabaseConfigured = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabasePublishableKey = getSupabasePublishableKey();
   return supabaseUrl && supabasePublishableKey &&

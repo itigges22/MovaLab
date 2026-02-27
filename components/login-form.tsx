@@ -78,7 +78,11 @@ export function LoginForm({
       const err = error as { message?: string };
 
       // Handle specific Supabase auth errors with user-friendly messages
-      if (err.message?.includes('User already registered') || err.message?.includes('already been registered')) {
+      if (err.message?.includes('Supabase not configured')) {
+        errorMessage = 'Database not connected. Please check your .env.local configuration and ensure Supabase is running. See the README for setup instructions.'
+      } else if (err.message?.includes('fetch') || err.message?.includes('network') || err.message?.includes('Failed to fetch')) {
+        errorMessage = 'Cannot reach the database. Make sure Docker and Supabase are running. Try: npm run docker:start'
+      } else if (err.message?.includes('User already registered') || err.message?.includes('already been registered')) {
         errorMessage = 'Email already in use. Please try logging in instead.'
       } else if (err.message?.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password. Please check your credentials and try again.'
@@ -93,12 +97,14 @@ export function LoginForm({
         errorMessage = err.message
       }
 
-      // Only log unexpected errors, not user-friendly validation errors
-      if (!err.message?.includes('User already registered') &&
+      // Only log unexpected errors in development, not user-friendly validation errors
+      if (process.env.NODE_ENV === 'development' &&
+          !err.message?.includes('User already registered') &&
           !err.message?.includes('Invalid login credentials') &&
           !err.message?.includes('Email not confirmed') &&
           !err.message?.includes('Password should be at least') &&
-          !err.message?.includes('Invalid email')) {
+          !err.message?.includes('Invalid email') &&
+          !err.message?.includes('Supabase not configured')) {
         console.error('Unexpected auth error:', error)
       }
       

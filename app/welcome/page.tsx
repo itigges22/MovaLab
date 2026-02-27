@@ -70,20 +70,13 @@ export default function WelcomePage() {
     checkNewsletterPermission()
   }, [userProfile])
 
-  // Debug logging
+  // Debug logging (only in development)
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && process.env.NODE_ENV === 'development') {
       const computedUnassigned = isUnassigned(userProfile);
-      console.log('🔍 WelcomePage Debug:', {
+      console.log('WelcomePage Debug:', {
         userEmail: (userProfile as any).email,
-        userRoles: userProfile.user_roles?.map((ur: any) => ({
-          name: ur.roles?.name,
-          isSystem: ur.roles?.is_system_role,
-          permissions: Object.keys(ur.roles?.permissions || {}).length
-        })),
         computedUnassigned,
-        userIsUnassigned,
-        isSuperadminUser,
         hasRoles,
         userProfileRolesLength: userProfile.user_roles?.length || 0
       });
@@ -100,7 +93,6 @@ export default function WelcomePage() {
   // All useEffect hooks must be at the top level
   useEffect(() => {
     if (!loading && !user) {
-      console.log('WelcomePage: No user, redirecting to login')
       router.push('/login')
     }
   }, [user, loading, router])
@@ -134,7 +126,6 @@ export default function WelcomePage() {
   }
 
   if (!user) {
-    console.log('WelcomePage: No user detected, showing login prompt')
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center space-y-6">
@@ -171,7 +162,6 @@ export default function WelcomePage() {
   
   // Early return for unassigned users - show minimal page
   if (!loading && userProfile && isActuallyUnassigned) {
-    console.log('✅ Showing unassigned user version of welcome page');
     return (
       <div className="space-y-8 mt-8 px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
