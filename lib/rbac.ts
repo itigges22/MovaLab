@@ -23,7 +23,8 @@ import {
   isSuperadmin as checkIsSuperadmin,
   getUserPermissions,
   checkAnyPermission,
-  checkAllPermissions
+  checkAllPermissions,
+  isAssignedToProject
 } from './permission-checker';
 import { logger } from './debug-logger';
 
@@ -463,8 +464,6 @@ export async function userHasProjectAccess(
   const userId = userProfile.id;
   if (!userId) return false;
 
-  // Import the context check from permission-checker
-  const { isAssignedToProject } = await import('./permission-checker');
   const isAssigned = await isAssignedToProject(userId, projectId, supabaseClient);
   if (isAssigned) return true;
 

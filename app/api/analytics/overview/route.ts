@@ -5,6 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { checkPermissionHybrid } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { startOfWeek, startOfMonth, endOfMonth, format } from 'date-fns';
 import { logger } from '@/lib/debug-logger';
 
@@ -82,6 +84,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Require analytics permission
+    const hasAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_ANALYTICS, undefined, supabase);
+    if (!hasAnalytics) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to view analytics' },
+        { status: 403 }
       );
     }
 

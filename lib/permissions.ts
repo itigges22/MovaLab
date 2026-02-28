@@ -40,22 +40,26 @@ export enum Permission {
 
   // ========================================
   // PROJECT UPDATES PERMISSIONS
+  // DEPRECATED: These exist for backwards compatibility but are NOT enforced.
+  // Access to project sub-resources (issues, updates, tasks) uses userHasProjectAccess() instead.
   // ========================================
-  MANAGE_UPDATES = 'manage_updates', // Create, edit, and delete project status updates
+  MANAGE_UPDATES = 'manage_updates', // DEPRECATED: Not checked in API routes. Use project access instead.
   VIEW_UPDATES = 'view_updates', // Context-aware: View updates for assigned projects/accounts/departments
   VIEW_ALL_UPDATES = 'view_all_updates', // Override: View all updates organization-wide
 
   // ========================================
   // PROJECT ISSUES PERMISSIONS
+  // DEPRECATED: Access controlled via userHasProjectAccess() — not checked individually.
   // ========================================
-  MANAGE_ISSUES = 'manage_issues', // Create, edit, and delete project issues
-  VIEW_ISSUES = 'view_issues', // View project issues and blockers
+  MANAGE_ISSUES = 'manage_issues', // DEPRECATED: Not checked in API routes. Use project access instead.
+  VIEW_ISSUES = 'view_issues', // DEPRECATED: Not checked in API routes. Use project access instead.
 
   // ========================================
   // NEWSLETTER PERMISSIONS
+  // NOTE: Newsletter feature not yet implemented — these are placeholders.
   // ========================================
-  MANAGE_NEWSLETTERS = 'manage_newsletters', // Create, edit, and delete company newsletters
-  VIEW_NEWSLETTERS = 'view_newsletters', // View company newsletters on welcome page
+  MANAGE_NEWSLETTERS = 'manage_newsletters', // Placeholder: Newsletter feature not implemented
+  VIEW_NEWSLETTERS = 'view_newsletters', // Placeholder: Newsletter feature not implemented
 
   // ========================================
   // ANALYTICS PERMISSIONS
@@ -73,8 +77,8 @@ export enum Permission {
 
   // Time Tracking
   MANAGE_TIME = 'manage_time', // Log and edit own time entries
-  VIEW_TIME_ENTRIES = 'view_time_entries', // View time entries (context-aware: own or team)
-  EDIT_TIME_ENTRIES = 'edit_time_entries', // Edit time entries (context-aware: own or team)
+  VIEW_TIME_ENTRIES = 'view_time_entries', // DEPRECATED: Not checked — MANAGE_TIME covers this
+  EDIT_TIME_ENTRIES = 'edit_time_entries', // DEPRECATED: Not checked — MANAGE_TIME covers this
   VIEW_ALL_TIME_ENTRIES = 'view_all_time_entries', // Override: View all time entries organization-wide
 
   // ========================================
@@ -189,9 +193,9 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
   // PROJECT UPDATES PERMISSIONS
   // ========================================
   [Permission.MANAGE_UPDATES]: {
-    name: 'Manage Project Updates',
-    description: 'Create, edit, and delete project status updates (consolidated permission)',
-    category: 'Project Updates'
+    name: 'Manage Project Updates (Deprecated)',
+    description: 'Not enforced — project access grants sub-resource access. Kept for backwards compatibility.',
+    category: 'Deprecated'
   },
   [Permission.VIEW_UPDATES]: {
     name: 'View Project Updates',
@@ -209,28 +213,28 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
   // PROJECT ISSUES PERMISSIONS
   // ========================================
   [Permission.MANAGE_ISSUES]: {
-    name: 'Manage Project Issues',
-    description: 'Create, edit, and delete project issues and blockers (consolidated permission)',
-    category: 'Project Issues'
+    name: 'Manage Project Issues (Deprecated)',
+    description: 'Not enforced — project access grants sub-resource access. Kept for backwards compatibility.',
+    category: 'Deprecated'
   },
   [Permission.VIEW_ISSUES]: {
-    name: 'View Project Issues',
-    description: 'View project issues and blockers',
-    category: 'Project Issues'
+    name: 'View Project Issues (Deprecated)',
+    description: 'Not enforced — project access grants sub-resource access. Kept for backwards compatibility.',
+    category: 'Deprecated'
   },
 
   // ========================================
   // NEWSLETTER PERMISSIONS
   // ========================================
   [Permission.MANAGE_NEWSLETTERS]: {
-    name: 'Manage Newsletters',
-    description: 'Create, edit, and delete company newsletters (consolidated permission)',
-    category: 'Newsletters'
+    name: 'Manage Newsletters (Placeholder)',
+    description: 'Newsletter feature not yet implemented. This permission has no effect.',
+    category: 'Deprecated'
   },
   [Permission.VIEW_NEWSLETTERS]: {
-    name: 'View Newsletters',
-    description: 'View company newsletters on welcome page',
-    category: 'Newsletters'
+    name: 'View Newsletters (Placeholder)',
+    description: 'Newsletter feature not yet implemented. This permission has no effect.',
+    category: 'Deprecated'
   },
 
   // ========================================
@@ -282,14 +286,14 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     category: 'Capacity & Time'
   },
   [Permission.VIEW_TIME_ENTRIES]: {
-    name: 'View Time Entries',
-    description: 'View time entries (context-aware: own or team based on assignment)',
-    category: 'Capacity & Time'
+    name: 'View Time Entries (Deprecated)',
+    description: 'Not enforced — use Manage Time instead. Kept for backwards compatibility.',
+    category: 'Deprecated'
   },
   [Permission.EDIT_TIME_ENTRIES]: {
-    name: 'Edit Time Entries',
-    description: 'Edit time entries (context-aware: own or team based on permissions)',
-    category: 'Capacity & Time'
+    name: 'Edit Time Entries (Deprecated)',
+    description: 'Not enforced — use Manage Time instead. Kept for backwards compatibility.',
+    category: 'Deprecated'
   },
   [Permission.VIEW_ALL_TIME_ENTRIES]: {
     name: 'View All Time Entries',
@@ -339,20 +343,23 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
   },
 };
 
-// Permission categories for UI grouping
+// Permission categories for UI grouping (excludes deprecated permissions)
 export const PermissionCategories = {
   'Role Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Role Management'),
   'Department Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Department Management'),
   'Account Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Account Management'),
   'Project Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Project Management'),
   'Project Updates': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Project Updates'),
-  'Project Issues': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Project Issues'),
-  Newsletters: Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Newsletters'),
   Analytics: Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Analytics'),
   'Capacity & Time': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Capacity & Time'),
   Workflows: Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Workflows'),
   'Client Portal': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Client Portal'),
 };
+
+// Deprecated permissions (not shown in UI but kept for backwards compatibility)
+export const DeprecatedPermissions = Object.values(Permission).filter(
+  (p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Deprecated'
+);
 
 // Get override permissions
 export const OverridePermissions = Object.values(Permission).filter(
