@@ -459,4 +459,4 @@ export function getVisibleFields(fields: FormField[], formData: Record<string, a
 }
 
 // Export alias for API route compatibility
-export const getFormResponseByHistoryId = getFormResponseById;
+export const getFormResponseByHistoryId = getFormResponseForWorkflowHistory;

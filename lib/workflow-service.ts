@@ -37,7 +37,7 @@ export interface WorkflowTemplate {
 export interface WorkflowNode {
   id: string;
   workflow_template_id: string;
-  node_type: 'department' | 'role' | 'client' | 'conditional';
+  node_type: 'start' | 'department' | 'role' | 'approval' | 'form' | 'client' | 'conditional' | 'sync' | 'end';
   entity_id: string | null;
   position_x: number;
   position_y: number;
@@ -384,7 +384,7 @@ export async function deleteWorkflowTemplate(templateId: string): Promise<void> 
 export async function createWorkflowNode(
   templateId: string,
   nodeData: {
-    node_type: 'department' | 'role' | 'client' | 'conditional';
+    node_type: 'start' | 'department' | 'role' | 'approval' | 'form' | 'client' | 'conditional' | 'sync' | 'end';
     entity_id?: string | null;
     position_x: number;
     position_y: number;

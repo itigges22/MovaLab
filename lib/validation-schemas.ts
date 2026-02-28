@@ -93,7 +93,7 @@ export const createTaskSchema = z.object({
   remaining_hours: nonNegativeNumberSchema.optional().nullable(),
   due_date: dateSchema.optional().nullable(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  status: z.enum(['todo', 'in_progress', 'review', 'done', 'blocked']).optional(),
+  status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked']).optional(),
   dependencies: z.array(uuidSchema).optional(),
 });
 
@@ -292,7 +292,7 @@ export const updateWorkflowTemplateSchema = z.object({
 
 export const createWorkflowNodeSchema = z.object({
   workflow_template_id: uuidSchema,
-  node_type: z.enum(['department', 'role', 'client', 'conditional']),
+  node_type: z.enum(['start', 'department', 'role', 'approval', 'form', 'client', 'conditional', 'sync', 'end']),
   entity_id: uuidSchema.optional().nullable(),
   position_x: z.number(),
   position_y: z.number(),
@@ -303,7 +303,7 @@ export const createWorkflowNodeSchema = z.object({
 });
 
 export const updateWorkflowNodeSchema = z.object({
-  node_type: z.enum(['department', 'role', 'client', 'conditional']).optional(),
+  node_type: z.enum(['start', 'department', 'role', 'approval', 'form', 'client', 'conditional', 'sync', 'end']).optional(),
   entity_id: uuidSchema.optional().nullable(),
   position_x: z.number().optional(),
   position_y: z.number().optional(),

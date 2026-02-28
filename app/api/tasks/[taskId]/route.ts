@@ -1,51 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiSupabaseClient } from '@/lib/supabase-server'
-import { hasPermission, isSuperadmin } from '@/lib/rbac'
-import { Permission } from '@/lib/permissions'
+import { userHasProjectAccess } from '@/lib/rbac'
 import { taskServiceDB, UpdateTaskData } from '@/lib/task-service-db'
-import type { UserWithRoles } from '@/lib/rbac-types'
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard'
 import { logger } from '@/lib/debug-logger'
-
-// Helper function to check if user has access to a project
-async function userHasProjectAccess(supabase: any, userId: string, projectId: string, userProfile: UserWithRoles): Promise<boolean> {
-  // Superadmins have access to all projects
-  if (isSuperadmin(userProfile)) {
-    return true
-  }
-
-  // Check if user has VIEW_ALL_PROJECTS permission
-  const hasViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS, undefined, supabase)
-  if (hasViewAll) {
-    return true
-  }
-
-  // Check if user is assigned to the project
-  const { data: assignment } = await supabase
-    .from('project_assignments')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('project_id', projectId)
-    .is('removed_at', null)
-    .single()
-
-  if (assignment) {
-    return true
-  }
-
-  // Check if user created the project or is assigned as the main user
-  const { data: project } = await supabase
-    .from('projects')
-    .select('created_by, assigned_user_id')
-    .eq('id', projectId)
-    .single()
-
-  if (project && (project.created_by === userId || project.assigned_user_id === userId)) {
-    return true
-  }
-
-  return false
-}
 
 // Helper function to get task's project info
 async function getTaskProject(supabase: any, taskId: string): Promise<{ project_id: string; status: string } | null> {
@@ -108,7 +66,7 @@ export async function PUT(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(userProfile, taskProject.project_id, supabase)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -209,7 +167,7 @@ export async function PATCH(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(userProfile, taskProject.project_id, supabase)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
@@ -339,7 +297,7 @@ export async function DELETE(
     // Get the task's project to check access
     const taskProject = await getTaskProject(supabase, taskId)
     if (taskProject) {
-      const hasAccess = await userHasProjectAccess(supabase, user.id, taskProject.project_id, userProfile)
+      const hasAccess = await userHasProjectAccess(userProfile, taskProject.project_id, supabase)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
       }
