@@ -25,7 +25,7 @@ interface DepartmentListProps {
   canCreateDepartments: boolean;
   canManageDepartments: boolean;
   userProfile: UserWithRoles | null;
-  initialDepartmentMetrics?: Map<string, DepartmentMetrics>;
+  initialDepartmentMetrics?: Record<string, DepartmentMetrics>;
 }
 
 export function DepartmentList({
@@ -46,8 +46,8 @@ export function DepartmentList({
   // Use server-side metrics - all departments should have metrics from server
   const getMetrics = (departmentId: string): DepartmentMetrics => {
     // Always prefer server-side metrics
-    if (initialDepartmentMetrics?.has(departmentId)) {
-      return initialDepartmentMetrics.get(departmentId)!;
+    if (initialDepartmentMetrics?.[departmentId]) {
+      return initialDepartmentMetrics[departmentId];
     }
 
     // Fallback for departments without metrics (shouldn't happen in normal operation)

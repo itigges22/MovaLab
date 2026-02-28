@@ -62,11 +62,11 @@ export default async function DepartmentsPage() {
   );
   const metricsResults = await Promise.all(metricsPromises);
 
-  // Build the metrics map
-  const departmentMetrics = new Map<string, DepartmentMetrics>();
+  // Build the metrics record (plain object for server→client serialization)
+  const departmentMetrics: Record<string, DepartmentMetrics> = {};
   metricsResults.forEach((metrics:any, index:any) => {
     if (metrics) {
-      departmentMetrics.set(departments[index].id, metrics);
+      departmentMetrics[departments[index].id] = metrics;
     }
   });
 
