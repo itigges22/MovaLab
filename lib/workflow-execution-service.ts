@@ -203,6 +203,21 @@ export async function startWorkflowForProject(
       };
     }
 
+    // Check if project already has an active workflow instance
+    const { data: existingInstance } = await supabase
+      .from('workflow_instances')
+      .select('id, status')
+      .eq('project_id', projectId)
+      .eq('status', 'active')
+      .limit(1);
+
+    if (existingInstance && existingInstance.length > 0) {
+      return {
+        success: false,
+        error: 'This project already has an active workflow. Complete or cancel the existing workflow before starting a new one.'
+      };
+    }
+
     // Get workflow nodes and find the start node
     const { data: nodes, error: nodesError } = await supabase
       .from('workflow_nodes')
@@ -355,7 +370,7 @@ async function isUserAssignedToProject(supabase: any, userId: string, projectId:
  */
 async function isUserSuperadmin(supabase: any, userId: string): Promise<boolean> {
   const { data: user } = await supabase
-    .from('users')
+    .from('user_profiles')
     .select('is_superadmin')
     .eq('id', userId)
     .single();
@@ -994,30 +1009,30 @@ async function assignProjectToNode(
     // Add each user (skip if they already have an active assignment)
     for (const userId of userIds) {
       // Check if user already has an ACTIVE assignment for this project
-      const { data: existingActive } = await supabase
+      const { data: existingActiveArr } = await supabase
         .from('project_assignments')
         .select('id, source_type')
         .eq('project_id', projectId)
         .eq('user_id', userId)
         .is('removed_at', null)
-        .single();
+        .limit(1);
 
-      if (existingActive) {
+      if (existingActiveArr?.[0]) {
         // User already has an active assignment - skip (don't overwrite their source)
         logger.debug(`[assignProjectToNode] User ${userId} already assigned to project ${projectId}, skipping`);
         continue;
       }
 
       // Check if user has an inactive (removed) assignment we can reactivate
-      const { data: existingInactive } = await supabase
+      const { data: existingInactiveArr } = await supabase
         .from('project_assignments')
         .select('id')
         .eq('project_id', projectId)
         .eq('user_id', userId)
         .not('removed_at', 'is', null)
-        .single();
+        .limit(1);
 
-      if (existingInactive) {
+      if (existingInactiveArr?.[0]) {
         // Reactivate existing assignment with workflow source
         await supabase
           .from('project_assignments')
@@ -1029,7 +1044,7 @@ async function assignProjectToNode(
             workflow_node_id: nodeId,
             workflow_node_label: nodeLabel
           })
-          .eq('id', existingInactive.id);
+          .eq('id', existingInactiveArr[0].id);
       } else {
         // Insert new assignment with workflow source
         await supabase.from('project_assignments').insert({
@@ -1125,30 +1140,30 @@ async function assignProjectToParallelNodes(
     // Add each user (skip if they already have an active assignment)
     for (const [userId, nodeInfo] of userNodeMap) {
       // Check if user already has an ACTIVE assignment for this project
-      const { data: existingActive } = await supabase
+      const { data: existingActiveArr2 } = await supabase
         .from('project_assignments')
         .select('id, source_type')
         .eq('project_id', projectId)
         .eq('user_id', userId)
         .is('removed_at', null)
-        .single();
+        .limit(1);
 
-      if (existingActive) {
+      if (existingActiveArr2?.[0]) {
         // User already has an active assignment - skip
         logger.debug(`[assignProjectToParallelNodes] User ${userId} already assigned to project ${projectId}, skipping`);
         continue;
       }
 
       // Check if user has an inactive (removed) assignment we can reactivate
-      const { data: existingInactive } = await supabase
+      const { data: existingInactiveArr2 } = await supabase
         .from('project_assignments')
         .select('id')
         .eq('project_id', projectId)
         .eq('user_id', userId)
         .not('removed_at', 'is', null)
-        .single();
+        .limit(1);
 
-      if (existingInactive) {
+      if (existingInactiveArr2?.[0]) {
         // Reactivate existing assignment with workflow source
         await supabase
           .from('project_assignments')
@@ -1160,7 +1175,7 @@ async function assignProjectToParallelNodes(
             workflow_node_id: nodeInfo.nodeId,
             workflow_node_label: nodeInfo.nodeLabel
           })
-          .eq('id', existingInactive.id);
+          .eq('id', existingInactiveArr2[0].id);
       } else {
         // Insert new assignment with workflow source
         await supabase.from('project_assignments').insert({
@@ -2195,6 +2210,11 @@ export async function progressWorkflowStep(
 
     if (instanceError || !instance) {
       return { success: false, error: 'Workflow instance not found' };
+    }
+
+    // Prevent progression of completed or cancelled workflows
+    if (instance.status !== 'active') {
+      return { success: false, error: `Cannot progress a ${instance.status} workflow` };
     }
 
     // Get nodes and connections - prefer snapshot over live tables

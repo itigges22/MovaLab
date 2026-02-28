@@ -107,6 +107,12 @@ function WorkflowCanvasInner({
 
   const onConnect = useCallback(
     (params: Connection) => {
+      // Prevent self-loop connections
+      if (params.source === params.target) {
+        toast.error('A node cannot connect to itself');
+        return;
+      }
+
       const sourceNode = nodes.find((n:any) => n.id === params.source);
       const targetNode = nodes.find((n:any) => n.id === params.target);
 

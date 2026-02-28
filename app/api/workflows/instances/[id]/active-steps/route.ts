@@ -20,6 +20,12 @@ export async function GET(
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
+    // Auth check - require authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Get active steps
     const activeSteps = await getActiveSteps(supabase, workflowInstanceId);
 
