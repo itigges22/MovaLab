@@ -36,7 +36,7 @@ export const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(200, 'Project name too long'),
   description: z.string().max(2000, 'Description too long').optional().nullable(),
   accountId: uuidSchema,
-  status: z.enum(['planning', 'in-progress', 'on-hold', 'completed', 'cancelled']).optional(),
+  status: z.enum(['planning', 'in_progress', 'review', 'complete', 'on_hold']).optional(),
   start_date: dateSchema.optional().nullable(),
   end_date: dateSchema.optional().nullable(),
   budget: positiveNumberSchema.optional().nullable(),
@@ -46,7 +46,7 @@ export const createProjectSchema = z.object({
 export const updateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).optional().nullable(),
-  status: z.enum(['planning', 'in-progress', 'on-hold', 'completed', 'cancelled']).optional(),
+  status: z.enum(['planning', 'in_progress', 'review', 'complete', 'on_hold']).optional(),
   start_date: dateSchema.optional().nullable(),
   end_date: dateSchema.optional().nullable(),
   budget: positiveNumberSchema.optional().nullable(),

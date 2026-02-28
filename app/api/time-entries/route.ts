@@ -222,6 +222,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Validate hours range (same rules as POST)
+    if (hoursLogged !== undefined && (hoursLogged <= 0 || hoursLogged > 24)) {
+      return NextResponse.json(
+        { error: 'Hours logged must be between 0 and 24' },
+        { status: 400 }
+      );
+    }
+
     // Permission check: EDIT_OWN_TIME_ENTRIES
     const canEdit = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
     if (!canEdit) {

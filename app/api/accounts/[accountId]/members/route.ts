@@ -315,19 +315,7 @@ export async function POST(
       return NextResponse.json({ error: 'Supabase client not available' }, { status: 500 });
     }
     
-    // Check if user is already assigned to this account
-    const { data: existing } = await supabase
-      .from('account_members')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('user_id', userId)
-      .single();
-    
-    if (existing) {
-      return NextResponse.json({ error: 'User is already assigned to this account' }, { status: 400 });
-    }
-    
-    // Add user to account
+    // Add user to account (handle duplicate gracefully via unique constraint)
     const { data, error } = await supabase
       .from('account_members')
       .insert({
@@ -341,17 +329,19 @@ export async function POST(
     if (error) {
       logger.error('Error assigning user to account', {}, error as unknown as Error);
       
-      // Provide more detailed error messages
+      // Provide more detailed error messages with correct status codes
+      if (error.code === '23505') {
+        return NextResponse.json({
+          error: 'User is already assigned to this account'
+        }, { status: 400 });
+      }
+
       let errorMessage = 'Failed to assign user to account';
       if (error.code === '42P01' || error.message?.includes('does not exist')) {
         errorMessage = 'The account_members table does not exist. Please create it in your database.';
-      } else if (error.code === '23505') {
-        errorMessage = 'User is already assigned to this account';
-      } else if (error.message) {
-        errorMessage = `Failed to assign user: ${error.message}`;
       }
-      
-      return NextResponse.json({ 
+
+      return NextResponse.json({
         error: errorMessage,
         details: error.message,
         code: error.code

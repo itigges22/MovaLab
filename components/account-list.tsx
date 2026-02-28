@@ -29,6 +29,7 @@ interface AccountListProps {
 export function AccountList({ accounts, userProfile, onAccountCreated }: AccountListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [canCreateAccount, setCanCreateAccount] = useState(false);
+  const [hasManageAccountsPermission, setHasManageAccountsPermission] = useState(false);
   const [visibleAccounts, setVisibleAccounts] = useState<Account[]>([]);
 
   // Check permissions and filter accounts
@@ -41,6 +42,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
     async function checkPermissionsAndFilter() {
       const canManage = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS);
       setCanCreateAccount(canManage);
+      setHasManageAccountsPermission(canManage);
 
       // Filter accounts based on permissions
       const filtered: Account[] = [];
@@ -101,9 +103,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
           <CardDescription>
             {isSuperadmin(userProfile)
               ? "Get started by creating your first client account"
-              : userProfile.user_roles?.some((ur: any) => 
-                  ['Executive', 'Director', 'Account Manager', 'Account Executive'].includes(ur.roles.name)
-                ) 
+              : hasManageAccountsPermission
                 ? "No accounts have been created yet. Contact a superadmin to create accounts."
                 : "You don't have access to any accounts yet. Contact your administrator to be assigned to an account."
             }
@@ -115,9 +115,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               {isSuperadmin(userProfile)
                 ? "No accounts yet"
-                : userProfile.user_roles?.some((ur: any) => 
-                    ['Executive', 'Director', 'Account Manager', 'Account Executive'].includes(ur.roles.name)
-                  ) 
+                : hasManageAccountsPermission
                   ? "No accounts available"
                   : "No account access"
               }
@@ -125,9 +123,7 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
             <p className="text-gray-600 mb-6">
               {isSuperadmin(userProfile)
                 ? "Create your first client account to start managing projects and relationships."
-                : userProfile.user_roles?.some((ur: any) => 
-                    ['Executive', 'Director', 'Account Manager', 'Account Executive'].includes(ur.roles.name)
-                  ) 
+                : hasManageAccountsPermission
                   ? "No accounts have been created yet. Contact a superadmin to create accounts."
                   : "You need to be assigned to an account to view and manage projects. Please contact your administrator."
               }

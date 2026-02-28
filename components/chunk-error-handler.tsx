@@ -37,10 +37,8 @@ export function ChunkErrorHandler() {
         return false;
       }
 
-      // In development, log but don't reload immediately
-      // HMR will handle module updates without full page reload
+      // In development, don't reload - HMR will handle module updates
       if (isDevelopment) {
-        console.warn('Chunk loading error detected in development (HMR will handle):', errorMessage);
         return false; // Let HMR handle it
       }
 
@@ -53,7 +51,6 @@ export function ChunkErrorHandler() {
       lastErrorTime = now;
 
       if (errorCount > MAX_ERRORS_BEFORE_GIVING_UP) {
-        console.error('Too many chunk errors, giving up on auto-reload');
         return false;
       }
 
@@ -62,7 +59,6 @@ export function ChunkErrorHandler() {
         return false;
       }
 
-      console.warn('Chunk loading error detected in production, reloading page...', errorMessage);
       reloadAttemptedRef.current = true;
 
       // Wait a bit before reloading to avoid rapid reload loops
@@ -91,9 +87,8 @@ export function ChunkErrorHandler() {
         return false;
       }
 
-      // In development, log but don't reload
+      // In development, don't reload - HMR will handle it
       if (isDevelopment) {
-        console.warn('Chunk loading promise rejection in development (HMR will handle):', errorMessage);
         return false;
       }
 
@@ -102,7 +97,6 @@ export function ChunkErrorHandler() {
         return false;
       }
 
-      console.warn('Chunk loading promise rejection in production, reloading page...', errorMessage);
       reloadAttemptedRef.current = true;
 
       // Wait a bit before reloading

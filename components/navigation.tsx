@@ -142,16 +142,8 @@ export function Navigation() {
 
   // Check permissions for each navigation item
   useEffect(() => {
-    console.log('🎯 Navigation useEffect triggered:', {
-      isMounted,
-      loading,
-      hasUserProfile: !!userProfile,
-      userId: (userProfile as any)?.id
-    });
-
     if (!isMounted || loading || !userProfile) {
       // Show minimal items during loading
-      console.log('⏸️ Navigation: Showing loading state (minimal items)');
       setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned));
       setPermissionsChecked(false);
       // Cancel any pending operations
@@ -172,30 +164,14 @@ export function Navigation() {
       const isActuallyUnassigned = isUnassigned(userProfile);
       const userIsSuperadmin = isSuperadmin(userProfile);
 
-      // Debug logging
-      console.log('🔍 Navigation Debug:', {
-        userEmail: (userProfile as any)?.email,
-        userId: (userProfile as any)?.id,
-        userRoles: userProfile?.user_roles?.map((ur: any) => ({
-          name: ur.roles?.name,
-          isSystem: ur.roles?.is_system_role,
-          roleNameLower: ur.roles?.name?.toLowerCase()
-        })),
-        isActuallyUnassigned,
-        userIsSuperadmin,
-        userRolesLength: userProfile?.user_roles?.length || 0
-      });
-
       // Check if this operation was cancelled
       if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
-        console.log('⚠️ Navigation filter cancelled - newer operation in progress');
         return;
       }
 
       // Superadmin sees everything
       if (userIsSuperadmin) {
         if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
-        console.log('✅ Superadmin detected - showing all navigation items:', navigationItems.map((i: any) => i.name));
         setVisibleItems(navigationItems);
         setPermissionsChecked(true);
         return;
@@ -205,8 +181,6 @@ export function Navigation() {
       if (isActuallyUnassigned) {
         if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) return;
         const allowedItems = navigationItems.filter((item: any) => item.allowUnassigned === true);
-        console.log('✅ Unassigned user detected - filtering navigation');
-        console.log('   Allowed items:', allowedItems.map((i: any) => i.name));
         setVisibleItems(allowedItems);
         setPermissionsChecked(true);
         return;
@@ -218,7 +192,6 @@ export function Navigation() {
       for (const item of navigationItems) {
         // Check if cancelled before each permission check
         if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
-          console.log('⚠️ Navigation filter cancelled during permission checks');
           return;
         }
 
@@ -236,7 +209,6 @@ export function Navigation() {
           const hasPerm = await hasPermission(userProfile, item.permission);
           // Check cancellation after async operation
           if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
-            console.log('⚠️ Navigation filter cancelled after permission check');
             return;
           }
           if (hasPerm) {
@@ -252,7 +224,6 @@ export function Navigation() {
             const hasPerm = await hasPermission(userProfile, perm);
             // Check cancellation after each async operation
             if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
-              console.log('⚠️ Navigation filter cancelled during permission checks');
               return;
             }
             if (hasPerm) {
@@ -272,7 +243,6 @@ export function Navigation() {
               const isManager = await isAccountManager(userProfile, supabase);
               // Check cancellation after async operation
               if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
-                console.log('⚠️ Navigation filter cancelled during account manager check');
                 return;
               }
               if (isManager) {
@@ -285,7 +255,6 @@ export function Navigation() {
 
       // Final cancellation check before updating state
       if (filterOperationRef.current.cancelled || filterOperationRef.current.userId !== operationId) {
-        console.log('⚠️ Navigation filter cancelled before state update');
         return;
       }
 
@@ -297,23 +266,13 @@ export function Navigation() {
         }
       }
 
-      console.log('✅ Navigation filter complete:', {
-        userId: operationId,
-        visibleItems: filtered.map((i: any) => i.name),
-        totalItems: navigationItems.length,
-        filteredCount: filtered.length
-      });
-
       setVisibleItems(filtered);
       setPermissionsChecked(true);
     }
 
-    // Ensure filterItems runs
-    console.log('🚀 Starting navigation filterItems for user:', currentUserId);
     filterItems().catch((err: any) => {
       // Only update state if this operation wasn't cancelled
       if (!filterOperationRef.current.cancelled && filterOperationRef.current.userId === currentUserId) {
-        console.error('Error filtering navigation items:', err);
         // On error, show only Welcome to be safe
         setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true));
         setPermissionsChecked(true);
@@ -327,7 +286,7 @@ export function Navigation() {
       await signOut();
       window.location.href = '/';
     } catch (error: unknown) {
-      console.error('Error signing out:', error);
+      // Sign out error handled silently
     }
   };
 
@@ -397,7 +356,6 @@ export function Navigation() {
               })
             ) : (
               (() => {
-                console.log('🔍 DEBUG: Rendering visibleItems:', visibleItems.map((i: any) => i.name));
                 return visibleItems.map((item: NavigationItem) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href ||

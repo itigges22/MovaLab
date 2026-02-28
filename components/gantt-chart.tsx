@@ -200,11 +200,8 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
         ]);
         setTasks(tasksData);
         setMilestones(milestonesData);
-        console.log('Loaded milestones for rendering:', milestonesData);
-        console.log('Number of milestones loaded:', milestonesData.length);
-        console.log('Milestone details:', milestonesData.map((m: any) => ({ name: m.name, date: m.date, color: m.color })));
       } catch (error: unknown) {
-        console.error('Error loading data:', error);
+        // Error handled silently
       } finally {
         setLoading(false);
       }
@@ -217,13 +214,6 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   // Convert tasks to Gantt features (milestones will be handled as markers)
   const features: GanttFeature[] = tasks.map(convertTaskToGanttFeature);
   
-  // Debug logging for features
-  useEffect(() => {
-    console.log('Features updated:', features.length, 'features');
-    console.log('Feature details:', features.map((f: any) => ({ id: f.id, name: f.name, startAt: f.startAt })));
-  }, [features]);
-
-
   // Group features by lane (which corresponds to group name from tasks)
   const groupedFeatures = features.reduce((acc: Record<string, typeof features>, feature) => {
     const groupName = feature.lane || 'General';
@@ -242,7 +232,6 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   );
 
   const handleViewFeature = (id: string) => {
-    console.log(`Feature selected: ${id}`);
     setSelectedFeature(selectedFeature === id ? null : id);
   };
 
@@ -262,7 +251,6 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   };
 
   const handleCopyLink = (id: string) => {
-    console.log(`Copy link: ${id}`);
     void navigator.clipboard.writeText(`${window.location.origin}/gantt#${id}`);
   };
 
@@ -277,7 +265,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
         const milestonesData = await supabaseTaskService.getAllMilestones();
         setMilestones(milestonesData);
       } catch (error: unknown) {
-        console.error('Error deleting milestone:', error);
+        // Error handled silently
       }
     } else {
       // Handle regular markers
@@ -299,7 +287,6 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   };
 
   const handleMilestoneCreated = async (newMilestone: Milestone) => {
-    console.log('Milestone created:', newMilestone);
     // Add the new milestone to the current state immediately for instant UI update
     setMilestones(prev => [...prev, newMilestone]);
     
@@ -308,7 +295,7 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
       const milestonesData = await supabaseTaskService.getAllMilestones();
       setMilestones(milestonesData);
     } catch (error: unknown) {
-      console.error('Error reloading milestones after creation:', error);
+      // Error handled silently
     }
   };
 
@@ -326,25 +313,19 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
   };
 
   const _handleTaskCreated = (newTask: Task) => {
-    console.log('Task created:', newTask);
-    console.log('Current tasks before adding:', tasks.length);
-    
     // Add the new task to the current state immediately for instant UI update
     setTasks(prev => {
-      console.log('Adding task to state, previous count:', prev.length);
       const updated = [...prev, newTask];
-      console.log('New task count:', updated.length);
       return updated;
     });
-    
+
     // Also reload from database to ensure we have the latest data
     const loadTasks = async () => {
       try {
         const tasksData = await supabaseTaskService.getAllTasks();
-        console.log('Reloaded tasks from database:', tasksData.length);
         setTasks(tasksData);
       } catch (error: unknown) {
-        console.error('Error reloading tasks after creation:', error);
+        // Error handled silently
       }
     };
     void loadTasks();
@@ -352,18 +333,6 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
 
   // Function to scroll to today's date using the same mechanism as task clicking
   const scrollToToday = useCallback(() => {
-    const today = new Date();
-    
-    // Create a temporary feature at today's date to use the existing scrollToFeature function
-    const todayFeature: GanttFeature = {
-      id: 'today-marker',
-      name: 'Today',
-      startAt: today,
-      endAt: today,
-      status: { id: 'today', name: 'Today', color: '#10b981' },
-      lane: 'Today'
-    };
-
     // Use the scrollToFeature function by simulating a click on a task
     // Find the Gantt container and trigger a click on a sidebar item
     const ganttContainer = document.querySelector('.gantt');
@@ -372,16 +341,8 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
       if (sidebarItems.length > 0) {
         // Simulate a click on the first sidebar item to trigger scrollToFeature
         (sidebarItems[0] as HTMLElement).click();
-        console.log('Triggered scroll to today via sidebar click simulation');
       }
     }
-    
-    console.log('Scrolling to today using task scroll mechanism:', {
-      today: today.toDateString(),
-      range,
-      zoom,
-      feature: todayFeature
-    });
   }, [range, zoom]);
 
   // Scroll to today when component loads
@@ -552,7 +513,6 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
 
           {/* Milestone markers */}
           {milestones.map((milestone:any, _index:any) => {
-            console.log('Rendering milestone marker:', milestone.name, 'at date:', milestone.date, 'with color:', milestone.color);
             return (
               <div
                 key={`milestone-${milestone.id}`}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { updateAccountSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/debug-logger';
 
 /**
@@ -32,26 +33,36 @@ export async function PATCH(
 
     const body = await request.json();
 
-    // Only allow updating specific fields
-    const allowedUpdates: Record<string, unknown> = {};
+    // Validate input with Zod schema
+    const validation = updateAccountSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error.errors },
+        { status: 400 }
+      );
+    }
 
-    if (body.name !== undefined) {
-      allowedUpdates.name = body.name;
+    // Build update object from validated data
+    const allowedUpdates: Record<string, unknown> = {};
+    const validatedData = validation.data;
+
+    if (validatedData.name !== undefined) {
+      allowedUpdates.name = validatedData.name;
     }
-    if (body.description !== undefined) {
-      allowedUpdates.description = body.description;
+    if (validatedData.description !== undefined) {
+      allowedUpdates.description = validatedData.description;
     }
-    if (body.primary_contact_name !== undefined) {
-      allowedUpdates.primary_contact_name = body.primary_contact_name;
+    if (validatedData.primary_contact_name !== undefined) {
+      allowedUpdates.primary_contact_name = validatedData.primary_contact_name;
     }
-    if (body.primary_contact_email !== undefined) {
-      allowedUpdates.primary_contact_email = body.primary_contact_email;
+    if (validatedData.primary_contact_email !== undefined) {
+      allowedUpdates.primary_contact_email = validatedData.primary_contact_email;
     }
-    if (body.status !== undefined) {
-      allowedUpdates.status = body.status;
+    if (validatedData.status !== undefined) {
+      allowedUpdates.status = validatedData.status;
     }
-    if (body.account_manager_id !== undefined) {
-      allowedUpdates.account_manager_id = body.account_manager_id;
+    if (validatedData.account_manager_id !== undefined) {
+      allowedUpdates.account_manager_id = validatedData.account_manager_id;
     }
 
     if (Object.keys(allowedUpdates).length === 0) {

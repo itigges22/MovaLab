@@ -20,7 +20,7 @@ async function getSupabase() {
 // TYPES & INTERFACES
 // =====================================================
 
-export type FieldType = 'text' | 'number' | 'date' | 'dropdown' | 'multiselect' | 'file' | 'textarea' | 'email' | 'checkbox';
+export type FieldType = 'text' | 'number' | 'date' | 'dropdown' | 'multiselect' | 'file' | 'textarea' | 'email' | 'checkbox' | 'url';
 
 export interface FormField {
   id: string;
@@ -343,7 +343,7 @@ function validateFormFields(fields: FormField[]): void {
     }
 
     // Validate field type
-    const validTypes: FieldType[] = ['text', 'number', 'date', 'dropdown', 'multiselect', 'file', 'textarea', 'email', 'checkbox'];
+    const validTypes: FieldType[] = ['text', 'number', 'date', 'dropdown', 'multiselect', 'file', 'textarea', 'email', 'checkbox', 'url'];
     if (!validTypes.includes(field.type)) {
       throw new Error(`Invalid field type: ${field.type}`);
     }

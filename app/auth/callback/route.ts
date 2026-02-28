@@ -16,7 +16,9 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/welcome'
+  const rawNext = searchParams.get('next') ?? '/welcome'
+  // Prevent open redirect: only allow internal paths (must start with / and not //)
+  const next = (rawNext.startsWith('/') && !rawNext.startsWith('//')) ? rawNext : '/welcome'
   const type = searchParams.get('type') // 'recovery', 'signup', 'invite', etc.
 
   if (code) {
@@ -67,7 +69,6 @@ export async function GET(request: Request) {
     }
 
     // If there was an error exchanging the code, redirect to login with error
-    console.error('Auth callback error:', error)
     return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
   }
 

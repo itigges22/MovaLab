@@ -173,7 +173,6 @@ export function ClockWidget({ onDock, isVisible = true }: ClockWidgetProps) {
         toast.error(data.error || 'Failed to clock in')
       }
     } catch (error: unknown) {
-      console.error('Error clocking in:', error)
       toast.error('Failed to clock in')
     } finally {
       setClockingIn(false)

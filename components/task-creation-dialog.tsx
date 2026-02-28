@@ -129,9 +129,6 @@ export default function TaskCreationDialog({
   // Populate form data when in edit mode - Status is managed by workflows, not included
   useEffect(() => {
     if (open && editMode && existingProject) {
-      console.log('=== EDIT MODE: Populating form with existing project ===');
-      console.log('Full existing project data:', existingProject);
-
       setFormData({
         name: (existingProject.name as string | undefined) || '',
         priority: (existingProject.priority as 'low' | 'medium' | 'high' | 'urgent' | 'idea' | undefined) || 'medium',
@@ -142,8 +139,6 @@ export default function TaskCreationDialog({
       });
 
       // Assignment and stakeholders removed - workflow handles assignment
-
-      console.log('=== END EDIT MODE POPULATION ===');
     }
   }, [open, editMode, existingProject]);
 
@@ -153,7 +148,6 @@ export default function TaskCreationDialog({
       
       // Load all users
       const allUsersData = await accountService.getAllUsers();
-      console.log('Loaded all users:', allUsersData);
 
       // Departments no longer needed - derived from user assignments
 
@@ -174,10 +168,7 @@ export default function TaskCreationDialog({
           )
         `);
 
-      if (rolesError) {
-        console.error('Error loading user roles:', rolesError);
-      } else {
-        console.log('Loaded user roles data:', userRolesData);
+      if (!rolesError) {
         // Create a map of userId -> array of role names
         const rolesMap = new Map<string, string[]>();
         const roleIdsMap = new Map<string, string>();
@@ -204,7 +195,6 @@ export default function TaskCreationDialog({
 
         // Filter users to only include those with at least one role
         const usersWithRoles = (allUsersData || []).filter((user: any) => rolesMap.has((user as any).id as string));
-        console.log(`Filtered users: ${usersWithRoles.length} users with roles out of ${allUsersData?.length || 0} total users`);
       }
 
       // Load workflows
@@ -214,16 +204,14 @@ export default function TaskCreationDialog({
         .eq('is_active', true)
         .order('name');
 
-      if (workflowsError) {
-        console.error('Error loading workflows:', workflowsError);
-      } else {
+      if (!workflowsError) {
         setWorkflows(workflowsData || []);
       }
 
       // Stakeholder auto-selection removed - workflow handles assignment
 
-    } catch (error: unknown) {
-      console.error('Error loading data:', error);
+    } catch {
+      // Error loading data
     } finally {
     }
   };
@@ -231,11 +219,6 @@ export default function TaskCreationDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log('=== FORM SUBMIT STARTED ===');
-    console.log('Form data:', formData);
-    console.log('Edit mode:', editMode);
-    console.log('Existing project ID:', existingProject?.id);
-    
     // Check permissions
     if (editMode && existingProject) {
       if (!canEditProject) {
@@ -312,7 +295,6 @@ export default function TaskCreationDialog({
           .single();
 
         if (projectError) {
-          console.error('Error updating project:', projectError);
           toast.error('Failed to update project: ' + projectError.message);
           return;
         }
@@ -340,7 +322,6 @@ export default function TaskCreationDialog({
           .single();
 
         if (projectError) {
-          console.error('Error creating project:', projectError);
           toast.error('Failed to create project: ' + projectError.message);
           return;
         }
@@ -350,14 +331,7 @@ export default function TaskCreationDialog({
         // Assignment and stakeholder handling removed - creator auto-assigned, workflow manages the rest
 
         // Start workflow if one was selected
-        console.log('[WORKFLOW] Checking if workflow should be started...');
-        console.log('[WORKFLOW] formData.workflowTemplateId:', formData.workflowTemplateId);
-        console.log('[WORKFLOW] project:', project);
-
         if (formData.workflowTemplateId && project) {
-          console.log('[WORKFLOW] Starting workflow for project:', project.id);
-          console.log('[WORKFLOW] Workflow template ID:', formData.workflowTemplateId);
-
           try {
             const workflowResponse = await fetch('/api/workflows/start', {
               method: 'POST',
@@ -368,29 +342,16 @@ export default function TaskCreationDialog({
               }),
             });
 
-            console.log('[WORKFLOW] Response status:', workflowResponse.status);
-            console.log('[WORKFLOW] Response OK:', workflowResponse.ok);
-
             const workflowData = await workflowResponse.json();
-            console.log('[WORKFLOW] Response data:', workflowData);
 
             if (!workflowResponse.ok) {
-              console.error('[WORKFLOW] Failed to start workflow:', workflowData);
               toast.error(`Project created, but workflow failed to start: ${workflowData.error || 'Unknown error'}`);
-            } else {
-              console.log('[WORKFLOW] Workflow started successfully!');
             }
           } catch (error: unknown) {
-            console.error('[WORKFLOW] Error starting workflow:', error);
             toast.error(`Project created, but workflow failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
-        } else {
-          console.log('[WORKFLOW] Skipping workflow start - no workflow selected or project missing');
         }
       }
-
-      // Success!
-      console.log('[SUCCESS] Project operation completed successfully');
 
       // Close dialog and notify parent
       setOpen(false);
@@ -399,8 +360,7 @@ export default function TaskCreationDialog({
       }
       onTaskCreated?.(project);
 
-    } catch (error: unknown) {
-      console.error('Error with project:', error);
+    } catch {
       toast.error('An error occurred. Please try again.');
     } finally {
       setLoading(false);

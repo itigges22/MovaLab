@@ -190,7 +190,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         return;
       }
 
-      toast.error('Settings saved successfully!');
+      toast.success('Settings saved successfully!');
     } catch (error: unknown) {
       console.error('Error saving settings:', error);
       toast.error('An error occurred. Please try again.');

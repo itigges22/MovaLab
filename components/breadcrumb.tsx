@@ -41,19 +41,14 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       // Fetch department names if in department path
       if (pathname.includes('/departments/')) {
         const departmentIds = pathSegments.filter((segment: any) => isUUID(segment))
-        console.log('Breadcrumb: Processing department IDs:', departmentIds)
         for (const id of departmentIds) {
           try {
-            console.log('Breadcrumb: Fetching department for ID:', id)
             const department = await departmentClientService.getDepartmentById(id)
             if (department) {
               names.set(id, department.name)
-              console.log('Breadcrumb: Successfully fetched department:', department.name)
             } else {
-              console.warn(`Department not found for ID: ${id}`)
             }
           } catch (error: unknown) {
-            console.error(`Error fetching department ${id}:`, error)
             // Continue with other departments instead of failing completely
           }
         }

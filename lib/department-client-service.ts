@@ -428,24 +428,24 @@ class ClientDepartmentService {
         return [];
       }
 
-      // Get assigned users for each project (task assignments)
+      // Get assigned users for each project via tasks table (tasks.assigned_to references user_profiles)
       const { data: assignments, error: taskAssignmentsError } = await supabase
-        .from('task_assignments')
+        .from('tasks')
         .select(`
-          task_id,
-          user_profiles!task_assignments_user_id_fkey (
+          id,
+          project_id,
+          assigned_to,
+          user_profiles:assigned_to (
             id,
             name,
             image
-          ),
-          tasks!task_assignments_task_id_fkey (
-            project_id
           )
         `)
-        .in('tasks.project_id', projectIds);
+        .in('project_id', projectIds)
+        .not('assigned_to', 'is', null);
 
       if (taskAssignmentsError) {
-        logger.error('Error fetching task assignments', { error: taskAssignmentsError });
+        logger.error('Error fetching task assignees', { error: taskAssignmentsError });
       }
 
       const typedProjects = (projects as ProjectWithRelations[]) || [];
