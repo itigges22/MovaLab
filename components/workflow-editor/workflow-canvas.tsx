@@ -371,13 +371,6 @@ function WorkflowCanvasInner({
       return;
     }
 
-    // Debug logging
-    console.log('[Workflow Canvas] Initiating save...');
-    console.log('[Workflow Canvas] Nodes to save:', nodes.length);
-    console.log('[Workflow Canvas] Node IDs:', nodes.map((n: any) => ({ id: n.id, type: n.data.type, label: n.data.label })));
-    console.log('[Workflow Canvas] Edges to save:', edges.length);
-    console.log('[Workflow Canvas] Edge connections:', edges.map((e: any) => ({ id: e.id, source: e.source, target: e.target })));
-
     // Run comprehensive workflow validation
     // Note: Role user count validation is NOT done here - workflows can be saved
     // even if roles don't have users yet. The validation happens when ACTIVATING.
@@ -444,7 +437,6 @@ function WorkflowCanvasInner({
       await onSave(nodes, edges);
       toast.success('Workflow saved successfully!');
     } catch (error: unknown) {
-      console.error('Error saving workflow:', error);
       toast.error('Failed to save workflow');
     } finally {
       setSaving(false);

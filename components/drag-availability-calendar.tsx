@@ -296,8 +296,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
           })
           setUnavailableBlocks(defaultBlocks)
         }
-      } catch (error: unknown) {
-        console.error('Error loading availability:', error)
+      } catch {
         toast.error('Failed to load availability')
       } finally {
         setLoading(false)
@@ -340,8 +339,7 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
       } else {
         toast.error(data.error || 'Failed to save availability')
       }
-    } catch (error: unknown) {
-      console.error('Error saving availability:', error)
+    } catch {
       toast.error('Failed to save availability')
     } finally {
       setSaving(false)

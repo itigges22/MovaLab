@@ -179,12 +179,13 @@ const SortableHeader = ({ label, columnKey, currentSort, onSort }: SortableHeade
     <button
       onClick={() => onSort(columnKey)}
       className="flex items-center gap-1 hover:text-foreground transition-colors group"
+      aria-label={`Sort by ${label}${direction === "asc" ? ", sorted ascending" : direction === "desc" ? ", sorted descending" : ""}`}
     >
       <span>{label}</span>
       <span className={cn(
         "transition-opacity",
         isActive ? "opacity-100" : "opacity-0 group-hover:opacity-50"
-      )}>
+      )} aria-hidden="true">
         {direction === "asc" ? (
           <ChevronUp className="h-4 w-4" />
         ) : direction === "desc" ? (
@@ -378,7 +379,7 @@ export const ProjectDataTable = ({
 
                       {visibleColumns.has("priority") && (
                         <TableCell>
-                          <Badge className={cn(priorityBadgeVariants({ variant: project.priority }))}>
+                          <Badge className={cn(priorityBadgeVariants({ variant: project.priority }))} aria-label={`Priority: ${project.priority}`}>
                             {project.priority}
                           </Badge>
                         </TableCell>
@@ -436,7 +437,7 @@ export const ProjectDataTable = ({
 
                       {visibleColumns.has("status") && (
                         <TableCell>
-                          <Badge className={cn(statusBadgeVariants({ variant: project.status }))}>
+                          <Badge className={cn(statusBadgeVariants({ variant: project.status }))} aria-label={`Status: ${formatStatus(project.status)}`}>
                             {formatStatus(project.status)}
                           </Badge>
                         </TableCell>

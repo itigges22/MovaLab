@@ -376,8 +376,8 @@ export default function DashboardPage() {
       if (response.ok) {
         await mutatePreferences();
       }
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
+    } catch {
+      // Preference save failed - non-critical
     } finally {
       setIsSavingEdit(false);
       setIsEditMode(false);

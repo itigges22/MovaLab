@@ -94,7 +94,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .order('name');
 
       if (rolesError) {
-        console.error('Error loading roles:', rolesError);
+        // Error loading roles handled silently
       } else {
         const rolesWithCount = (rolesData?.map((role: any) => ({
           ...role,
@@ -124,7 +124,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .order('name');
 
       if (usersError) {
-        console.error('Error loading users:', usersError);
+        // Error loading users handled silently
       } else {
         setUsers(usersData || []);
       }
@@ -137,7 +137,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .single();
 
       if (departmentError) {
-        console.error('Error loading department:', departmentError);
+        // Error loading department handled silently
       } else {
         const dept = departmentData as unknown as Record<string, unknown>;
         setDepartmentSettings(departmentData);
@@ -158,7 +158,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         });
       }
     } catch (error: unknown) {
-      console.error('Error loading data:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -185,14 +185,12 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .eq('id', departmentId);
 
       if (error) {
-        console.error('Error saving settings:', error);
         toast.error('Failed to save settings. Please try again.');
         return;
       }
 
       toast.success('Settings saved successfully!');
     } catch (error: unknown) {
-      console.error('Error saving settings:', error);
       toast.error('An error occurred. Please try again.');
     }
   };

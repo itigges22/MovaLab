@@ -39,6 +39,9 @@ export function SidebarMobileDrawer({ isOpen, onClose }: SidebarMobileDrawerProp
 
       {/* Drawer */}
       <div
+        role="dialog"
+        aria-label="Mobile navigation menu"
+        aria-modal={isOpen ? "true" : undefined}
         className={cn(
           'fixed inset-y-0 left-0 z-50 w-60 transform transition-transform duration-300 ease-in-out lg:hidden',
           isOpen ? 'translate-x-0' : '-translate-x-full'

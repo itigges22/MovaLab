@@ -148,6 +148,7 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 required
+                aria-required="true"
               />
             </div>
             <div className="space-y-2">

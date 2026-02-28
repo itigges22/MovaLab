@@ -344,6 +344,7 @@ export function ClockOutDialog({
                   size="sm"
                   onClick={() => { removeAllocation(allocation.id); }}
                   className="text-red-500 hover:text-red-600"
+                  aria-label={`Remove allocation ${index + 1}`}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

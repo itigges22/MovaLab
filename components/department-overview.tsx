@@ -105,8 +105,7 @@ export function DepartmentOverview({
         setLoadingActiveIssues(true);
         const issues = await projectIssuesService.getDepartmentActiveIssues(department.id);
         setActiveIssues(issues);
-      } catch (error: unknown) {
-        console.error('Error loading department issues:', error);
+      } catch {
         setActiveIssues([]);
       } finally {
         setLoadingActiveIssues(false);
@@ -445,9 +444,10 @@ export function DepartmentOverview({
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`${issue.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' : 'bg-orange-100 text-orange-800'} text-xs whitespace-nowrap`}
+                            aria-label={`Issue status: ${issue.status.replace('_', ' ')}`}
                           >
                             {issue.status.replace('_', ' ')}
                           </Badge>
@@ -585,7 +585,7 @@ export function DepartmentOverview({
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="outline" className={`${getPriorityColor(project.priority)} text-xs whitespace-nowrap`}>
+                      <Badge variant="outline" className={`${getPriorityColor(project.priority)} text-xs whitespace-nowrap`} aria-label={`Priority: ${project.priority}`}>
                         {project.priority}
                       </Badge>
                     </td>

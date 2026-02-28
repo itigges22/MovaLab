@@ -141,7 +141,6 @@ async function calculateElkLayout(
       });
     });
   } catch (error: unknown) {
-    console.error('ELK layout error, falling back to simple layout:', error);
     // Fallback to simple layout
     return calculateSimpleLayout(nodes, connections);
   }
@@ -275,7 +274,6 @@ function WorkflowVisualizationInner({
         .single();
 
       if (instanceError || !instance) {
-        console.error('Error loading workflow instance:', instanceError);
         return;
       }
 
@@ -302,7 +300,6 @@ function WorkflowVisualizationInner({
           .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (nodesError || !liveNodes) {
-          console.error('Error loading workflow nodes:', nodesError);
           return;
         }
 
@@ -313,7 +310,6 @@ function WorkflowVisualizationInner({
           .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (connectionsError) {
-          console.error('Error loading connections:', connectionsError);
           return;
         }
 
@@ -349,7 +345,7 @@ function WorkflowVisualizationInner({
       await buildVisualization(workflowNodes, connections || [], steps || [], completed, instance);
 
     } catch (error: unknown) {
-      console.error('Error loading workflow visualization:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

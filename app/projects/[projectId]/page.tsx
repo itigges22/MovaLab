@@ -446,8 +446,8 @@ export default function ProjectDetailPage() {
         const projectHours = projectTimeEntries?.reduce((sum: number, entry: { hours_logged: number | null }) => sum + (entry.hours_logged || 0), 0) || 0
         setProjectLevelHours(projectHours)
       }
-    } catch (error: unknown) {
-      console.error('Error loading tasks:', error)
+    } catch (_error: unknown) {
+      // Error loading tasks - silently handled
     } finally {
       setLoadingTasks(false)
     }
@@ -479,12 +479,7 @@ export default function ProjectDetailPage() {
         )
 
         // Verify auth session
-        const { data: sessionData } = await supabase.auth.getSession()
-        console.log('🔐 Auth check in loadProject:', {
-          hasSession: !!sessionData.session,
-          userId: sessionData.session?.user?.id,
-          email: sessionData.session?.user?.email
-        })
+        const { data: _sessionData } = await supabase.auth.getSession()
 
         // Fetch project with all related data
         const { data, error: queryError } = await supabase
@@ -497,7 +492,6 @@ export default function ProjectDetailPage() {
           .maybeSingle()
 
         if (queryError) {
-          console.error('Error fetching project:', queryError)
           throw new Error('Failed to load project')
         }
 
@@ -518,16 +512,8 @@ export default function ProjectDetailPage() {
         }
 
         // Fetch stakeholders using SQL function (bypasses RLS - this is the reliable method)
-        console.log('🔍 Fetching stakeholders for project via SQL function:', projectId)
-        const { data: stakeholdersRawData, error: stakeholdersError } = await supabase
+        const { data: stakeholdersRawData, error: _stakeholdersError } = await supabase
           .rpc('get_project_stakeholders', { project_uuid: projectId })
-
-        console.log('📊 Stakeholders query result:', {
-          dataLength: stakeholdersRawData?.length,
-          error: stakeholdersError,
-          errorDetails: stakeholdersError ? JSON.stringify(stakeholdersError) : null,
-          data: stakeholdersRawData
-        })
 
         // Transform SQL function output to match expected format
         const stakeholdersData = stakeholdersRawData?.map((row: any) => ({
@@ -642,7 +628,6 @@ export default function ProjectDetailPage() {
 
         if (!awError && activeWorkflows && activeWorkflows.length > 0) {
           workflowInstanceId = activeWorkflows[0].id
-          console.log('Found active workflow instance:', workflowInstanceId)
         } else if (data.workflow_instance_id) {
           // Check if the stored workflow_instance_id is still valid (active)
           const { data: storedWorkflow } = await supabase
@@ -653,12 +638,8 @@ export default function ProjectDetailPage() {
 
           if (storedWorkflow?.status === 'active') {
             workflowInstanceId = storedWorkflow.id
-            console.log('Using stored workflow instance:', workflowInstanceId)
           } else {
-            console.log('Stored workflow_instance_id is not active:', {
-              storedId: data.workflow_instance_id,
-              status: storedWorkflow?.status || 'not found'
-            })
+            // Stored workflow_instance_id is not active
           }
         }
 
@@ -713,14 +694,12 @@ export default function ProjectDetailPage() {
             const uniqueLabels = [...new Set(stepLabels)] as string[]
 
             setWorkflowStepNames(uniqueLabels)
-            console.log('Workflow steps:', uniqueLabels)
           } else if (instanceData?.current_node_id) {
             // Fallback to legacy current_node_id for older workflows
             // First try snapshot
             const snapshotLabel = getNodeLabel(instanceData.current_node_id)
             if (snapshotLabel) {
               setWorkflowStepNames([snapshotLabel])
-              console.log('Workflow step (from snapshot):', snapshotLabel)
             } else {
               // Fallback to FK join
               const { data: workflowData, error: wfError } = await supabase
@@ -739,7 +718,6 @@ export default function ProjectDetailPage() {
                 const nodes = workflowData.workflow_nodes as Record<string, unknown> | Record<string, unknown>[]
                 const nodeData = Array.isArray(nodes) ? nodes[0] : nodes
                 setWorkflowStepNames(nodeData?.label ? [nodeData.label as string] : [])
-                console.log('Workflow step (legacy):', nodeData?.label)
               }
             }
           }
@@ -753,20 +731,6 @@ export default function ProjectDetailPage() {
           assigned_user: assignedUser,
           stakeholders: stakeholdersData || []
         }
-
-        // Debug logging
-        console.log('Project loaded:', {
-          id: projectWithDetails.id,
-          name: projectWithDetails.name,
-          description: projectWithDetails.description,
-          estimated_hours: projectWithDetails.estimated_hours,
-          actual_hours: projectWithDetails.actual_hours,
-          stakeholders_count: projectWithDetails.stakeholders.length,
-          departments_count: projectWithDetails.departments.length,
-          updates: projectWithDetails.updates,
-          issues_roadblocks: projectWithDetails.issues_roadblocks,
-          workflow_instance_id: projectWithDetails.workflow_instance_id
-        })
 
         setProject(projectWithDetails)
 
@@ -784,7 +748,6 @@ export default function ProjectDetailPage() {
         if (tasks.length === 0) {
         }
       } catch (err: unknown) {
-        console.error('Error loading project:', err)
         setError(err instanceof Error ? err.message : 'Failed to load project')
       } finally {
         setLoading(false)
@@ -811,8 +774,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error('Failed to delete task')
       }
-    } catch (error: unknown) {
-      console.error('Error deleting task:', error)
+    } catch (_error: unknown) {
       toast.error('Error deleting task')
     } finally {
       setDeleteTaskDialogOpen(false)
@@ -861,7 +823,6 @@ export default function ProjectDetailPage() {
 
       toast.success('Task status updated')
     } catch (error: unknown) {
-      console.error('Error updating task status:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update task status')
       // Reload tasks to restore correct state on error
       await loadTasks()
@@ -923,7 +884,7 @@ export default function ProjectDetailPage() {
 
           // If workflow is completed, refresh project data to update UI
           if (wfData.status === 'completed') {
-            console.log('Workflow completed, refreshing project data...')
+            // Workflow completed - project data will be refreshed below
           }
         }
       }
@@ -945,10 +906,6 @@ export default function ProjectDetailPage() {
           workflow_instance_id: pData.workflow_instance_id
         } as ProjectWithDetails) : null)
 
-        console.log('Project data refreshed:', {
-          status: pData.status,
-          completed_at: pData.completed_at
-        })
       }
 
       // Refresh issues (in case a rejection created a new issue)
@@ -958,8 +915,8 @@ export default function ProjectDetailPage() {
         if (issuesResponse.ok) {
           setProjectIssues(issuesResult.issues)
         }
-      } catch (issuesErr) {
-        console.error('Error refreshing issues:', issuesErr)
+      } catch (_issuesErr) {
+        // Error refreshing issues - silently handled
       }
 
       // Refresh updates (in case workflow added any updates)
@@ -969,8 +926,8 @@ export default function ProjectDetailPage() {
         if (updatesResponse.ok) {
           setProjectUpdates(updatesResult.updates)
         }
-      } catch (updatesErr) {
-        console.error('Error refreshing updates:', updatesErr)
+      } catch (_updatesErr) {
+        // Error refreshing updates - silently handled
       }
 
       // Note: Workflow form data is now refreshed via the workflowRefreshKey mechanism
@@ -979,8 +936,8 @@ export default function ProjectDetailPage() {
       // Removing the inline refresh here prevents a race condition where incomplete
       // data would overwrite the complete data loaded by loadWorkflowFormData().
 
-    } catch (err: unknown) {
-      console.error('Error refreshing workflow/project data:', err)
+    } catch (_err: unknown) {
+      // Error refreshing workflow/project data - silently handled
     }
   }, [project?.workflow_instance_id, projectId])
 
@@ -1023,8 +980,7 @@ export default function ProjectDetailPage() {
           } as ProjectWithDetails) : null)
         }
       }
-    } catch (error: unknown) {
-      console.error('Error reopening project:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to reopen project')
     } finally {
       setReopeningProject(false)
@@ -1076,8 +1032,7 @@ export default function ProjectDetailPage() {
           } as ProjectWithDetails) : null)
         }
       }
-    } catch (error: unknown) {
-      console.error('Error completing project:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to complete project')
     } finally {
       setCompletingProject(false)
@@ -1124,8 +1079,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.success(`Estimated hours set to ${finalHours}h`)
       }
-    } catch (error: unknown) {
-      console.error('Error saving project hours:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to save estimated hours')
     } finally {
       setSavingProjectHours(false)
@@ -1143,8 +1097,6 @@ export default function ProjectDetailPage() {
 
       if (response.ok) {
         setTeamMembers(data.assignments || [])
-      } else {
-        console.error('Error loading team members:', data.error)
       }
 
       // Also get the workflow instance ID for node assignments
@@ -1160,15 +1112,15 @@ export default function ProjectDetailPage() {
           .limit(1)
 
         if (instanceError) {
-          console.error('Error fetching workflow instance:', instanceError)
+          // Error fetching workflow instance - silently handled
         }
 
         const instanceList = instances as Record<string, unknown>[] | null
         const instance = instanceList?.[0]
         setWorkflowInstanceId((instance?.id as string) || null)
       }
-    } catch (error: unknown) {
-      console.error('Error loading team members:', error)
+    } catch (_error: unknown) {
+      // Error loading team members - silently handled
     } finally {
       setLoadingTeamMembers(false)
     }
@@ -1193,11 +1145,9 @@ export default function ProjectDetailPage() {
       if (response.ok) {
         setWorkflowNodes(data.nodes || [])
       } else {
-        console.error('Error loading workflow nodes:', data.error)
         setWorkflowNodes([])
       }
-    } catch (error: unknown) {
-      console.error('Error loading workflow nodes:', error)
+    } catch (_error: unknown) {
       setWorkflowNodes([])
     }
   }, [workflowInstanceId])
@@ -1226,8 +1176,7 @@ export default function ProjectDetailPage() {
       // Reload team members and workflow nodes to get updated data
       await loadTeamMembers()
       await loadWorkflowNodes(userId) // Pass userId to get updated eligibility
-    } catch (error: unknown) {
-      console.error('Error assigning user to step:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to update step assignment')
     } finally {
       setAssigningToStep(false)
@@ -1256,8 +1205,7 @@ export default function ProjectDetailPage() {
       // Reload team members and workflow nodes to get updated data
       await loadTeamMembers()
       await loadWorkflowNodes(userId) // Pass userId to get updated eligibility
-    } catch (error: unknown) {
-      console.error('Error removing user from step:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to remove step assignment')
     } finally {
       setAssigningToStep(false)
@@ -1302,7 +1250,7 @@ export default function ProjectDetailPage() {
         .in('id', userIds)
 
       if (usersError) {
-        console.error('Error loading user details:', usersError)
+        // Error loading user details - silently handled
       }
 
       // Create a map of user_id -> name
@@ -1317,8 +1265,8 @@ export default function ProjectDetailPage() {
       }))
 
       setWorkflowContributors(formattedContributors)
-    } catch (error: unknown) {
-      console.error('Error loading workflow contributors:', error)
+    } catch (_error: unknown) {
+      // Error loading workflow contributors - silently handled
     } finally {
       setLoadingWorkflowContributors(false)
     }
@@ -1341,7 +1289,6 @@ export default function ProjectDetailPage() {
         .order('name')
 
       if (error) {
-        console.error('Error loading users:', error)
         return
       }
 
@@ -1349,8 +1296,8 @@ export default function ProjectDetailPage() {
       const assignedUserIds = new Set(teamMembers.map((m: any) => m.user_id))
       const available = (users || []).filter((u: any) => !assignedUserIds.has(u.id as string))
       setAvailableUsers(available)
-    } catch (error: unknown) {
-      console.error('Error loading available users:', error)
+    } catch (_error: unknown) {
+      // Error loading available users - silently handled
     } finally {
       setLoadingAvailableUsers(false)
     }
@@ -1377,8 +1324,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(data.error || 'Failed to add team member')
       }
-    } catch (error: unknown) {
-      console.error('Error adding team member:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to add team member')
     } finally {
       setAddingMember(false)
@@ -1410,8 +1356,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(data.error || 'Failed to remove team member')
       }
-    } catch (error: unknown) {
-      console.error('Error removing team member:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to remove team member')
     } finally {
       setRemovingMemberId(null)
@@ -1450,9 +1395,7 @@ export default function ProjectDetailPage() {
 
   const handleProjectUpdated = async () => {
     setEditDialogOpen(false)
-    
-    console.log('[PAGE RELOAD] Project updated - reloading data (dialog has already verified data is synced)...')
-    
+
     // The dialog has already polled and verified the data is in the database
     // So we can just fetch it immediately using the same method as initial page load
     const loadProject = async () => {
@@ -1468,14 +1411,8 @@ export default function ProjectDetailPage() {
         )
 
         // Fetch stakeholders using SQL function (same as initial load)
-        console.log('[PAGE RELOAD] Fetching stakeholders via SQL function...')
-        const { data: stakeholdersRawData, error: stakeholdersError } = await supabase
+        const { data: stakeholdersRawData, error: _stakeholdersError2 } = await supabase
           .rpc('get_project_stakeholders', { project_uuid: projectId })
-
-        console.log('[PAGE RELOAD] Stakeholders result:', {
-          count: stakeholdersRawData?.length || 0,
-          error: stakeholdersError
-        })
 
         // Transform SQL function output
         const stakeholdersData = stakeholdersRawData?.map((row: any) => ({
@@ -1501,7 +1438,6 @@ export default function ProjectDetailPage() {
           .maybeSingle()
 
         if (queryError) {
-          console.error('Error fetching project:', queryError)
           throw new Error('Failed to load project')
         }
 
@@ -1613,17 +1549,8 @@ export default function ProjectDetailPage() {
           stakeholders: stakeholdersData || []
         }
 
-        console.log('[PAGE RELOAD] Project reloaded after update:', {
-          id: projectWithDetails.id,
-          name: projectWithDetails.name,
-          stakeholders_count: projectWithDetails.stakeholders.length,
-          departments_count: projectWithDetails.departments.length,
-          stakeholders: projectWithDetails.stakeholders
-        })
-
         setProject(projectWithDetails)
       } catch (err: unknown) {
-        console.error('[PAGE RELOAD] Error loading project:', err)
         setError(err instanceof Error ? err.message : 'Failed to load project')
       } finally {
         setLoading(false)
@@ -1644,11 +1571,9 @@ export default function ProjectDetailPage() {
 
       if (response.ok) {
         setProjectUpdates(result.updates)
-      } else {
-        console.error('Error loading updates:', result.error)
       }
-    } catch (error: unknown) {
-      console.error('Error loading project updates:', error)
+    } catch (_error: unknown) {
+      // Error loading project updates - silently handled
     } finally {
       setLoadingUpdates(false)
     }
@@ -1687,8 +1612,7 @@ export default function ProjectDetailPage() {
       } else {
         toast.error(result.error || 'Failed to create update. Please try again.')
       }
-    } catch (error: unknown) {
-      console.error('Error creating update:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to create update. Please try again.')
     } finally {
       setSubmittingUpdate(false)
@@ -1706,11 +1630,9 @@ export default function ProjectDetailPage() {
 
       if (response.ok) {
         setProjectIssues(result.issues)
-      } else {
-        console.error('Error loading issues:', result.error)
       }
-    } catch (error: unknown) {
-      console.error('Error loading project issues:', error)
+    } catch (_error: unknown) {
+      // Error loading project issues - silently handled
     } finally {
       setLoadingIssues(false)
     }
@@ -1753,7 +1675,6 @@ export default function ProjectDetailPage() {
         .order('created_at', { ascending: true })
 
       if (historyError) {
-        console.error('Error loading workflow history:', historyError)
         return
       }
 
@@ -1817,8 +1738,8 @@ export default function ProjectDetailPage() {
       }
 
       setWorkflowFormData(formDataEntries)
-    } catch (error: unknown) {
-      console.error('Error loading workflow form data:', error)
+    } catch (_error: unknown) {
+      // Error loading workflow form data - silently handled
     } finally {
       setLoadingWorkflowFormData(false)
     }
@@ -1860,8 +1781,7 @@ export default function ProjectDetailPage() {
           toast.error(result.error || 'Failed to create issue. Please try again.')
         }
       }
-    } catch (error: unknown) {
-      console.error('Error creating issue:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to create issue. Please try again.')
     } finally {
       setSubmittingIssue(false)
@@ -1896,12 +1816,10 @@ export default function ProjectDetailPage() {
         if (!handleApiPermissionError(response, 'issues')) {
           toast.error(result.error || 'Failed to update issue status')
         }
-        console.error('Error response:', result)
       }
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       // Revert optimistic update on error
       setProjectIssues(previousIssues)
-      console.error('Error updating issue status:', error)
       toast.error('Failed to update issue status. Please try again.')
     }
   }
@@ -1924,8 +1842,7 @@ export default function ProjectDetailPage() {
         const result = await response.json()
         toast.error(result.error || 'Failed to save notes')
       }
-    } catch (error: unknown) {
-      console.error('Error saving notes:', error)
+    } catch (_error: unknown) {
       toast.error('Failed to save notes')
     } finally {
       setSavingNotes(false)

@@ -110,8 +110,8 @@ export function UserInbox() {
       if (approvalsData.success) {
         setPendingApprovals(approvalsData.approvals || []);
       }
-    } catch (error: unknown) {
-      console.error('Error loading inbox data:', error);
+    } catch {
+      // Failed to load inbox data
     } finally {
       setLoading(false);
     }

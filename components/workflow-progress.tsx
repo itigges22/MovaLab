@@ -339,7 +339,6 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
         .single();
 
       if (instanceError || !instance) {
-        console.error('Error loading workflow instance:', instanceError);
         return;
       }
 
@@ -351,20 +350,16 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
 
       // Use snapshot if available (this ensures deleted templates don't break projects)
       if ((instance as WorkflowInstance).started_snapshot?.nodes && (instance as WorkflowInstance).started_snapshot?.connections) {
-        console.log('[WorkflowProgress] Using snapshot data');
         allNodes = (instance as WorkflowInstance).started_snapshot!.nodes;
         connections = (instance as WorkflowInstance).started_snapshot!.connections;
       } else {
         // Fallback to live tables for older instances without snapshot
-        console.log('[WorkflowProgress] Falling back to live table queries');
-
         const { data: liveNodes, error: nodesError } = await supabase
           .from('workflow_nodes')
           .select('*')
           .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (nodesError || !liveNodes) {
-          console.error('Error loading workflow nodes:', nodesError);
           return;
         }
         allNodes = liveNodes as WorkflowNode[];
@@ -375,14 +370,12 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
           .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (connectionsError) {
-          console.error('Error loading connections:', connectionsError);
           return;
         }
         connections = liveConnections || [];
       }
 
       if (!allNodes || allNodes.length === 0) {
-        console.error('No workflow nodes found');
         return;
       }
 
@@ -412,7 +405,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
         .in('status', ['active', 'waiting']);
 
       if (stepsError) {
-        console.error('Error loading active steps:', stepsError);
+        // Error loading active steps handled by fallback logic below
       }
 
       // Determine current steps
@@ -462,7 +455,7 @@ export function WorkflowProgress({ workflowInstanceId, onStepClick }: WorkflowPr
       setNextSteps(nextStepInfos);
 
     } catch (error: unknown) {
-      console.error('Error loading workflow progress:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

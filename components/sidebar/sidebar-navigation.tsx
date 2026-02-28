@@ -284,7 +284,7 @@ export function SidebarNavigation() {
   }
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-screen">
+    <aside aria-label="Sidebar" className="w-60 flex-shrink-0 bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-screen">
       {/* Logo - matches top header height (h-14 = 56px) */}
       <div className="h-14 px-4 border-b border-[var(--sidebar-border)] flex items-center">
         <Link
@@ -303,7 +303,7 @@ export function SidebarNavigation() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4">
+      <nav className="flex-1 overflow-y-auto px-2 py-4" role="navigation" aria-label="Main navigation">
         {/* Main Section */}
         <SidebarSection title="Main">
           {(!permissionsChecked ? navigationItems.filter(item => item.allowUnassigned) : visibleItems).map((item) => {
@@ -326,6 +326,8 @@ export function SidebarNavigation() {
                           ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-text-active)]'
                           : 'text-[var(--sidebar-text-muted)] hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--sidebar-text)]'
                       )}
+                      aria-expanded={deptExpanded}
+                      aria-current={isDeptActive ? 'page' : undefined}
                     >
                       {isDeptActive && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[var(--sidebar-active-border)] rounded-r-full" />
@@ -346,6 +348,7 @@ export function SidebarNavigation() {
                     <div className="ml-4 mt-1 space-y-0.5 border-l border-[var(--sidebar-border)] pl-3">
                       <Link
                         href="/departments"
+                        aria-current={pathname === '/departments' ? 'page' : undefined}
                         className={cn(
                           'flex items-center gap-2 px-2 py-1.5 text-[12px] rounded-md transition-colors',
                           pathname === '/departments'
@@ -359,6 +362,7 @@ export function SidebarNavigation() {
                         <Link
                           key={dept.id}
                           href={`/departments/${dept.id}`}
+                          aria-current={pathname === `/departments/${dept.id}` ? 'page' : undefined}
                           className={cn(
                             'flex items-center gap-2 px-2 py-1.5 text-[12px] rounded-md transition-colors',
                             pathname === `/departments/${dept.id}`

@@ -134,6 +134,7 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 required
+                aria-required="true"
               />
             </div>
             <div className="space-y-2">

@@ -63,14 +63,6 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
         .single();
 
       if (instanceError || !instance) {
-        console.error('Error loading workflow instance:', {
-          error: instanceError,
-          errorCode: instanceError?.code,
-          errorMessage: instanceError?.message,
-          errorDetails: instanceError?.details,
-          workflowInstanceId,
-          instanceData: instance
-        });
         return;
       }
 
@@ -85,10 +77,8 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
         // Use snapshot data (protects against template deletion/modification)
         nodes = (instance as WorkflowInstance).started_snapshot!.nodes!;
         connections = (instance as WorkflowInstance).started_snapshot!.connections!;
-        console.log('[WorkflowTimeline] Using snapshot data');
       } else {
         // Fallback to live tables for older instances without snapshot
-        console.log('[WorkflowTimeline] No snapshot, querying live tables');
         const { data: liveNodes, error: nodesError } = await supabase
           .from('workflow_nodes')
           .select('*')
@@ -96,7 +86,6 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
           .order('position_y');
 
         if (nodesError || !liveNodes) {
-          console.error('Error loading workflow nodes:', nodesError);
           return;
         }
 
@@ -106,7 +95,6 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
           .eq('workflow_template_id', (instance as WorkflowInstance).workflow_template_id);
 
         if (connectionsError) {
-          console.error('Error loading connections:', connectionsError);
           return;
         }
 
@@ -123,7 +111,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
       setCurrentNodeIndex(currentIndex);
 
     } catch (error: unknown) {
-      console.error('Error loading workflow timeline:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

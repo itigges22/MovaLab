@@ -132,6 +132,8 @@ export function SidebarClockWidget({ onPopOut }: SidebarClockWidgetProps) {
           <div
             role="button"
             tabIndex={0}
+            aria-expanded={isExpanded}
+            aria-label={clockedIn ? `Time clock, clocked in for ${formatTime(elapsedTime)}` : 'Time clock, not clocked in'}
             onClick={() => setIsExpanded(!isExpanded)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsExpanded(!isExpanded); }}
             className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
@@ -163,6 +165,7 @@ export function SidebarClockWidget({ onPopOut }: SidebarClockWidgetProps) {
               onClick={onPopOut}
               className="p-1 rounded hover:bg-[var(--sidebar-active-bg)] text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)]"
               title="Pop out to floating widget"
+              aria-label="Pop out to floating widget"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>

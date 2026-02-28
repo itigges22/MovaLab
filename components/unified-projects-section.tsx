@@ -539,11 +539,11 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
                             >
                               {approval.projects?.name || 'Unnamed Project'}
                             </Link>
-                            <Badge className="bg-yellow-100 text-yellow-800">
+                            <Badge className="bg-yellow-100 text-yellow-800" aria-label="Status: Awaiting Approval">
                               Awaiting Approval
                             </Badge>
                             {approval.projects?.priority && (
-                              <Badge className={getPriorityColor(approval.projects.priority)}>
+                              <Badge className={getPriorityColor(approval.projects.priority)} aria-label={`Priority: ${approval.projects.priority}`}>
                                 {approval.projects.priority}
                               </Badge>
                             )}
@@ -612,11 +612,11 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
                             >
                               {project.name}
                             </Link>
-                            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-300" aria-label={`Workflow step: ${project.assigned_step.nodeName}`}>
                               {project.assigned_step.nodeName}
                             </Badge>
                             {project.priority && (
-                              <Badge className={getPriorityColor(project.priority)}>
+                              <Badge className={getPriorityColor(project.priority)} aria-label={`Priority: ${project.priority}`}>
                                 {project.priority}
                               </Badge>
                             )}
@@ -693,12 +693,12 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
                             >
                               {project.name}
                             </Link>
-                            <Badge className="bg-green-100 text-green-800 border-green-300">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                            <Badge className="bg-green-100 text-green-800 border-green-300" aria-label="Status: Completed">
+                              <CheckCircle2 className="w-3 h-3 mr-1" aria-hidden="true" />
                               Completed
                             </Badge>
                             {project.priority && (
-                              <Badge className={getPriorityColor(project.priority)}>
+                              <Badge className={getPriorityColor(project.priority)} aria-label={`Priority: ${project.priority}`}>
                                 {project.priority}
                               </Badge>
                             )}

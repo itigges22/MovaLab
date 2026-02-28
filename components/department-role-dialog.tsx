@@ -108,10 +108,7 @@ export default function DepartmentRoleDialog({
 
       // Check current user and their permissions
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('Current user:', (user as any)?.id, userError);
-      
       if (userError) {
-        console.error('Error getting user:', userError);
         toast.error('Authentication error. Please log in again.');
         return;
       }
@@ -123,8 +120,6 @@ export default function DepartmentRoleDialog({
           permissions: formData.permissions,
         };
         
-        console.log('Creating role with data:', insertData);
-
         const { data, error } = await (supabase as any)
           .from('roles')
           .insert(insertData)
@@ -132,13 +127,6 @@ export default function DepartmentRoleDialog({
           .single();
 
         if (error) {
-          console.error('Error creating role:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-            fullError: error
-          });
           toast.error(`Failed to create role: ${error.message || 'Unknown error'}`);
           return;
         }
@@ -150,9 +138,6 @@ export default function DepartmentRoleDialog({
           permissions: formData.permissions,
         };
         
-        console.log('Updating role with data:', updateData);
-        console.log('Role ID:', existingRole.id);
-
         const { data, error } = await (supabase as any)
           .from('roles')
           .update(updateData)
@@ -161,13 +146,6 @@ export default function DepartmentRoleDialog({
           .single();
 
         if (error) {
-          console.error('Error updating role:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-            fullError: error
-          });
           toast.error(`Failed to update role: ${error.message || 'Unknown error'}`);
           return;
         }
@@ -177,11 +155,6 @@ export default function DepartmentRoleDialog({
 
       setOpen(false);
     } catch (error: unknown) {
-      console.error('Error in handleSubmit:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
       toast.error(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);

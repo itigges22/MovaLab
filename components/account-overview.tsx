@@ -603,7 +603,7 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <h1 className="text-4xl font-bold text-foreground">{(account as any).name}</h1>
-                  <Badge variant={(account as any).status === 'active' ? 'default' : 'secondary'} className="text-xs whitespace-nowrap w-fit">
+                  <Badge variant={(account as any).status === 'active' ? 'default' : 'secondary'} className="text-xs whitespace-nowrap w-fit" aria-label={`Account status: ${(account as any).status}`}>
                     {(account as any).status}
                   </Badge>
                 </div>

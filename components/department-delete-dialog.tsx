@@ -66,8 +66,7 @@ export default function DepartmentDeleteDialog({
       } else {
         toast.error('Failed to delete department. Please try again.')
       }
-    } catch (error: unknown) {
-      console.error('Error deleting department:', error)
+    } catch {
       toast.error('An error occurred while deleting the department.')
     } finally {
       setLoading(false)

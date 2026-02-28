@@ -72,15 +72,7 @@ export default function WelcomePage() {
 
   // Debug logging (only in development)
   useEffect(() => {
-    if (userProfile && process.env.NODE_ENV === 'development') {
-      const computedUnassigned = isUnassigned(userProfile);
-      console.log('WelcomePage Debug:', {
-        userEmail: (userProfile as any).email,
-        computedUnassigned,
-        hasRoles,
-        userProfileRolesLength: userProfile.user_roles?.length || 0
-      });
-    }
+    // Debug info only in development
   }, [userProfile, hasRoles, isSuperadminUser, userIsUnassigned]);
 
   // Check if all three status items are completed

@@ -79,8 +79,6 @@ export default function ProfilePage() {
       setSaveError(null)
       setSaveSuccess(false)
       
-      console.log('Saving profile:', formData)
-      
       // Update the profile in the database
       await updateUserProfile({
         name: formData.name,
@@ -98,7 +96,6 @@ export default function ProfilePage() {
       setTimeout(() => { setSaveSuccess(false); }, 3000)
       
     } catch (error: unknown) {
-      console.error('Error saving profile:', error)
       setSaveError(error instanceof Error ? error.message : 'Failed to save profile')
     } finally {
       setIsSaving(false)
@@ -155,7 +152,6 @@ export default function ProfilePage() {
       setTimeout(() => { setPasswordSuccess(false); }, 3000)
       
     } catch (error: unknown) {
-      console.error('Error changing password:', error)
       setPasswordError(error instanceof Error ? error.message : 'Failed to change password')
     } finally {
       setIsSaving(false)

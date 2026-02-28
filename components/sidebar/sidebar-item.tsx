@@ -46,6 +46,7 @@ export function SidebarItem({
   return (
     <Link
       href={href}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-md transition-colors',
         'relative',

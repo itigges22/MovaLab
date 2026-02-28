@@ -234,7 +234,9 @@ export async function PATCH(
     if (body.due_date !== undefined) updateFields.due_date = body.due_date
     if (body.estimated_hours !== undefined) updateFields.estimated_hours = body.estimated_hours
     if (body.actual_hours !== undefined) updateFields.actual_hours = body.actual_hours
+    if (body.remaining_hours !== undefined) updateFields.remaining_hours = body.remaining_hours
     if (body.assigned_to !== undefined) updateFields.assigned_to = body.assigned_to
+    if (body.display_order !== undefined) updateFields.display_order = body.display_order
 
     if (Object.keys(updateFields).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })

@@ -15,7 +15,6 @@ export default function Page() {
 
     // If user is already authenticated, redirect to welcome page
     if (user) {
-      console.log('✅ Signup page: User already authenticated, redirecting to /welcome')
       router.replace('/welcome')
     }
   }, [user, loading, router])

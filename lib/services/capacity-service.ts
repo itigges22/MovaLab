@@ -123,6 +123,9 @@ class CapacityService {
     }
 
     // Default to 40 hours/week if no availability is set
+    // Note: Proportional capacity split (dividing by account count) is handled
+    // at the account level in /api/capacity/account/route.ts. User-level metrics
+    // correctly show full available hours.
     const availableHours = availability?.available_hours ?? DEFAULT_WEEKLY_HOURS;
 
     const weekAllocatedHours = allocError || !allocations

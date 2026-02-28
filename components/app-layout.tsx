@@ -82,7 +82,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
             <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
           </header>
-          <main className="flex-1 overflow-auto p-6">
+          <main role="main" className="flex-1 overflow-auto p-6">
             <div className="max-w-[1400px] mx-auto space-y-4">
               <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
               <div className="h-40 bg-gray-100 rounded animate-pulse" />
@@ -115,7 +115,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
 
         {/* Content */}
-        <main className="flex-1 overflow-auto bg-white">
+        <main role="main" className="flex-1 overflow-auto bg-white">
           <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {children}
           </div>

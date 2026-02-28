@@ -146,8 +146,7 @@ export default function AvailabilityCalendar({ userProfile, userId }: Availabili
           })
           setNotes('')
         }
-      } catch (error: unknown) {
-        console.error('Error loading availability:', error)
+      } catch {
         toast.error('Failed to load availability')
       } finally {
         setLoading(false)
@@ -186,7 +185,6 @@ export default function AvailabilityCalendar({ userProfile, userId }: Availabili
         toast.error(data.error || 'Failed to save availability')
       }
     } catch (error: unknown) {
-      console.error('Error saving availability:', error)
       toast.error('Failed to save availability')
     } finally {
       setSaving(false)
@@ -208,7 +206,6 @@ export default function AvailabilityCalendar({ userProfile, userId }: Availabili
 
       toast.success('Copied to next week. Click Save to confirm.')
     } catch (error: unknown) {
-      console.error('Error copying to next week:', error)
       toast.error('Failed to copy to next week')
     }
   }

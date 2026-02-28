@@ -50,8 +50,7 @@ function SetupPageContent() {
         const response = await fetch('/api/setup');
         const data = await response.json();
         setSetupStatus(data);
-      } catch (error) {
-        console.error('Error checking setup status:', error);
+      } catch {
         setMessage({ type: 'error', text: 'Failed to check setup status' });
       } finally {
         setLoading(false);
@@ -94,8 +93,7 @@ function SetupPageContent() {
           text: data.error || 'Setup failed. Please check your secret key.',
         });
       }
-    } catch (error) {
-      console.error('Error during setup:', error);
+    } catch {
       setMessage({ type: 'error', text: 'Setup failed. Please try again.' });
     } finally {
       setSubmitting(false);

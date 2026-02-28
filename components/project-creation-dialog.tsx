@@ -292,6 +292,7 @@ export default function ProjectCreationDialog({
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter project name"
                 required
+                aria-required="true"
               />
             </div>
             <div className="space-y-2">
@@ -332,7 +333,7 @@ export default function ProjectCreationDialog({
                 onValueChange={(value) => handleInputChange('accountId', value)}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger aria-required="true">
                   <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
@@ -384,6 +385,7 @@ export default function ProjectCreationDialog({
                 value={formData.startDate}
                 onChange={(e) => handleInputChange('startDate', e.target.value)}
                 required
+                aria-required="true"
               />
             </div>
             <div className="space-y-2">
@@ -394,6 +396,7 @@ export default function ProjectCreationDialog({
                 value={formData.endDate}
                 onChange={(e) => handleInputChange('endDate', e.target.value)}
                 required
+                aria-required="true"
               />
             </div>
           </div>
@@ -408,6 +411,7 @@ export default function ProjectCreationDialog({
               placeholder="Enter estimated hours"
               min="1"
               required
+              aria-required="true"
             />
           </div>
 

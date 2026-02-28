@@ -80,7 +80,7 @@ export default function DepartmentCreateDialog({
         .single();
 
       if (error) {
-        console.error('Error creating department:', error);
+
         toast.error('Failed to create department. Please try again.');
         return;
       }

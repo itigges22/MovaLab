@@ -395,6 +395,7 @@ export default function TaskCreateEditDialog({
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Enter task name"
               required
+              aria-required="true"
             />
           </div>
 

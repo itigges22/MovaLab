@@ -176,19 +176,12 @@ export function NodeConfigDialog({
   const sourceNodeInfo = useMemo(() => {
     if (nodeData?.type !== 'conditional' || !nodeId) return null;
 
-    // Debug logging
-    console.log('[NodeConfigDialog] Looking for incoming edge to conditional node:', nodeId);
-    console.log('[NodeConfigDialog] Available edges:', allEdges.map((e: any) => ({ source: e.source, target: e.target })));
-    console.log('[NodeConfigDialog] Available nodes:', allNodes.map((n: any) => ({ id: n.id, type: n.data.type })));
-
     // Find incoming edge to this node
     const incomingEdge = allEdges.find((e: any) => e.target === nodeId);
-    console.log('[NodeConfigDialog] Found incoming edge:', incomingEdge);
     if (!incomingEdge) return { type: 'none' as const, node: null };
 
     // Find the source node
     const sourceNode = allNodes.find((n: any) => n.id === incomingEdge.source);
-    console.log('[NodeConfigDialog] Found source node:', sourceNode?.data.type);
     if (!sourceNode) return { type: 'none' as const, node: null };
 
     return { type: sourceNode.data.type, node: sourceNode };
@@ -362,11 +355,6 @@ export function NodeConfigDialog({
   const filteredRoles = selectedDepartment && selectedDepartment !== "all"
     ? roles.filter((r:any) => r.department_id === selectedDepartment)
     : roles;
-
-  // Debug logging
-  console.log('NodeConfigDialog - departments:', departments.length, departments);
-  console.log('NodeConfigDialog - roles:', roles.length, roles);
-  console.log('NodeConfigDialog - nodeData:', nodeData);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

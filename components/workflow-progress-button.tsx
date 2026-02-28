@@ -221,7 +221,7 @@ export function WorkflowProgressButton({
         savedAt: new Date().toISOString(),
       }));
     } catch (e: unknown) {
-      console.warn('Failed to auto-save form data:', e);
+      // Error handled silently
     }
   }, [formData, decision, feedback, selectedUserId, selectedUserPerNode, workflowInstanceId, dialogOpen, getFormSaveKey]);
 
@@ -243,7 +243,7 @@ export function WorkflowProgressButton({
         }
       }
     } catch (e: unknown) {
-      console.warn('Failed to load saved form data:', e);
+      // Error handled silently
     }
     return null;
   }, [getFormSaveKey]);
@@ -254,7 +254,7 @@ export function WorkflowProgressButton({
     try {
       localStorage.removeItem(saveKey);
     } catch (e: unknown) {
-      console.warn('Failed to clear saved form data:', e);
+      // Error handled silently
     }
   }, [getFormSaveKey]);
 
@@ -285,7 +285,7 @@ export function WorkflowProgressButton({
         const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, { projectId });
         setCanExecuteWorkflows(canExecute);
       } catch (error: unknown) {
-        console.error('Error checking workflow permissions:', error);
+        // Error handled silently
         setCanExecuteWorkflows(false);
       } finally {
         setCheckingPermissions(false);
@@ -323,14 +323,6 @@ export function WorkflowProgressButton({
           .single();
 
         if (error || !instance) {
-          console.error('Error loading workflow instance for access check:', {
-            error,
-            errorCode: error?.code,
-            errorMessage: error?.message,
-            errorDetails: error?.details,
-            workflowInstanceId,
-            instanceData: instance
-          });
           return;
         }
 
@@ -548,7 +540,6 @@ export function WorkflowProgressButton({
           }
         }
       } catch (error: unknown) {
-        console.error('Error checking access permissions:', error);
         // On error, default to hiding the button for safety
         setHasRequiredRole(false);
         setIsAssignedToProject(false);
@@ -578,7 +569,6 @@ export function WorkflowProgressButton({
         .single();
 
       if (instanceError || !instance) {
-        console.error('Error loading workflow instance:', instanceError);
         return;
       }
 
@@ -587,12 +577,6 @@ export function WorkflowProgressButton({
       const snapshotNodes = ((instance as any).started_snapshot?.nodes || []) as any[];
       const snapshotConnections = ((instance as any).started_snapshot?.connections || []) as any[];
       const hasSnapshot = snapshotNodes.length > 0 && snapshotConnections.length > 0;
-
-      console.log('[WorkflowProgressButton] Snapshot status:', {
-        hasSnapshot,
-        snapshotNodesCount: snapshotNodes.length,
-        snapshotConnectionsCount: snapshotConnections.length
-      });
 
       // Check for stale data - if workflow was updated since we last loaded
       const currentUpdatedAt = (instance as any).updated_at;
@@ -641,17 +625,11 @@ export function WorkflowProgressButton({
           nodeIdToLoad = (activeSteps[0] as any).node_id;
           activeStepIdToUse = (activeSteps[0] as any).id;
           setBranchId((activeSteps[0] as any).branch_id);
-          console.log('[WorkflowProgressButton] Using active step:', {
-            nodeId: nodeIdToLoad,
-            stepId: activeStepIdToUse,
-            branchId: (activeSteps[0] as any).branch_id
-          });
         } else if ((instance as any).current_node_id) {
           // Fallback to current_node_id if no active steps found
           setBranchId(null);
         } else {
           // No active steps and no current_node_id - workflow may be stuck
-          console.warn('[WorkflowProgressButton] No active step or current_node_id found');
           setBranchId(null);
         }
       }
@@ -665,10 +643,8 @@ export function WorkflowProgressButton({
         if (hasSnapshot) {
           // Use snapshot data (protects against template deletion/modification)
           currentNodeData = snapshotNodes.find((n: any) => n.id === nodeIdToLoad) || null;
-          console.log('[WorkflowProgressButton] Using snapshot for current node:', currentNodeData?.label);
         } else {
           // Fallback to live table for older instances without snapshot
-          console.log('[WorkflowProgressButton] No snapshot, querying live table for node');
           const { data: nodeData } = await supabase
             .from('workflow_nodes')
             .select('*')
@@ -928,7 +904,6 @@ export function WorkflowProgressButton({
           connections = snapshotConnections.filter(
             (c: any) => c.from_node_id === nodeIdForConnections
           );
-          console.log('[WorkflowProgressButton] Using snapshot connections:', connections.length);
         } else {
           // Fallback to live table
           const { data: liveConnections } = await supabase
@@ -953,7 +928,6 @@ export function WorkflowProgressButton({
           if (hasSnapshot) {
             // Use snapshot nodes
             allNextNodes = snapshotNodes.filter((n: any) => nextNodeIds.includes(n.id));
-            console.log('[WorkflowProgressButton] Using snapshot for next nodes:', allNextNodes.map((n: any) => n.label));
           } else {
             // Fallback to live table
             const { data: liveNextNodes } = await supabase
@@ -1031,7 +1005,6 @@ export function WorkflowProgressButton({
 
         setProjectIssues(issues || []);
       } catch (issuesError) {
-        console.error('Error loading project issues:', issuesError);
         setProjectIssues([]);
       } finally {
         setLoadingIssues(false);
@@ -1134,12 +1107,11 @@ export function WorkflowProgressButton({
           setParallelApprovers([]);
         }
       } catch (parallelError) {
-        console.error('Error loading parallel approvers:', parallelError);
         setIsParallelApproval(false);
         setParallelApprovers([]);
       }
     } catch (error: unknown) {
-      console.error('Error loading workflow data:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -1353,7 +1325,6 @@ export function WorkflowProgressButton({
       // Refresh server data
       router.refresh();
     } catch (error: any) {
-      console.error('Error progressing workflow:', error);
       toast.error(error?.message || 'Failed to progress workflow');
     } finally {
       setSubmitting(false);
