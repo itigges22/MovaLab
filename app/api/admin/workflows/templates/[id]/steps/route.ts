@@ -121,6 +121,88 @@ export async function PUT(
       }
     }
 
+    // Validate entity references (roles/departments still exist in the database)
+    const entityIds: string[] = [];
+    for (const node of nodes) {
+      const config = node.data?.config as Record<string, unknown> | undefined;
+      const entityId = config?.roleId || config?.approverRoleId || config?.departmentId;
+      if (entityId && typeof entityId === 'string') {
+        entityIds.push(entityId);
+      }
+    }
+
+    if (entityIds.length > 0) {
+      const uniqueEntityIds = [...new Set(entityIds)];
+
+      // Check roles
+      const roleIds = nodes
+        .filter((n: any) => {
+          const config = n.data?.config as Record<string, unknown> | undefined;
+          return config?.roleId || config?.approverRoleId;
+        })
+        .map((n: any) => {
+          const config = n.data?.config as Record<string, unknown>;
+          return (config?.roleId || config?.approverRoleId) as string;
+        })
+        .filter(Boolean);
+
+      if (roleIds.length > 0) {
+        const uniqueRoleIds = [...new Set(roleIds)];
+        const { data: existingRoles } = await supabase
+          .from('roles')
+          .select('id')
+          .in('id', uniqueRoleIds);
+
+        const existingRoleIds = new Set((existingRoles || []).map((r: any) => r.id));
+        const missingRoles = uniqueRoleIds.filter(id => !existingRoleIds.has(id));
+
+        if (missingRoles.length > 0) {
+          const affectedNodes = nodes
+            .filter((n: any) => {
+              const config = n.data?.config as Record<string, unknown> | undefined;
+              return missingRoles.includes((config?.roleId || config?.approverRoleId) as string);
+            })
+            .map((n: any) => n.data?.label || n.id);
+
+          return NextResponse.json({
+            error: `Referenced role(s) no longer exist. Please reconfigure: ${affectedNodes.join(', ')}`,
+            details: `${missingRoles.length} role(s) have been deleted. Update the affected node configurations.`
+          }, { status: 400 });
+        }
+      }
+
+      // Check departments
+      const departmentIds = nodes
+        .filter((n: any) => (n.data?.config as Record<string, unknown> | undefined)?.departmentId)
+        .map((n: any) => (n.data?.config as Record<string, unknown>)?.departmentId as string)
+        .filter(Boolean);
+
+      if (departmentIds.length > 0) {
+        const uniqueDeptIds = [...new Set(departmentIds)];
+        const { data: existingDepts } = await supabase
+          .from('departments')
+          .select('id')
+          .in('id', uniqueDeptIds);
+
+        const existingDeptIds = new Set((existingDepts || []).map((d: any) => d.id));
+        const missingDepts = uniqueDeptIds.filter(id => !existingDeptIds.has(id));
+
+        if (missingDepts.length > 0) {
+          const affectedNodes = nodes
+            .filter((n: any) => {
+              const config = n.data?.config as Record<string, unknown> | undefined;
+              return missingDepts.includes(config?.departmentId as string);
+            })
+            .map((n: any) => n.data?.label || n.id);
+
+          return NextResponse.json({
+            error: `Referenced department(s) no longer exist. Please reconfigure: ${affectedNodes.join(', ')}`,
+            details: `${missingDepts.length} department(s) have been deleted. Update the affected node configurations.`
+          }, { status: 400 });
+        }
+      }
+    }
+
     // Verify the template exists
     logger.debug('[Workflow Save] Verifying template exists', { templateId });
     const { data: template, error: templateError } = await supabase

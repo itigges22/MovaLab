@@ -105,10 +105,10 @@ export function validateWorkflow(
   // Check for orphaned nodes (nodes with no incoming or outgoing edges, except start/end)
   const orphanedNodes = findOrphanedNodes(nodes, edges);
   for (const node of orphanedNodes) {
-    warnings.push({
-      type: 'warning',
+    errors.push({
+      type: 'error',
       code: 'ORPHANED_NODE',
-      message: `Node "${node.data?.label || 'Unknown'}" is not connected to the workflow`,
+      message: `Node "${node.data?.label || 'Unknown'}" is not connected to the workflow. Connect it or remove it before saving.`,
       nodeId: node.id,
       nodeLabel: node.data?.label as string
     });

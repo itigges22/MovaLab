@@ -113,8 +113,58 @@ function WorkflowCanvasInner({
         return;
       }
 
-      const sourceNode = nodes.find((n:any) => n.id === params.source);
+      // Prevent connections TO start nodes (start is entry-only)
       const targetNode = nodes.find((n:any) => n.id === params.target);
+      if (targetNode?.data.type === 'start') {
+        toast.error('Cannot connect to a Start node');
+        return;
+      }
+
+      // Prevent connections FROM end nodes (end is exit-only)
+      const sourceNode = nodes.find((n:any) => n.id === params.source);
+      if (sourceNode?.data.type === 'end') {
+        toast.error('Cannot connect from an End node');
+        return;
+      }
+
+      // Prevent duplicate connections between same source and target
+      const duplicateEdge = edges.find(
+        (e:any) => e.source === params.source && e.target === params.target
+          && e.sourceHandle === params.sourceHandle
+      );
+      if (duplicateEdge) {
+        toast.error('A connection already exists between these nodes');
+        return;
+      }
+
+      // Detect cycles: check if adding this edge would create a non-rejection cycle
+      // Walk from target node following existing edges — if we reach source, it's a cycle
+      const wouldCreateCycle = (source: string, target: string): boolean => {
+        const visited = new Set<string>();
+        const stack = [target];
+        while (stack.length > 0) {
+          const current = stack.pop()!;
+          if (current === source) return true;
+          if (visited.has(current)) continue;
+          visited.add(current);
+          // Follow all outgoing edges except rejection loops
+          for (const edge of edges) {
+            if (edge.source === current) {
+              const edgeData = edge.data as Record<string, unknown> | undefined;
+              const isRejection = edgeData?.decision === 'rejected' || edgeData?.conditionValue === 'rejected';
+              if (!isRejection) {
+                stack.push(edge.target);
+              }
+            }
+          }
+        }
+        return false;
+      };
+
+      if (wouldCreateCycle(params.source!, params.target!)) {
+        toast.error('This connection would create a cycle. Cycles are only allowed via rejection paths.');
+        return;
+      }
 
       // CASE 1: Connecting FROM a conditional node
       // The sourceHandle identifies which branch - auto-set the label based on handle
@@ -240,6 +290,12 @@ function WorkflowCanvasInner({
       const type = event.dataTransfer.getData('application/reactflow') as WorkflowNodeType;
 
       if (!type) return;
+
+      // Prevent adding multiple start nodes
+      if (type === 'start' && nodes.some((n:any) => n.data.type === 'start')) {
+        toast.error('Workflow can only have one Start node');
+        return;
+      }
 
       const position = screenToFlowPosition({
         x: event.clientX,
