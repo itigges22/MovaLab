@@ -236,11 +236,12 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/time-entries/${editingEntry.id}`, {
+      const response = await fetch(`/api/time-entries`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          hours_logged: hours,
+          entryId: editingEntry.id,
+          hoursLogged: hours,
           description: editDescription || null,
         }),
       });
@@ -271,7 +272,7 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
     if (!deletingEntry) return;
 
     try {
-      const response = await fetch(`/api/time-entries/${deletingEntry.id}`, {
+      const response = await fetch(`/api/time-entries?entryId=${deletingEntry.id}`, {
         method: 'DELETE',
       });
 

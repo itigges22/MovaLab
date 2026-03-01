@@ -332,11 +332,12 @@ export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
             <div className="p-4 bg-[#647878]/10 dark:bg-[#647878]/20 rounded-lg">
               <p className="text-sm font-medium text-[#475250] dark:text-[#7B8994]">Average Daily Hours</p>
               <p className="text-2xl font-bold text-[#647878] mt-1">
-                {dailyData.length > 0
-                  ? (totalHours / 30).toFixed(1)
-                  : '0.0'}
+                {(() => {
+                  const activeDays = dailyData.filter(d => d.hours > 0).length;
+                  return activeDays > 0 ? (totalHours / activeDays).toFixed(1) : '0.0';
+                })()}
               </p>
-              <p className="text-xs text-[#787878] mt-1">Per day (30-day average)</p>
+              <p className="text-xs text-[#787878] mt-1">Per active work day (last 30 days)</p>
             </div>
           </div>
         </CardContent>

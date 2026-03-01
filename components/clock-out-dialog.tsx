@@ -85,7 +85,8 @@ export function ClockOutDialog({
         }])
       }
     }
-  }, [open, allocations.length, elapsedHours])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- elapsedHours changes every second; only re-run when dialog opens or allocations are cleared
+  }, [open, allocations.length])
 
   const loadProjects = async () => {
     setLoading(true)

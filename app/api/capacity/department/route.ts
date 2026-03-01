@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 // Type definitions
@@ -53,6 +55,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Department ID is required' },
         { status: 400 }
+      );
+    }
+
+    // Permission check: requires VIEW_TEAM_CAPACITY or VIEW_ALL_CAPACITY
+    const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
+    const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
+
+    if (!canViewTeam && !canViewAll) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to view department capacity' },
+        { status: 403 }
       );
     }
 

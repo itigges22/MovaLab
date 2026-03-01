@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 // Type definitions
@@ -51,6 +53,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const period = (searchParams.get('period') ?? 'weekly') as TimePeriod;
+
+    // Permission check: VIEW_ALL_CAPACITY required for organization-wide data
+    const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
+    if (!canViewAll) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to view organization capacity' },
+        { status: 403 }
+      );
+    }
 
     const ranges = getDateRanges(period);
     const earliestDate = ranges[0].startDate;

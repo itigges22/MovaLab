@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 // Type definitions
@@ -68,6 +70,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') ?? userProfile.id;
     const period = (searchParams.get('period') ?? 'weekly') as TimePeriod;
+
+    // Permission check: can view own data, or needs VIEW_TEAM_CAPACITY/VIEW_ALL_CAPACITY for others
+    const isOwnData = userId === userProfile.id;
+    if (!isOwnData) {
+      const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
+      const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
+
+      if (!canViewTeam && !canViewAll) {
+        return NextResponse.json(
+          { error: 'Insufficient permissions to view other users\' capacity history' },
+          { status: 403 }
+        );
+      }
+    }
 
     // Generate date ranges based on period
     const ranges = getDateRanges(period);
@@ -360,25 +376,14 @@ export async function GET(request: NextRequest) {
         allocated: Math.round(allocated * 100) / 100, // 2 decimal places
         actual: Math.round(actual * 100) / 100, // 2 decimal places
         utilization,
-        _weeksInPeriod: weeksInPeriod, // Debug: number of weeks counted
       };
     });
-
-    // Debug info
-    const debugInfo = {
-      availabilityRecordsCount: availabilityData.data?.length || 0,
-      timeEntriesCount: timeEntriesData.data?.length || 0,
-      tasksCount: uniqueTasks.length,
-      availabilityMap: Object.fromEntries(availabilityMap),
-      dateRange: { earliest: originalEarliestDate, latest: latestDate },
-    };
 
     return NextResponse.json({
       success: true,
       data: dataPoints,
       period,
       userId,
-      debug: debugInfo,
     });
   } catch (error: unknown) {
     const err = error as ErrorWithMessage;

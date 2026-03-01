@@ -149,31 +149,28 @@ class CapacityService {
           .not('status', 'eq', 'complete'),
         supabase
           .from('tasks')
-          .select('project_id, remaining_hours, estimated_hours, status')
+          .select('project_id, remaining_hours, estimated_hours, status, assigned_to')
           .in('project_id', projectIds)
       ]);
 
-      // Calculate hours per project
+      // Calculate hours per project — only count tasks assigned to THIS user
       if (projects) {
         for (const project of projects) {
-          // Get tasks for this project
+          // Get tasks assigned to this user in this project
           const tasksForProject = projectTasks?.filter((t: any) =>
             t.project_id === project.id &&
+            t.assigned_to === userId &&
             t.status !== 'done' &&
             t.status !== 'complete'
           ) || [];
 
-          // If project has tasks, use sum of task hours; otherwise use project estimated hours
+          // Sum remaining hours from user's tasks in this project
           if (tasksForProject.length > 0) {
-            // Sum remaining hours from tasks
             const taskHours = tasksForProject.reduce((sum: number, t: any) => {
               const hours = t.remaining_hours ?? t.estimated_hours ?? 0;
               return sum + hours;
             }, 0);
             projectAllocatedHours += taskHours;
-          } else {
-            // No tasks exist for this project, use project-level estimated hours
-            projectAllocatedHours += project.estimated_hours || 0;
           }
         }
       }
@@ -188,8 +185,10 @@ class CapacityService {
           }, 0)
       : 0;
 
-    // Total allocated is the max of all sources to avoid double-counting
-    const allocatedHours = Math.max(weekAllocatedHours, projectAllocatedHours, taskAllocatedHours);
+    // Use weekly allocations if available (most accurate), otherwise fall back to task-level data
+    const allocatedHours = weekAllocatedHours > 0
+      ? weekAllocatedHours
+      : taskAllocatedHours;
 
     const actualHours = timeEntries
       ? timeEntries.reduce((sum: number, e: any) => sum + (e.hours_logged || 0), 0)

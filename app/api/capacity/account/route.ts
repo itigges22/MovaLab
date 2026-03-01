@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, subDays, subWeeks, subMonths, startOfWeek, startOfMonth, startOfQuarter, subQuarters, endOfWeek, endOfMonth, endOfQuarter } from 'date-fns';
 import { DEFAULT_WEEKLY_HOURS } from '@/lib/constants';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 // Type definitions
@@ -56,11 +58,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Permission check: requires VIEW_TEAM_CAPACITY or VIEW_ALL_CAPACITY
+    const canViewTeam = await hasPermission(userProfile, Permission.VIEW_TEAM_CAPACITY, undefined, supabase);
+    const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_CAPACITY, undefined, supabase);
+
+    if (!canViewTeam && !canViewAll) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to view account capacity' },
+        { status: 403 }
+      );
+    }
+
     const ranges = getDateRanges(period);
     const earliestDate = ranges[0].startDate;
     const latestDate = ranges[ranges.length - 1].endDate;
-
-    logger.debug('[Capacity API] Account capacity request', { accountId, period, earliestDate, latestDate });
 
     // Get all projects for this account
     const { data: accountProjects, error: projectsError } = await supabase

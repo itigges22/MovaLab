@@ -109,6 +109,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate availableHours is a non-negative number within bounds
+    if (typeof availableHours !== 'number' || isNaN(availableHours) || availableHours < 0 || availableHours > 168) {
+      return NextResponse.json(
+        { error: 'availableHours must be a number between 0 and 168' },
+        { status: 400 }
+      );
+    }
+
     // Permission check: can only edit own availability
     if (userId !== userProfile.id) {
       return NextResponse.json(
