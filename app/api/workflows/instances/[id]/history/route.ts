@@ -45,18 +45,18 @@ export async function GET(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check VIEW_WORKFLOWS permission
-    const canView = await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
+    // Check EXECUTE_WORKFLOWS permission (users viewing their assigned workflow history)
+    const canView = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
     if (!canView) {
       return NextResponse.json({ error: 'Insufficient permissions to view workflows' }, { status: 403 });
     }
 
-    // Verify user has access to the workflow instance's project
-    const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, id);
-    if (!accessCheck.hasAccess) {
-      return NextResponse.json({
-        error: accessCheck.error || 'You do not have access to this workflow instance'
-      }, { status: 403 });
+    // Verify user has access to the workflow instance's project (superadmins bypass)
+    if (!(userProfile as any).is_superadmin) {
+      const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, id);
+      if (!accessCheck.hasAccess) {
+        return NextResponse.json({ error: 'You do not have access to this workflow instance' }, { status: 403 });
+      }
     }
 
     // Get workflow history

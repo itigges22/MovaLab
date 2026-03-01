@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { checkPermissionHybrid } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 /**
@@ -17,19 +19,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Get user profile with roles for permission checking
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is superadmin
-    const { data: userProfile } = await supabase
-      .from('user_profiles')
-      .select('is_superadmin')
-      .eq('id', user.id)
-      .single();
+    const user = { id: (userProfile as any).id };
 
-    const isSuperadmin = userProfile?.is_superadmin === true;
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canView = await checkPermissionHybrid(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canView) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
+    const isSuperadmin = (userProfile as any).is_superadmin === true;
 
     const pastProjects: Record<string, unknown>[] = [];
     const processedProjectIds = new Set<string>();

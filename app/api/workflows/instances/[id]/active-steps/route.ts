@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { getActiveSteps, getAllActiveAndWaitingSteps, isWorkflowComplete } from '@/lib/workflow-execution-service';
+import { checkPermissionHybrid } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
+import { verifyWorkflowInstanceAccess } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
 
 /**
@@ -20,10 +23,27 @@ export async function GET(
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    // Auth check - require authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Auth check - require authenticated user with profile
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = { id: (userProfile as any).id };
+    const isSuperadmin = (userProfile as any).is_superadmin === true;
+
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canView = await checkPermissionHybrid(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canView) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
+    // Access check: verify user has access to this workflow's project (superadmins bypass)
+    if (!isSuperadmin) {
+      const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, workflowInstanceId);
+      if (!accessCheck.hasAccess) {
+        return NextResponse.json({ error: 'You do not have access to this workflow instance' }, { status: 403 });
+      }
     }
 
     // Get active steps

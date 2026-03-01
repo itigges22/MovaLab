@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { checkPermissionHybrid } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
+import { verifyWorkflowInstanceAccess } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
 
 /**
@@ -16,10 +19,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Get user profile with roles for permission checking
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = { id: (userProfile as any).id };
+    const isSuperadmin = (userProfile as any).is_superadmin === true;
+
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canView = await checkPermissionHybrid(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canView) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -28,6 +40,14 @@ export async function GET(request: NextRequest) {
 
     if (!workflowInstanceId) {
       return NextResponse.json({ error: 'workflowInstanceId is required' }, { status: 400 });
+    }
+
+    // Access check: verify user has access to this workflow's project (superadmins bypass)
+    if (!isSuperadmin) {
+      const accessCheck = await verifyWorkflowInstanceAccess(supabase, user.id, workflowInstanceId);
+      if (!accessCheck.hasAccess) {
+        return NextResponse.json({ error: 'You do not have access to this workflow instance' }, { status: 403 });
+      }
     }
 
     // Get the workflow instance to get its template_id

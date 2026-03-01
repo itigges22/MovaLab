@@ -52,7 +52,7 @@ export async function POST(
     const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, { workflowInstanceId: id }, supabase);
     if (!canExecute) {
       return NextResponse.json({
-        error: 'Insufficient permissions to execute this workflow. You must be assigned to the current workflow node, or have EXECUTE_ANY_WORKFLOW override permission.'
+        error: 'Insufficient permissions to execute this workflow. You must be assigned to the current workflow node.'
       }, { status: 403 });
     }
 
@@ -76,7 +76,7 @@ export async function POST(
       const canSkip = await hasPermission(userProfile, Permission.SKIP_WORKFLOW_NODES, undefined, supabase);
       if (!canSkip) {
         return NextResponse.json({
-          error: 'Insufficient permissions for out-of-order handoffs. Requires SKIP_WORKFLOW_NODES permission.'
+          error: 'Insufficient permissions for out-of-order handoffs.'
         }, { status: 403 });
       }
     }

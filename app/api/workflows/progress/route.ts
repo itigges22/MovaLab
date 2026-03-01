@@ -3,6 +3,7 @@ import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supaba
 import { progressWorkflowStep } from '@/lib/workflow-execution-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
+import { verifyWorkflowInstanceAccess } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
 
 export async function POST(request: NextRequest) {
@@ -43,6 +44,14 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required field: workflowInstanceId' },
         { status: 400 }
       );
+    }
+
+    // Verify user has access to this workflow's project (superadmins bypass)
+    if (!(userProfile as any).is_superadmin) {
+      const accessCheck = await verifyWorkflowInstanceAccess(supabase, userProfile.id, workflowInstanceId);
+      if (!accessCheck.hasAccess) {
+        return NextResponse.json({ error: 'You do not have access to this workflow instance' }, { status: 403 });
+      }
     }
 
     // Use the new progressWorkflowStep function which supports parallel workflows
