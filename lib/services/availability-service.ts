@@ -166,9 +166,10 @@ class AvailabilityService {
    */
   async deleteUserAvailability(
     userId: string,
-    weekStartDate: string
+    weekStartDate: string,
+    supabaseClient?: AppSupabaseClient | null
   ): Promise<boolean> {
-    const supabase = createClientSupabase();
+    const supabase = supabaseClient || createClientSupabase();
     if (!supabase) return false;
 
     const { error } = await supabase

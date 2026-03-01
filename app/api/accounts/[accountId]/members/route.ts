@@ -59,22 +59,22 @@ export async function GET(
   try {
     const { accountId } = await params;
     logger.debug(`[GET /api/accounts/${accountId}/members] Starting request`);
-    
+
+    // Create Supabase client once for the entire request
+    const supabase = createApiSupabaseClient(request);
+    if (!supabase) {
+      logger.error('[GET /api/accounts/[accountId]/members] Supabase client not available');
+      return NextResponse.json({
+        error: 'Database connection failed',
+        details: 'Supabase client not available'
+      }, { status: 500 });
+    }
+
     // Check authentication and access to this account
     // Uses same access logic as account detail page for consistency
     try {
       const user = await requireAuthentication(request);
       logger.debug(`[GET /api/accounts/${accountId}/members] User authenticated`, { userId: user.id });
-
-      // Create API Supabase client for checking access
-      const supabase = createApiSupabaseClient(request);
-      if (!supabase) {
-        logger.error('[GET /api/accounts/[accountId]/members] Supabase client not available');
-        return NextResponse.json({
-          error: 'Database connection failed',
-          details: 'Supabase client not available'
-        }, { status: 500 });
-      }
 
       // Check if user is superadmin (bypasses all permission checks)
       const userIsSuperadmin = isSuperadmin(user);
@@ -135,15 +135,6 @@ export async function GET(
       };
       logger.debug(`[GET /api/accounts/${accountId}/members] Returning error response`, { errorResponse });
       return NextResponse.json(errorResponse, { status });
-    }
-    
-    const supabase = createApiSupabaseClient(request);
-    if (!supabase) {
-      logger.error('Supabase client not available');
-      return NextResponse.json({
-        error: 'Supabase client not available',
-        details: 'Database connection failed'
-      }, { status: 500 });
     }
 
     // Get account members with user details and roles

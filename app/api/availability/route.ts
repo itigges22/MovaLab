@@ -199,7 +199,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const success = await availabilityService.deleteUserAvailability(userId, weekStartDate);
+    const success = await availabilityService.deleteUserAvailability(userId, weekStartDate, supabase);
 
     if (!success) {
       return NextResponse.json(
