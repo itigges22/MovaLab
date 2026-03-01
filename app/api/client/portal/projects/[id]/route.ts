@@ -48,7 +48,7 @@ export async function GET(
     }
 
     // Get project details
-    const project = await getClientProjectById(id, user.id);
+    const project = await getClientProjectById(user.id, id);
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });

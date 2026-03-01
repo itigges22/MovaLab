@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       logger.error('Error fetching time entries', {}, error as unknown as Error);
       return NextResponse.json(
-        { error: 'Failed to fetch time entries', details: error.message },
+        { error: 'Failed to fetch time entries' },
         { status: 500 }
       );
     }

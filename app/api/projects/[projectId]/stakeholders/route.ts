@@ -40,7 +40,7 @@ export async function GET(
 
     if (error) {
       logger.error('Error fetching stakeholders', { action: 'getStakeholders', projectId }, error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch stakeholders' }, { status: 500 })
     }
 
     return NextResponse.json({ stakeholders: data || [] })

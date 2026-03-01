@@ -127,9 +127,8 @@ export async function GET(request: NextRequest) {
         errorCode: error.code,
         errorDetails: error.details
       }, error);
-      return NextResponse.json({ 
-        error: 'Failed to fetch project updates',
-        details: error.message 
+      return NextResponse.json({
+        error: 'Failed to fetch project updates'
       }, { status: 500 });
     }
 

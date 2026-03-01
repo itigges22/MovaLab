@@ -97,7 +97,7 @@ export const newsletterService = {
 
     if (tableError) {
       logger.error('Newsletters table error', {}, tableError as Error);
-      throw new Error(`Newsletters table not accessible: ${tableError.message}. Please run the create-newsletters.sql script first.`);
+      throw new Error('Newsletters table not accessible. Please run the create-newsletters.sql script first.');
     }
 
     const { data, error } = await supabase
@@ -117,13 +117,9 @@ export const newsletterService = {
 
     if (error) {
       logger.error('Error creating newsletter', {
-        message: error.message,
         code: error.code,
-        details: error.details,
-        hint: error.hint,
-        fullError: JSON.stringify(error)
-      });
-      throw new Error(`Failed to create newsletter: ${error.message || 'Unknown error'}`);
+      }, error as unknown as Error);
+      throw new Error('Failed to create newsletter');
     }
 
     return data;

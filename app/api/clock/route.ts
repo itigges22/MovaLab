@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       logger.error('Error creating clock session', {}, error as unknown as Error);
       return NextResponse.json(
-        { error: 'Failed to clock in', details: error.message },
+        { error: 'Failed to clock in' },
         { status: 500 }
       );
     }

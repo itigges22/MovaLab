@@ -122,7 +122,7 @@ export async function PUT(
     const err = error as Error
     logger.error('Error in PUT /api/tasks/[taskId]:', {}, err)
     return NextResponse.json({
-      error: `Failed to update task: ${err.message || 'Unknown error'}`
+      error: 'Failed to update task'
     }, { status: 500 })
   }
 }
@@ -240,7 +240,7 @@ export async function PATCH(
       }
 
       return NextResponse.json({
-        error: `Failed to update task: ${updateError.message || 'Unknown error'}`
+        error: 'Failed to update task'
       }, { status: 500 })
     }
 
@@ -249,7 +249,7 @@ export async function PATCH(
     const err = error as Error
     logger.error('Error in PATCH /api/tasks/[taskId]:', {}, err)
     return NextResponse.json({
-      error: `Failed to update task: ${err.message || 'Unknown error'}`
+      error: 'Failed to update task'
     }, { status: 500 })
   }
 }

@@ -337,9 +337,8 @@ export async function POST(request: NextRequest) {
         error: error.message,
         code: error.code
       }, error);
-      return NextResponse.json({ 
-        error: 'Failed to create role',
-        details: error.message 
+      return NextResponse.json({
+        error: 'Failed to create role'
       }, { status: 400 });
     }
 

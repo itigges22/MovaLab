@@ -333,9 +333,7 @@ export async function POST(
       }
 
       return NextResponse.json({
-        error: errorMessage,
-        details: error.message,
-        code: error.code
+        error: errorMessage
       }, { status: 500 });
     }
     

@@ -258,7 +258,6 @@ export async function DELETE(
     }, { status: 200 });
   } catch (error: unknown) {
     logger.error('Error in DELETE /api/admin/workflows/templates/[id]', {}, error as Error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

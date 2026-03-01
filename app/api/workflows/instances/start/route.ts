@@ -76,15 +76,15 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     logger.error('Error in POST /api/workflows/instances/start', {}, error as Error);
 
-    // Return the actual error message for workflow validation errors
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    // Return specific messages for known validation errors, generic for others
+    const errorMessage = error instanceof Error ? error.message : '';
     const isValidationError = errorMessage.includes('not active') ||
       errorMessage.includes('no nodes') ||
       errorMessage.includes('not found') ||
       errorMessage.includes('Invalid start node');
 
     return NextResponse.json({
-      error: errorMessage,
+      error: isValidationError ? errorMessage : 'Internal server error',
       success: false
     }, { status: isValidationError ? 400 : 500 });
   }

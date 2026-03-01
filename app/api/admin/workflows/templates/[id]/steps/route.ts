@@ -379,8 +379,7 @@ export async function PUT(
   } catch (error: unknown) {
 logger.error('Error in PUT /api/admin/workflows/templates/[id]/steps', {}, error as Error);
     return NextResponse.json({
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Internal server error'
     }, { status: 500 });
   }
 }

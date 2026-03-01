@@ -329,8 +329,7 @@ export async function GET(_request: NextRequest) {
   } catch (error) {
     logger.error('Error resetting demo data', {}, error as Error);
     return NextResponse.json({
-      error: 'Failed to reset demo data',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to reset demo data'
     }, { status: 500 });
   }
 }

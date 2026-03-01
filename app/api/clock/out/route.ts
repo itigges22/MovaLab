@@ -180,9 +180,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     logger.error('Error in POST /api/clock/out', {}, error as Error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: 'Internal server error', message: errorMessage },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

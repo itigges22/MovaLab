@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     if (taskError) {
       logger.error('Error creating task:', {}, taskError as unknown as Error)
-      return NextResponse.json({ error: 'Failed to create task: ' + taskError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })
     }
 
     // Add user as project collaborator if not already assigned

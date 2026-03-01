@@ -31,7 +31,7 @@ export async function getMilestones(): Promise<Milestone[]> {
 
   if (error) {
     logger.error('Error fetching milestones', {}, error as Error);
-    throw new Error(`Failed to fetch milestones: ${error.message}`);
+    throw new Error('Failed to fetch milestones');
   }
 
   return data || [];
@@ -56,7 +56,7 @@ export async function createMilestone(input: MilestoneInput): Promise<Milestone>
 
   if (error) {
     logger.error('Error creating milestone', {}, error as Error);
-    throw new Error(`Failed to create milestone: ${error.message}`);
+    throw new Error('Failed to create milestone');
   }
 
   return data;
@@ -86,7 +86,7 @@ export async function updateMilestone(
 
   if (error) {
     logger.error('Error updating milestone', {}, error as Error);
-    throw new Error(`Failed to update milestone: ${error.message}`);
+    throw new Error('Failed to update milestone');
   }
 
   return data;
@@ -105,7 +105,7 @@ export async function deleteMilestone(id: string): Promise<void> {
 
   if (error) {
     logger.error('Error deleting milestone', {}, error as Error);
-    throw new Error(`Failed to delete milestone: ${error.message}`);
+    throw new Error('Failed to delete milestone');
   }
 }
 

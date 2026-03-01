@@ -154,7 +154,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       logger.error('Error saving dashboard preferences', {}, error as unknown as Error);
       return NextResponse.json(
-        { error: 'Failed to save preferences', details: error.message },
+        { error: 'Failed to save preferences' },
         { status: 500 }
       );
     }
