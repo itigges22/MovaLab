@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiSupabaseClient } from '@/lib/supabase-server'
-import { hasPermission, isSuperadmin } from '@/lib/rbac'
+import { hasPermission, isSuperadmin, userHasProjectAccess } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
 
@@ -24,6 +24,32 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check project access
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        user_roles!user_roles_user_id_fkey (
+          roles (
+            id,
+            name,
+            permissions,
+            department_id
+          )
+        )
+      `)
+      .eq('id', user.id)
+      .single()
+
+    if (!userProfile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+    }
+
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase)
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })
     }
 
     // PARALLEL QUERY 1: Get assignments and workflow instance concurrently

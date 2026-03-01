@@ -38,8 +38,8 @@ export default function ProjectError({
             <Button onClick={reset} variant="default">
               Try again
             </Button>
-            <Button onClick={() => window.location.href = '/accounts'} variant="outline">
-              Back to accounts
+            <Button onClick={() => window.location.href = '/projects'} variant="outline">
+              Back to projects
             </Button>
           </div>
         </CardContent>

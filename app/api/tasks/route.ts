@@ -42,9 +42,18 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Task permissions are now inherited from project access
-    // Check if user has access to the project
-    if (body.project_id) {
+    // Require project_id — tasks must belong to a project
+    if (!body.project_id) {
+      return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
+    }
+
+    // Require task name
+    if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) {
+      return NextResponse.json({ error: 'Task name is required' }, { status: 400 })
+    }
+
+    // Task permissions are inherited from project access
+    {
       const hasAccess = await userHasProjectAccess(userProfile, body.project_id, supabase)
       if (!hasAccess) {
         return NextResponse.json({ error: 'You do not have access to this project' }, { status: 403 })

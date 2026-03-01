@@ -60,15 +60,16 @@ export async function PUT(
 ) {
   try {
     const { accountId } = await params;
+
+    // Authenticate before parsing body
+    await requireAuthAndPermission(Permission.MANAGE_PROJECTS, { accountId }, request);
+
     const body = await request.json();
     const { columns } = body;
 
     if (!columns || !Array.isArray(columns)) {
       return NextResponse.json({ error: 'Columns array is required' }, { status: 400 });
     }
-
-    // Require MANAGE_PROJECTS permission (consolidated from EDIT_PROJECT, kanban layout permissions are deprecated)
-    await requireAuthAndPermission(Permission.MANAGE_PROJECTS, { accountId }, request);
 
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {

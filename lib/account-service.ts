@@ -206,17 +206,16 @@ class AccountService {
           const role = ur.roles;
           if (!role) continue;
 
-          // Check if user has Superadmin role
-          const roleName = (role as any).name?.toLowerCase();
-          if (roleName === 'superadmin') {
+          // Check if role is a system superadmin role
+          if ((role as any).is_system_role === true && (role as any).name?.toLowerCase() === 'superadmin') {
             return true;
           }
 
           const permissions = role.permissions as Record<string, unknown> | null;
           if (!permissions) continue;
 
-          // Check for EDIT_ALL_PROJECTS permission (permission-based, not role name based)
-          if (permissions.edit_all_projects === true) {
+          // Check for MANAGE_ALL_PROJECTS permission (consolidated from edit_all_projects in Phase 8-9)
+          if (permissions.manage_all_projects === true || permissions.edit_all_projects === true) {
             return true;
           }
         }
@@ -277,13 +276,14 @@ class AccountService {
           const permissions = role.permissions as Record<string, unknown> | null;
           if (!permissions) continue;
 
-          if (permissions.edit_project === true) {
-            // Check if user is assigned to this project via project_assignments
+          if (permissions.edit_project === true || permissions.manage_projects === true) {
+            // Check if user is actively assigned to this project via project_assignments
             const { data: assignment } = await supabase
               .from('project_assignments')
               .select('id')
               .eq('project_id', projectId)
               .eq('user_id', userId)
+              .is('removed_at', null)
               .maybeSingle();
 
             if (assignment) {

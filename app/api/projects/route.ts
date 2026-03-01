@@ -159,13 +159,12 @@ export async function GET(request: NextRequest) {
 
     // Get URL parameters
     const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get('userId')
     const limitParam = searchParams.get('limit')
     const limit = limitParam ? parseInt(limitParam) : 10
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
-    }
+    // SECURITY: Always use the authenticated user's ID for permission checks,
+    // never an untrusted userId from query params
+    const userId = user.id
 
     // Get user profile with roles to check permissions
     const { data: userProfile } = await supabase

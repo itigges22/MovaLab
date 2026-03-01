@@ -409,9 +409,8 @@ export default function ProjectsPage() {
   const canDeleteProject = async (project: ProjectWithDetails): Promise<boolean> => {
     if (!userProfile) return false
 
-    // Check if user has DELETE_ALL_PROJECTS or MANAGE_ALL_PROJECTS permission (overrides)
-    const hasDeleteAll = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS) ||
-                         await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS)
+    // Check if user has MANAGE_ALL_PROJECTS permission (override for all projects)
+    const hasDeleteAll = await hasPermission(userProfile, Permission.MANAGE_ALL_PROJECTS)
     if (hasDeleteAll) return true
 
     // Check if user has MANAGE_PROJECTS permission (consolidated from DELETE_PROJECT)

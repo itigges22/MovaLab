@@ -64,6 +64,7 @@ export interface UpdateTaskData {
   due_date?: string | null;
   estimated_hours?: number | null;
   actual_hours?: number;
+  remaining_hours?: number | null;
   assigned_to?: string | null;
 }
 
@@ -284,14 +285,15 @@ class TaskServiceDB {
       const supabase = this.getSupabase();
 
       const updateData: TaskUpdate = {
-        ...(data.name && { name: data.name }),
+        ...(data.name !== undefined && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
-        ...(data.status && { status: data.status }),
-        ...(data.priority && { priority: data.priority }),
+        ...(data.status !== undefined && { status: data.status }),
+        ...(data.priority !== undefined && { priority: data.priority }),
         ...(data.start_date !== undefined && { start_date: data.start_date }),
         ...(data.due_date !== undefined && { due_date: data.due_date }),
         ...(data.estimated_hours !== undefined && { estimated_hours: data.estimated_hours }),
         ...(data.actual_hours !== undefined && { actual_hours: data.actual_hours }),
+        ...(data.remaining_hours !== undefined && { remaining_hours: data.remaining_hours }),
         ...(data.assigned_to !== undefined && { assigned_to: data.assigned_to }),
         updated_at: new Date().toISOString(),
       };

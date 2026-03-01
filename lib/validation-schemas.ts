@@ -85,12 +85,13 @@ export const updateAccountSchema = z.object({
 // ============================================================================
 
 export const createTaskSchema = z.object({
-  title: z.string().min(1, 'Task title is required').max(200, 'Title too long'),
+  name: z.string().min(1, 'Task name is required').max(200, 'Name too long'),
   description: z.string().max(5000, 'Description too long').optional().nullable(),
   project_id: uuidSchema,
   assigned_to: uuidSchema.optional().nullable(),
   estimated_hours: positiveNumberSchema.optional().nullable(),
   remaining_hours: nonNegativeNumberSchema.optional().nullable(),
+  start_date: dateSchema.optional().nullable(),
   due_date: dateSchema.optional().nullable(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked']).optional(),
