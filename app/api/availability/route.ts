@@ -9,6 +9,23 @@ import { availabilityService } from '@/lib/services/availability-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
+import { z } from 'zod';
+
+const createAvailabilitySchema = z.object({
+  userId: z.string().uuid('Invalid user ID'),
+  weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
+  availableHours: z.number().min(0).max(168),
+  scheduleData: z.object({
+    monday: z.number().min(0).max(24).optional(),
+    tuesday: z.number().min(0).max(24).optional(),
+    wednesday: z.number().min(0).max(24).optional(),
+    thursday: z.number().min(0).max(24).optional(),
+    friday: z.number().min(0).max(24).optional(),
+    saturday: z.number().min(0).max(24).optional(),
+    sunday: z.number().min(0).max(24).optional(),
+  }).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+});
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -98,29 +115,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
-    const { userId, weekStartDate, availableHours, scheduleData, notes } = body;
 
-    // Validation
-    if (!userId || !weekStartDate || availableHours === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields: userId, weekStartDate, availableHours' },
-        { status: 400 }
-      );
+    // Validate with Zod schema
+    const parsed = createAvailabilitySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      return NextResponse.json({ error: firstError.message }, { status: 400 });
     }
-
-    // Validate availableHours is a non-negative number within bounds
-    if (typeof availableHours !== 'number' || isNaN(availableHours) || availableHours < 0 || availableHours > 168) {
-      return NextResponse.json(
-        { error: 'availableHours must be a number between 0 and 168' },
-        { status: 400 }
-      );
-    }
+    const { userId, weekStartDate, availableHours, scheduleData, notes } = parsed.data;
 
     // Permission check: can only edit own availability
     if (userId !== userProfile.id) {
@@ -143,8 +151,8 @@ export async function POST(request: NextRequest) {
       userId,
       weekStartDate,
       availableHours,
-      scheduleData,
-      notes,
+      scheduleData ?? undefined,
+      notes ?? undefined,
       supabase
     );
 

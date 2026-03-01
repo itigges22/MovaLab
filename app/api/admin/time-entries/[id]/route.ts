@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -20,6 +21,10 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    if (!isValidUUID(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
 
     if (!supabase) {
@@ -117,6 +122,10 @@ export async function DELETE(
     if (blocked) return blocked;
 
     const { id } = await params;
+    if (!isValidUUID(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
 
     if (!supabase) {

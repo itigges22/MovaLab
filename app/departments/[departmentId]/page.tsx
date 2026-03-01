@@ -1,9 +1,19 @@
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { serverDepartmentService } from '@/lib/department-service';
 import { canViewDepartment, canManageDepartment, hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { DepartmentOverview } from '@/components/department-overview';
+
+export async function generateMetadata({ params }: { params: Promise<{ departmentId: string }> }): Promise<Metadata> {
+  const { departmentId } = await params;
+  const department = await serverDepartmentService.getDepartmentById(departmentId);
+
+  return {
+    title: department?.name || 'Department',
+  };
+}
 
 interface DepartmentPageProps {
   params: Promise<{

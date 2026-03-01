@@ -6,7 +6,7 @@ import { logger } from '@/lib/debug-logger';
 // Runs via Vercel Cron at midnight UTC
 // ONLY runs when DEMO_MODE is enabled
 
-const DEMO_PROJECT_URL = 'https://xxtelrazoeuirsnvdoml.supabase.co';
+const DEMO_PROJECT_URL = process.env.DEMO_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 // Check if demo mode is enabled
 function isDemoModeEnabled(): boolean {
@@ -28,15 +28,25 @@ export async function GET(_request: NextRequest) {
     );
   }
 
-  // Note: CRON_SECRET auth removed - DEMO_MODE check above is sufficient protection
-  // This endpoint is safe without additional auth because:
-  // 1. Only runs when DEMO_MODE=true (production deployments don't have this)
-  // 2. Only resets demo seed data (idempotent, no security risk)
-  // 3. No sensitive data is exposed or modified
+  // Validate CRON_SECRET if configured (prevents unauthorized triggering of demo reset)
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = _request.headers.get('authorization');
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { error: 'Unauthorized: invalid or missing CRON_SECRET' },
+        { status: 401 }
+      );
+    }
+  }
 
   const serviceRoleKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
     return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+  }
+
+  if (!DEMO_PROJECT_URL) {
+    return NextResponse.json({ error: 'Supabase URL not configured (set DEMO_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)' }, { status: 500 });
   }
 
   const supabase = createClient(DEMO_PROJECT_URL, serviceRoleKey);
@@ -67,16 +77,25 @@ export async function GET(_request: NextRequest) {
 
     // Ensure Operations Coordinator role exists (only if we have a valid department)
     if (operationsDeptId) {
-      const opsRoleUpsert = `
-        INSERT INTO roles (name, department_id, permissions, is_system_role, hierarchy_level, description) VALUES
-          ('Operations Coordinator', '${operationsDeptId}',
-            '{"view_projects": true, "manage_time": true, "view_time_entries": true, "edit_own_availability": true, "view_departments": true, "view_newsletters": true}'::jsonb,
-            FALSE, 50, 'Operations and logistics')
-        ON CONFLICT (name) DO UPDATE SET
-          department_id = EXCLUDED.department_id,
-          permissions = EXCLUDED.permissions;
-      `;
-      const { error: opsRoleError } = await supabase.rpc('exec_sql', { query: opsRoleUpsert });
+      const opsRolePermissions = {
+        view_projects: true,
+        manage_time: true,
+        view_time_entries: true,
+        edit_own_availability: true,
+        view_departments: true,
+        view_newsletters: true,
+      };
+      const { error: opsRoleError } = await supabase.from('roles').upsert(
+        {
+          name: 'Operations Coordinator',
+          department_id: operationsDeptId,
+          permissions: opsRolePermissions,
+          is_system_role: false,
+          hierarchy_level: 50,
+          description: 'Operations and logistics',
+        },
+        { onConflict: 'name' }
+      );
       if (opsRoleError) logger.error('Operations role upsert error', {}, opsRoleError as unknown as Error);
     }
 
@@ -295,6 +314,8 @@ export async function GET(_request: NextRequest) {
     if (stakeholdersError) logger.error('Stakeholders error', {}, stakeholdersError as unknown as Error);
 
     // Step 18: Update role permissions for demo (all internal users get manage_time, edit_own_availability, view_newsletters, view_issues)
+    // SAFETY NOTE: exec_sql is used here for bulk JSONB merge (permissions || jsonb). This is safe
+    // because all values are hardcoded strings with no user input interpolation.
     const rolePermissionsUpdate = `
       UPDATE roles SET permissions = permissions ||
         '{"manage_time": true, "edit_own_availability": true, "view_newsletters": true, "view_departments": true, "view_issues": true}'::jsonb
@@ -304,6 +325,7 @@ export async function GET(_request: NextRequest) {
     if (permError) logger.error('Role permissions update error', {}, permError as unknown as Error);
 
     // Step 19: Add leadership permissions (manage_issues for managers and above)
+    // SAFETY NOTE: exec_sql is used here for bulk JSONB merge. Safe because all values are hardcoded with no interpolation.
     const leadershipPermissionsUpdate = `
       UPDATE roles SET permissions = permissions ||
         '{"manage_issues": true}'::jsonb
@@ -313,6 +335,7 @@ export async function GET(_request: NextRequest) {
     if (leadershipPermError) logger.error('Leadership permissions update error', {}, leadershipPermError as unknown as Error);
 
     // Step 20: Add admin-specific permissions to Admin role
+    // SAFETY NOTE: exec_sql is used here for bulk JSONB merge. Safe because all values are hardcoded with no interpolation.
     const adminPermissionsUpdate = `
       UPDATE roles SET permissions = permissions ||
         '{"manage_departments": true, "manage_user_roles": true, "manage_workflows": true, "manage_accounts": true, "view_all_accounts": true, "view_all_projects": true, "manage_projects": true, "view_all_analytics": true, "view_all_capacity": true, "view_all_time_entries": true, "manage_all_workflows": true, "execute_any_workflow": true, "view_all_updates": true, "view_all_department_analytics": true, "view_all_account_analytics": true, "manage_users_in_accounts": true}'::jsonb

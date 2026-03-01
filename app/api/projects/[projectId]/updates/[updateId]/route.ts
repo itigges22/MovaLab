@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { userHasProjectAccess } from '@/lib/rbac';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 /**
  * PUT /api/projects/[projectId]/updates/[updateId]
@@ -13,6 +14,10 @@ export async function PUT(
 ) {
   try {
     const { projectId, updateId } = await params;
+    if (!isValidUUID(projectId) || !isValidUUID(updateId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
@@ -95,6 +100,10 @@ export async function DELETE(
 ) {
   try {
     const { projectId, updateId } = await params;
+    if (!isValidUUID(projectId) || !isValidUUID(updateId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });

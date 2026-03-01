@@ -108,6 +108,19 @@ export function PermissionManager({
     return categoryPermissions.length;
   };
 
+  if (Object.keys(currentPermissions).length === 0 && !isSystemRole) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-sm text-muted-foreground">Loading permissions...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isSystemRole) {
     return (
       <Card className="border-blue-200 bg-blue-50">

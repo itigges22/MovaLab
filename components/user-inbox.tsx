@@ -50,7 +50,43 @@ export function UserInbox() {
   const [workflowSteps, setWorkflowSteps] = useState<{ [key: string]: string | null }>({});
 
   useEffect(() => {
-    void loadInboxData();
+    let cancelled = false;
+
+    const loadInboxData = async () => {
+      try {
+        setLoading(true);
+
+        // Load my active projects
+        const projectsRes = await fetch('/api/workflows/my-projects');
+        if (cancelled) return;
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          if (projectsData.success) {
+            setMyProjects(projectsData.projects || []);
+          }
+        }
+
+        // Load pending approvals
+        const approvalsRes = await fetch('/api/workflows/my-approvals');
+        if (cancelled) return;
+        if (approvalsRes.ok) {
+          const approvalsData = await approvalsRes.json();
+          if (approvalsData.success) {
+            setPendingApprovals(approvalsData.approvals || []);
+          }
+        }
+      } catch {
+        // Failed to load inbox data
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadInboxData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Fetch workflow steps when myProjects changes
@@ -59,6 +95,8 @@ export function UserInbox() {
       setWorkflowSteps({});
       return;
     }
+
+    let cancelled = false;
 
     async function fetchWorkflowSteps() {
       const supabase = createClientSupabase() as any;
@@ -77,7 +115,7 @@ export function UserInbox() {
         .in('project_id', projectIds)
         .eq('status', 'active');
 
-      if (!error && workflowData) {
+      if (!cancelled && !error && workflowData) {
         const steps: { [key: string]: string | null } = {};
         workflowData.forEach((instance: any) => {
           const projectId = instance.project_id;
@@ -91,35 +129,11 @@ export function UserInbox() {
     }
 
     void fetchWorkflowSteps();
+
+    return () => {
+      cancelled = true;
+    };
   }, [myProjects]);
-
-  const loadInboxData = async () => {
-    try {
-      setLoading(true);
-
-      // Load my active projects
-      const projectsRes = await fetch('/api/workflows/my-projects');
-      if (projectsRes.ok) {
-        const projectsData = await projectsRes.json();
-        if (projectsData.success) {
-          setMyProjects(projectsData.projects || []);
-        }
-      }
-
-      // Load pending approvals
-      const approvalsRes = await fetch('/api/workflows/my-approvals');
-      if (approvalsRes.ok) {
-        const approvalsData = await approvalsRes.json();
-        if (approvalsData.success) {
-          setPendingApprovals(approvalsData.approvals || []);
-        }
-      }
-    } catch {
-      // Failed to load inbox data
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

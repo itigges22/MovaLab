@@ -349,9 +349,38 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-64 bg-gray-100 rounded animate-pulse mt-2" />
+            </div>
+            <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Week navigation skeleton */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+            <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
+            <div className="h-5 w-40 bg-gray-200 rounded animate-pulse" />
+            <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
+          </div>
+          {/* Calendar grid skeleton */}
+          <div className="border rounded-lg overflow-hidden">
+            <div className="grid grid-cols-8 border-b bg-gray-50">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="p-2 border-r last:border-r-0">
+                  <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+            {Array.from({ length: 8 }).map((_, row) => (
+              <div key={row} className="grid grid-cols-8 border-b last:border-b-0">
+                {Array.from({ length: 8 }).map((_, col) => (
+                  <div key={col} className="h-6 border-r last:border-r-0 bg-gray-100 animate-pulse" />
+                ))}
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

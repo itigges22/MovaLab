@@ -1,8 +1,13 @@
+import { Metadata } from 'next';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { accountService } from '@/lib/account-service';
 import { AccountsClientWrapper } from '@/components/accounts-client-wrapper';
 import { isSuperadmin, canManageAccounts, canViewAccounts } from '@/lib/rbac';
 import { createServerSupabase } from '@/lib/supabase-server';
+
+export const metadata: Metadata = {
+  title: 'Accounts',
+};
 
 export const dynamic = 'force-dynamic';
 

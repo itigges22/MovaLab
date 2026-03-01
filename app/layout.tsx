@@ -17,8 +17,25 @@ const raleway = Raleway({
 });
 
 export const metadata: Metadata = {
-  title: "MovaLab - Professional Service Automation",
-  description: "Professional Service Automation Platform for MovaLab",
+  title: {
+    default: 'MovaLab - Professional Service Automation',
+    template: '%s | MovaLab',
+  },
+  description: 'Professional Service Automation Platform for MovaLab - manage projects, track time, and streamline workflows.',
+  openGraph: {
+    title: 'MovaLab - Professional Service Automation',
+    description: 'Professional Service Automation Platform for MovaLab - manage projects, track time, and streamline workflows.',
+    type: 'website',
+    siteName: 'MovaLab',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'MovaLab - Professional Service Automation',
+    description: 'Professional Service Automation Platform for MovaLab',
+  },
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

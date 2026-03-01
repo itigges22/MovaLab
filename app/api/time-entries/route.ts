@@ -10,6 +10,22 @@ import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 import { logger } from '@/lib/debug-logger';
+import { z } from 'zod';
+
+const createTimeEntrySchema = z.object({
+  taskId: z.string().uuid('Invalid task ID').optional().nullable(),
+  projectId: z.string().uuid('Invalid project ID'),
+  hoursLogged: z.number().min(0.01).max(24),
+  entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
+  description: z.string().max(2000).optional().nullable(),
+  weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format').optional(),
+});
+
+const updateTimeEntrySchema = z.object({
+  entryId: z.string().uuid('Invalid entry ID'),
+  hoursLogged: z.number().min(0.01).max(24).optional(),
+  description: z.string().max(2000).optional().nullable(),
+});
 
 // Type definitions
 interface ErrorWithMessage extends Error {
@@ -113,28 +129,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
-    const { taskId, projectId, hoursLogged, entryDate, description } = body;
 
-    // Validation
-    if (!taskId || !projectId || hoursLogged === undefined || !entryDate) {
-      return NextResponse.json(
-        { error: 'Missing required fields: taskId, projectId, hoursLogged, entryDate' },
-        { status: 400 }
-      );
+    // Validate with Zod schema
+    const parsed = createTimeEntrySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      return NextResponse.json({ error: firstError.message }, { status: 400 });
     }
-
-    if (hoursLogged <= 0 || hoursLogged > 24) {
-      return NextResponse.json(
-        { error: 'Hours logged must be between 0 and 24' },
-        { status: 400 }
-      );
-    }
+    const { taskId, projectId, hoursLogged, entryDate, description } = parsed.data;
 
     // Permission check: LOG_TIME
     const canLogTime = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
@@ -217,28 +225,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
-    const { entryId, hoursLogged, entryDate, description } = body;
 
-    if (!entryId) {
-      return NextResponse.json(
-        { error: 'Missing required field: entryId' },
-        { status: 400 }
-      );
+    // Validate with Zod schema
+    const parsed = updateTimeEntrySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      return NextResponse.json({ error: firstError.message }, { status: 400 });
     }
-
-    // Validate hours range (same rules as POST)
-    if (hoursLogged !== undefined && (hoursLogged <= 0 || hoursLogged > 24)) {
-      return NextResponse.json(
-        { error: 'Hours logged must be between 0 and 24' },
-        { status: 400 }
-      );
-    }
+    const { entryId, hoursLogged, description } = parsed.data;
+    const entryDate = rawBody.entryDate;
 
     // Permission check: EDIT_OWN_TIME_ENTRIES
     const canEdit = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
@@ -291,7 +292,7 @@ export async function PATCH(request: NextRequest) {
     const timeEntry = await timeEntryService.updateTimeEntry(entryId, {
       hours_logged: hoursLogged,
       entry_date: entryDate,
-      description,
+      description: description ?? undefined,
     });
 
     if (!timeEntry) {

@@ -357,10 +357,11 @@ export function OrgChartCanvas({
   const [hasInitialLayout, setHasInitialLayout] = useState(false);
   useEffect(() => {
     if (nodes.length > 0 && !hasInitialLayout) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         onLayout();
         setHasInitialLayout(true);
       }, 100);
+      return () => clearTimeout(timer);
     }
   }, [nodes, onLayout, hasInitialLayout]);
 

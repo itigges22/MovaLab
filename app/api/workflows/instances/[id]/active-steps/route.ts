@@ -5,6 +5,7 @@ import { checkPermissionHybrid } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
 import { verifyWorkflowInstanceAccess } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 /**
  * GET /api/workflows/instances/[id]/active-steps
@@ -17,6 +18,10 @@ export async function GET(
   try {
     const resolvedParams = await params;
     const workflowInstanceId = resolvedParams.id;
+    if (!isValidUUID(workflowInstanceId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
 
     if (!supabase) {

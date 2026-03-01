@@ -122,6 +122,8 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
       return
     }
 
+    let cancelled = false
+
     async function fetchWorkflowSteps() {
       const supabase = createClientSupabase()!
       if (!supabase) return
@@ -139,7 +141,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
         .in('project_id', projectIds)
         .eq('status', 'active')
 
-      if (!error && workflowData) {
+      if (!cancelled && !error && workflowData) {
         const steps: { [key: string]: string | null } = {}
         workflowData.forEach((instance: any) => {
           const projectId = instance.project_id as string
@@ -154,6 +156,10 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     }
 
     fetchWorkflowSteps()
+
+    return () => {
+      cancelled = true
+    }
   }, [visibleProjects])
 
   // Transform projects to ProjectTableData format for the new table component

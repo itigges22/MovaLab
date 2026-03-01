@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserWithRoles } from '@/lib/rbac';
 import { createClientSupabase } from '@/lib/supabase';
@@ -54,89 +54,98 @@ export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
   const [projectData, setProjectData] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchChartData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const supabase = createClientSupabase() as any;
-      if (!supabase) return;
-
-      const thirtyDaysAgo = subDays(new Date(), 30);
-      const startDate = format(thirtyDaysAgo, 'yyyy-MM-dd');
-      const endDate = format(new Date(), 'yyyy-MM-dd');
-
-      // Fetch time entries for last 30 days
-      const { data: entries } = await supabase
-        .from('time_entries')
-        .select('entry_date, hours_logged, project_id, projects(id, name)')
-        .eq('user_id', (userProfile as any).id)
-        .gte('entry_date', startDate)
-        .lte('entry_date', endDate)
-        .order('entry_date', { ascending: true });
-
-      if (!entries) return;
-
-      // Process daily data
-      const dailyMap = new Map<string, number>();
-
-      // Initialize all days with 0 hours
-      for (let i = 0; i <= 30; i++) {
-        const date = subDays(new Date(), 30 - i);
-        const dateStr = format(date, 'yyyy-MM-dd');
-        dailyMap.set(dateStr, 0);
-      }
-
-      // Aggregate hours by day
-      entries.forEach((entry: { entry_date: string; hours_logged: number }) => {
-        const currentHours = dailyMap.get(entry.entry_date) || 0;
-        dailyMap.set(entry.entry_date, currentHours + (entry.hours_logged || 0));
-      });
-
-      // Convert to array for chart
-      const dailyArray: DailyData[] = Array.from(dailyMap.entries()).map(([date, hours]) => ({
-        date: format(parseISO(date), 'MMM dd'),
-        hours: parseFloat(hours.toFixed(1)),
-      }));
-
-      setDailyData(dailyArray);
-
-      // Process project data
-      const projectMap = new Map<string, { name: string; hours: number }>();
-
-      entries.forEach((entry: { project_id?: string; hours_logged: number; projects?: { name: string } }) => {
-        const projectId = entry.project_id || 'unknown';
-        const projectName = entry.projects?.name || 'No Project';
-
-        const existing = projectMap.get(projectId);
-        if (existing) {
-          existing.hours += entry.hours_logged || 0;
-        } else {
-          projectMap.set(projectId, {
-            name: projectName,
-            hours: entry.hours_logged || 0,
-          });
-        }
-      });
-
-      // Convert to array and sort by hours (descending)
-      const projectArray: ProjectData[] = Array.from(projectMap.values())
-        .map((project:any, index:any) => ({
-          name: project.name,
-          hours: parseFloat(project.hours.toFixed(1)),
-          color: COLORS[index % COLORS.length],
-        }))
-        .sort((a, b) => b.hours - a.hours);
-
-      setProjectData(projectArray);
-
-    } catch (error: unknown) {
-    } finally {
-      setLoading(false);
-    }
-  }, [userProfile]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchChartData = async () => {
+      setLoading(true);
+      try {
+        const supabase = createClientSupabase() as any;
+        if (!supabase) return;
+
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        const startDate = format(thirtyDaysAgo, 'yyyy-MM-dd');
+        const endDate = format(new Date(), 'yyyy-MM-dd');
+
+        // Fetch time entries for last 30 days
+        const { data: entries } = await supabase
+          .from('time_entries')
+          .select('entry_date, hours_logged, project_id, projects(id, name)')
+          .eq('user_id', (userProfile as any).id)
+          .gte('entry_date', startDate)
+          .lte('entry_date', endDate)
+          .order('entry_date', { ascending: true });
+
+        if (cancelled) return;
+        if (!entries) return;
+
+        // Process daily data
+        const dailyMap = new Map<string, number>();
+
+        // Initialize all days with 0 hours
+        for (let i = 0; i <= 30; i++) {
+          const date = subDays(new Date(), 30 - i);
+          const dateStr = format(date, 'yyyy-MM-dd');
+          dailyMap.set(dateStr, 0);
+        }
+
+        // Aggregate hours by day
+        entries.forEach((entry: { entry_date: string; hours_logged: number }) => {
+          const currentHours = dailyMap.get(entry.entry_date) || 0;
+          dailyMap.set(entry.entry_date, currentHours + (entry.hours_logged || 0));
+        });
+
+        // Convert to array for chart
+        const dailyArray: DailyData[] = Array.from(dailyMap.entries()).map(([date, hours]) => ({
+          date: format(parseISO(date), 'MMM dd'),
+          hours: parseFloat(hours.toFixed(1)),
+        }));
+
+        if (cancelled) return;
+        setDailyData(dailyArray);
+
+        // Process project data
+        const projectMap = new Map<string, { name: string; hours: number }>();
+
+        entries.forEach((entry: { project_id?: string; hours_logged: number; projects?: { name: string } }) => {
+          const projectId = entry.project_id || 'unknown';
+          const projectName = entry.projects?.name || 'No Project';
+
+          const existing = projectMap.get(projectId);
+          if (existing) {
+            existing.hours += entry.hours_logged || 0;
+          } else {
+            projectMap.set(projectId, {
+              name: projectName,
+              hours: entry.hours_logged || 0,
+            });
+          }
+        });
+
+        // Convert to array and sort by hours (descending)
+        const projectArray: ProjectData[] = Array.from(projectMap.values())
+          .map((project:any, index:any) => ({
+            name: project.name,
+            hours: parseFloat(project.hours.toFixed(1)),
+            color: COLORS[index % COLORS.length],
+          }))
+          .sort((a, b) => b.hours - a.hours);
+
+        if (cancelled) return;
+        setProjectData(projectArray);
+
+      } catch (error: unknown) {
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     fetchChartData();
-  }, [fetchChartData]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userProfile]);
 
   if (loading) {
     return (

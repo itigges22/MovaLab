@@ -1,8 +1,13 @@
+import { Metadata } from 'next';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { serverDepartmentService, DepartmentMetrics } from '@/lib/department-service';
 import { canViewDepartment, hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { DepartmentList } from '@/components/department-list';
+
+export const metadata: Metadata = {
+  title: 'Departments',
+};
 
 export const dynamic = 'force-dynamic';
 

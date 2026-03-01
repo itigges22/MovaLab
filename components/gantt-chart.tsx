@@ -376,6 +376,15 @@ export default function GanttChart({ range = 'monthly', zoom = 100 }: GanttChart
     }
   }, [range, zoom, scrollToToday, loading]);
 
+  if (!loading && tasks.length === 0) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <p className="text-sm">No tasks to display in the Gantt chart</p>
+        <p className="text-xs text-gray-400 mt-1">Create tasks to see them visualized here</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-12rem)] lg:h-[calc(100vh-8rem)] overflow-hidden">
       <GanttProvider

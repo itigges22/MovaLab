@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/hooks/useAuth'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -49,6 +49,14 @@ export default function ProjectsPage() {
   const [deletingProject, setDeletingProject] = useState(false)
   const [canCreateProject, setCanCreateProject] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup refresh timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current)
+    }
+  }, [])
 
   // Handle project creation - simple optimistic update
   const handleProjectCreated = useCallback((newProject: any) => {
@@ -74,7 +82,8 @@ export default function ProjectsPage() {
       setVisibleProjects(prev => [projectWithDetails, ...prev])
     }
     // Trigger background refresh after 500ms to get complete data
-    setTimeout(() => {
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current)
+    refreshTimeoutRef.current = setTimeout(() => {
       setRefreshKey(prev => prev + 1)
     }, 500)
   }, [])
@@ -86,6 +95,8 @@ export default function ProjectsPage() {
   }, [userProfile]);
 
   useEffect(() => {
+    let cancelled = false
+
     const loadProjects = async () => {
       if (!userProfile) return
 
@@ -320,6 +331,8 @@ export default function ProjectsPage() {
           } as unknown as ProjectWithDetails
         })
 
+        if (cancelled) return
+
         setProjects(projectsWithDetails)
 
         // Extract unique departments from all projects for the filter dropdown
@@ -333,13 +346,17 @@ export default function ProjectsPage() {
         })
         setAllDepartments(Array.from(departmentsMap.values()).sort((a, b) => a.name.localeCompare(b.name)))
       } catch (err: unknown) {
-        setError('Failed to load projects')
+        if (!cancelled) setError('Failed to load projects')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     loadProjects()
+
+    return () => {
+      cancelled = true
+    }
   }, [userProfile, refreshKey])
 
   // Filter projects based on permissions - ONLY runs on login or explicit refresh

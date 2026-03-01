@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions';
 import { getFormResponseByHistoryId } from '@/lib/form-service';
 import { verifyWorkflowHistoryAccess } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 // GET /api/workflows/history/[historyId]/form - Get form response for workflow history entry
 export async function GET(
@@ -12,6 +13,10 @@ export async function GET(
   { params }: { params: Promise<{ historyId: string }> }
 ) {
   const { historyId } = await params;
+
+  if (!isValidUUID(historyId)) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
 
   try {
     const supabase = createApiSupabaseClient(request);

@@ -1,4 +1,4 @@
-
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { accountService } from '@/lib/account-service';
@@ -6,6 +6,22 @@ import { AccountOverview } from '@/components/account-overview';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { createServerSupabase } from '@/lib/supabase-server';
+
+export async function generateMetadata({ params }: { params: Promise<{ accountId: string }> }): Promise<Metadata> {
+  const { accountId } = await params;
+  const supabase = await createServerSupabase();
+  if (!supabase) return { title: 'Account' };
+
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('name')
+    .eq('id', accountId)
+    .single();
+
+  return {
+    title: account?.name || 'Account',
+  };
+}
 
 interface AccountPageProps {
   params: Promise<{

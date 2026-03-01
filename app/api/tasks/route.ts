@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { userHasProjectAccess } from '@/lib/rbac'
 import { logger } from '@/lib/debug-logger'
+import { z } from 'zod'
+import { uuidSchema } from '@/lib/validation-schemas'
+
+const createTaskSchema = z.object({
+  name: z.string().min(1, 'Task name is required').max(500),
+  description: z.string().max(5000).optional().nullable(),
+  project_id: z.string().uuid('Invalid project ID'),
+  status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  start_date: z.string().optional().nullable(),
+  due_date: z.string().optional().nullable(),
+  estimated_hours: z.number().min(0).max(10000).optional().nullable(),
+  assigned_to: z.string().uuid('Invalid assignee ID').optional().nullable(),
+})
 
 // POST /api/tasks - Create a new task
 // NOTE: Task permissions are now inherited from project access
@@ -40,22 +54,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    // Require project_id — tasks must belong to a project
-    if (!body.project_id) {
-      return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
+    // Validate with Zod schema
+    const parsed = createTaskSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      return NextResponse.json({ error: firstError.message }, { status: 400 });
     }
-
-    // Require task name
-    if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) {
-      return NextResponse.json({ error: 'Task name is required' }, { status: 400 })
-    }
+    const body = parsed.data;
 
     // Task permissions are inherited from project access
     {

@@ -144,9 +144,16 @@ export async function applyRateLimit(request: NextRequest): Promise<NextResponse
 
     return null; // Request is allowed
   } catch (error: unknown) {
-    logger.error('Rate limit check failed', { action: 'rate_limit', pathname, ip }, error as Error);
-    // Allow request on error (fail open)
-    return null;
+    // ALERT: Rate limiting unavailable - failing open
+    // In production, this means ALL rate limits are bypassed
+    logger.error('[RATE_LIMIT_FAILURE] Redis connection failed - rate limiting disabled', {
+      action: 'rate_limit',
+      pathname,
+      ip,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    }, error as Error);
+    return null; // Allow request on error (fail open)
   }
 }
 

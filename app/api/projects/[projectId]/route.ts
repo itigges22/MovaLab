@@ -4,6 +4,7 @@ import { hasPermission, isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 /**
  * GET /api/projects/[projectId]
@@ -15,6 +16,10 @@ export async function GET(
 ) {
   try {
     const { projectId } = await params;
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
@@ -100,6 +105,10 @@ export async function PUT(
 ) {
   try {
     const { projectId } = await params;
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
@@ -247,6 +256,10 @@ export async function DELETE(
     if (blocked) return blocked;
 
     const { projectId } = await params;
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
