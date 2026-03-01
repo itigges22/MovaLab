@@ -24,7 +24,10 @@ export const optionalUuidSchema = z.union([
   z.undefined()
 ]).transform(val => (val === '' || val === null ? undefined : val));
 export const emailSchema = z.string().email('Invalid email format');
+// dateSchema: Full ISO 8601 datetime (e.g., "2024-01-15T00:00:00Z")
 export const dateSchema = z.string().datetime('Invalid datetime format');
+// dateOnlySchema: Date-only format (e.g., "2024-01-15") used by HTML date inputs and most API fields
+export const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
 export const positiveNumberSchema = z.number().positive('Must be a positive number');
 export const nonNegativeNumberSchema = z.number().nonnegative('Must be non-negative');
 
@@ -37,8 +40,8 @@ export const createProjectSchema = z.object({
   description: z.string().max(2000, 'Description too long').optional().nullable(),
   accountId: uuidSchema,
   status: z.enum(['planning', 'in_progress', 'review', 'complete', 'on_hold']).optional(),
-  start_date: dateSchema.optional().nullable(),
-  end_date: dateSchema.optional().nullable(),
+  start_date: dateOnlySchema.optional().nullable(),
+  end_date: dateOnlySchema.optional().nullable(),
   budget: positiveNumberSchema.optional().nullable(),
   assigned_user_id: uuidSchema.optional(),
 });
@@ -47,8 +50,8 @@ export const updateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).optional().nullable(),
   status: z.enum(['planning', 'in_progress', 'review', 'complete', 'on_hold']).optional(),
-  start_date: dateSchema.optional().nullable(),
-  end_date: dateSchema.optional().nullable(),
+  start_date: dateOnlySchema.optional().nullable(),
+  end_date: dateOnlySchema.optional().nullable(),
   budget: positiveNumberSchema.optional().nullable(),
   assigned_user_id: uuidSchema.optional().nullable(),
 });
@@ -91,8 +94,8 @@ export const createTaskSchema = z.object({
   assigned_to: uuidSchema.optional().nullable(),
   estimated_hours: positiveNumberSchema.optional().nullable(),
   remaining_hours: nonNegativeNumberSchema.optional().nullable(),
-  start_date: dateSchema.optional().nullable(),
-  due_date: dateSchema.optional().nullable(),
+  start_date: dateOnlySchema.optional().nullable(),
+  due_date: dateOnlySchema.optional().nullable(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked']).optional(),
   dependencies: z.array(uuidSchema).optional(),
@@ -108,7 +111,7 @@ export const createTimeEntrySchema = z.object({
   taskId: uuidSchema,
   projectId: uuidSchema,
   hoursLogged: z.number().min(0.1, 'Hours must be at least 0.1').max(24, 'Hours cannot exceed 24'),
-  entryDate: dateSchema,
+  entryDate: dateOnlySchema,
   description: z.string().max(1000, 'Description too long').optional().nullable(),
   notes: z.string().max(2000, 'Notes too long').optional().nullable(),
 });
@@ -120,8 +123,8 @@ export const updateTimeEntrySchema = z.object({
 });
 
 export const getTimeEntriesQuerySchema = z.object({
-  startDate: dateSchema.optional(),
-  endDate: dateSchema.optional(),
+  startDate: dateOnlySchema.optional(),
+  endDate: dateOnlySchema.optional(),
   userId: uuidSchema.optional(),
   projectId: uuidSchema.optional(),
   taskId: uuidSchema.optional(),
@@ -158,7 +161,7 @@ export const updateProfileSchema = z.object({
 // ============================================================================
 
 export const createAvailabilitySchema = z.object({
-  week_start_date: dateSchema,
+  week_start_date: dateOnlySchema,
   available_hours: z.number().min(0, 'Hours must be non-negative').max(168, 'Cannot exceed 168 hours per week'),
 });
 
@@ -214,8 +217,8 @@ export const updateIssueSchema = createIssueSchema.partial().omit({ project_id: 
 // ============================================================================
 
 export const getCapacityQuerySchema = z.object({
-  startDate: dateSchema.optional(),
-  endDate: dateSchema.optional(),
+  startDate: dateOnlySchema.optional(),
+  endDate: dateOnlySchema.optional(),
   departmentId: uuidSchema.optional(),
   accountId: uuidSchema.optional(),
 });

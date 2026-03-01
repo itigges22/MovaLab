@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { requireAuthAndPermission } from '@/lib/server-guards';
+import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 import { logger } from '@/lib/debug-logger';
@@ -43,11 +43,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'User removed from account successfully' });
   } catch (error: unknown) {
     logger.error('Error in DELETE /api/accounts/[accountId]/members/[userId]', {}, error as Error);
-    const err = error as { status?: number; message?: string };
-    if (err.status) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleGuardError(error);
   }
 }
 

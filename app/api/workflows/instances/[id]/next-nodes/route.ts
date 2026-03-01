@@ -45,10 +45,10 @@ export async function GET(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Check VIEW_WORKFLOWS permission
-    const canView = await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
+    // Check EXECUTE_WORKFLOWS permission (users who can execute workflows need to see next nodes)
+    const canView = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
     if (!canView) {
-      return NextResponse.json({ error: 'Insufficient permissions to view workflows' }, { status: 403 });
+      return NextResponse.json({ error: 'Insufficient permissions to view workflow nodes' }, { status: 403 });
     }
 
     // Verify user has access to the workflow instance's project

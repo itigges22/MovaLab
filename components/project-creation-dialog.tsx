@@ -240,6 +240,7 @@ export default function ProjectCreationDialog({
         }
       }
 
+      toast.success('Project created successfully');
       onProjectCreated?.(project);
       setOpen(false);
       setFormData({

@@ -341,7 +341,7 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     logger.error('Error in GET /api/dashboard/my-analytics', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: (error as Error).message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

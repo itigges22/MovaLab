@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { requireAuthAndPermission } from '@/lib/server-guards';
+import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
@@ -133,12 +133,8 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({ accounts: accountsWithMembers });
   } catch (error: unknown) {
-    const err = error as AuthErrorWithStatus;
     logger.error('Error in GET /api/accounts/members', {}, error as Error);
-    if (err.status) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleGuardError(error);
   }
 }
 

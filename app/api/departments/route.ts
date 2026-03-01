@@ -47,15 +47,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description } = body;
 
-    if (!name) {
+    if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Department name is required' }, { status: 400 });
+    }
+
+    if (name.trim().length > 100) {
+      return NextResponse.json({ error: 'Department name must be 100 characters or less' }, { status: 400 });
+    }
+
+    if (description !== undefined && description !== null) {
+      if (typeof description !== 'string') {
+        return NextResponse.json({ error: 'Description must be a string' }, { status: 400 });
+      }
+      if (description.length > 500) {
+        return NextResponse.json({ error: 'Description must be 500 characters or less' }, { status: 400 });
+      }
     }
 
     const { data, error } = await supabase
       .from('departments')
       .insert({
-        name,
-        description: description || null,
+        name: name.trim(),
+        description: description?.trim() || null,
       })
       .select()
       .single();

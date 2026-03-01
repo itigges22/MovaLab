@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { newsletterService, NewsletterInput } from '@/lib/newsletter-service'
+import { toast } from 'sonner'
 import { Plus, Send } from 'lucide-react'
 
 interface NewsletterCreationDialogProps {
@@ -40,6 +41,7 @@ export default function NewsletterCreationDialog({
       onNewsletterCreated?.()
     } catch (error: unknown) {
       console.error('Error creating newsletter:', error)
+      toast.error('Failed to create newsletter. Please try again.')
     } finally {
       setLoading(false)
     }

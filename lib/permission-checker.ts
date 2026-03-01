@@ -465,15 +465,17 @@ export async function checkPermissionHybrid(
 
       // Departments
       [Permission.VIEW_DEPARTMENTS]: [Permission.VIEW_ALL_DEPARTMENTS],
-      [Permission.MANAGE_DEPARTMENTS]: [Permission.VIEW_ALL_DEPARTMENTS],
+      // MANAGE_DEPARTMENTS has no override — requires base permission + context
+      // (VIEW_ALL_DEPARTMENTS should NOT grant manage privileges)
 
       // Accounts
       [Permission.VIEW_ACCOUNTS]: [Permission.VIEW_ALL_ACCOUNTS],
-      [Permission.MANAGE_ACCOUNTS]: [Permission.VIEW_ALL_ACCOUNTS],
+      // MANAGE_ACCOUNTS has no override — requires base permission + context
+      // (VIEW_ALL_ACCOUNTS should NOT grant manage privileges)
 
       // Updates
       [Permission.VIEW_UPDATES]: [Permission.VIEW_ALL_UPDATES],
-      [Permission.MANAGE_UPDATES]: [Permission.VIEW_ALL_UPDATES],
+      // MANAGE_UPDATES has no override — requires base permission + context
 
       // Time Tracking
       [Permission.VIEW_TIME_ENTRIES]: [Permission.VIEW_ALL_TIME_ENTRIES],

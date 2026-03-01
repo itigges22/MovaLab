@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { requireAuthentication, requireAuthAndPermission, PermissionError } from '@/lib/server-guards';
+import { requireAuthentication, requireAuthAndPermission, PermissionError, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { accountService } from '@/lib/account-service';
 import { isSuperadmin, hasPermission } from '@/lib/rbac';
@@ -129,8 +129,7 @@ export async function GET(
       // Return proper JSON error response
       const status = err.status || (err.name === 'AuthenticationError' ? 401 : 403);
       const errorResponse = {
-        error: err.message || 'Authentication failed',
-        details: err.message || 'No details available',
+        error: err.name === 'AuthenticationError' ? 'Authentication required' : 'Access denied',
         status: status
       };
       logger.debug(`[GET /api/accounts/${accountId}/members] Returning error response`, { errorResponse });
@@ -272,8 +271,7 @@ export async function GET(
     }, err);
     // Ensure we always return proper JSON
     const errorResponse = {
-      error: err.message || 'Internal server error',
-      details: err.message || 'An unexpected error occurred',
+      error: 'Internal server error',
       status: err.status || 500
     };
     logger.debug('[GET /api/accounts/[accountId]/members] Returning unexpected error response', { errorResponse });
@@ -339,12 +337,8 @@ export async function POST(
     
     return NextResponse.json({ member: data, message: 'User assigned to account successfully' });
   } catch (error: unknown) {
-    const err = error as AuthErrorWithStatus;
     logger.error('Error in POST /api/accounts/[accountId]/members', {}, error as Error);
-    if (err.status) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleGuardError(error);
   }
 }
 

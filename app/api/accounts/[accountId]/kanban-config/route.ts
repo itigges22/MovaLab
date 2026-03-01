@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { requireAuthAndPermission } from '@/lib/server-guards';
+import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
@@ -42,11 +42,7 @@ export async function GET(
     return NextResponse.json({ config });
   } catch (error: unknown) {
     logger.error('Error in GET /api/accounts/[accountId]/kanban-config', {}, error as Error);
-    const err = error as { status?: number; message?: string };
-    if (err.status) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleGuardError(error);
   }
 }
 
@@ -122,10 +118,6 @@ export async function PUT(
     return NextResponse.json({ success: true, config });
   } catch (error: unknown) {
     logger.error('Error in PUT /api/accounts/[accountId]/kanban-config', {}, error as Error);
-    const err = error as { status?: number; message?: string };
-    if (err.status) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleGuardError(error);
   }
 }

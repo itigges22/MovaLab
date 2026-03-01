@@ -39,7 +39,9 @@ export function DemoLoginForm() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') ?? '/welcome';
+  const rawRedirect = searchParams.get('redirectTo') ?? '/welcome';
+  // Prevent open redirect: only allow internal paths
+  const redirectTo = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) ? rawRedirect : '/welcome';
 
   const handleDemoLogin = async (user: DemoUser) => {
     setIsLoading(user.email);

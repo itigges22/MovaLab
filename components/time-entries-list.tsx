@@ -150,6 +150,7 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
       setTasks(uniqueTasks as Array<{ id: string; name: string }>);
     } catch (error: unknown) {
       console.error('Error fetching filters data:', error);
+      toast.error('Failed to load filter options');
     }
   }, [userProfile]);
 

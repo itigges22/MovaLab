@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       logger.error('Error inserting time entry', {}, insertError as unknown as Error);
       return NextResponse.json(
-        { error: 'Failed to log time', details: insertError.message },
+        { error: 'Failed to log time' },
         { status: 500 }
       );
     }

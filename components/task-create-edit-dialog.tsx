@@ -190,6 +190,7 @@ export default function TaskCreateEditDialog({
       setUsers(usersWithRoles);
     } catch (error: unknown) {
       console.error('Error loading users:', error);
+      toast.error('Failed to load team members for assignment');
       setUsers([]);
     } finally {
       setLoadingUsers(false);
@@ -322,6 +323,7 @@ export default function TaskCreateEditDialog({
         const result = await response.json();
 
         if (response.ok && result.success) {
+          toast.success('Task updated successfully');
           onTaskSaved();
           onOpenChange(false);
         } else {
@@ -350,12 +352,11 @@ export default function TaskCreateEditDialog({
         const result = await response.json();
 
         if (response.ok && result.success) {
-          console.log('Task created successfully:', result.task);
+          toast.success('Task created successfully');
           onTaskSaved();
           onOpenChange(false);
         } else {
-          console.error('Task creation returned null');
-          toast.error('Failed to create task. Please check the console for details.');
+          toast.error(result.error || 'Failed to create task');
         }
       }
     } catch (error: unknown) {
@@ -367,7 +368,7 @@ export default function TaskCreateEditDialog({
         hint: err?.hint,
         code: err?.code
       });
-      toast.error(`An error occurred while saving the task: ${String(err?.message) || 'Unknown error'}`);
+      toast.error('An error occurred while saving the task. Please try again.');
     } finally {
       setLoading(false);
     }

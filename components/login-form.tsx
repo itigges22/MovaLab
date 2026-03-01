@@ -40,7 +40,9 @@ export function LoginForm({
   
   const _router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') ?? '/'
+  const rawRedirect = searchParams.get('redirectTo') ?? '/'
+  // Prevent open redirect: only allow internal paths
+  const redirectTo = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) ? rawRedirect : '/'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

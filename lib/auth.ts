@@ -251,7 +251,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
         throw new Error('Please enter a valid email address');
       }
       
-      throw new Error(`Sign up failed: ${error.message || 'Unknown error'}`);
+      throw new Error('Sign up failed. Please try again.');
     }
 
     // Check if user was actually created (Supabase doesn't throw error for existing emails)
@@ -348,7 +348,7 @@ export async function createUserProfile(userId: string, email: string, name: str
         throw new Error(`Failed to create user profile: User profile already exists.`);
       }
       
-      throw new Error(`Failed to create user profile: ${error.message || 'Unknown error'}`);
+      throw new Error('Failed to create user profile');
     }
 
     return data;
@@ -482,7 +482,7 @@ export async function updateUserProfile(profileData: {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to update profile' }));
-      throw new Error(errorData.error || `Failed to update profile: ${response.status} ${response.statusText}`);
+      throw new Error(errorData.error || 'Failed to update profile');
     }
 
     const data = await response.json();

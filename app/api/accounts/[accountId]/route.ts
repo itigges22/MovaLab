@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { requireAuthAndPermission } from '@/lib/server-guards';
+import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { updateAccountSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/debug-logger';
@@ -90,13 +90,6 @@ export async function PATCH(
     return NextResponse.json({ account: data });
   } catch (error: unknown) {
     logger.error('Error in PATCH /api/accounts/[accountId]', {}, error as Error);
-    const err = error as { status?: number; message?: string };
-    if (err.status) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleGuardError(error);
   }
 }

@@ -150,6 +150,7 @@ export function KanbanConfigDialog({
 
   const handleAddColumn = () => {
     if (!newColumnName.trim()) {
+      toast.error('Please enter a column name');
       return;
     }
 
@@ -167,6 +168,7 @@ export function KanbanConfigDialog({
 
   const handleRemoveColumn = (columnId: string) => {
     if (columns.length <= 1) {
+      toast.error('Cannot remove the last column');
       return;
     }
     setColumns(prev => {

@@ -75,6 +75,7 @@ export function MilestoneDialog({
     e.preventDefault();
     
     if (!name.trim()) {
+      toast.error('Milestone name is required');
       return;
     }
 

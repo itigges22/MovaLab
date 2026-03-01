@@ -376,11 +376,9 @@ export function handleGuardError(error: unknown): NextResponse {
   
   if (error instanceof PermissionError) {
     return NextResponse.json(
-      { 
-        error: error.message, 
+      {
+        error: error.message,
         code: 'PERMISSION_DENIED',
-        permission: error.permission,
-        context: error.context
       },
       { status: 403 }
     );

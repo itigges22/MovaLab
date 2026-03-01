@@ -94,7 +94,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .order('name');
 
       if (rolesError) {
-        // Error loading roles handled silently
+        toast.error('Failed to load department roles');
       } else {
         const rolesWithCount = (rolesData?.map((role: any) => ({
           ...role,
@@ -124,7 +124,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .order('name');
 
       if (usersError) {
-        // Error loading users handled silently
+        toast.error('Failed to load team members');
       } else {
         setUsers(usersData || []);
       }
@@ -137,7 +137,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         .single();
 
       if (departmentError) {
-        // Error loading department handled silently
+        toast.error('Failed to load department settings');
       } else {
         const dept = departmentData as unknown as Record<string, unknown>;
         setDepartmentSettings(departmentData);
@@ -158,7 +158,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         });
       }
     } catch (error: unknown) {
-      // Error handled silently
+      toast.error('Failed to load department data');
     } finally {
       setLoading(false);
     }
