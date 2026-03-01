@@ -55,13 +55,6 @@ export async function GET(
     // Check completion status
     const complete = await isWorkflowComplete(supabase, workflowInstanceId);
 
-    // Get workflow instance to count branches
-    const { data: instance } = await supabase
-      .from('workflow_instances')
-      .select('has_parallel_paths')
-      .eq('id', workflowInstanceId)
-      .single();
-
     // Count unique completed branches
     const { data: completedSteps } = await supabase
       .from('workflow_active_steps')
@@ -74,13 +67,17 @@ export async function GET(
     // Count waiting branches
     const waitingBranches = allSteps.filter((s: any) => s.status === 'waiting').length;
 
+    // Derive hasParallelPaths from unique branch_ids in active steps
+    const allBranchIds = new Set(allSteps.map((s: any) => s.branch_id).filter(Boolean));
+    const hasParallelPaths = allBranchIds.size > 1;
+
     // Enrich active steps with node information (bulk fetch to avoid N+1 queries)
     const allNodeIds = [...new Set(allSteps.map((s: any) => s.node_id).filter(Boolean))];
     const allUserIds = [...new Set(allSteps.map((s: any) => s.assigned_user_id).filter(Boolean))];
 
     const [nodesResult, usersResult] = await Promise.all([
       allNodeIds.length > 0
-        ? supabase.from('workflow_nodes').select('*').in('id', allNodeIds)
+        ? supabase.from('workflow_nodes').select('id, label, node_type, entity_id, settings, form_template_id, position_x, position_y').in('id', allNodeIds)
         : { data: [] },
       allUserIds.length > 0
         ? supabase.from('user_profiles').select('id, name, email').in('id', allUserIds)
@@ -101,7 +98,7 @@ export async function GET(
       waitingSteps: enrichedSteps.filter((s: any) => s.status === 'waiting'),
       allSteps: enrichedSteps,
       isComplete: complete,
-      hasParallelPaths: instance?.has_parallel_paths || false,
+      hasParallelPaths,
       completedBranches,
       waitingBranches,
       activeBranches: activeSteps.length

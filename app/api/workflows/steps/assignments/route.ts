@@ -220,10 +220,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Get user profile with roles for permission checking
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = { id: (userProfile as any).id };
+
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canExecute = await checkPermissionHybrid(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canExecute) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     const { workflowInstanceId, nodeId, userId } = await request.json();
@@ -235,14 +243,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has permission to assign (must be project creator or superadmin)
-    const { data: currentUserProfile } = await supabase
-      .from('user_profiles')
-      .select('is_superadmin')
-      .eq('id', user.id)
-      .single();
-
-    const isSuperadmin = currentUserProfile?.is_superadmin === true;
+    const isSuperadmin = (userProfile as any).is_superadmin === true;
 
     if (!isSuperadmin) {
       // Get the workflow instance and check if user is project creator
@@ -335,10 +336,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Get user profile with roles for permission checking
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = { id: (userProfile as any).id };
+
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canExecute = await checkPermissionHybrid(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canExecute) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -353,14 +362,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if user has permission to remove assignment
-    const { data: currentUserProfile } = await supabase
-      .from('user_profiles')
-      .select('is_superadmin')
-      .eq('id', user.id)
-      .single();
-
-    const isSuperadmin = currentUserProfile?.is_superadmin === true;
+    const isSuperadmin = (userProfile as any).is_superadmin === true;
 
     if (!isSuperadmin) {
       // Get the workflow instance and check if user is project creator

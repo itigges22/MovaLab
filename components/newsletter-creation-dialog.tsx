@@ -40,7 +40,6 @@ export default function NewsletterCreationDialog({
       setOpen(false)
       onNewsletterCreated?.()
     } catch (error: unknown) {
-      console.error('Error creating newsletter:', error)
       toast.error('Failed to create newsletter. Please try again.')
     } finally {
       setLoading(false)

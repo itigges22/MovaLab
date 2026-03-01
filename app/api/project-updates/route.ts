@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
     const userId = userProfile.id;
 
     // Phase 9: Simplified permission check - VIEW_UPDATES (context-aware) or VIEW_ALL_UPDATES (override)
-    const hasViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_UPDATES);
-    const hasViewUpdates = await checkPermissionHybrid(userProfile, Permission.VIEW_UPDATES);
+    const hasViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_UPDATES, undefined, supabase);
+    const hasViewUpdates = await checkPermissionHybrid(userProfile, Permission.VIEW_UPDATES, undefined, supabase);
 
     // IMPORTANT: If user doesn't have update viewing permissions, return empty array
     if (!hasViewAll && !hasViewUpdates) {

@@ -67,7 +67,6 @@ export function OrgChartCanvas({
     try {
       // Add null check for hierarchy
       if (!hierarchy || !Array.isArray(hierarchy)) {
-        console.warn('createImprovedLayout: hierarchy is not a valid array', { hierarchy });
         return { nodes: [], edges: [] };
       }
 
@@ -304,12 +303,7 @@ export function OrgChartCanvas({
 
   // Handle node selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    try {
-      console.log('Node clicked:', node);
-      setSelectedNode(node);
-    } catch (error: unknown) {
-      console.error('Error handling node click:', error);
-    }
+    setSelectedNode(node);
   }, []);
 
   // Handle node drag (for user assignment)

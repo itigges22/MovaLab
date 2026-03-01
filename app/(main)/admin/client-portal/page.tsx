@@ -124,7 +124,6 @@ export default function ClientPortalPage() {
         toast.error('Failed to load accounts');
       }
     } catch (error: unknown) {
-      console.error('Error loading accounts:', error);
       toast.error('Error loading accounts');
     } finally {
       setLoadingAccounts(false);
@@ -142,7 +141,6 @@ export default function ClientPortalPage() {
         toast.error('Failed to load invitations');
       }
     } catch (error: unknown) {
-      console.error('Error loading invitations:', error);
       toast.error('Error loading invitations');
     } finally {
       setLoadingInvitations(false);
@@ -161,7 +159,6 @@ export default function ClientPortalPage() {
         toast.error('Failed to load feedback');
       }
     } catch (error: unknown) {
-      console.error('Error loading feedback:', error);
       toast.error('Error loading feedback');
     } finally {
       setLoadingFeedback(false);
@@ -236,7 +233,6 @@ export default function ClientPortalPage() {
         toast.error(data.error || 'Failed to send invitation');
       }
     } catch (error: unknown) {
-      console.error('Error sending invitation:', error);
       toast.error('Error sending invitation');
     } finally {
       setSending(false);
@@ -319,8 +315,7 @@ export default function ClientPortalPage() {
 
     try {
       return formatDistance(date, new Date(), { addSuffix: true });
-    } catch (error: unknown) {
-      console.error('Error formatting date:', error);
+    } catch {
       return 'Invalid date';
     }
   };

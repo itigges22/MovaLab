@@ -76,18 +76,14 @@ export default function WorkflowEditorPage() {
       // Load departments
       const deptRes = await fetch('/api/org-structure/departments');
       const deptData = await deptRes.json();
-      console.log('Workflow Editor - Loaded departments:', deptData);
       const fetchedDepartments = deptData.success ? (deptData.departments || []) : [];
       setDepartments(fetchedDepartments);
-      console.log('Workflow Editor - Set departments:', fetchedDepartments.length);
 
       // Load roles
       const roleRes = await fetch('/api/org-structure/roles');
       const roleData = await roleRes.json();
-      console.log('Workflow Editor - Loaded roles:', roleData);
       const fetchedRoles = roleData.success ? (roleData.roles || []) : [];
       setRoles(fetchedRoles);
-      console.log('Workflow Editor - Set roles:', fetchedRoles.length);
 
       // Load existing workflow nodes and connections
       const workflowRes = await fetch(`/api/admin/workflows/templates/${templateId}`);
@@ -186,7 +182,6 @@ export default function WorkflowEditorPage() {
         setInitialEdges(edges);
       }
     } catch (error: unknown) {
-      console.error('Error loading workflow editor data:', error);
       toast.error('Failed to load workflow editor');
     } finally {
       setLoading(false);
@@ -216,12 +211,6 @@ export default function WorkflowEditorPage() {
         throw new Error(errorMessage);
       }
 
-      // Log success info
-      console.log('Workflow saved:', {
-        nodeCount: data.nodeCount,
-        edgeCount: data.edgeCount
-      });
-
       // Update hasNodes based on saved count
       setHasNodes(data.nodeCount > 0);
 
@@ -230,7 +219,6 @@ export default function WorkflowEditorPage() {
         setIsActive(data.is_active);
       }
     } catch (error: unknown) {
-      console.error('Error saving workflow:', error);
       throw error;
     }
   };
@@ -259,8 +247,7 @@ export default function WorkflowEditorPage() {
       setIsActive(newIsActive);
       toast.success(newIsActive ? 'Workflow activated' : 'Workflow deactivated');
     } catch (error: unknown) {
-      console.error('Error toggling workflow status:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update workflow status');
+      toast.error('Failed to update workflow status');
     } finally {
       setTogglingActive(false);
     }
@@ -290,13 +277,6 @@ export default function WorkflowEditorPage() {
       </div>
     );
   }
-
-  // Debug log before rendering
-  console.log('Workflow Editor - Rendering with:', {
-    departments: departments.length,
-    roles: roles.length,
-    template: template?.name
-  });
 
   return (
     <div className="flex flex-col h-screen">

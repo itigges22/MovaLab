@@ -33,7 +33,6 @@ export default function SuperadminSetupPage() {
 
   useEffect(() => {
     if (!loading && user && userProfile && !isSuperadmin(userProfile)) {
-      console.log('SuperadminSetupPage: User is not superadmin, redirecting to welcome')
       router.push('/welcome')
     }
   }, [user, userProfile, loading, router])
@@ -112,10 +111,9 @@ export default function SuperadminSetupPage() {
         setMessage({ type: 'error', text: result.message })
       }
     } catch (error: unknown) {
-      console.error('Error assigning superadmin role:', error)
-      setMessage({ 
-        type: 'error', 
-        text: error instanceof Error ? error.message : 'Failed to assign superadmin role' 
+      setMessage({
+        type: 'error',
+        text: 'Failed to assign superadmin role. Please try again.'
       })
     } finally {
       setIsLoading(false)
@@ -139,10 +137,9 @@ export default function SuperadminSetupPage() {
         setMessage({ type: 'error', text: result.message })
       }
     } catch (error: unknown) {
-      console.error('Error checking superadmin status:', error)
-      setMessage({ 
-        type: 'error', 
-        text: error instanceof Error ? error.message : 'Failed to check superadmin status' 
+      setMessage({
+        type: 'error',
+        text: 'Failed to check superadmin status. Please try again.'
       })
     } finally {
       setIsLoading(false)
@@ -167,7 +164,6 @@ export default function SuperadminSetupPage() {
         setMessage({ type: 'error', text: result.message })
       }
     } catch (error: unknown) {
-      console.error('Error removing superadmin role:', error)
       setMessage({ 
         type: 'error', 
         text: error instanceof Error ? error.message : 'Failed to remove superadmin role' 
@@ -189,7 +185,6 @@ export default function SuperadminSetupPage() {
         setMessage({ type: 'error', text: result.error || 'Database test failed' })
       }
     } catch (error: unknown) {
-      console.error('Error testing database:', error)
       setMessage({ 
         type: 'error', 
         text: error instanceof Error ? error.message : 'Failed to test database connection' 

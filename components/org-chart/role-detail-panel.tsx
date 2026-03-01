@@ -138,7 +138,6 @@ export function RoleDetailPanel({
         await loadRoleDetails();
       }
     } catch (error: unknown) {
-      console.error('Error removing user from role:', error);
     }
   };
 

@@ -57,7 +57,7 @@ export default function GroupManagementDialog({
       const groupsData = await supabaseTaskService.getGroups();
       setGroups(groupsData);
     } catch (error: unknown) {
-      console.error('Error loading groups:', error);
+      toast.error('Failed to load groups. Please try again.');
     }
   };
 
@@ -70,15 +70,16 @@ export default function GroupManagementDialog({
       const newGroup = await supabaseTaskService.createGroup({
         name: newGroupName.trim(),
       });
-      
+
       if (newGroup) {
         // Add to local state immediately for instant UI update
         setGroups(prev => [...prev, newGroup]);
         onGroupCreated?.(newGroup);
         setNewGroupName('');
+        toast.success('Group created successfully');
       }
     } catch (error: unknown) {
-      console.error('Error creating group:', error);
+      toast.error('Failed to create group. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export default function GroupManagementDialog({
         onGroupDeleted?.(groupToDelete);
       }
     } catch (error: unknown) {
-      console.error('Error deleting group:', error);
+      toast.error('Failed to delete group. Please try again.');
     } finally {
       setDeleteDialogOpen(false);
       setGroupToDelete(null);

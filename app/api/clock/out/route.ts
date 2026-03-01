@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     if (entriesError) {
       logger.error('Error creating time entries', {}, entriesError as unknown as Error);
       return NextResponse.json(
-        { error: 'Failed to create time entries', details: entriesError.message },
+        { error: 'Failed to create time entries' },
         { status: 500 }
       );
     }

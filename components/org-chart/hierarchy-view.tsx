@@ -307,7 +307,6 @@ export function HierarchyView({
         setExpandedNodes(new Set(firstLevelIds));
       }
     } catch (error: unknown) {
-      console.error('Error loading hierarchy:', error);
     } finally {
       setLoading(false);
     }

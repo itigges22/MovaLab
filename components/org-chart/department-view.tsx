@@ -5,14 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Users, 
-  Shield, 
-  Building2, 
-  UserPlus, 
+import {
+  Users,
+  Shield,
+  Building2,
+  UserPlus,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Type definitions (copied from organization-service to avoid import issues)
 interface DepartmentWithRoles {
@@ -107,7 +108,7 @@ function DepartmentCard({
       
       setRoleUsers(prev => ({ ...prev, [roleId]: formattedUsers }));
     } catch (error: unknown) {
-      console.error('Error loading role users:', error);
+      toast.error('Failed to load role users');
       setRoleUsers(prev => ({ ...prev, [roleId]: [] }));
     }
   };
@@ -295,22 +296,13 @@ export function DepartmentView({
     try {
       setLoading(true);
       
-      console.log('🏢 Loading departments and roles...');
-      
       // Fetch departments and roles from API
       const [deptsResponse, rolesResponse] = await Promise.all([
         fetch('/api/departments'),
         fetch('/api/roles')
       ]);
       
-      console.log('📡 Departments response:', deptsResponse.status, deptsResponse.statusText);
-      console.log('📡 Roles response:', rolesResponse.status, rolesResponse.statusText);
-      
       if (!deptsResponse.ok || !rolesResponse.ok) {
-        const deptsError = await deptsResponse.text().catch(() => 'Unknown error');
-        const rolesError = await rolesResponse.text().catch(() => 'Unknown error');
-        console.error('❌ API Error - Departments:', deptsError);
-        console.error('❌ API Error - Roles:', rolesError);
         throw new Error('Failed to load data');
       }
       
@@ -319,9 +311,6 @@ export function DepartmentView({
       
       // Extract roles array from the API response
       const roles = rolesResponseData.roles || rolesResponseData;
-      
-      console.log('📊 Departments data:', departments);
-      console.log('📊 Roles data (count):', roles.length);
       
       // Group roles by department
       const departmentsWithRoles = departments.map((dept: any) => ({
@@ -332,11 +321,9 @@ export function DepartmentView({
           .reduce((sum: number, role: any) => sum + ((role.user_count as number) || 0), 0)
       }));
       
-      console.log('✅ Departments with roles:', departmentsWithRoles);
-      
       setDepartments(departmentsWithRoles);
     } catch (error: unknown) {
-      console.error('💥 Error loading departments:', error);
+      toast.error('Failed to load departments');
     } finally {
       setLoading(false);
     }
@@ -360,12 +347,6 @@ export function DepartmentView({
     ? departments.filter((dept: any) => dept.id === selectedDepartment)
     : departments;
   
-  console.log('🔍 Filtering departments:', {
-    selectedDepartment,
-    totalDepartments: departments.length,
-    filteredDepartments: filteredDepartments.length
-  });
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">

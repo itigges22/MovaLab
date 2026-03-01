@@ -333,8 +333,7 @@ export default function ProjectsPage() {
         })
         setAllDepartments(Array.from(departmentsMap.values()).sort((a, b) => a.name.localeCompare(b.name)))
       } catch (err: unknown) {
-        console.error('Error loading projects:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load projects')
+        setError('Failed to load projects')
       } finally {
         setLoading(false)
       }
@@ -459,9 +458,7 @@ export default function ProjectsPage() {
       setDeleteDialogOpen(false)
       setProjectToDelete(null)
     } catch (error: unknown) {
-      console.error('Error deleting project:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      toast.error(`Failed to delete project: ${errorMessage}`)
+      toast.error('Failed to delete project. Please try again.')
     } finally {
       setDeletingProject(false)
     }

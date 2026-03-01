@@ -70,7 +70,6 @@ export function OrgChartToolbar({
         })));
       }
     } catch (error: unknown) {
-      console.error('Error loading departments:', error);
     }
   };
 

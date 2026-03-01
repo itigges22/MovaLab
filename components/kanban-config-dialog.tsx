@@ -190,8 +190,6 @@ export function KanbanConfigDialog({
   const handleSave = async () => {
     setLoading(true);
     try {
-      console.log('Attempting to save kanban config...');
-
       const response = await fetch(`/api/accounts/${accountId}/kanban-config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -203,14 +201,12 @@ export function KanbanConfigDialog({
       if (response.ok && result.success) {
         onColumnsUpdated(columns);
         setOpen(false);
-        console.log('Kanban configuration updated successfully');
+        toast.success('Kanban configuration updated');
       } else {
-        console.error('Failed to update kanban configuration:', result.error);
         toast.error(result.error || 'Failed to update kanban configuration');
       }
     } catch (error: unknown) {
-      console.error('Error saving kanban config:', error);
-      toast.error('An error occurred while saving kanban configuration');
+      toast.error('Failed to save kanban configuration');
     } finally {
       setLoading(false);
     }

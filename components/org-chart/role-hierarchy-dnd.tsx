@@ -104,8 +104,6 @@ function SortableRoleItem({
     transition,
   };
 
-  console.log(`🎨 Rendering ${role.name} with depth ${depth} (padding: ${depth * 24}px)`);
-
   const hasChildren = role.user_count > 0;
   const isSystemRole = role.is_system_role || role.name === 'Superadmin' || role.name === 'No Assigned Role';
 
@@ -300,11 +298,6 @@ export function RoleHierarchyDnd({
   );
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered with:', {
-      rolesLength: roles.length,
-      rolesData: roles.map((r: any) => `${r.name} (Level ${r.hierarchy_level}, Order ${r.display_order})`)
-    });
-    
     // Don't sort here - let buildHierarchyTree handle the proper ordering
     // Just set the roles as they come from the API
     setItems(roles);
@@ -475,7 +468,6 @@ export function RoleHierarchyDnd({
       // Reload data to ensure consistency
        onRoleUpdate();
     } catch (error: unknown) {
-      console.error('Error updating role order:', error);
       toast.error('Failed to update role order');
     } finally {
       setIsSaving(false);
@@ -484,8 +476,6 @@ export function RoleHierarchyDnd({
 
   // Build hierarchy tree for rendering with proper parent-child nesting
   function buildHierarchyTree(roles: RoleWithUsers[]): RoleWithUsers[] {
-    console.log('🌳 Building hierarchy tree with roles:', roles.map((r: any) => `${r.name} (Level ${r.hierarchy_level}, Reports to: ${(r.reporting_role?.name ?? r.reporting_role_id) || 'none'})`));
-
     // Find root roles (roles with no reporting role or highest level)
     const maxLevel = Math.max(...roles.map((r: any) => r.hierarchy_level));
     const rootRoles = roles
@@ -501,8 +491,6 @@ export function RoleHierarchyDnd({
         return a.display_order - b.display_order;
       });
     
-    console.log('🌳 Root roles:', rootRoles.map((r: any) => `${r.name} (Level ${r.hierarchy_level})`));
-    
     const result: RoleWithUsers[] = [];
     const addedRoles = new Set<string>();
     
@@ -514,7 +502,6 @@ export function RoleHierarchyDnd({
           if (!addedRoles.has(role.id)) {
             addedRoles.add(role.id);
             result.push({ ...role, depth });
-            console.log(`🌳 Added root ${role.name} at depth ${depth}`);
             // Recursively process children
             buildTree(role, depth + 1);
           }
@@ -527,13 +514,10 @@ export function RoleHierarchyDnd({
         .filter((role: any) => role.reporting_role_id === parentRole.id && !addedRoles.has(role.id))
         .sort((a, b) => a.display_order - b.display_order);
       
-      console.log(`🌳 Children of ${parentRole.name}:`, children.map((r: any) => `${r.name} (Level ${r.hierarchy_level})`));
-      
       // Add each child and recursively process their children
       for (const child of children) {
         addedRoles.add(child.id);
         result.push({ ...child, depth });
-        console.log(`🌳 Added child ${child.name} at depth ${depth} under ${parentRole.name}`);
         // Recursively process children of this child
         buildTree(child, depth + 1);
       }
@@ -545,7 +529,6 @@ export function RoleHierarchyDnd({
     // Add any orphaned roles (roles that weren't added due to missing parent)
     const orphanedRoles = roles.filter((role: any) => !addedRoles.has(role.id));
     if (orphanedRoles.length > 0) {
-      console.log('🌳 Orphaned roles (missing parent):', orphanedRoles.map((r: any) => `${r.name} (reports to: ${r.reporting_role?.name ?? r.reporting_role_id})`));
       // Sort orphaned roles by hierarchy level (descending) then by display order
       const sortedOrphans = orphanedRoles.sort((a, b) => {
         if (a.hierarchy_level !== b.hierarchy_level) {
@@ -556,12 +539,10 @@ export function RoleHierarchyDnd({
       result.push(...sortedOrphans.map((role: any) => ({ ...role, depth: 0 })));
     }
     
-    console.log('🌳 Final hierarchy tree:', result.map((r: any) => `${'  '.repeat(r.depth ?? 0)}${r.name} (Level ${r.hierarchy_level})`));
     return result;
   }
 
   const hierarchyTree = buildHierarchyTree(items);
-  console.log('🌳 Hierarchy tree for rendering:', hierarchyTree.map((r: any) => `${r.name} (Level ${r.hierarchy_level})`));
 
   return (
     <div className="space-y-4">

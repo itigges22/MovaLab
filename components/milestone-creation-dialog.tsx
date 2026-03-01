@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FlagIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabaseTaskService, type Milestone } from '@/lib/supabase-task-service';
 
 interface MilestoneCreationDialogProps {
@@ -59,10 +60,8 @@ export default function MilestoneCreationDialog({
         color: formData.color,
       };
 
-      console.log('Creating milestone with data:', createData);
       const newMilestone = await supabaseTaskService.createMilestone(createData);
-      console.log('Milestone creation result:', newMilestone);
-      
+
       if (newMilestone) {
         onMilestoneCreated?.(newMilestone);
         onOpenChange(false);
@@ -71,11 +70,12 @@ export default function MilestoneCreationDialog({
           description: '',
           color: '#3b82f6',
         });
+        toast.success('Milestone created successfully');
       } else {
-        console.error('Failed to create milestone - no result returned');
+        toast.error('Failed to create milestone. Please try again.');
       }
     } catch (error: unknown) {
-      console.error('Error creating milestone:', error);
+      toast.error('Failed to create milestone. Please try again.');
     } finally {
       setLoading(false);
     }

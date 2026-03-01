@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabaseTaskService, type Task, type User, type TaskGroup, type TaskStatus } from '@/lib/supabase-task-service';
+import { toast } from 'sonner';
 
 interface TaskEditDialogProps {
   open: boolean;
@@ -74,7 +75,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
       setGroups(groupsData);
       setStatuses(statusesData);
     } catch (error: unknown) {
-      console.error('Error loading data:', error);
+      toast.error('Failed to load task data');
     }
   };
 
@@ -102,7 +103,7 @@ export default function TaskEditDialog({ open, onOpenChange, task, onTaskUpdated
         onOpenChange(false);
       }
     } catch (error: unknown) {
-      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
     } finally {
       setLoading(false);
     }

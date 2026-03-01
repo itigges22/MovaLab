@@ -156,13 +156,8 @@ export async function GET(
         logger.debug('[GET /api/accounts/[accountId]/members] account_members table does not exist, returning empty array');
         return NextResponse.json({ members: [] });
       }
-      const errorResponse = {
-        error: 'Failed to fetch account members',
-        details: membersError.message || 'Unknown database error',
-        code: membersError.code || 'UNKNOWN_ERROR'
-      };
-      logger.debug(`[GET /api/accounts/${accountId}/members] Returning database error response`, { errorResponse });
-      return NextResponse.json(errorResponse, { status: 500 });
+      logger.error('Failed to fetch account members', { accountId }, membersError as unknown as Error);
+      return NextResponse.json({ error: 'Failed to fetch account members' }, { status: 500 });
     }
 
     // Get user profiles for these members

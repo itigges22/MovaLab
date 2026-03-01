@@ -5,6 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Clock } from 'lucide-react';
 import { createClientSupabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 
 interface ProjectHoursSliderProps {
@@ -90,7 +91,7 @@ export default function ProjectHoursSlider({
     try {
       const supabase = createClientSupabase()!;
       if (!supabase) {
-        console.error('Failed to create Supabase client');
+        toast.error('Failed to connect to database');
         return;
       }
 
@@ -106,7 +107,7 @@ export default function ProjectHoursSlider({
         .eq('id', projectId);
 
       if (error) {
-        console.error('Error updating project remaining hours:', error.message || error.code || JSON.stringify(error));
+        toast.error('Failed to update remaining hours');
       } else {
         if (finalHours !== newHours) {
           setHours(finalHours);
@@ -115,7 +116,7 @@ export default function ProjectHoursSlider({
         onHoursChange?.(finalHours);
       }
     } catch (error: unknown) {
-      console.error('Error saving project remaining hours:', error);
+      toast.error('Failed to save remaining hours');
     } finally {
       setSaving(false);
     }

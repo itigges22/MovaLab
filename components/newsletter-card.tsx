@@ -67,7 +67,6 @@ export default function NewsletterCard({ className, canCreate = false }: Newslet
       const data = await newsletterService.getPublishedNewsletters()
       setNewsletters(data)
     } catch (err: unknown) {
-      console.error('Error loading newsletters:', err)
       setError('Failed to load newsletters')
     } finally {
       setLoading(false)

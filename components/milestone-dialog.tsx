@@ -91,7 +91,6 @@ export function MilestoneDialog({
       // Close dialog (form will be reset by useEffect)
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error('Failed to create milestone:', error);
       toast.error('Failed to create milestone. Please try again.');
     } finally {
       setIsSubmitting(false);

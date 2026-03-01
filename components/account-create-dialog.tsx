@@ -78,8 +78,7 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('Error creating account:', result.error);
-        toast.error(result.error || 'Failed to create account. Please try again.');
+        toast.error('Failed to create account. Please try again.');
         return;
       }
 
@@ -94,7 +93,6 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
       setOpen(false);
       onAccountCreated?.();
     } catch (error: unknown) {
-      console.error('Error creating account:', error);
       toast.error('Failed to create account. Please try again.');
     } finally {
       setLoading(false);

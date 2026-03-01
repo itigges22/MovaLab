@@ -88,11 +88,8 @@ export function RoleEditDialog({
     e.preventDefault();
 
     if (!role) {
-      console.error('❌ No role selected for editing');
       return;
     }
-
-    console.log('🔄 Submitting role edit:', { roleId: role.id, formData, permissions });
 
     const updateData: Partial<RoleWithDetails> = {
       name: formData.name,
@@ -102,7 +99,6 @@ export function RoleEditDialog({
 
     // If in Edit Mode, just queue the changes locally
     if (isEditMode && onLocalUpdate) {
-      console.log('🎯 Edit Mode: Queueing role edit locally', { roleId: role.id, updateData });
       onLocalUpdate(role.id, updateData);
       toast.success('Changes queued. Click "Save Changes" to apply.', {
         description: `"${role.name}" will be updated when you save.`
@@ -114,21 +110,17 @@ export function RoleEditDialog({
     // Otherwise, save immediately to the database
     setLoading(true);
     try {
-      console.log('💾 Saving role to database:', { roleId: role.id, updateData });
       const updatedRole = await roleManagementService.updateRole(role.id, updateData as UpdateRoleData);
-      
+
       if (updatedRole) {
-        console.log('✅ Role updated successfully:', updatedRole);
         toast.success('Role updated successfully!');
         onSuccess();
         onOpenChange(false);
       } else {
-        console.error('❌ Failed to update role - no data returned');
         toast.error('Failed to update role. Please try again.');
       }
     } catch (error: unknown) {
-      console.error('❌ Error updating role:', error);
-      toast.error(`An error occurred while updating the role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('Failed to update role. Please try again.');
     } finally {
       setLoading(false);
     }

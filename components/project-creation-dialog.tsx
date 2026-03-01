@@ -127,7 +127,7 @@ export default function ProjectCreationDialog({
           .order('name');
 
         if (accountsError) {
-          console.error('Error loading accounts:', accountsError);
+          toast.error('Failed to load accounts');
         } else {
           setAccounts(accountsData || []);
         }
@@ -140,12 +140,12 @@ export default function ProjectCreationDialog({
           .order('name');
 
         if (workflowsError) {
-          console.error('Error loading workflows:', workflowsError);
+          toast.error('Failed to load workflows');
         } else {
           setWorkflows(workflowsData || []);
         }
       } catch (error: unknown) {
-        console.error('Error loading data:', error);
+        toast.error('Failed to load form data');
       }
     };
 
@@ -211,7 +211,6 @@ export default function ProjectCreationDialog({
         .single();
 
       if (projectError) {
-        console.error('Error creating project:', projectError);
         toast.error('Failed to create project. Please try again.');
         return;
       }
@@ -232,11 +231,10 @@ export default function ProjectCreationDialog({
           });
 
           if (!workflowResponse.ok) {
-            console.error('Failed to start workflow, but project was created');
+            toast.warning('Project created, but workflow could not be started');
           }
         } catch (error: unknown) {
-          console.error('Error starting workflow:', error);
-          // Don't fail the whole operation if workflow start fails
+          toast.warning('Project created, but workflow could not be started');
         }
       }
 
@@ -254,7 +252,6 @@ export default function ProjectCreationDialog({
         estimatedHours: '',
       });
     } catch (error: unknown) {
-      console.error('Error creating project:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setLoading(false);

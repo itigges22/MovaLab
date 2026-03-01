@@ -89,7 +89,6 @@ export default function DepartmentCreateDialog({
       setOpen(false);
       setFormData({ name: '', description: '' });
     } catch (error: unknown) {
-      console.error('Error creating department:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setLoading(false);

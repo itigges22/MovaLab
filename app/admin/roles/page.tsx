@@ -88,14 +88,6 @@ export default function RoleManagementPage() {
     }
   }, [authLoading, userProfile, router]);
 
-  // Debug: Log when roles state changes
-  useEffect(() => {
-    console.log('🔍 PAGE: Roles state changed:', {
-      count: roles.length,
-      roles: roles.map((r: any) => ({ id: r.id, name: r.name }))
-    });
-  }, [roles]);
-
   // Redirect away from accounts tab if user doesn't have permission
   useEffect(() => {
     if (!authLoading && viewType === 'accounts' && !canViewAccountsTab) {
@@ -119,14 +111,13 @@ export default function RoleManagementPage() {
 
       // User is read-only if they can't manage roles
       setIsReadOnly(!canManageRoles);
-    } catch (error: unknown) {
-      console.error('Error checking permissions:', error);
+    } catch {
+      toast.error('Failed to check permissions. Please refresh the page.');
     }
   }, [userProfile]);
 
   const loadData = useCallback(async () => {
     try {
-      console.log('🔄 PAGE: Starting loadData()...');
       setLoading(true);
 
       // Add cache-busting headers to ensure fresh data
@@ -136,12 +127,11 @@ export default function RoleManagementPage() {
         'Expires': '0'
       };
 
-      console.log('🔄 PAGE: Fetching roles from API...');
       // Load roles with container data
       const rolesResponse = await fetch('/api/roles', {
         headers: cacheHeaders,
-        cache: 'no-store', // Next.js fetch cache option
-        credentials: 'include' // Include cookies for authentication
+        cache: 'no-store',
+        credentials: 'include'
       });
 
       const rolesApiData = await rolesResponse.json();
@@ -149,32 +139,21 @@ export default function RoleManagementPage() {
       if (!rolesResponse.ok) {
         // Handle permission errors gracefully (403) - these are expected for users without permissions
         if (rolesResponse.status === 403 || rolesApiData.code === 'PERMISSION_DENIED') {
-          console.log('ℹ️ PAGE: User does not have permission to view roles - this is expected');
-          // Set empty state and return early - RoleGuard should handle redirect
           setRoles([]);
           setDepartments([]);
           setLoading(false);
-          // Redirect to welcome page after a brief delay to allow RoleGuard to handle it
           setTimeout(() => {
             router.push('/welcome');
           }, 100);
           return;
         }
 
-        // Log other errors as actual errors
-        console.error('❌ PAGE: Roles API error:', {
-          status: rolesResponse.status,
-          statusText: rolesResponse.statusText,
-          error: rolesApiData
-        });
-        throw new Error(rolesApiData.error || `Failed to load roles: ${rolesResponse.status} ${rolesResponse.statusText}`);
+        throw new Error(rolesApiData.error || 'Failed to load roles');
       }
 
       // Check if response contains an error
       if (rolesApiData.error) {
-        // Handle permission errors gracefully
         if (rolesApiData.code === 'PERMISSION_DENIED') {
-          console.log('ℹ️ PAGE: User does not have permission to view roles - this is expected');
           setRoles([]);
           setDepartments([]);
           setLoading(false);
@@ -184,49 +163,27 @@ export default function RoleManagementPage() {
           return;
         }
 
-        console.error('❌ PAGE: API returned error:', rolesApiData);
         throw new Error(rolesApiData.error || 'Failed to load roles');
       }
 
-      console.log('✅ PAGE: Roles API response received:', {
-        rolesCount: rolesApiData.roles?.length || 0,
-        rolesData: rolesApiData.roles?.map((r: RoleWithUsers) => `${r.name} (Level ${r.hierarchy_level}, Order ${r.display_order}, System: ${r.is_system_role})`)
-      });
-
       // Extract roles from the new API response structure
-      const rolesData = rolesApiData.roles || []; // Handle both old and new formats, default to empty array
+      const rolesData = rolesApiData.roles || [];
 
       if (!Array.isArray(rolesData)) {
-        console.error('❌ PAGE: Roles data is not an array:', rolesData);
         throw new Error('Invalid roles data format received from API');
       }
 
-      console.log('🔄 PAGE: Fetching departments from API...');
       // Load departments
       const deptsResponse = await fetch('/api/departments', {
         headers: cacheHeaders,
         cache: 'no-store',
-        credentials: 'include' // Include cookies for authentication
+        credentials: 'include'
       });
       if (!deptsResponse.ok) throw new Error('Failed to load departments');
       const deptsData = await deptsResponse.json();
 
-      console.log('✅ PAGE: Setting roles and departments state...');
-      console.log('📊 PAGE: Roles data to set:', {
-        count: rolesData.length,
-        roles: rolesData.map((r: RoleWithUsers) => ({ id: r.id, name: r.name, hierarchy_level: r.hierarchy_level }))
-      });
-
       setRoles(rolesData);
       setDepartments(deptsData);
-
-      // Log container information for debugging
-      if (rolesApiData.containers) {
-        console.log('📊 PAGE: Role containers loaded:', rolesApiData.containers);
-        console.log(`📊 PAGE: Total levels: ${rolesApiData.totalLevels}, Total roles: ${rolesApiData.totalRoles}`);
-      }
-
-      console.log('✅ PAGE: loadData() completed successfully');
     } catch (error: unknown) {
       const err = error as Error;
       // Check if this is a permission error (expected for users without permissions)
@@ -235,22 +192,16 @@ export default function RoleManagementPage() {
                                 err?.message?.includes('You don\'t have permission');
 
       if (isPermissionError) {
-        // Handle permission errors gracefully - don't log as error or show toast
-        console.log('ℹ️ PAGE: Permission denied - this is expected for users without VIEW_ROLES permission');
         setRoles([]);
         setDepartments([]);
         setLoading(false);
-        // RoleGuard should handle redirect, but add a fallback
         setTimeout(() => {
           router.push('/welcome');
         }, 100);
         return;
       }
 
-      // Log other errors as actual errors
-      console.error('❌ PAGE: Error loading data:', error);
-      const errorMessage = err?.message || 'Failed to load data';
-      toast.error(errorMessage);
+      toast.error('Failed to load data. Please try again.');
 
       // Set empty arrays to prevent undefined errors
       setRoles([]);
@@ -296,10 +247,8 @@ export default function RoleManagementPage() {
 
       toast.success('Role deleted successfully');
       loadData();
-    } catch (error: unknown) {
-      const err = error as Error;
-      console.error('Error deleting role:', err);
-      toast.error(err.message || 'Failed to delete role');
+    } catch {
+      toast.error('Failed to delete role');
     } finally {
       setDeleteDialogOpen(false);
       setRoleToDelete(null);
@@ -307,7 +256,6 @@ export default function RoleManagementPage() {
   }
 
   function handleEditRole(role: RoleWithUsers) {
-    console.log('🔄 Opening edit dialog for role:', role);
     setSelectedRole(role);
     setEditDialogOpen(true);
   }
@@ -319,7 +267,6 @@ export default function RoleManagementPage() {
 
   // Handler for queuing role edits in Edit Mode
   function handleLocalRoleUpdate(roleId: string, updates: any) {
-    console.log('📝 Parent: Queuing role edit', { roleId, updates });
     setPendingRoleEdits(prev => new Map(prev).set(roleId, updates));
     
     // Update local UI immediately for better UX
@@ -333,7 +280,6 @@ export default function RoleManagementPage() {
 
   // Handler for queuing user assignments in Edit Mode
   function handleLocalUserAssignment(roleId: string, userId: string, userName: string) {
-    console.log('👤 Parent: Queuing user assignment', { roleId, userId, userName });
     setPendingUserAssignments(prev => [...prev, { roleId, userId, userName }]);
     
     // Update local UI immediately for better UX
@@ -341,9 +287,8 @@ export default function RoleManagementPage() {
       if (role.id === roleId) {
         // Check if user is already in the list to avoid duplicates
         const userExists = role.users.some((u: any) => u.id === userId);
-        
+
         if (userExists) {
-          console.log('⚠️ User already assigned to this role, skipping UI update');
           return role; // User already exists, don't add again
         }
         
@@ -376,13 +321,6 @@ export default function RoleManagementPage() {
 
   // Handler for setting reporting role
   function handleSetReportingRole(role: RoleWithUsers) {
-    console.log('🔄 Opening reporting role dialog for:', {
-      roleId: role.id,
-      roleName: role.name,
-      reportingRoleId: role.reporting_role_id,
-      reportingRoleName: role.reporting_role?.name,
-      allRolesCount: roles.length
-    });
     setSelectedRole(role);
     setReportingDialogOpen(true);
   }
@@ -390,8 +328,6 @@ export default function RoleManagementPage() {
   // Handler for saving reporting role
   async function handleSaveReportingRole(roleId: string, reportingRoleId: string | null) {
     try {
-      console.log('🔄 Updating reporting role:', { roleId, reportingRoleId });
-      
       // Get current maximum hierarchy level to ensure Superadmin stays at top
       const maxLevel = Math.max(...roles.map((r: any) => r.hierarchy_level));
       
@@ -401,7 +337,6 @@ export default function RoleManagementPage() {
       const reportingRole = roles.find((r: any) => r.id === reportingRoleId);
       // Child role should be one level BELOW parent (lower number = deeper in hierarchy)
       newHierarchyLevel = (reportingRole?.hierarchy_level || 1) - 1;
-      console.log(`📊 Role will report to ${reportingRole?.name} (level ${reportingRole?.hierarchy_level}), so new level will be ${newHierarchyLevel}`);
     } else {
       // No reporting role - make it a top-level role (Level 1, or Level 0 for "No Assigned Role")
       const role = roles.find((r: any) => r.id === roleId);
@@ -412,7 +347,6 @@ export default function RoleManagementPage() {
       } else {
         newHierarchyLevel = 1; // All other top-level roles
       }
-      console.log(`📊 Role will be top-level with hierarchy level ${newHierarchyLevel}`);
     }
       
       const response = await fetch('/api/roles/reorder', {
@@ -428,18 +362,12 @@ export default function RoleManagementPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ API Error:', errorData);
         throw new Error(errorData.error || 'Failed to update reporting role');
       }
 
-      console.log('✅ Reporting role updated successfully');
-      
       // Reload data to get updated hierarchy
-      console.log('🔄 Reloading data...');
       await loadData();
-      console.log('✅ Data reloaded');
     } catch (error: unknown) {
-      console.error('Error updating reporting role:', error);
       throw error;
     }
   }

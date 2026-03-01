@@ -55,9 +55,7 @@ function ResetPasswordForm() {
         router.push('/login')
       }, 2000)
     } catch (error: unknown) {
-      console.error('Password update error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update password. Please try again.'
-      setError(errorMessage)
+      setError('Failed to update password. Please try again.')
     } finally {
       setIsLoading(false)
     }

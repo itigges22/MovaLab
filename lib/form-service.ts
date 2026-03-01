@@ -433,9 +433,16 @@ function validateFormResponse(fields: FormField[], responseData: Record<string, 
 
     // Custom pattern validation
     if (field.validation?.pattern) {
-      const regex = new RegExp(field.validation.pattern);
-      if (!regex.test(String(value))) {
-        throw new Error(field.validation.message || `Field ${field.label} does not match required pattern`);
+      try {
+        const regex = new RegExp(field.validation.pattern);
+        if (!regex.test(String(value))) {
+          throw new Error(field.validation.message || `Field ${field.label} does not match required pattern`);
+        }
+      } catch (regexError: unknown) {
+        // Invalid regex pattern in form definition - skip pattern validation
+        if (regexError instanceof Error && regexError.message.includes('does not match')) {
+          throw regexError;
+        }
       }
     }
   }

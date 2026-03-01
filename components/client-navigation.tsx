@@ -30,6 +30,7 @@ import {
   Clock,
   BarChart3
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { isSuperadmin, isUnassigned } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
@@ -151,8 +152,8 @@ export function ClientNavigation() {
       await signOut()
       // Redirect to home page after logout
       window.location.href = '/'
-    } catch (error: unknown) {
-      console.error('Error signing out:', error)
+    } catch {
+      toast.error('Failed to sign out. Please try again.')
     }
   }
 
@@ -182,8 +183,7 @@ export function ClientNavigation() {
       });
 
       return Array.from(deptMap.values());
-    } catch (error: unknown) {
-      console.error('Error getting user departments:', error)
+    } catch {
       return []
     }
   }
@@ -276,8 +276,7 @@ export function ClientNavigation() {
     // Call synchronously - no need for async/await anymore!
     try {
       filterItemsSync()
-    } catch (err: any) {
-      console.error('Error filtering ClientNavigation items:', err)
+    } catch {
       setVisibleItems(navigationItems.filter((item: any) => item.allowUnassigned === true))
       setVisibleAdminItems([])
       setPermissionsChecked(true)

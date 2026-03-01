@@ -68,7 +68,6 @@ export default function WorkflowsClient({ canManageWorkflows }: WorkflowsClientP
       }
     } catch (err: unknown) {
       toast.error('Failed to load workflows');
-      console.error('Error fetching workflows:', err);
     } finally {
       setLoading(false);
     }
@@ -104,7 +103,6 @@ export default function WorkflowsClient({ canManageWorkflows }: WorkflowsClientP
       }
     } catch (err: unknown) {
       toast.error('Failed to create workflow template');
-      console.error('Error creating workflow:', err);
     } finally {
       setSaving(false);
     }
@@ -131,7 +129,6 @@ export default function WorkflowsClient({ canManageWorkflows }: WorkflowsClientP
       }
     } catch (err: unknown) {
       toast.error('Failed to delete workflow template');
-      console.error('Error deleting workflow:', err);
     } finally {
       setDeleting(false);
     }

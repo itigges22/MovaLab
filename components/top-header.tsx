@@ -50,7 +50,6 @@ export function TopHeader({ onMobileMenuToggle, isMobileMenuOpen: _isMobileMenuO
       router.push('/login');
       router.refresh();
     } catch (error) {
-      console.error('Error signing out:', error);
     } finally {
       setIsSigningOut(false);
     }

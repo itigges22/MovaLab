@@ -85,7 +85,7 @@ export function isUnassigned(userProfile: UserWithRoles | null): boolean {
  */
 export function getUserRoles(userProfile: UserWithRoles | null): string[] {
   if (!userProfile?.user_roles) return [];
-  return userProfile.user_roles.map(userRole => userRole.roles.name);
+  return userProfile.user_roles.map(userRole => userRole.roles?.name).filter((name): name is string => !!name);
 }
 
 /**

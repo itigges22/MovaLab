@@ -59,7 +59,7 @@ export default function PeopleManagementDialog({
       const peopleData = await supabaseTaskService.getUsers();
       setPeople(peopleData);
     } catch (error: unknown) {
-      console.error('Error loading people:', error);
+      toast.error('Failed to load people. Please try again.');
     }
   };
 
@@ -73,16 +73,17 @@ export default function PeopleManagementDialog({
         name: newPersonName.trim(),
         image: newPersonImage.trim() || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
       });
-      
+
       if (newPerson) {
         // Add to local state immediately for instant UI update
         setPeople(prev => [...prev, newPerson]);
         onPersonCreated?.(newPerson);
         setNewPersonName('');
         setNewPersonImage('');
+        toast.success('Person added successfully');
       }
     } catch (error: unknown) {
-      console.error('Error creating person:', error);
+      toast.error('Failed to add person. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -109,7 +110,7 @@ export default function PeopleManagementDialog({
         onPersonDeleted?.(personToDelete);
       }
     } catch (error: unknown) {
-      console.error('Error deleting person:', error);
+      toast.error('Failed to delete person. Please try again.');
     } finally {
       setDeleteDialogOpen(false);
       setPersonToDelete(null);

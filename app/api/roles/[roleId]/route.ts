@@ -254,7 +254,7 @@ export async function DELETE(
         errorDetails: deleteError 
       });
       return NextResponse.json(
-        { message: 'Error deleting role', error: deleteError.message },
+        { error: 'Failed to delete role' },
         { status: 500 }
       );
     }

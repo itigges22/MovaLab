@@ -78,7 +78,6 @@ export default function AdminTimeTrackingPage() {
     try {
       const supabase = createClientSupabase() as any
       if (!supabase) {
-        console.error('Supabase client not initialized')
         return
       }
 
@@ -88,7 +87,6 @@ export default function AdminTimeTrackingPage() {
         .order('name')
 
       if (error) {
-        console.error('Error loading users:', error)
         return
       }
 
@@ -96,7 +94,7 @@ export default function AdminTimeTrackingPage() {
         setUsers(data)
       }
     } catch (error: unknown) {
-      console.error('Error loading users:', error)
+      // Silent - filter data load failure is non-critical
     }
   }, [])
 
@@ -104,7 +102,6 @@ export default function AdminTimeTrackingPage() {
     try {
       const supabase = createClientSupabase() as any
       if (!supabase) {
-        console.error('Supabase client not initialized')
         return
       }
 
@@ -114,7 +111,6 @@ export default function AdminTimeTrackingPage() {
         .order('name')
 
       if (error) {
-        console.error('Error loading projects:', error)
         return
       }
 
@@ -122,7 +118,7 @@ export default function AdminTimeTrackingPage() {
         setProjects(data)
       }
     } catch (error: unknown) {
-      console.error('Error loading projects:', error)
+      // Silent - filter data load failure is non-critical
     }
   }, [])
 
@@ -144,7 +140,6 @@ export default function AdminTimeTrackingPage() {
         toast.error(data.error || 'Failed to load time entries')
       }
     } catch (error: unknown) {
-      console.error('Error loading time entries:', error)
       toast.error('Failed to load time entries')
     } finally {
       setLoading(false)
@@ -258,7 +253,6 @@ export default function AdminTimeTrackingPage() {
         toast.error(data.error || 'Failed to update time entry')
       }
     } catch (error: unknown) {
-      console.error('Error updating time entry:', error)
       toast.error('Failed to update time entry')
     } finally {
       setSaving(false)
@@ -285,7 +279,6 @@ export default function AdminTimeTrackingPage() {
         toast.error(data.error || 'Failed to delete time entry')
       }
     } catch (error: unknown) {
-      console.error('Error deleting time entry:', error)
       toast.error('Failed to delete time entry')
     } finally {
       setDeleting(false)

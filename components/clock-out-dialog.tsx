@@ -117,7 +117,7 @@ export function ClockOutDialog({
         .is('removed_at', null)
 
       if (assignmentsError) {
-        console.error('Error fetching project assignments:', assignmentsError)
+        toast.error('Failed to load project assignments')
       }
 
       if (assignments && assignments.length > 0) {
@@ -149,7 +149,7 @@ export function ClockOutDialog({
         .is('removed_at', null) // Only check current assignments for completed projects
 
       if (recentError) {
-        console.error('Error fetching recent completed projects:', recentError)
+        toast.error('Failed to load recent projects')
       }
 
       if (recentCompleted && recentCompleted.length > 0) {
@@ -186,7 +186,7 @@ export function ClockOutDialog({
           .order('name')
 
         if (tasksError) {
-          console.error('Error fetching tasks:', tasksError)
+          toast.error('Failed to load tasks')
         }
 
         if (projectTasks) {
@@ -194,7 +194,7 @@ export function ClockOutDialog({
         }
       }
     } catch (error: unknown) {
-      console.error('Error loading projects:', error)
+      toast.error('Failed to load projects')
     } finally {
       setLoading(false)
     }
@@ -288,7 +288,6 @@ export function ClockOutDialog({
         }
       }
     } catch (error: unknown) {
-      console.error('Error clocking out:', error)
       toast.error('Failed to clock out')
     } finally {
       setSubmitting(false)
@@ -313,7 +312,6 @@ export function ClockOutDialog({
         toast.error(data.error || 'Failed to clock out')
       }
     } catch (error: unknown) {
-      console.error('Error clocking out:', error)
       toast.error('Failed to clock out')
     } finally {
       setSubmitting(false)

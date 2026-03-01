@@ -109,7 +109,7 @@ async function captureWorkflowSnapshot(
       .from('workflow_history')
       .select('*')
       .eq('workflow_instance_id', workflowInstanceId)
-      .order('handed_off_at', { ascending: true });
+      .order('created_at', { ascending: true });
 
     if (historyError) {
       logger.error('Error capturing workflow history snapshot', { historyError });
@@ -123,8 +123,7 @@ async function captureWorkflowSnapshot(
       // Get unique user IDs from history
       const userIds = new Set<string>();
       history.forEach((h: any) => {
-        if (isString(h.handed_off_by)) userIds.add(h.handed_off_by);
-        if (isString(h.handed_off_to)) userIds.add(h.handed_off_to);
+        if (isString(h.transitioned_by)) userIds.add(h.transitioned_by);
       });
 
       // Fetch user names
@@ -138,14 +137,14 @@ async function captureWorkflowSnapshot(
         isString(u.name) ? u.name : 'Unknown User'
       ]));
 
-      // Map each node to the user who handled it (handed_off_by for the to_node_id)
+      // Map each node to the user who handled it (transitioned_by for the to_node_id)
       history.forEach((h: any) => {
         const toNodeId = h.to_node_id;
-        const handedOffBy = h.handed_off_by;
-        if (isString(toNodeId) && isString(handedOffBy)) {
+        const transitionedBy = h.transitioned_by;
+        if (isString(toNodeId) && isString(transitionedBy)) {
           nodeAssignments[toNodeId] = {
-            userId: handedOffBy,
-            userName: (userMap.get(handedOffBy) as string) || 'Unknown User'
+            userId: transitionedBy,
+            userName: (userMap.get(transitionedBy) as string) || 'Unknown User'
           };
         }
       });
@@ -585,31 +584,18 @@ export async function progressWorkflow(
       }
     }
 
-    // Add current user to project_contributors (they participated in this workflow step)
-    if (instance.project_id) {
-      await supabase
-        .from('project_contributors')
-        .upsert({
-          project_id: instance.project_id,
-          user_id: currentUserId,
-          contribution_type: 'workflow',
-          last_contributed_at: new Date().toISOString(),
-        }, { onConflict: 'project_id,user_id' });
-    }
-
     // Create workflow history entry
     // If inline form data is provided (from workflow builder forms), store it in the notes field as JSON
     const notesContent = inlineFormData
-      ? JSON.stringify({ type: 'inline_form', data: inlineFormData })
-      : null;
+      ? JSON.stringify({ type: 'inline_form', data: inlineFormData, decision, feedback })
+      : (decision ? JSON.stringify({ decision, feedback }) : null);
 
     const { data: historyEntry } = await supabase.from('workflow_history').insert({
       workflow_instance_id: workflowInstanceId,
       from_node_id: currentNode.id,
       to_node_id: nextNode?.id || null,
-      handed_off_by: currentUserId,
-      approval_decision: decision,
-      approval_feedback: feedback,
+      transitioned_by: currentUserId,
+      transition_type: 'normal',
       form_response_id: formResponseId,
       notes: notesContent,
     }).select('id').single();
@@ -1058,15 +1044,6 @@ async function assignProjectToNode(
         });
       }
 
-      // Add to project_contributors for time tracking history
-      await supabase
-        .from('project_contributors')
-        .upsert({
-          project_id: projectId,
-          user_id: userId,
-          contribution_type: 'workflow',
-          last_contributed_at: new Date().toISOString(),
-        }, { onConflict: 'project_id,user_id' });
     }
 
     // Grant account access if needed
@@ -1189,15 +1166,6 @@ async function assignProjectToParallelNodes(
         });
       }
 
-      // Add to project_contributors for time tracking history
-      await supabase
-        .from('project_contributors')
-        .upsert({
-          project_id: projectId,
-          user_id: userId,
-          contribution_type: 'workflow',
-          last_contributed_at: new Date().toISOString(),
-        }, { onConflict: 'project_id,user_id' });
     }
 
     // Grant account access if needed
@@ -2517,7 +2485,7 @@ export async function progressWorkflowStep(
           `)
           .eq('workflow_instance_id', workflowInstanceId)
           .not('form_response_id', 'is', null)
-          .order('handed_off_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
@@ -3104,21 +3072,19 @@ export async function progressWorkflowStep(
       );
     }
 
-    // Update workflow_history with branch_id
+    // Create workflow_history entry
     const notesContent = inlineFormData
-      ? JSON.stringify({ type: 'inline_form', data: inlineFormData })
-      : null;
+      ? JSON.stringify({ type: 'inline_form', data: inlineFormData, decision, feedback })
+      : (decision ? JSON.stringify({ decision, feedback }) : null);
 
     const { data: historyEntry } = await supabase.from('workflow_history').insert({
       workflow_instance_id: workflowInstanceId,
       from_node_id: currentNode.id,
       to_node_id: nextNodes.length > 0 ? nextNodes[0]?.id : null,
-      handed_off_by: currentUserId,
-      approval_decision: decision,
-      approval_feedback: feedback,
+      transitioned_by: currentUserId,
+      transition_type: 'normal',
       form_response_id: formResponseId,
       notes: notesContent,
-      branch_id: currentBranchId
     }).select('id').single();
 
     const workflowHistoryId = historyEntry?.id || null;
@@ -3212,7 +3178,6 @@ export async function progressWorkflowStep(
         current_node_id: workflowComplete ? null : (primaryNextNode?.id || instance.current_node_id),
         status: workflowComplete ? 'completed' : 'active',
         completed_at: workflowComplete ? new Date().toISOString() : null,
-        has_parallel_paths: isParallel || instance.has_parallel_paths,
         ...(completedSnapshot && { completed_snapshot: completedSnapshot })
       })
       .eq('id', workflowInstanceId);
@@ -3220,18 +3185,6 @@ export async function progressWorkflowStep(
     // Handle workflow completion
     if (workflowComplete && instance.project_id) {
       await completeProject(supabase, instance.project_id);
-    }
-
-    // Add contributors
-    if (instance.project_id) {
-      await supabase
-        .from('project_contributors')
-        .upsert({
-          project_id: instance.project_id,
-          user_id: currentUserId,
-          contribution_type: 'workflow',
-          last_contributed_at: new Date().toISOString(),
-        }, { onConflict: 'project_id,user_id' });
     }
 
     return {

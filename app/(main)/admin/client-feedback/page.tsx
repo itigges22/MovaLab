@@ -89,7 +89,6 @@ export default function ClientFeedbackPage() {
         toast.error('Failed to load accounts');
       }
     } catch (error: unknown) {
-      console.error('Error loading accounts:', error);
       toast.error('Error loading accounts');
     } finally {
       setLoadingAccounts(false);
@@ -108,7 +107,6 @@ export default function ClientFeedbackPage() {
         toast.error('Failed to load feedback');
       }
     } catch (error: unknown) {
-      console.error('Error loading feedback:', error);
       toast.error('Error loading feedback');
     } finally {
       setLoadingFeedback(false);

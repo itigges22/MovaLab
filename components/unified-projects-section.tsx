@@ -221,8 +221,8 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       if (pastData.success) {
         setPastProjects(pastData.projects || []);
       }
-    } catch (error: unknown) {
-      console.error('Error loading inbox data:', error);
+    } catch {
+      toast.error('Failed to load project data');
     } finally {
       setLoading(false);
     }
@@ -256,9 +256,8 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       // Close dialog and reset state
       setDeleteDialogOpen(false);
       setProjectToDelete(null);
-    } catch (error: unknown) {
-      console.error('Error deleting project:', error);
-      toast.error(`Failed to delete project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch {
+      toast.error('Failed to delete project. Please try again.');
     } finally {
       setDeletingProject(false);
     }

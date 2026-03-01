@@ -88,7 +88,6 @@ export function TimeEntriesSummary({ userProfile }: TimeEntriesSummaryProps) {
         totalEntries: count || 0,
       });
     } catch (error: unknown) {
-      console.error('Error fetching summary stats:', error);
     } finally {
       setLoading(false);
     }

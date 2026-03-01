@@ -149,7 +149,6 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
 
       setTasks(uniqueTasks as Array<{ id: string; name: string }>);
     } catch (error: unknown) {
-      console.error('Error fetching filters data:', error);
       toast.error('Failed to load filter options');
     }
   }, [userProfile]);
@@ -190,7 +189,6 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
       const { data, error, count } = await query;
 
       if (error) {
-        console.error('Error fetching entries:', error);
         toast.error('Failed to load time entries');
         return;
       }
@@ -198,8 +196,7 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
       setEntries(data || []);
       setTotalEntries(count || 0);
     } catch (error: unknown) {
-      console.error('Error fetching time entries:', error);
-      toast.error('Error loading time entries');
+      toast.error('Failed to load time entries');
     } finally {
       setLoading(false);
     }
@@ -257,8 +254,7 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
         toast.error(data.error || 'Failed to update time entry');
       }
     } catch (error: unknown) {
-      console.error('Error updating entry:', error);
-      toast.error('Error updating time entry');
+      toast.error('Failed to update time entry');
     } finally {
       setSaving(false);
     }
@@ -287,8 +283,7 @@ export function TimeEntriesList({ userProfile }: TimeEntriesListProps) {
         toast.error(data.error || 'Failed to delete time entry');
       }
     } catch (error: unknown) {
-      console.error('Error deleting entry:', error);
-      toast.error('Error deleting time entry');
+      toast.error('Failed to delete time entry');
     }
   };
 

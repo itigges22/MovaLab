@@ -73,14 +73,11 @@ export interface WorkflowHistory {
   workflow_instance_id: string;
   from_node_id: string | null;
   to_node_id: string;
-  handed_off_by: string | null;
-  handed_off_to: string | null;
-  handed_off_at: string;
-  out_of_order: boolean;
+  transitioned_by: string | null;
+  transition_type: string | null;
   form_response_id: string | null;
   notes: string | null;
-  project_update_id: string | null;
-  project_issue_id: string | null;
+  created_at: string;
 }
 
 export interface WorkflowTemplateWithDetails extends WorkflowTemplate {
@@ -861,7 +858,7 @@ export async function getWorkflowHistory(instanceId: string): Promise<WorkflowHi
     .from('workflow_history')
     .select('*')
     .eq('workflow_instance_id', instanceId)
-    .order('handed_off_at', { ascending: false });
+    .order('created_at', { ascending: false });
 
   if (error) {
     logger.error('Error fetching workflow history', { action: 'getWorkflowHistory', instanceId }, error);

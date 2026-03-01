@@ -149,7 +149,6 @@ function AccountCard({
         setCanRemoveUsers(canManageAccountUsers);
         setCanManageAccountManager(canManageAccountUsers);
       } catch (error: unknown) {
-        console.error('Error checking permissions:', error);
         setCanViewTab(false);
         setCanAssignUsers(false);
         setCanRemoveUsers(false);
@@ -187,7 +186,6 @@ function AccountCard({
       const data = await response.json();
       setAllUsers(data.users || []);
     } catch (error: unknown) {
-      console.error('Error loading users:', error);
       toast.error('Failed to load users');
     } finally {
       setLoadingUsers(false);
@@ -209,30 +207,14 @@ function AccountCard({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('API Error:', errorData);
-
-        // Provide more specific error messages
-        let errorMessage = errorData.error || 'Failed to assign user';
-        if (errorData.details) {
-          errorMessage += `: ${errorData.details}`;
-        }
-
-        // Check if it's a table doesn't exist error
-        if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('account_members')) {
-          errorMessage = 'The account_members table does not exist. Please create it in your database first.';
-        }
-
-        throw new Error(errorMessage);
+        throw new Error('Failed to assign user');
       }
 
       toast.success('User assigned to account successfully');
       // Trigger parent reload - this will update the UI properly
       onUserAssign?.(userId, account.id);
     } catch (error: unknown) {
-      console.error('Error assigning user:', error);
-      const err = error as { message?: string };
-      toast.error(err.message || 'Failed to assign user to account');
+      toast.error('Failed to assign user to account');
     } finally {
       setAssigningUserId(null);
     }
@@ -267,9 +249,7 @@ function AccountCard({
       // Trigger parent reload - this will update the UI properly
       onUserAssign?.(userToRemove, account.id);
     } catch (error: unknown) {
-      console.error('Error removing user:', error);
-      const err = error as { message?: string };
-      toast.error(err.message || 'Failed to remove user from account');
+      toast.error('Failed to remove user from account');
     } finally {
       setRemovingUserId(null);
       setUserToRemove(null);
@@ -301,9 +281,7 @@ function AccountCard({
       // Trigger parent reload - this will update the UI properly
       onUserAssign?.(managerId, account.id);
     } catch (error: unknown) {
-      console.error('Error updating account manager:', error);
-      const err = error as { message?: string };
-      toast.error(err.message || 'Failed to update account manager');
+      toast.error('Failed to update account manager');
     } finally {
       setUpdatingManager(false);
     }
@@ -598,22 +576,16 @@ export function AccountView({
     try {
       setLoading(true);
       
-      console.log('🏢 Loading accounts and members...');
-      
       const response = await fetch('/api/accounts/members');
-      
+
       if (!response.ok) {
-        const error = await response.text().catch(() => 'Unknown error');
-        console.error('❌ API Error:', error);
         throw new Error('Failed to load data');
       }
-      
+
       const data = await response.json();
-      console.log('📊 Accounts data:', data);
       
       setAccounts(data.accounts || []);
     } catch (error: unknown) {
-      console.error('💥 Error loading accounts:', error);
       toast.error('Failed to load accounts');
     } finally {
       setLoading(false);
@@ -635,12 +607,6 @@ export function AccountView({
     ? accounts.filter((acc: any) => acc.id === selectedAccount)
     : accounts;
   
-  console.log('🔍 Filtering accounts:', {
-    selectedAccount,
-    totalAccounts: accounts.length,
-    filteredAccounts: filteredAccounts.length
-  });
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">

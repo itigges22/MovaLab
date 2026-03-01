@@ -66,7 +66,6 @@ export function SidebarUserProfile({
       router.push('/login');
       router.refresh();
     } catch (error) {
-      console.error('Error signing out:', error);
     } finally {
       setIsSigningOut(false);
     }

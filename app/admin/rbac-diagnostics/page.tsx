@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -72,8 +73,8 @@ export default function RBACDiagnosticsPage() {
       const data = await response.json();
       setUsers(data.users || []);
       setRoles(data.roles || []);
-    } catch (error: unknown) {
-      console.error('Error fetching RBAC diagnostics:', error);
+    } catch {
+      toast.error('Failed to load RBAC diagnostics');
     }
     setLoading(false);
   };
@@ -88,8 +89,8 @@ export default function RBACDiagnosticsPage() {
       });
       const results = await response.json();
       setTestResults(results);
-    } catch (error: unknown) {
-      console.error('Error running diagnostic test:', error);
+    } catch {
+      toast.error('Failed to run diagnostic test');
     }
 
     setTesting(false);

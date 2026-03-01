@@ -129,7 +129,6 @@ export function TimeEntriesChart({ userProfile }: TimeEntriesChartProps) {
       setProjectData(projectArray);
 
     } catch (error: unknown) {
-      console.error('Error fetching chart data:', error);
     } finally {
       setLoading(false);
     }

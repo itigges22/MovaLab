@@ -61,7 +61,7 @@ export default function TaskCreateEditDialog({
       const supabase = createClientSupabase() as any;
 
       if (!supabase) {
-        console.error('Failed to create Supabase client');
+        toast.error('Failed to load team members');
         setUsers([]);
         return;
       }
@@ -74,7 +74,6 @@ export default function TaskCreateEditDialog({
         .single();
 
       if (projectError || !projectData) {
-        console.error('Error loading project:', projectError);
         setUsers([]);
         return;
       }
@@ -96,7 +95,7 @@ export default function TaskCreateEditDialog({
           .eq('account_id', projectData.account_id);
 
         if (accountError) {
-          console.error('Error loading account members:', accountError);
+          // Account members failed to load - continue with project assignments
         }
 
         if (accountMembers) {
@@ -131,7 +130,7 @@ export default function TaskCreateEditDialog({
         .is('removed_at', null);
 
       if (assignmentError) {
-        console.error('Error loading project assignments:', assignmentError);
+        // Project assignments failed to load - continue with available data
       }
 
       if (projectMembers) {
@@ -187,8 +186,7 @@ export default function TaskCreateEditDialog({
 
       const usersWithRoles = Array.from(uniqueUsersMap.values());
       setUsers(usersWithRoles);
-    } catch (error: unknown) {
-      console.error('Error loading users:', error);
+    } catch {
       toast.error('Failed to load team members for assignment');
       setUsers([]);
     } finally {
@@ -205,8 +203,7 @@ export default function TaskCreateEditDialog({
         start_date: data.project?.start_date || null,
         end_date: data.project?.end_date || null,
       });
-    } catch (error: unknown) {
-      console.error('Error loading project:', error);
+    } catch {
       setProject(null);
     }
   }, [projectId]);
@@ -358,15 +355,7 @@ export default function TaskCreateEditDialog({
           toast.error(result.error || 'Failed to create task');
         }
       }
-    } catch (error: unknown) {
-      const err = error as Record<string, unknown> | undefined;
-      console.error('Error saving task:', {
-        error,
-        message: err?.message,
-        details: err?.details,
-        hint: err?.hint,
-        code: err?.code
-      });
+    } catch {
       toast.error('An error occurred while saving the task. Please try again.');
     } finally {
       setLoading(false);

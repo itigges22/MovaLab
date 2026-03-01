@@ -51,7 +51,6 @@ export function UserAssignmentDialog({
       // API returns { users: [...] }, so extract the users array
       setUsers(Array.isArray(data.users) ? data.users : (Array.isArray(data) ? data : []));
     } catch (error: unknown) {
-      console.error('Error loading users:', error);
       toast.error('Failed to load users');
       setUsers([]); // Ensure users is always an array
     } finally {
@@ -70,7 +69,7 @@ export function UserAssignmentDialog({
       const usersArray = Array.isArray(data) ? data : [];
       setAssignedUserIds(new Set(usersArray.map((u: User) => u.id)));
     } catch (error: unknown) {
-      console.error('Error loading assigned users:', error);
+      toast.error('Failed to load assigned users');
       setAssignedUserIds(new Set()); // Ensure it's always a Set
     }
   }, [role]);
@@ -94,7 +93,6 @@ export function UserAssignmentDialog({
 
     // If in Edit Mode, just queue the assignment locally
     if (isEditMode && onLocalAssign) {
-      console.log('🎯 Edit Mode: Queueing user assignment locally', { roleId: role.id, userId, userName: (user as any).name });
       onLocalAssign(role.id, userId, (user as any).name);
       setAssignedUserIds(prev => new Set([...prev, userId]));
       toast.success('Assignment queued. Click "Save Changes" to apply.', {
@@ -121,9 +119,7 @@ export function UserAssignmentDialog({
       setAssignedUserIds(prev => new Set([...prev, userId]));
       onSuccess();
     } catch (error: unknown) {
-      console.error('Error assigning user:', error);
-      const err = error as { message?: string };
-      toast.error(err.message || 'Failed to assign user');
+      toast.error('Failed to assign user');
     } finally {
       setAssigning(false);
     }
@@ -151,9 +147,7 @@ export function UserAssignmentDialog({
       });
       onSuccess();
     } catch (error: unknown) {
-      console.error('Error removing user:', error);
-      const err = error as { message?: string };
-      toast.error(err.message || 'Failed to remove user');
+      toast.error('Failed to remove user');
     } finally {
       setAssigning(false);
     }

@@ -92,8 +92,7 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('Error updating account:', result.error);
-        toast.error(result.error || 'Failed to update account. Please try again.');
+        toast.error('Failed to update account. Please try again.');
         return;
       }
 
@@ -102,7 +101,6 @@ export function AccountEditDialog({ account, userProfile, onAccountUpdated, chil
       // Refresh server data without full page reload
       router.refresh();
     } catch (error: unknown) {
-      console.error('Error updating account:', error);
       toast.error('Failed to update account. Please try again.');
     } finally {
       setLoading(false);

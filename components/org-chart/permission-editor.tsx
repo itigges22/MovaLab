@@ -73,7 +73,6 @@ export function PermissionEditor({
         setHasChanges(false);
       }
     } catch (error: unknown) {
-      console.error('Error saving permissions:', error);
     } finally {
       setSaving(false);
     }

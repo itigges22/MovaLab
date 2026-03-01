@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Project {
   id: string;
@@ -72,7 +73,7 @@ export function LogTimeDialog({ open, onOpenChange, onSuccess }: LogTimeDialogPr
           .is('removed_at', null);
 
         if (assignmentError) {
-          console.error('Error loading projects:', assignmentError);
+          toast.error('Failed to load projects');
           return;
         }
 
@@ -132,7 +133,7 @@ export function LogTimeDialog({ open, onOpenChange, onSuccess }: LogTimeDialogPr
           .order('name');
 
         if (error) {
-          console.error('Error loading tasks:', error);
+          toast.error('Failed to load tasks');
           return;
         }
 
@@ -206,7 +207,6 @@ export function LogTimeDialog({ open, onOpenChange, onSuccess }: LogTimeDialogPr
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      console.error('Error logging time:', err);
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

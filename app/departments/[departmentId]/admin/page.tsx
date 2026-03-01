@@ -48,18 +48,13 @@ export default async function DepartmentAdminPage({ params }: DepartmentAdminPag
     .single();
 
   if (profileError || !userProfile) {
-    console.log('❌ Admin page: Profile error or no profile found', { profileError, userProfile });
     redirect('/login');
   }
 
-  console.log('👤 Admin page: User profile loaded', { userProfile });
-
   // Check if user has admin privileges
   const hasAdminPrivileges = isAdminLevel(userProfile as unknown as import('@/lib/rbac-types').UserWithRoles);
-  console.log('🔑 Admin page: Admin privileges check', { hasAdminPrivileges, userRoles: userProfile.user_roles });
 
   if (!hasAdminPrivileges) {
-    console.log('❌ Admin page: No admin privileges, redirecting to home');
     redirect('/');
   }
 

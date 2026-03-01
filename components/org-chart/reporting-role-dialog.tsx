@@ -26,12 +26,6 @@ export function ReportingRoleDialog({
 
   useEffect(() => {
     if (role) {
-      console.log('🔄 ReportingRoleDialog: Role changed:', {
-        roleId: role.id,
-        roleName: role.name,
-        reportingRoleId: role.reporting_role_id,
-        reportingRoleName: role.reporting_role?.name
-      });
       setSelectedReportingRoleId(role.reporting_role_id ?? 'none');
     }
   }, [role]);
@@ -46,7 +40,6 @@ export function ReportingRoleDialog({
       onOpenChange(false);
       toast.success(`Updated reporting relationship for ${role.name}`);
     } catch (error: unknown) {
-      console.error('Error updating reporting role:', error);
       toast.error('Failed to update reporting relationship');
     }
   };
@@ -61,9 +54,6 @@ export function ReportingRoleDialog({
     
     return true;
   });
-
-  console.log('🔄 ReportingRoleDialog: Available roles:', availableRoles.map((r: any) => r.name));
-  console.log('🔄 ReportingRoleDialog: Selected reporting role ID:', selectedReportingRoleId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
