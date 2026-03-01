@@ -20,8 +20,8 @@ export async function DELETE(
 
     const { accountId, userId } = await params;
 
-    // Require permission to remove users from accounts
-    await requireAuthAndPermission(Permission.MANAGE_USERS_IN_ACCOUNTS, {}, request);
+    // Require permission to remove users from accounts (with account context)
+    await requireAuthAndPermission(Permission.MANAGE_USERS_IN_ACCOUNTS, { accountId }, request);
     
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {

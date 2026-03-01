@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/debug-logger';
 import { roleManagementService } from '@/lib/role-management-service';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 
 export async function DELETE(
@@ -32,23 +32,11 @@ export async function DELETE(
       );
     }
 
-    // Create Supabase client with service role key (bypasses RLS)
-    // If service key is not available, use publishable key (RLS will apply)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!;
-    const usingServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    logger.info(usingServiceKey ? 'Using service role key (RLS bypassed)' : 'Using publishable key (RLS active)', { 
-      action: 'deleteRole',
-      roleId 
-    });
+    // Use authenticated client that respects RLS
+    const supabase = createApiSupabaseClient(request);
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    }
 
     // Check if role exists and get details
     const { data: existingRole, error: roleError } = await supabase

@@ -62,7 +62,7 @@ export default function DepartmentDeleteDialog({
       if (success) {
         setOpen(false)
         onDepartmentDeleted?.()
-        toast.error('Department deleted successfully!')
+        toast.success('Department deleted successfully!')
       } else {
         toast.error('Failed to delete department. Please try again.')
       }

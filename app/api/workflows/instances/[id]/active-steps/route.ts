@@ -54,30 +54,27 @@ export async function GET(
     // Count waiting branches
     const waitingBranches = allSteps.filter((s: any) => s.status === 'waiting').length;
 
-    // Enrich active steps with node information
-    const enrichedSteps = await Promise.all(
-      allSteps.map(async (step) => {
-        const { data: node } = await supabase
-          .from('workflow_nodes')
-          .select('*')
-          .eq('id', step.node_id)
-          .single();
+    // Enrich active steps with node information (bulk fetch to avoid N+1 queries)
+    const allNodeIds = [...new Set(allSteps.map((s: any) => s.node_id).filter(Boolean))];
+    const allUserIds = [...new Set(allSteps.map((s: any) => s.assigned_user_id).filter(Boolean))];
 
-        const { data: assignedUser } = step.assigned_user_id
-          ? await supabase
-              .from('user_profiles')
-              .select('id, full_name, avatar_url')
-              .eq('id', step.assigned_user_id)
-              .single()
-          : { data: null };
+    const [nodesResult, usersResult] = await Promise.all([
+      allNodeIds.length > 0
+        ? supabase.from('workflow_nodes').select('*').in('id', allNodeIds)
+        : { data: [] },
+      allUserIds.length > 0
+        ? supabase.from('user_profiles').select('id, name, email').in('id', allUserIds)
+        : { data: [] },
+    ]);
 
-        return {
-          ...step,
-          node,
-          assignedUser: assignedUser || null
-        };
-      })
-    );
+    const nodesMap = new Map((nodesResult.data || []).map((n: any) => [n.id, n]));
+    const usersMap = new Map((usersResult.data || []).map((u: any) => [u.id, u]));
+
+    const enrichedSteps = allSteps.map((step: any) => ({
+      ...step,
+      node: nodesMap.get(step.node_id) || null,
+      assignedUser: step.assigned_user_id ? usersMap.get(step.assigned_user_id) || null : null,
+    }));
 
     return NextResponse.json({
       activeSteps: enrichedSteps.filter((s: any) => s.status === 'active'),

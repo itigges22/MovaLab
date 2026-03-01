@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { Permission } from '@/lib/permissions';
 import { validateRole } from '@/lib/validation';
 import { logger, apiCall, apiResponse, databaseQuery, databaseError } from '@/lib/debug-logger';
@@ -41,32 +40,9 @@ export async function GET(request: NextRequest) {
     // Must pass request to parse cookies manually (cookies() doesn't work in Route Handlers)
     await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
     
-    // Get Supabase configuration
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
-
-    if (!supabaseUrl || !publishableKey) {
-      logger.error('Supabase not configured', {
-        action: 'getRoles',
-        hasUrl: !!supabaseUrl,
-        hasPublishableKey: !!publishableKey
-      });
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
-    }
-
-    // Try authenticated client first (respects RLS), fall back to service role if available
-    // Since we've already verified permissions, service role is safe to use as fallback
-    let supabase = createApiSupabaseClient(request);
-    let usingServiceRole = false;
-    
-    // If no authenticated client or if service role is available, use service role for reliable access
-    // Service role bypasses RLS, but we've already verified the user has VIEW_ROLES permission
-    if (serviceRoleKey) {
-      supabase = createClient(supabaseUrl, serviceRoleKey);
-      usingServiceRole = true;
-      logger.debug('Using service role key for roles query', { action: 'getRoles' });
-    } else if (!supabase) {
+    // Use authenticated client that respects RLS
+    const supabase = createApiSupabaseClient(request);
+    if (!supabase) {
       logger.error('Failed to create Supabase client', { action: 'getRoles' });
       return NextResponse.json({ error: 'Failed to create database connection' }, { status: 500 });
     }
@@ -95,103 +71,15 @@ export async function GET(request: NextRequest) {
       .order('display_order', { ascending: true });
 
     if (error) {
-      // Log detailed error information
-      logger.error('[GET /api/roles] Query error', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        usingServiceRole,
-        hasServiceRoleKey: !!serviceRoleKey
-      });
-      
-      logger.error('Error fetching roles', { 
+      logger.error('Error fetching roles', {
         action: 'getRoles',
-        error: error.message,
         code: error.code,
-        details: error.details,
-        hint: error.hint,
-        usingServiceRole
-      }, error);
-      
-      // If using service role and still getting error, return detailed error
-      if (usingServiceRole) {
-        return NextResponse.json({ 
-          error: 'Failed to fetch roles',
-          details: error.message,
-          code: error.code,
-          hint: error.hint,
-          message: `Database query failed: ${error.message}`
-        }, { status: 500 });
-      }
-      
-      // If using authenticated client and getting RLS error, try service role as fallback
-      if (!usingServiceRole && serviceRoleKey && (error.code === '42501' || error.message?.includes('permission denied') || error.message?.includes('RLS'))) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.debug('[GET /api/roles] RLS blocking access, trying service role fallback');
-        }
-        logger.warn('RLS blocking access, trying service role fallback', { action: 'getRoles' });
-        const serviceSupabase = createClient(supabaseUrl, serviceRoleKey);
-        const { data: fallbackRoles, error: fallbackError } = await serviceSupabase
-          .from('roles')
-          .select(`
-            id,
-            name,
-            description,
-            department_id,
-            hierarchy_level,
-            display_order,
-            reporting_role_id,
-            is_system_role,
-            permissions,
-            created_at,
-            updated_at,
-            department:departments!roles_department_id_fkey (
-              id,
-              name
-            )
-          `)
-          .order('display_order', { ascending: true });
-        
-        if (fallbackError) {
-          logger.error('[GET /api/roles] Fallback query also failed', {}, fallbackError as unknown as Error);
-          logger.error('Fallback query also failed', { 
-            action: 'getRoles',
-            error: fallbackError.message,
-            code: fallbackError.code
-          }, fallbackError);
-          return NextResponse.json({ 
-            error: 'Failed to fetch roles',
-            details: fallbackError.message,
-            code: fallbackError.code,
-            hint: fallbackError.hint
-          }, { status: 500 });
-        }
+      }, error as unknown as Error);
 
-        if (process.env.NODE_ENV === 'development') {
-          logger.debug('[GET /api/roles] Fallback query succeeded', { data: fallbackRoles?.length || 0 });
-        }
-        // Use fallback results
-        return await processRolesData(serviceSupabase, fallbackRoles as unknown as RoleData[] || []);
-      }
-      
-      return NextResponse.json({ 
-        error: 'Failed to fetch roles',
-        details: error.message,
-        code: error.code,
-        hint: error.hint
+      return NextResponse.json({
+        error: 'Failed to fetch roles'
       }, { status: 500 });
     }
-
-    // Log the query results for debugging
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('[GET /api/roles] Query succeeded', { data: { rolesCount: roles?.length || 0, usingServiceRole } });
-    }
-    logger.info('Roles query result', {
-      action: 'getRoles',
-      rolesCount: roles?.length || 0,
-      usingServiceRole
-    });
 
     // Process and return roles data
     return await processRolesData(supabase, roles as unknown as RoleData[] || []);

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 // GET /api/org-structure/departments - Get all departments
@@ -10,9 +12,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Permission check: requires VIEW_DEPARTMENTS or VIEW_ALL_DEPARTMENTS
+    const canView = await hasPermission(userProfile, Permission.VIEW_DEPARTMENTS, undefined, supabase);
+    const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_DEPARTMENTS, undefined, supabase);
+
+    if (!canView && !canViewAll) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to view departments' },
+        { status: 403 }
+      );
     }
 
     // Get all departments

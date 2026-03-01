@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { progressWorkflowStep } from '@/lib/workflow-execution-service';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
 
 export async function POST(request: NextRequest) {
@@ -10,10 +12,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Get current user with roles for permission checking
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canExecute) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to progress workflows' },
+        { status: 403 }
+      );
     }
 
     const {
@@ -41,7 +52,7 @@ export async function POST(request: NextRequest) {
       supabase,
       workflowInstanceId,
       activeStepId || null, // Pass null for legacy behavior
-      user.id,
+      userProfile.id,
       decision,
       feedback,
       formResponseId,

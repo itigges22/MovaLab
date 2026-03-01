@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { startWorkflowForProject } from '@/lib/workflow-execution-service';
+import { hasPermission } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
+import { userHasProjectAccess } from '@/lib/rbac';
 import { logger } from '@/lib/debug-logger';
 
 export async function POST(request: NextRequest) {
@@ -11,8 +14,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userProfile = await getUserProfileFromRequest(supabase);
+    if (!userProfile) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -25,8 +28,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Permission check: user needs EXECUTE_WORKFLOWS permission
+    const canExecute = await hasPermission(userProfile, Permission.EXECUTE_WORKFLOWS, undefined, supabase);
+    if (!canExecute) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to start workflows' },
+        { status: 403 }
+      );
+    }
+
+    // Access check: user must have access to the project
+    const hasAccess = await userHasProjectAccess(userProfile, projectId, supabase);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'You do not have access to this project' },
+        { status: 403 }
+      );
+    }
+
     // Start the workflow
-    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, user.id);
+    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, userProfile.id);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
