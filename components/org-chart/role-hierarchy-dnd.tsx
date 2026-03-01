@@ -462,7 +462,12 @@ export function RoleHierarchyDnd({
         })
       );
       
-      await Promise.all(updatePromises);
+      const results = await Promise.all(updatePromises);
+      const anyFailed = results.some((r: Response) => !r.ok);
+      if (anyFailed) {
+        toast.error('Some role updates failed. Please try again.');
+        return;
+      }
       toast.success('Role order updated successfully');
       
       // Reload data to ensure consistency

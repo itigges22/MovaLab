@@ -130,7 +130,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
     const startNode = nodes.find((n: any) => n.node_type === 'start');
     if (!startNode) {
       // Fallback: sort by position_y, excluding conditional nodes
-      return nodes
+      return (nodes ?? [])
         .filter((n: any) => n.node_type !== 'conditional')
         .sort((a, b) => a.position_y - b.position_y);
     }

@@ -75,12 +75,6 @@ export const KanbanBoard = ({ id, children, className }: KanbanBoardProps) => {
     id,
   });
 
-  // Debug logging for droppable areas (can be removed in production)
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[KANBAN BOARD] ${id} - isOver:`, isOver);
-    }
-  }, [id, isOver]);
 
   return (
     <div
@@ -90,8 +84,6 @@ export const KanbanBoard = ({ id, children, className }: KanbanBoardProps) => {
         className
       )}
       ref={setNodeRef}
-      onMouseEnter={() => process.env.NODE_ENV === 'development' && console.log(`[KANBAN BOARD] ${id} - mouse enter`)}
-      onMouseLeave={() => process.env.NODE_ENV === 'development' && console.log(`[KANBAN BOARD] ${id} - mouse leave`)}
     >
       {children}
     </div>
@@ -130,38 +122,13 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
     transform: CSS.Transform.toString(transform),
   };
 
-  // Debug logging for drag listeners (can be removed in production)
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[KANBAN CARD] ${id} - listeners:`, listeners);
-      console.log(`[KANBAN CARD] ${id} - disabled:`, disabled);
-      console.log(`[KANBAN CARD] ${id} - attributes:`, attributes);
-    }
-  }, [id, listeners, disabled, attributes]);
-
   return (
     <>
-      <div 
-        style={style} 
-        {...(disabled ? {} : listeners)} 
-        {...attributes} 
+      <div
+        style={style}
+        {...(disabled ? {} : listeners)}
+        {...attributes}
         ref={setNodeRef}
-        onMouseDown={(e) => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[KANBAN CARD] ${id} - mouse down event`);
-          }
-          if (listeners?.onMouseDown) {
-            listeners.onMouseDown(e);
-          }
-        }}
-        onTouchStart={(e) => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[KANBAN CARD] ${id} - touch start event`);
-          }
-          if (listeners?.onTouchStart) {
-            listeners.onTouchStart(e);
-          }
-        }}
       >
         <Card
           className={cn(
@@ -283,12 +250,6 @@ export const KanbanProvider = <
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    console.log('[KANBAN] Drag started:', {
-      activeId: event.active.id,
-      activeData: data.find((item: any) => item.id === event.active.id),
-      allData: data,
-      columns: columns
-    });
     const card = data.find((item: any) => item.id === event.active.id);
     if (card) {
       setActiveCardId(event.active.id as string);
@@ -297,98 +258,52 @@ export const KanbanProvider = <
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    console.log('[KANBAN] Drag over:', {
-      activeId: active.id,
-      overId: over?.id,
-      overData: over ? data.find((item: any) => item.id === over.id) : null,
-      isColumn: over ? columns.find((col:any) => col.id === over.id) : null
-    });
-    
     onDragOver?.(event);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    console.log('[KANBAN] handleDragEnd called');
     setActiveCardId(null);
     onDragEnd?.(event);
 
     const { active, over } = event;
-    console.log('[KANBAN] Drag ended:', {
-      activeId: active.id,
-      overId: over?.id,
-      hasOver: !!over,
-      overData: over ? data.find((item: any) => item.id === over.id) : null,
-      isColumn: over ? columns.find((col:any) => col.id === over.id) : null,
-      allColumns: columns.map((col: any) => col.id)
-    });
 
-    if (!over) {
-      console.log('[KANBAN] No target, skipping');
-      return;
-    }
+    if (!over) return;
 
     const activeItem = data.find((item: any) => item.id === active.id);
     const overItem = data.find((item: any) => item.id === over.id);
-    
-    if (!activeItem) {
-      console.log('[KANBAN] Active item not found, skipping');
-      return;
-    }
+
+    if (!activeItem) return;
 
     // If dropping on the same item, skip
-    if (active.id === over.id) {
-      console.log('[KANBAN] Same position, skipping');
-      return;
-    }
+    if (active.id === over.id) return;
 
     const activeColumn = activeItem.column;
     const overColumn = overItem?.column ?? columns.find((col:any) => col.id === over.id)?.id;
 
-    console.log('[KANBAN] Column analysis:', {
-      activeColumn,
-      overColumn,
-      isColumnDrop: !overItem,
-      isItemDrop: !!overItem,
-      overId: over.id,
-      columnIds: columns.map((col: any) => col.id)
-    });
-
-    if (!overColumn) {
-      console.log('[KANBAN] No valid target column found, skipping');
-      return;
-    }
+    if (!overColumn) return;
 
     // If dropping on a column (not another item), handle column change
     if (!overItem) {
       if (activeColumn !== overColumn) {
-        console.log('[KANBAN] Column drop detected, updating column');
         const newData = [...data];
         const activeIndex = newData.findIndex((item) => item.id === active.id);
         newData[activeIndex].column = overColumn;
-        console.log('[KANBAN] Calling onDataChange from handleDragEnd (column drop)');
         onDataChange?.(newData);
-      } else {
-        console.log('[KANBAN] Column drop but same column, no change needed');
       }
       return;
     }
 
     // If dropping on another item, handle reordering
     if (activeColumn !== overColumn) {
-      console.log('[KANBAN] Cross-column item drop detected');
       const newData = [...data];
       const activeIndex = newData.findIndex((item) => item.id === active.id);
       newData[activeIndex].column = overColumn;
-      console.log('[KANBAN] Calling onDataChange from handleDragEnd (cross-column)');
       onDataChange?.(newData);
     } else {
-      console.log('[KANBAN] Same column reorder detected');
       let newData = [...data];
       const oldIndex = newData.findIndex((item) => item.id === active.id);
       const newIndex = newData.findIndex((item) => item.id === over.id);
       newData = arrayMove(newData, oldIndex, newIndex);
-      console.log('[KANBAN] Calling onDataChange from handleDragEnd (reorder)');
       onDataChange?.(newData);
     }
   };
@@ -413,15 +328,6 @@ export const KanbanProvider = <
       return `Cancelled dragging the card "${name}"`;
     },
   };
-
-  // Debug logging for DndContext initialization
-  React.useEffect(() => {
-    console.log('[KANBAN PROVIDER] Initialized with:', {
-      columns: columns.map((col: any) => ({ id: col.id, name: col.name })),
-      data: data.map((item: any) => ({ id: item.id, name: item.name, column: item.column })),
-      sensorsCount: sensors.length
-    });
-  }, [columns, data, sensors]);
 
   return (
     <KanbanContext.Provider value={{ columns, data, activeCardId }}>

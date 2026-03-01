@@ -60,7 +60,12 @@ export async function PUT(
     // Authenticate before parsing body
     await requireAuthAndPermission(Permission.MANAGE_PROJECTS, { accountId }, request);
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { columns } = body;
 
     if (!columns || !Array.isArray(columns)) {

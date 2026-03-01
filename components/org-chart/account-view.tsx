@@ -356,7 +356,7 @@ function AccountCard({
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={account.account_manager.image ?? undefined} />
                     <AvatarFallback className="text-xs">
-                      {account.account_manager.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                      {account.account_manager?.name?.split(' ')?.map((n: string) => n[0])?.join('')?.toUpperCase() || '??'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
@@ -405,7 +405,7 @@ function AccountCard({
                         <Avatar className="h-8 w-8 shrink-0">
                           <AvatarImage src={member.user?.image ?? undefined} />
                           <AvatarFallback>
-                            {member.user?.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                            {member.user?.name?.split(' ')?.map((n: string) => n[0])?.join('')?.toUpperCase() || '??'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">

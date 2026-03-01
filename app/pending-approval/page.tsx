@@ -179,7 +179,7 @@ export default function PendingApprovalPage() {
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={(userProfile as any).image || undefined} />
                   <AvatarFallback>
-                    {(userProfile as any).name.split(' ').map((n: any) => n[0]).join('').toUpperCase()}
+                    {(userProfile as any).name?.split(' ')?.map((n: any) => n[0])?.join('')?.toUpperCase() || '??'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">

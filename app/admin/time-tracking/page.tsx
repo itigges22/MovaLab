@@ -131,6 +131,10 @@ export default function AdminTimeTrackingPage() {
       if (selectedUser && selectedUser !== 'all') params.set('userId', selectedUser)
 
       const response = await fetch(`/api/admin/time-entries?${params.toString()}`)
+      if (!response.ok) {
+        toast.error('Failed to load time entries')
+        return
+      }
       const data = await response.json()
 
       if (data.success) {
@@ -243,6 +247,10 @@ export default function AdminTimeTrackingPage() {
         }),
       })
 
+      if (!response.ok) {
+        toast.error('Failed to update time entry')
+        return
+      }
       const data = await response.json()
 
       if (data.success) {
@@ -250,7 +258,7 @@ export default function AdminTimeTrackingPage() {
         setEditingEntry(null)
         loadTimeEntries()
       } else {
-        toast.error(data.error || 'Failed to update time entry')
+        toast.error('Failed to update time entry')
       }
     } catch (error: unknown) {
       toast.error('Failed to update time entry')
@@ -269,6 +277,10 @@ export default function AdminTimeTrackingPage() {
         method: 'DELETE',
       })
 
+      if (!response.ok) {
+        toast.error('Failed to delete time entry')
+        return
+      }
       const data = await response.json()
 
       if (data.success) {

@@ -31,13 +31,18 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
     // Validate input with Zod schema
     const validation = updateAccountSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.issues },
+        { error: 'Validation failed. Please check your input.' },
         { status: 400 }
       );
     }

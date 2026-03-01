@@ -121,7 +121,12 @@ export async function PATCH(
     }
 
     // Validate request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const validation = validateRequestBody(updateWorkflowTemplateSchema, body);
     if (!validation.success) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

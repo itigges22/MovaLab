@@ -200,10 +200,10 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       ]);
 
       const [projectsData, approvalsData, pipelineData, pastData] = await Promise.all([
-        projectsRes.json(),
-        approvalsRes.json(),
-        pipelineRes.json(),
-        pastRes.json()
+        projectsRes.ok ? projectsRes.json() : { success: false },
+        approvalsRes.ok ? approvalsRes.json() : { success: false },
+        pipelineRes.ok ? pipelineRes.json() : { success: false },
+        pastRes.ok ? pastRes.json() : { success: false }
       ]);
 
       if (projectsData.success) {

@@ -424,7 +424,7 @@ export default function PendingUsersPage() {
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={(user as any).image || undefined} />
                     <AvatarFallback>
-                      {(user as any).name.split(' ').map((n: any) => n[0]).join('').toUpperCase()}
+                      {(user as any).name?.split(' ')?.map((n: any) => n[0])?.join('')?.toUpperCase() || '??'}
                     </AvatarFallback>
                   </Avatar>
                   

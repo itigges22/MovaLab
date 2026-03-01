@@ -75,7 +75,7 @@ export function WidgetBase({
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-medium">{title}</CardTitle>
           {description && (
-            <CardDescription className="text-red-500">{error.message}</CardDescription>
+            <CardDescription className="text-red-500">Unable to load widget data</CardDescription>
           )}
         </CardHeader>
         <CardContent>

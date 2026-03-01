@@ -2169,7 +2169,7 @@ export default function ProjectDetailPage() {
                                 </span>
                               </div>
                             )
-                          }) || Object.entries(entry.responseData).map(([key, value]) => (
+                          }) || Object.entries(entry.responseData ?? {}).map(([key, value]) => (
                             <div key={key} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
                               <span className="text-xs font-medium text-gray-500 sm:w-1/3">{key}:</span>
                               <span className="text-sm text-gray-900 sm:w-2/3">
@@ -2360,7 +2360,7 @@ export default function ProjectDetailPage() {
                           <div className="flex-shrink-0 relative z-10">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
                               <span className="text-white font-semibold text-sm">
-                                {update.user_profiles?.name.split(' ').map((n: any) => n[0]).join('').toUpperCase().slice(0, 2)}
+                                {update.user_profiles?.name?.split(' ')?.map((n: any) => n[0])?.join('')?.toUpperCase()?.slice(0, 2) || '??'}
                               </span>
                             </div>
                           </div>

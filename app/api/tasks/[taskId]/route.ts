@@ -81,7 +81,12 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    const body = await request.json()
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
     const updateData: UpdateTaskData = {
       id: taskId,
@@ -185,7 +190,12 @@ export async function PATCH(
       }, { status: 400 })
     }
 
-    const body = await request.json()
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
     // Build update object with only provided fields
     const updateFields: Record<string, unknown> = {}

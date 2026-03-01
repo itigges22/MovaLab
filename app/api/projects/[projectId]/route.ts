@@ -153,7 +153,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Insufficient permissions to edit project' }, { status: 403 });
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
     // NOTE: MOVE_ALL_KANBAN_ITEMS permission is deprecated (workflows replace project kanban)
     // Status changes are now controlled by EDIT_PROJECT permission which was already checked above

@@ -113,7 +113,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { taskId, projectId, hoursLogged, entryDate, description } = body;
 
     // Validation
@@ -212,7 +217,12 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { entryId, hoursLogged, entryDate, description } = body;
 
     if (!entryId) {

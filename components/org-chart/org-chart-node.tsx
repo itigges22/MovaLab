@@ -113,7 +113,7 @@ function OrgChartNodeComponent({ data }: NodeProps) {
               <Avatar className="h-8 w-8">
                 <AvatarImage src={(user as any).image ?? undefined} />
                 <AvatarFallback>
-                  {(user as any).name.split(' ').map((n: any) => n[0]).join('').toUpperCase()}
+                  {(user as any).name?.split(' ')?.map((n: any) => n[0])?.join('')?.toUpperCase() || '??'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

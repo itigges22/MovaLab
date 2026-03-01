@@ -96,14 +96,14 @@ export default function RBACDiagnosticsPage() {
     setTesting(false);
   };
 
-  const filteredUsers = users.filter((user: any) =>
-    (user as any).name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user as any).email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users?.filter((user: any) =>
+    (user as any).name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user as any).email?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) ?? [];
 
-  const usersWithIssues = users.filter((u: any) => u.user_roles.length === 0 && !u.is_superadmin);
+  const usersWithIssues = users?.filter((u: any) => u.user_roles.length === 0 && !u.is_superadmin) ?? [];
   const allPermissions = Array.from(
-    new Set(roles.flatMap((r:any) => Object.keys(r.permissions)))
+    new Set(roles?.flatMap((r:any) => Object.keys(r.permissions ?? {})) ?? [])
   ).sort();
 
   // Show loading while auth is loading
@@ -371,13 +371,13 @@ export default function RBACDiagnosticsPage() {
                           </CardDescription>
                         </div>
                         <Badge>
-                          {Object.values(role.permissions).filter(Boolean).length} permissions
+                          {Object.values(role.permissions ?? {}).filter(Boolean).length} permissions
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap gap-1">
-                        {Object.entries(role.permissions)
+                        {Object.entries(role.permissions ?? {})
                           .filter(([, enabled]) => enabled)
                           .map(([permission]) => (
                             <Badge key={permission} variant="secondary" className="text-xs">

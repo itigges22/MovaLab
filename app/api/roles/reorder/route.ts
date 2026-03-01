@@ -7,7 +7,12 @@ import { logger } from '@/lib/debug-logger';
 export async function PATCH(request: NextRequest) {
   try {
     // Parse request body first to get roleId
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { roleId, newReportingRoleId, newHierarchyLevel: bodyHierarchyLevel, newDisplayOrder } = body;
     
     if (!roleId) {
@@ -81,8 +86,7 @@ export async function PATCH(request: NextRequest) {
     if (updateError) {
       logger.error('REORDER API: Error updating role', {}, updateError as Error);
       return NextResponse.json({ 
-        error: 'Failed to update role', 
-        details: updateError.message 
+        error: 'Failed to update role'
       }, { status: 500 });
     }
     

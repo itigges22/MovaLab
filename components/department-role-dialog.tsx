@@ -127,7 +127,7 @@ export default function DepartmentRoleDialog({
           .single();
 
         if (error) {
-          toast.error(`Failed to create role: ${error.message || 'Unknown error'}`);
+          toast.error('Failed to create role. Please try again.');
           return;
         }
 
@@ -146,7 +146,7 @@ export default function DepartmentRoleDialog({
           .single();
 
         if (error) {
-          toast.error(`Failed to update role: ${error.message || 'Unknown error'}`);
+          toast.error('Failed to update role. Please try again.');
           return;
         }
 

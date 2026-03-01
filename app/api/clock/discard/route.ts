@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       logger.error('Error closing clock session', {}, updateError as unknown as Error);
       return NextResponse.json(
-        { error: 'Failed to close session', details: updateError.message },
+        { error: 'Failed to close session' },
         { status: 500 }
       );
     }

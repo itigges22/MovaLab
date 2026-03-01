@@ -295,7 +295,7 @@ export default function TaskCreationDialog({
           .single();
 
         if (projectError) {
-          toast.error('Failed to update project: ' + projectError.message);
+          toast.error('Failed to update project. Please try again.');
           return;
         }
 
@@ -322,7 +322,7 @@ export default function TaskCreationDialog({
           .single();
 
         if (projectError) {
-          toast.error('Failed to create project: ' + projectError.message);
+          toast.error('Failed to create project. Please try again.');
           return;
         }
 
@@ -345,10 +345,10 @@ export default function TaskCreationDialog({
             const workflowData = await workflowResponse.json();
 
             if (!workflowResponse.ok) {
-              toast.error(`Project created, but workflow failed to start: ${workflowData.error || 'Unknown error'}`);
+              toast.error('Project created, but the workflow failed to start.');
             }
           } catch (error: unknown) {
-            toast.error(`Project created, but workflow failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            toast.error('Project created, but the workflow failed to start.');
           }
         }
       }

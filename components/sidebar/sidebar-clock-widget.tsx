@@ -89,6 +89,10 @@ export function SidebarClockWidget({ onPopOut }: SidebarClockWidgetProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
+      if (!response.ok) {
+        toast.error('Failed to clock in');
+        return;
+      }
       const data = await response.json();
 
       if (data.success) {

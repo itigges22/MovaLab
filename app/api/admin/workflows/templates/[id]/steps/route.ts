@@ -253,8 +253,7 @@ export async function PUT(
     if (deleteError) {
       logger.error('[Workflow Save] Error deleting existing nodes', {}, deleteError as Error);
       return NextResponse.json({
-        error: 'Failed to clear existing workflow nodes',
-        details: deleteError.message
+        error: 'Failed to clear existing workflow nodes'
       }, { status: 500 });
     }
     logger.debug('[Workflow Save] Existing nodes deleted successfully');
@@ -303,8 +302,7 @@ export async function PUT(
       logger.error('[Workflow Save] Error inserting nodes', {}, nodesError as Error);
       logger.error('[Workflow Save] Node insert data', { nodeInserts });
       return NextResponse.json({
-        error: 'Failed to save workflow nodes',
-        details: nodesError.message
+        error: 'Failed to save workflow nodes'
       }, { status: 500 });
     }
     logger.debug('[Workflow Save] Nodes inserted successfully');
@@ -344,8 +342,7 @@ export async function PUT(
         logger.error('[Workflow Save] Error inserting connections', {}, connectionsError as Error);
         logger.error('[Workflow Save] Connection insert data', { connectionInserts });
         return NextResponse.json({
-          error: 'Failed to save workflow connections',
-          details: connectionsError.message
+          error: 'Failed to save workflow connections'
         }, { status: 500 });
       }
       logger.debug('[Workflow Save] Connections inserted successfully');

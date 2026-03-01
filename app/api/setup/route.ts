@@ -64,7 +64,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the setup secret from request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { setupSecret } = body;
 
     // Validate setup secret

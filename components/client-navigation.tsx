@@ -553,7 +553,7 @@ export function ClientNavigation() {
                         {(userProfile as any).email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {userProfile.user_roles?.map((ur: any) => ur.roles.name).join(', ') || 'No roles'}
+                        {userProfile.user_roles?.map((ur: any) => ur.roles?.name).join(', ') || 'No roles'}
                       </p>
                     </div>
                   </DropdownMenuLabel>

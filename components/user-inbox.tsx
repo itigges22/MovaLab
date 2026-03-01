@@ -99,16 +99,20 @@ export function UserInbox() {
 
       // Load my active projects
       const projectsRes = await fetch('/api/workflows/my-projects');
-      const projectsData = await projectsRes.json();
-      if (projectsData.success) {
-        setMyProjects(projectsData.projects || []);
+      if (projectsRes.ok) {
+        const projectsData = await projectsRes.json();
+        if (projectsData.success) {
+          setMyProjects(projectsData.projects || []);
+        }
       }
 
       // Load pending approvals
       const approvalsRes = await fetch('/api/workflows/my-approvals');
-      const approvalsData = await approvalsRes.json();
-      if (approvalsData.success) {
-        setPendingApprovals(approvalsData.approvals || []);
+      if (approvalsRes.ok) {
+        const approvalsData = await approvalsRes.json();
+        if (approvalsData.success) {
+          setPendingApprovals(approvalsData.approvals || []);
+        }
       }
     } catch {
       // Failed to load inbox data

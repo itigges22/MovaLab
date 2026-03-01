@@ -206,7 +206,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { name, description, department_id, permissions, reporting_role_id } = body;
 
     apiCall('POST', '/api/roles', { action: 'createRole', name, department_id });
@@ -226,9 +231,8 @@ export async function POST(request: NextRequest) {
         errors: validation.errors,
         warnings: validation.warnings
       });
-      return NextResponse.json({ 
-        error: 'Validation failed',
-        details: validation.errors 
+      return NextResponse.json({
+        error: 'Validation failed. Please check your input.'
       }, { status: 400 });
     }
 
