@@ -382,7 +382,7 @@ export async function GET(request: NextRequest) {
     const err = error as ErrorWithMessage;
 logger.error('Error in GET /api/capacity/department', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

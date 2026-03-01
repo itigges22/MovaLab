@@ -92,7 +92,7 @@ export async function PATCH(
     const err = error as ErrorWithMessage;
     logger.error('Error in PATCH /api/admin/time-entries/[id]', {}, error as Error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error', message: err.message },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -161,7 +161,7 @@ export async function DELETE(
     const err = error as ErrorWithMessage;
     logger.error('Error in DELETE /api/admin/time-entries/[id]', {}, error as Error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error', message: err.message },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

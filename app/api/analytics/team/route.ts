@@ -58,9 +58,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Require analytics permission
+    // Require analytics permission (VIEW_ALL_ANALYTICS or VIEW_ALL_DEPARTMENT_ANALYTICS)
     const hasAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_ANALYTICS, undefined, supabase);
-    if (!hasAnalytics) {
+    const hasDeptAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_DEPARTMENT_ANALYTICS, undefined, supabase);
+    if (!hasAnalytics && !hasDeptAnalytics) {
       return NextResponse.json(
         { error: 'Insufficient permissions to view team analytics' },
         { status: 403 }
@@ -290,7 +291,7 @@ export async function GET(request: NextRequest) {
     const err = error as ErrorWithMessage;
     logger.error('Error in GET /api/analytics/team', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

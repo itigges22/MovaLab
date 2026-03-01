@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     const err = error as ErrorWithMessage;
 logger.error('Error in POST /api/clock/discard', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       availabilityData,
     ] = await Promise.all([
       // Projects
-      supabase.from('projects').select('id, status, priority, end_date, created_at'),
+      supabase.from('projects').select('id, status, priority, end_date, created_at, updated_at'),
 
       // Users
       supabase.from('user_profiles').select('id, created_at'),
@@ -162,15 +162,17 @@ export async function GET(request: NextRequest) {
     );
     const completedThisMonth = projects.filter((p: any) =>
       p.status === 'complete' &&
-      new Date(p.created_at) >= monthStart
+      p.updated_at &&
+      new Date(p.updated_at) >= monthStart
     );
 
     // Calculate on-time rate (completed projects that met their deadline)
+    // A project is "on time" if it was completed (updated_at) before or on its deadline (end_date)
     const completedWithDeadline = projects.filter((p: any) =>
       p.status === 'complete' && p.end_date
     );
     const onTimeProjects = completedWithDeadline.filter((p: any) =>
-      new Date(p.end_date) >= new Date(p.created_at)
+      p.updated_at && new Date(p.updated_at) <= new Date(p.end_date)
     );
     const onTimeRate = completedWithDeadline.length > 0
       ? Math.round((onTimeProjects.length / completedWithDeadline.length) * 100)
@@ -327,7 +329,7 @@ export async function GET(request: NextRequest) {
     const err = error as ErrorWithMessage;
     logger.error('Error in GET /api/analytics/overview', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

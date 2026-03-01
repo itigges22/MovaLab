@@ -57,7 +57,6 @@ export async function PATCH(request: NextRequest) {
     const { name, bio, skills } = body;
 
     // Validate that user can only update their own profile
-    // (This is already enforced by requireAuthAndPermission, but adding explicit check for clarity)
     if (body.id && body.id !== userProfile.id) {
       logger.warn('User attempted to update another user\'s profile', {
         action: 'updateProfile',
@@ -70,7 +69,33 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Prepare update data
+    // Input validation
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        return NextResponse.json({ error: 'Name must be a non-empty string' }, { status: 400 });
+      }
+      if (name.length > 200) {
+        return NextResponse.json({ error: 'Name must be 200 characters or less' }, { status: 400 });
+      }
+    }
+    if (bio !== undefined && bio !== null) {
+      if (typeof bio !== 'string') {
+        return NextResponse.json({ error: 'Bio must be a string' }, { status: 400 });
+      }
+      if (bio.length > 2000) {
+        return NextResponse.json({ error: 'Bio must be 2000 characters or less' }, { status: 400 });
+      }
+    }
+    if (skills !== undefined && skills !== null) {
+      if (!Array.isArray(skills) || !skills.every((s: unknown) => typeof s === 'string')) {
+        return NextResponse.json({ error: 'Skills must be an array of strings' }, { status: 400 });
+      }
+      if (skills.length > 50) {
+        return NextResponse.json({ error: 'Maximum 50 skills allowed' }, { status: 400 });
+      }
+    }
+
+    // Prepare update data (only whitelisted fields)
     const updateData: {
       name?: string;
       bio?: string;
@@ -80,7 +105,7 @@ export async function PATCH(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) updateData.name = name.trim();
     if (bio !== undefined) updateData.bio = bio;
     if (skills !== undefined) updateData.skills = skills;
 

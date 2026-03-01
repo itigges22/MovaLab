@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     const err = error as ErrorWithMessage;
 logger.error('Error in GET /api/availability', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     const err = error as ErrorWithMessage;
 logger.error('Error in POST /api/availability', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -224,7 +224,7 @@ export async function DELETE(request: NextRequest) {
     const err = error as ErrorWithMessage;
 logger.error('Error in DELETE /api/availability', {}, error as Error);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

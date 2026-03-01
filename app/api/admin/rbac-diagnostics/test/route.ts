@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     const err = error as ErrorWithMessage;
     logger.error('Error in POST /api/admin/rbac-diagnostics/test:', {}, err);
     return NextResponse.json(
-      { error: 'Internal server error', message: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
