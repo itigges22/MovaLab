@@ -155,7 +155,7 @@ export default function DepartmentRoleDialog({
 
       setOpen(false);
     } catch (error: unknown) {
-      toast.error(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('An error occurred while saving the role. Please try again.');
     } finally {
       setLoading(false);
     }

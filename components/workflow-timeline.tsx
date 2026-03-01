@@ -1,7 +1,7 @@
 'use client';
 
-
 import { useEffect, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
@@ -111,7 +111,7 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
       setCurrentNodeIndex(currentIndex);
 
     } catch (error: unknown) {
-      // Error handled silently
+      toast.error('Failed to load workflow timeline');
     } finally {
       setLoading(false);
     }

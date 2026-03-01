@@ -1,7 +1,7 @@
 'use client';
 
-
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import {
   ReactFlow,
   Node,
@@ -345,7 +345,7 @@ function WorkflowVisualizationInner({
       await buildVisualization(workflowNodes, connections || [], steps || [], completed, instance);
 
     } catch (error: unknown) {
-      // Error handled silently
+      toast.error('Failed to load workflow visualization');
     } finally {
       setLoading(false);
     }

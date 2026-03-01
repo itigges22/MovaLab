@@ -186,7 +186,6 @@ export default function TaskCreateEditDialog({
       });
 
       const usersWithRoles = Array.from(uniqueUsersMap.values());
-      console.log(`Task assignment: ${usersWithRoles.length} account/project members available`);
       setUsers(usersWithRoles);
     } catch (error: unknown) {
       console.error('Error loading users:', error);
