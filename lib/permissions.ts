@@ -18,7 +18,7 @@ export enum Permission {
   // DEPARTMENT PERMISSIONS
   // ========================================
   MANAGE_DEPARTMENTS = 'manage_departments', // Create, edit, and delete departments
-  MANAGE_USERS_IN_DEPARTMENTS = 'manage_users_in_departments', // Assign and remove users from departments
+  MANAGE_USERS_IN_DEPARTMENTS = 'manage_users_in_departments', // DEPRECATED: Dept membership is dynamic from project assignments, never enforced
   VIEW_DEPARTMENTS = 'view_departments', // View departments user belongs to
   VIEW_ALL_DEPARTMENTS = 'view_all_departments', // Override: View all departments organization-wide
 
@@ -44,8 +44,8 @@ export enum Permission {
   // Access to project sub-resources (issues, updates, tasks) uses userHasProjectAccess() instead.
   // ========================================
   MANAGE_UPDATES = 'manage_updates', // DEPRECATED: Not checked in API routes. Use project access instead.
-  VIEW_UPDATES = 'view_updates', // Context-aware: View updates for assigned projects/accounts/departments
-  VIEW_ALL_UPDATES = 'view_all_updates', // Override: View all updates organization-wide
+  VIEW_UPDATES = 'view_updates', // DEPRECATED: Use userHasProjectAccess() instead
+  VIEW_ALL_UPDATES = 'view_all_updates', // DEPRECATED: Use userHasProjectAccess() instead
 
   // ========================================
   // PROJECT ISSUES PERMISSIONS
@@ -86,9 +86,9 @@ export enum Permission {
   // ========================================
   MANAGE_WORKFLOWS = 'manage_workflows', // Create, edit, and delete workflow templates
   EXECUTE_WORKFLOWS = 'execute_workflows', // Hand off work in workflows (context-aware: checks node assignment)
-  EXECUTE_ANY_WORKFLOW = 'execute_any_workflow', // Override: Execute any workflow without node assignment check
+  EXECUTE_ANY_WORKFLOW = 'execute_any_workflow', // DEPRECATED: Never enforced at route level, not usable
   SKIP_WORKFLOW_NODES = 'skip_workflow_nodes', // Hand off work out-of-order (admin-only for innovation tracking)
-  MANAGE_ALL_WORKFLOWS = 'manage_all_workflows', // Override: Manage any workflow organization-wide
+  MANAGE_ALL_WORKFLOWS = 'manage_all_workflows', // DEPRECATED: Never enforced, no org-wide workflow restrictions exist
 
   // ========================================
   // CLIENT PORTAL PERMISSIONS
@@ -122,9 +122,9 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     category: 'Department Management'
   },
   [Permission.MANAGE_USERS_IN_DEPARTMENTS]: {
-    name: 'Manage Department Users',
-    description: 'Assign and remove users from departments (department membership management)',
-    category: 'Department Management'
+    name: 'Manage Department Users (Deprecated)',
+    description: 'Not enforced — department membership is dynamic from project assignments.',
+    category: 'Deprecated'
   },
   [Permission.VIEW_DEPARTMENTS]: {
     name: 'View Departments',
@@ -198,15 +198,14 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     category: 'Deprecated'
   },
   [Permission.VIEW_UPDATES]: {
-    name: 'View Project Updates',
-    description: 'View project updates (context-aware: checks project/account/department assignments)',
-    category: 'Project Updates'
+    name: 'View Project Updates (Deprecated)',
+    description: 'Not enforced — project access grants sub-resource access via userHasProjectAccess().',
+    category: 'Deprecated'
   },
   [Permission.VIEW_ALL_UPDATES]: {
-    name: 'View All Updates',
-    description: 'View all project updates organization-wide (override)',
-    category: 'Project Updates',
-    isOverride: true
+    name: 'View All Updates (Deprecated)',
+    description: 'Not enforced — project access grants sub-resource access via userHasProjectAccess().',
+    category: 'Deprecated'
   },
 
   // ========================================
@@ -316,10 +315,9 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     category: 'Workflows'
   },
   [Permission.EXECUTE_ANY_WORKFLOW]: {
-    name: 'Execute Any Workflow',
-    description: 'Handoff workflows without node assignment (admin override to unblock stuck workflows)',
-    category: 'Workflows',
-    isOverride: true
+    name: 'Execute Any Workflow (Deprecated)',
+    description: 'Not enforced at route level. Use SKIP_WORKFLOW_NODES for out-of-order execution.',
+    category: 'Deprecated'
   },
   [Permission.SKIP_WORKFLOW_NODES]: {
     name: 'Skip Workflow Nodes',
@@ -327,10 +325,9 @@ export const PermissionDefinitions: Record<Permission, { name: string; descripti
     category: 'Workflows'
   },
   [Permission.MANAGE_ALL_WORKFLOWS]: {
-    name: 'Manage All Workflows',
-    description: 'Create, edit, and delete any workflow organization-wide (override)',
-    category: 'Workflows',
-    isOverride: true
+    name: 'Manage All Workflows (Deprecated)',
+    description: 'Not enforced — no org-wide workflow restrictions exist.',
+    category: 'Deprecated'
   },
 
   // ========================================
@@ -349,7 +346,7 @@ export const PermissionCategories = {
   'Department Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Department Management'),
   'Account Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Account Management'),
   'Project Management': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Project Management'),
-  'Project Updates': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Project Updates'),
+  // Project Updates category removed — all permissions deprecated in favor of userHasProjectAccess()
   Analytics: Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Analytics'),
   'Capacity & Time': Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Capacity & Time'),
   Workflows: Object.values(Permission).filter((p: Permission) => (PermissionDefinitions as any)[p as string]?.category === 'Workflows'),

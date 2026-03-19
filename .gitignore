@@ -123,6 +123,13 @@ scripts/*.log
 *.test.json
 test-results/
 
+# Playwright screenshots and reports
+.playwright-mcp/
+playwright-report/
+
+# Claude Code temp files
+tmpclaude-*
+
 # Bun lockfile (using npm for CI)
 bun.lock
 bun.lockb

@@ -103,11 +103,14 @@ const formatStatus = (status: ProjectStatus): string => {
 
 const formatHours = (hours?: { estimated?: number; actual?: number; remaining?: number }): string => {
   if (!hours) return '-';
-  if (hours.remaining !== undefined && hours.estimated !== undefined) {
+  if (hours.remaining != null && hours.estimated != null) {
     return `${hours.remaining}h / ${hours.estimated}h`;
   }
-  if (hours.actual !== undefined) return `${hours.actual}h logged`;
-  if (hours.estimated !== undefined) return `${hours.estimated}h est.`;
+  if (hours.actual != null && hours.estimated != null) {
+    return `${hours.actual}h / ${hours.estimated}h`;
+  }
+  if (hours.actual != null) return `${hours.actual}h logged`;
+  if (hours.estimated != null) return `${hours.estimated}h est.`;
   return '-';
 };
 

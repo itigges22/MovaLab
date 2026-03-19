@@ -264,10 +264,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Check ownership or elevated team permission
+    // Check ownership or admin override (VIEW_ALL_TIME_ENTRIES acts as admin time management permission)
     if (existingEntry.user_id !== userProfile.id) {
-      const canEditTeam = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
-      if (!canEditTeam) {
+      const canManageAllTime = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
+      if (!canManageAllTime) {
         return NextResponse.json(
           { error: 'Can only edit your own time entries' },
           { status: 403 }
@@ -377,10 +377,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check ownership or elevated team permission
+    // Check ownership or admin override (VIEW_ALL_TIME_ENTRIES acts as admin time management permission)
     if (existingEntry.user_id !== userProfile.id) {
-      const canEditTeam = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
-      if (!canEditTeam) {
+      const canManageAllTime = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
+      if (!canManageAllTime) {
         return NextResponse.json(
           { error: 'Can only delete your own time entries' },
           { status: 403 }

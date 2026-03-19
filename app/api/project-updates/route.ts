@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthentication, handleGuardError } from '@/lib/server-guards';
+import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
-import { checkPermissionHybrid } from '@/lib/permission-checker';
 import { logger } from '@/lib/debug-logger';
 
 export async function GET(request: NextRequest) {
@@ -12,16 +12,15 @@ export async function GET(request: NextRequest) {
     try {
       userProfile = await requireAuthentication(request);
     } catch (_error: unknown) {
-      // If authentication fails, return empty array (user will see no updates)
       logger.debug('User not authenticated, returning empty project updates', { action: 'getProjectUpdates' });
       return NextResponse.json([]);
     }
-    
+
     if (!userProfile) {
       logger.debug('User profile is null, returning empty project updates', { action: 'getProjectUpdates' });
       return NextResponse.json([]);
     }
-    
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       logger.error('Supabase not configured', { action: 'getProjectUpdates' });
@@ -30,18 +29,12 @@ export async function GET(request: NextRequest) {
 
     const userId = userProfile.id;
 
-    // Phase 9: Simplified permission check - VIEW_UPDATES (context-aware) or VIEW_ALL_UPDATES (override)
-    const hasViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_UPDATES, undefined, supabase);
-    const hasViewUpdates = await checkPermissionHybrid(userProfile, Permission.VIEW_UPDATES, undefined, supabase);
+    // Phase 10: Use project access pattern instead of deprecated VIEW_UPDATES/VIEW_ALL_UPDATES
+    // Superadmins and users with VIEW_ALL_PROJECTS see all updates; others see updates for accessible projects
+    const isSuperadmin = userProfile.is_superadmin;
+    const hasViewAll = !isSuperadmin && await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS, undefined, supabase);
 
-    // IMPORTANT: If user doesn't have update viewing permissions, return empty array
-    if (!hasViewAll && !hasViewUpdates) {
-      logger.debug('User has no project update permissions, returning empty array', { userId });
-      return NextResponse.json([]);
-    }
-
-    // Build query based on permissions
-    // Simplified query - workflow_history relationship is optional
+    // Build query
     let query = supabase
       .from('project_updates')
       .select(`
@@ -62,33 +55,27 @@ export async function GET(request: NextRequest) {
         )
       `);
 
-    // If user has VIEW_ALL_UPDATES override, return all updates
-    if (hasViewAll) {
-      logger.debug('User has VIEW_ALL_UPDATES permission', { userId });
-      // No filter needed - return all updates
-    }
-    // Phase 9: Simplified - filter to projects user has access to
-    else {
-      logger.debug('User has VIEW_UPDATES permission, filtering to accessible projects', { userId });
+    // Superadmins and VIEW_ALL_PROJECTS users see all updates
+    if (isSuperadmin || hasViewAll) {
+      logger.debug('User has global project access, returning all updates', { userId });
+    } else {
+      // Filter to projects user has access to (same logic as userHasProjectAccess)
+      logger.debug('Filtering project updates to accessible projects', { userId });
 
-      // Get ALL projects user has access to (assigned + account + department)
       const [
         { data: assignedProjects },
         { data: directProjects },
         { data: accountProjects }
       ] = await Promise.all([
-        // Direct project assignments
         supabase
           .from('project_assignments')
           .select('project_id')
           .eq('user_id', userId)
           .is('removed_at', null),
-        // Projects created by or assigned to user
         supabase
           .from('projects')
           .select('id')
           .or(`created_by.eq.${userId},assigned_user_id.eq.${userId}`),
-        // Projects in accounts user manages or is member of
         supabase
           .from('account_members')
           .select('account:accounts!inner(projects(id))')
@@ -96,12 +83,8 @@ export async function GET(request: NextRequest) {
       ]);
 
       const projectIds = new Set<string>();
-
-      // Add directly assigned projects
       assignedProjects?.forEach((ap: any) => projectIds.add(ap.project_id));
-      // Add created/assigned projects
       directProjects?.forEach((p: { id: string }) => projectIds.add(p.id));
-      // Add account projects
       (accountProjects as unknown as { account?: { projects?: { id: string }[] } }[] | null)?.forEach((am: { account?: { projects?: { id: string }[] } }) => {
         am.account?.projects?.forEach((p: { id: string }) => projectIds.add(p.id));
       });
@@ -109,7 +92,6 @@ export async function GET(request: NextRequest) {
       if (projectIds.size > 0) {
         query = query.in('project_id', Array.from(projectIds));
       } else {
-        // No accessible projects - return empty result
         query = query.eq('project_id', '00000000-0000-0000-0000-000000000000');
       }
     }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
-import { getClientInvitationsByAccount } from '@/lib/client-portal-service';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { hasAccountAccessServer } from '@/lib/access-control-server';
@@ -58,8 +57,44 @@ export async function GET(
       }, { status: 403 });
     }
 
-    // Get invitations
-    const invitations = await getClientInvitationsByAccount(accountId);
+    // Query invitations directly using the API supabase client (with proper auth context)
+    // instead of delegating to a service that creates its own server-side client.
+    // The client_portal_invitations table has: id, account_id, email, invited_by, status, created_at, expires_at
+    const { data: invitationsRaw, error: invitationsError } = await supabase
+      .from('client_portal_invitations')
+      .select(`
+        *,
+        invited_by_user:user_profiles!client_portal_invitations_invited_by_fkey (
+          name,
+          email
+        )
+      `)
+      .eq('account_id', accountId)
+      .order('created_at', { ascending: false });
+
+    if (invitationsError) {
+      logger.error('Error fetching invitations', {}, invitationsError as unknown as Error);
+
+      // If the table doesn't exist, return empty array gracefully
+      if (invitationsError.code === 'PGRST116' || invitationsError.code === '42P01' || invitationsError.message?.includes('does not exist')) {
+        return NextResponse.json({ success: true, invitations: [] }, { status: 200 });
+      }
+
+      return NextResponse.json({ error: 'Failed to fetch invitations' }, { status: 500 });
+    }
+
+    // Map the data to match the frontend's expected format
+    // DB columns: id, account_id, email, invited_by, status, created_at, expires_at
+    // Frontend expects: id, email, status, created_at, expires_at, accepted_at, invited_by_user
+    const invitations = (invitationsRaw || []).map((inv: any) => ({
+      id: inv.id,
+      email: inv.email,
+      status: inv.status,
+      created_at: inv.created_at,
+      expires_at: inv.expires_at,
+      accepted_at: inv.accepted_at || null,
+      invited_by_user: inv.invited_by_user || null,
+    }));
 
     return NextResponse.json({ success: true, invitations }, { status: 200 });
   } catch (error: unknown) {

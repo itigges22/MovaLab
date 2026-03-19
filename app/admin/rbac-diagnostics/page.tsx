@@ -296,7 +296,7 @@ export default function RBACDiagnosticsPage() {
                   <TableBody>
                     {filteredUsers.map((user:any) => {
                       const totalPermissions = new Set(
-                        user.user_roles.flatMap((ur:any) => Object.keys(ur.roles.permissions || {}))
+                        user.user_roles.flatMap((ur:any) => Object.keys(ur.roles?.permissions || {}))
                       ).size;
                       const hasIssue = user.user_roles.length === 0 && !user.is_superadmin;
 
@@ -322,9 +322,9 @@ export default function RBACDiagnosticsPage() {
                             <div className="flex flex-wrap gap-1">
                               {user.user_roles.map((ur:any) => (
                                 <Badge key={ur.id} variant="outline" className="text-xs">
-                                  {ur.roles.name}
+                                  {ur.roles?.name ?? 'Unknown Role'}
                                   <span className="ml-1 text-muted-foreground">
-                                    ({ur.roles.departments.name})
+                                    ({ur.roles?.departments?.name ?? 'No Department'})
                                   </span>
                                 </Badge>
                               ))}
