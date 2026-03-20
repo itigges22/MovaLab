@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 import { logger } from './debug-logger';
@@ -133,6 +134,15 @@ export const createApiSupabaseClient = (request: NextRequest) => {
       },
     },
   });
+};
+
+// Admin client for privileged operations (user creation, setup tokens)
+// Uses service role key - NEVER expose to client
+export const createAdminSupabaseClient = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
+  return createClient(url, serviceKey);
 };
 
 // Alias for backwards compatibility
