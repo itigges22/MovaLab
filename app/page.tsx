@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { LoginForm } from "@/components/login-form"
@@ -13,7 +13,29 @@ export default function Home() {
   const router = useRouter()
   const supabaseReady = isSupabaseConfigured()
 
+  // First-run check: redirect to onboarding if no users exist
+  const [firstRunChecked, setFirstRunChecked] = useState(false)
+  const [isFirstRun, setIsFirstRun] = useState(false)
+
   useEffect(() => {
+    if (!supabaseReady) {
+      setFirstRunChecked(true)
+      return
+    }
+    fetch('/api/onboarding/setup-token', { method: 'GET' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.firstRun) {
+          setIsFirstRun(true)
+          router.replace('/onboarding')
+        }
+        setFirstRunChecked(true)
+      })
+      .catch(() => setFirstRunChecked(true))
+  }, [router, supabaseReady])
+
+  useEffect(() => {
+    if (!firstRunChecked || isFirstRun) return
     if (!loading && user) {
       // User is authenticated, check if they have roles
       const hasRoles = userProfile?.user_roles && userProfile.user_roles.length > 0
@@ -23,7 +45,18 @@ export default function Home() {
         router.push('/welcome')
       }
     }
-  }, [user, userProfile, loading, router])
+  }, [user, userProfile, loading, router, firstRunChecked, isFirstRun])
+
+  // Show spinner while checking first-run or redirecting to onboarding
+  if (!firstRunChecked || isFirstRun) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
