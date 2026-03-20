@@ -116,33 +116,70 @@ if command_exists docker; then
   DOCKER_VERSION=$(docker --version)
   print_success "Docker is installed: $DOCKER_VERSION"
 
-  # Check if Docker is running
+  # Check if Docker is running, auto-start if not
   if docker info >/dev/null 2>&1; then
     print_success "Docker daemon is running"
-
-    # Check Docker Hub authentication (to avoid rate limits)
-    if docker info 2>/dev/null | grep -q "Username:"; then
-      DOCKER_USER=$(docker info 2>/dev/null | grep "Username:" | awk '{print $2}')
-      DOCKER_AUTHENTICATED=true
-      print_success "Docker Hub authenticated as: $DOCKER_USER"
-    else
-      DOCKER_AUTHENTICATED=false
-      print_warning "Docker Hub not authenticated (may hit rate limits)"
-      printf "   ${BLUE}Tip: Authenticate to increase rate limits:${NC}\n"
-      printf "   ${GREEN}docker login${NC}\n"
-      printf "   ${YELLOW}(Press Enter to continue anyway or Ctrl+C to cancel)${NC}\n"
-
-      # Only prompt if running in a TTY
-      if [ -t 0 ]; then
-        read -p "   "
-      else
-        echo "   (Non-interactive mode - continuing without authentication)"
-      fi
-    fi
   else
-    print_error "Docker is installed but not running"
-    echo "   Please start Docker Desktop and try again"
-    exit 1
+    print_warning "Docker is installed but not running — attempting to start..."
+
+    # Try to start Docker Desktop
+    if [ "$IS_WINDOWS" = true ]; then
+      # Windows: try common Docker Desktop install paths
+      if [ -f "/c/Program Files/Docker/Docker/Docker Desktop.exe" ]; then
+        "/c/Program Files/Docker/Docker/Docker Desktop.exe" &
+      elif [ -f "$LOCALAPPDATA/Docker/Docker Desktop.exe" ]; then
+        "$LOCALAPPDATA/Docker/Docker Desktop.exe" &
+      else
+        print_info "Trying 'start' command..."
+        cmd.exe /c "start \"\" \"Docker Desktop\"" 2>/dev/null || true
+      fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+      open -a "Docker" 2>/dev/null || true
+    else
+      # Linux: try systemctl
+      sudo systemctl start docker 2>/dev/null || true
+    fi
+
+    # Wait for Docker to be ready (up to 60 seconds)
+    print_info "Waiting for Docker to start (this may take up to 60 seconds)..."
+    DOCKER_READY=false
+    for i in $(seq 1 30); do
+      if docker info >/dev/null 2>&1; then
+        DOCKER_READY=true
+        break
+      fi
+      sleep 2
+      printf "   Waiting... (%ds)\r" $((i * 2))
+    done
+    echo ""
+
+    if [ "$DOCKER_READY" = true ]; then
+      print_success "Docker started successfully"
+    else
+      print_error "Could not start Docker automatically"
+      echo "   Please start Docker Desktop manually and run this script again"
+      exit 1
+    fi
+  fi
+
+  # Check Docker Hub authentication (to avoid rate limits)
+  if docker info 2>/dev/null | grep -q "Username:"; then
+    DOCKER_USER=$(docker info 2>/dev/null | grep "Username:" | awk '{print $2}')
+    DOCKER_AUTHENTICATED=true
+    print_success "Docker Hub authenticated as: $DOCKER_USER"
+  else
+    DOCKER_AUTHENTICATED=false
+    print_warning "Docker Hub not authenticated (may hit rate limits)"
+    printf "   ${BLUE}Tip: Authenticate to increase rate limits:${NC}\n"
+    printf "   ${GREEN}docker login${NC}\n"
+    printf "   ${YELLOW}(Press Enter to continue anyway or Ctrl+C to cancel)${NC}\n"
+
+    # Only prompt if running in a TTY
+    if [ -t 0 ]; then
+      read -p "   "
+    else
+      echo "   (Non-interactive mode - continuing without authentication)"
+    fi
   fi
 else
   print_error "Docker is not installed"

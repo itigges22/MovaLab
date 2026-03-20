@@ -230,9 +230,51 @@ async function main() {
   }
 
   if (!isDockerRunning()) {
-    log.error('Docker is not running!');
-    log.info('Please start Docker Desktop and try again.');
-    process.exit(1);
+    log.warn('Docker is not running — attempting to start Docker Desktop...');
+
+    // Try to start Docker Desktop
+    try {
+      if (process.platform === 'win32') {
+        const dockerPaths = [
+          'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe',
+          `${process.env.LOCALAPPDATA}\\Docker\\Docker Desktop.exe`,
+        ];
+        let started = false;
+        for (const p of dockerPaths) {
+          if (fs.existsSync(p)) {
+            spawn(p, [], { detached: true, stdio: 'ignore' }).unref();
+            started = true;
+            break;
+          }
+        }
+        if (!started) {
+          execSync('start "" "Docker Desktop"', { stdio: 'ignore', shell: true });
+        }
+      } else if (process.platform === 'darwin') {
+        execSync('open -a Docker', { stdio: 'ignore' });
+      } else {
+        execSync('sudo systemctl start docker', { stdio: 'ignore' });
+      }
+    } catch {
+      // Ignore launch errors — we'll check if it actually started below
+    }
+
+    // Wait for Docker to be ready (up to 60 seconds)
+    log.info('Waiting for Docker to start (up to 60 seconds)...');
+    let dockerReady = false;
+    for (let i = 0; i < 30; i++) {
+      if (isDockerRunning()) {
+        dockerReady = true;
+        break;
+      }
+      execSync('sleep 2 || timeout /t 2 >nul 2>&1', { stdio: 'ignore', shell: true });
+    }
+
+    if (!dockerReady) {
+      log.error('Could not start Docker automatically.');
+      log.info('Please start Docker Desktop manually and run this script again.');
+      process.exit(1);
+    }
   }
   log.success('Docker is running');
 
