@@ -22,10 +22,11 @@ error_exit() {
   exit 1
 }
 
-# Set error trap
-trap error_exit ERR
+# Note: We don't use 'trap ERR' because Windows Git Bash triggers false errors
 
-set -e  # Exit on error
+# Note: We don't use 'set -e' because on Windows/Git Bash, many commands
+# emit "stdout is not a tty" warnings that would cause premature exits.
+# Instead, we check exit codes explicitly where needed.
 
 # Colors for output (disable if not a TTY to avoid PowerShell issues)
 # Use ANSI-C quoting $'...' for proper escape sequence interpretation
@@ -86,11 +87,11 @@ print_header "📋 Step 1: Checking Prerequisites"
 
 # Check Node.js
 if command_exists node; then
-  NODE_VERSION=$(node --version)
+  NODE_VERSION=$(node --version 2>/dev/null)
   print_success "Node.js is installed: $NODE_VERSION"
 
   # Check if Node version is 18 or higher
-  NODE_MAJOR_VERSION=$(node --version | cut -d'.' -f1 | sed 's/v//')
+  NODE_MAJOR_VERSION=$(node --version 2>/dev/null | cut -d'.' -f1 | sed 's/v//')
   if [ "$NODE_MAJOR_VERSION" -lt 18 ]; then
     print_error "Node.js 18 or higher is required (you have v$NODE_MAJOR_VERSION)"
     echo "   Please install Node.js 18+ from: https://nodejs.org/"
@@ -104,7 +105,7 @@ fi
 
 # Check npm
 if command_exists npm; then
-  NPM_VERSION=$(npm --version)
+  NPM_VERSION=$(npm --version 2>/dev/null)
   print_success "npm is installed: $NPM_VERSION"
 else
   print_error "npm is not installed (should come with Node.js)"
@@ -113,7 +114,7 @@ fi
 
 # Check Docker
 if command_exists docker; then
-  DOCKER_VERSION=$(docker --version)
+  DOCKER_VERSION=$(docker --version 2>/dev/null)
   print_success "Docker is installed: $DOCKER_VERSION"
 
   # Check if Docker is running, auto-start if not
