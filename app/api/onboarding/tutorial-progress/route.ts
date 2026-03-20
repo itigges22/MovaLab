@@ -62,8 +62,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body. "step" (number) is required.' }, { status: 400 });
   }
 
-  const { step, completed } = body as { step: number; completed?: boolean };
-  const maxStep = SUPERADMIN_TUTORIAL.length - 1;
+  const { step, completed, isSuperadmin: isSuperadminTutorial } = body as {
+    step: number;
+    completed?: boolean;
+    isSuperadmin?: boolean;
+  };
+
+  // For non-superadmin users, the tutorial steps are dynamically generated on the client.
+  // We use a generous upper bound for step validation since we don't know the exact count server-side.
+  // Superadmin tutorials use the known SUPERADMIN_TUTORIAL length.
+  const maxStep = isSuperadminTutorial ? SUPERADMIN_TUTORIAL.length - 1 : 20;
 
   if (step < 0 || step > maxStep) {
     return NextResponse.json(
@@ -72,25 +80,27 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  // For required steps, validate the action was actually completed before allowing advancement.
-  // We use the admin client to bypass RLS for validation counts.
-  const adminSupabase = createAdminSupabaseClient();
+  // For superadmin tutorials, validate that required actions were completed.
+  // Non-superadmin tutorials are informational guides — no action validation needed.
+  if (isSuperadminTutorial) {
+    const adminSupabase = createAdminSupabaseClient();
 
-  // We validate the PREVIOUS step's required action, not the step being set.
-  // E.g., to advance FROM step 1 to step 2, we validate step 1's action.
-  if (step > 0 && adminSupabase) {
-    const previousStep = SUPERADMIN_TUTORIAL[step - 1];
+    // We validate the PREVIOUS step's required action, not the step being set.
+    // E.g., to advance FROM step 1 to step 2, we validate step 1's action.
+    if (step > 0 && adminSupabase) {
+      const previousStep = SUPERADMIN_TUTORIAL[step - 1];
 
-    if (previousStep?.isRequired && previousStep?.requiredAction) {
-      const valid = await validateStepAction(adminSupabase, previousStep.requiredAction);
-      if (!valid) {
-        return NextResponse.json(
-          {
-            error: `You must complete "${previousStep.title}" before advancing.`,
-            requiredAction: previousStep.requiredAction,
-          },
-          { status: 400 },
-        );
+      if (previousStep?.isRequired && previousStep?.requiredAction) {
+        const valid = await validateStepAction(adminSupabase, previousStep.requiredAction);
+        if (!valid) {
+          return NextResponse.json(
+            {
+              error: `You must complete "${previousStep.title}" before advancing.`,
+              requiredAction: previousStep.requiredAction,
+            },
+            { status: 400 },
+          );
+        }
       }
     }
   }

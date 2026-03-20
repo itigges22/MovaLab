@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { SUPERADMIN_TUTORIAL } from '@/lib/onboarding/tutorial-steps';
+import { SUPERADMIN_TUTORIAL, generateUserTutorial, TutorialStep } from '@/lib/onboarding/tutorial-steps';
 import { TutorialOverlay } from '@/components/onboarding/tutorial-overlay';
 
 interface TutorialProviderProps {
@@ -11,11 +11,39 @@ interface TutorialProviderProps {
 }
 
 /**
+ * Extract permission keys (where value is truthy) from the user profile's roles.
+ * The permissions field on each role is a JSONB object like { "view_projects": true, ... }.
+ */
+function extractUserPermissions(userProfile: Record<string, unknown>): string[] {
+  const userRoles = userProfile.user_roles as
+    | Array<{ roles: { permissions?: Record<string, unknown> } }>
+    | undefined;
+
+  if (!userRoles || !Array.isArray(userRoles)) return [];
+
+  const permissionSet = new Set<string>();
+
+  for (const ur of userRoles) {
+    const perms = ur.roles?.permissions;
+    if (perms && typeof perms === 'object') {
+      for (const [key, value] of Object.entries(perms)) {
+        if (value === true) {
+          permissionSet.add(key);
+        }
+      }
+    }
+  }
+
+  return Array.from(permissionSet);
+}
+
+/**
  * Wraps the app and shows the tutorial overlay when the authenticated user
  * has not yet completed onboarding (has_completed_onboarding === false).
  *
- * Reads tutorial state from the API, manages step progression, and navigates
- * the user to the correct page for each step.
+ * Supports two tutorial modes:
+ * - Superadmin: Shows SUPERADMIN_TUTORIAL with required action validation
+ * - Regular user: Shows dynamically generated tutorial based on role permissions
  */
 export function TutorialProvider({ children }: TutorialProviderProps) {
   const { userProfile, loading: authLoading } = useAuth();
@@ -34,18 +62,39 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
   // Track polling interval
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Determine if the user needs the tutorial
+  // Determine user type.
+  // has_completed_onboarding and is_superadmin are added by migration and not
+  // present in the static UserWithRoles type, so we cast through `any`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profileAny = userProfile as any;
+
+  const isSuperadminUser = !!(profileAny?.is_superadmin === true);
+
+  const hasCompletedOnboarding = !!(profileAny?.has_completed_onboarding === true);
+
+  // Determine if the user needs the tutorial (superadmin OR regular user)
   const needsTutorial = !!(
     userProfile &&
-    'has_completed_onboarding' in userProfile &&
-    (userProfile as Record<string, unknown>).has_completed_onboarding === false &&
-    'is_superadmin' in userProfile &&
-    (userProfile as Record<string, unknown>).is_superadmin === true
+    profileAny?.has_completed_onboarding === false
   );
+
+  // Compute the appropriate tutorial steps based on user type
+  const tutorialSteps: TutorialStep[] = useMemo(() => {
+    if (!needsTutorial || !userProfile) return [];
+
+    if (isSuperadminUser) {
+      return SUPERADMIN_TUTORIAL;
+    }
+
+    // Regular user: generate tutorial from their role permissions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const permissions = extractUserPermissions(userProfile as any);
+    return generateUserTutorial(permissions);
+  }, [needsTutorial, userProfile, isSuperadminUser]);
 
   // Fetch tutorial progress on mount when user needs tutorial
   useEffect(() => {
-    if (authLoading || !needsTutorial || initialFetchDone) return;
+    if (authLoading || !needsTutorial || initialFetchDone || tutorialSteps.length === 0) return;
 
     async function fetchProgress() {
       try {
@@ -59,7 +108,9 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
         if (data.completed) {
           setTutorialActive(false);
         } else {
-          setCurrentStep(data.step ?? 0);
+          // Clamp step to valid range for this tutorial
+          const step = Math.min(data.step ?? 0, tutorialSteps.length - 1);
+          setCurrentStep(step);
           setTutorialActive(true);
         }
       } catch {
@@ -70,13 +121,13 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
     }
 
     fetchProgress();
-  }, [authLoading, needsTutorial, initialFetchDone]);
+  }, [authLoading, needsTutorial, initialFetchDone, tutorialSteps.length]);
 
   // Navigate to the current step's target page when tutorial is active
   useEffect(() => {
-    if (!tutorialActive || navigatingRef.current) return;
+    if (!tutorialActive || navigatingRef.current || tutorialSteps.length === 0) return;
 
-    const step = SUPERADMIN_TUTORIAL[currentStep];
+    const step = tutorialSteps[currentStep];
     if (!step) return;
 
     // Only navigate if we're not already on the target page
@@ -88,14 +139,14 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
         navigatingRef.current = false;
       }, 1000);
     }
-  }, [tutorialActive, currentStep, pathname, router]);
+  }, [tutorialActive, currentStep, pathname, router, tutorialSteps]);
 
   // Poll to check if the required action was completed
   // (e.g., user created a department via the normal UI)
   useEffect(() => {
-    if (!tutorialActive) return;
+    if (!tutorialActive || tutorialSteps.length === 0) return;
 
-    const step = SUPERADMIN_TUTORIAL[currentStep];
+    const step = tutorialSteps[currentStep];
     if (!step?.requiredAction) {
       setActionCompleted(true);
       return;
@@ -143,7 +194,7 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
         pollingRef.current = null;
       }
     };
-  }, [tutorialActive, currentStep]);
+  }, [tutorialActive, currentStep, tutorialSteps]);
 
   const advanceStep = useCallback(
     async (nextStep: number, complete = false) => {
@@ -153,7 +204,11 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ step: nextStep, completed: complete }),
+          body: JSON.stringify({
+            step: nextStep,
+            completed: complete,
+            isSuperadmin: isSuperadminUser,
+          }),
         });
 
         if (!res.ok) {
@@ -179,27 +234,27 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
         setProgressLoading(false);
       }
     },
-    [router],
+    [router, isSuperadminUser],
   );
 
   const handleNext = useCallback(() => {
     const nextStep = currentStep + 1;
-    if (nextStep >= SUPERADMIN_TUTORIAL.length) {
+    if (nextStep >= tutorialSteps.length) {
       advanceStep(currentStep, true);
     } else {
       advanceStep(nextStep);
     }
-  }, [currentStep, advanceStep]);
+  }, [currentStep, advanceStep, tutorialSteps.length]);
 
   const handleSkip = useCallback(() => {
     // Skip advances to the next step without requiring action completion
     const nextStep = currentStep + 1;
-    if (nextStep >= SUPERADMIN_TUTORIAL.length) {
+    if (nextStep >= tutorialSteps.length) {
       advanceStep(currentStep, true);
     } else {
       advanceStep(nextStep);
     }
-  }, [currentStep, advanceStep]);
+  }, [currentStep, advanceStep, tutorialSteps.length]);
 
   const handleComplete = useCallback(() => {
     advanceStep(currentStep, true);
@@ -208,9 +263,9 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
   return (
     <>
       {children}
-      {tutorialActive && (
+      {tutorialActive && tutorialSteps.length > 0 && (
         <TutorialOverlay
-          steps={SUPERADMIN_TUTORIAL}
+          steps={tutorialSteps}
           currentStep={currentStep}
           onNext={handleNext}
           onSkip={handleSkip}
