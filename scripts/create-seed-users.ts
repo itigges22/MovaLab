@@ -208,9 +208,37 @@ async function createSeedUsers() {
     console.log(`   ℹ️  Already existed: ${usersExisted} users`);
   }
 
-  // Wait for trigger to create profiles
+  // Wait for trigger to create profiles — verify they actually exist
   console.log('\n⏳ Waiting for profile triggers...');
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const maxWaitAttempts = 15;
+  for (let attempt = 1; attempt <= maxWaitAttempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .in('id', TEST_USERS.map(u => u.id));
+    const foundCount = profiles?.length || 0;
+    if (foundCount >= TEST_USERS.length) {
+      console.log(`   ✅ All ${foundCount} profiles created by trigger`);
+      break;
+    }
+    if (attempt === maxWaitAttempts) {
+      console.log(`   ⚠️  Only ${foundCount}/${TEST_USERS.length} profiles found after ${maxWaitAttempts}s`);
+      console.log('   Creating missing profiles manually...');
+      for (const user of TEST_USERS) {
+        const exists = profiles?.some((p: { id: string }) => p.id === user.id);
+        if (!exists) {
+          await supabase.from('user_profiles').upsert({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          });
+        }
+      }
+    } else if (attempt % 3 === 0) {
+      console.log(`   Waiting... (${foundCount}/${TEST_USERS.length} profiles, attempt ${attempt}/${maxWaitAttempts})`);
+    }
+  }
 
   // Step 3: Update user profiles
   console.log('\n📝 Step 3: Updating user profiles...');
