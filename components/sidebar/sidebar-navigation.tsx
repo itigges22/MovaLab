@@ -19,6 +19,7 @@ import {
   Building2,
   Users,
   User,
+  UserPlus,
   Settings,
   GitBranch,
   Shield,
@@ -107,6 +108,12 @@ const adminMenuItems: AdminMenuItem[] = [
     href: '/admin/roles',
     icon: Shield,
     anyPermission: [Permission.MANAGE_USER_ROLES, Permission.MANAGE_USERS],
+  },
+  {
+    name: 'Invite Users',
+    href: '/admin/invitations',
+    icon: UserPlus,
+    anyPermission: [Permission.MANAGE_USER_ROLES],
   },
   {
     name: 'Time Tracking',

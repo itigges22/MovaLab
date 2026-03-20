@@ -137,14 +137,7 @@ ok "API ready at http://127.0.0.1:54321"
 # No need for a separate db reset — that would double-run everything
 
 # ============================================================
-header "Step 5: Create Test Users"
-
-info "Creating test users and sample data..."
-npx tsx scripts/create-seed-users.ts 2>&1
-ok "Seed data loaded"
-
-# ============================================================
-header "Setup Complete!"
+header "Step 5: Ready!"
 
 echo ""
 echo "Start the app:"
@@ -152,17 +145,13 @@ printf "  ${GREEN}npm run dev${NC}\n"
 echo ""
 echo "Then open: http://localhost:3000"
 echo ""
-echo "Login with any test user (password: Test1234!):"
-printf "  ${YELLOW}superadmin@test.local${NC}  - Full admin access\n"
-printf "  ${YELLOW}manager@test.local${NC}     - Account Manager\n"
-printf "  ${YELLOW}designer@test.local${NC}    - Designer\n"
-printf "  ${YELLOW}dev@test.local${NC}         - Developer\n"
-printf "  ${YELLOW}client@test.local${NC}      - Client portal\n"
+echo "The setup wizard will guide you through creating your"
+echo "superadmin account. Check the terminal for your setup token."
 echo ""
 echo "Supabase Studio: http://localhost:54323"
+echo "Email Testing:   http://localhost:54324 (Inbucket)"
 echo ""
 
 if [ "$IS_WINDOWS" = true ]; then
   read -p "Press Enter to close..."
 fi
-# Updated Thu Mar 19 20:41:01 EDT 2026

@@ -17,7 +17,7 @@
     "docker:start": "supabase start",
     "docker:stop": "supabase stop",
     "docker:reset": "supabase db reset",
-    "docker:seed": "npm run docker:reset && npx tsx scripts/create-seed-users.ts",
+    "docker:seed": "npm run docker:reset",
     "docker:clean": "supabase stop --no-backup && docker system prune -f",
     "docker:status": "supabase status",
     "docker:studio": "open http://localhost:54323 || xdg-open http://localhost:54323 || start http://localhost:54323",
