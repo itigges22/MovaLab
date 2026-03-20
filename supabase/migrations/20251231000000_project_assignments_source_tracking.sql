@@ -14,16 +14,9 @@ ADD COLUMN IF NOT EXISTS "workflow_node_id" "uuid";
 ALTER TABLE "public"."project_assignments"
 ADD COLUMN IF NOT EXISTS "workflow_node_label" "text";
 
--- Add foreign key constraint for workflow_node_id (skip if already exists from baseline)
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'project_assignments_workflow_node_id_fkey') THEN
-    ALTER TABLE "public"."project_assignments"
-    ADD CONSTRAINT "project_assignments_workflow_node_id_fkey"
-    FOREIGN KEY ("workflow_node_id") REFERENCES "public"."workflow_nodes"("id") ON DELETE SET NULL;
-  END IF;
-END $$;
-
--- Add check constraint for source_type (skip if already exists)
+-- NOTE: Foreign key constraint 'project_assignments_workflow_node_id_fkey' is already
+-- defined in the baseline migration (20250129000000_baseline.sql line 1758).
+-- Check constraint also added as idempotent.
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'project_assignments_source_type_check') THEN
     ALTER TABLE "public"."project_assignments"
