@@ -21,15 +21,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
+### Initial Setup (First Time Only)
+```bash
+npm run setup            # Run first-time-setup.sh (installs deps, starts Docker/Supabase, applies migrations)
+npm run dev              # Start dev server, visit localhost:3000 → /onboarding wizard → create superadmin
+```
+
 ### Running the Application
 ```bash
 npm run dev              # Start development server on localhost:3000
 npm run dev:clean        # Clean .next cache and start dev server
 npm run dev:fresh        # Kill port 3000, clean cache, start fresh
+npm run dev:demo         # Start with demo mode enabled
 npm run build            # Production build
 npm run start            # Start production server
 npm run lint             # Run ESLint (v9 with flat config)
 npm run clean            # Clean .next and cache directories
+```
+
+### Docker / Database
+```bash
+npm run docker:start     # Start local Supabase services
+npm run docker:stop      # Stop Supabase (preserves data)
+npm run docker:reset     # Reset database, re-run migrations + seed
+npm run docker:seed      # Same as docker:reset (clean slate)
+npm run docker:health    # Verify setup
+npm run docker:studio    # Open Supabase Studio (database UI)
 ```
 
 ### Testing
@@ -53,15 +70,29 @@ npm run setup:test-roles      # Set up comprehensive test roles
 
 ## Environment Configuration
 
+**Deployment model:** Self-hosted VPS/Docker only. No cloud Supabase, no Vercel.
+
+**First-run flow:** `npm run setup` -> `npm run dev` -> visit localhost:3000 -> redirects to `/onboarding` -> setup wizard -> create superadmin -> tutorial. Users are invited by the superadmin via the invitation system (email sent via Nodemailer in production, Inbucket locally).
+
 ### Required Environment Variables
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-supabase-publishable-key
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+SUPABASE_SERVICE_ROLE_KEY=<service role key from supabase start output>
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### Optional (Production Recommended)
+### Optional
 ```env
-UPSTASH_REDIS_REST_URL=your-redis-url
+NEXT_PUBLIC_DEMO_MODE=false          # Enable demo mode quick-login buttons
+CRON_SECRET=<random hex>             # For scheduled cron jobs
+SMTP_HOST=smtp.your-domain.com       # Production email delivery (dev uses Inbucket)
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+SMTP_FROM=MovaLab <noreply@your-domain.com>
+UPSTASH_REDIS_REST_URL=your-redis-url   # Rate limiting (optional)
 UPSTASH_REDIS_REST_TOKEN=your-token
 ENABLE_RATE_LIMIT=true
 ```
@@ -72,6 +103,12 @@ EXPOSE_ERROR_DETAILS=true
 LOG_LEVEL=debug  # Options: debug, info, warn, error
 NODE_ENV=development
 ```
+
+### Local Service URLs
+- **App:** http://localhost:3000
+- **Supabase API:** http://127.0.0.1:54321
+- **Supabase Studio:** http://localhost:54323
+- **Inbucket (email):** http://localhost:54324
 
 ### CRITICAL SECURITY NOTES
 

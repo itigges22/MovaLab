@@ -1,16 +1,17 @@
 # First-Time Setup Guide
 
-This guide explains how to set up the first superadmin account for a fresh MovaLab deployment. This is required for cloud deployments (Vercel, etc.) where no seed data exists.
+This guide explains how to set up MovaLab for the first time on a fresh installation. MovaLab is self-hosted using Docker and local Supabase.
 
 ---
 
 ## Overview
 
-When deploying MovaLab to a new environment, you'll encounter a chicken-and-egg problem: you need a superadmin to assign roles, but there's no way to create a superadmin without one already existing.
+When you deploy MovaLab for the first time, the database starts empty (only 3 system roles exist). The app includes a **setup wizard** at `/onboarding` that:
 
-MovaLab solves this with a **secure one-time setup mechanism** that:
-- Only works when zero superadmins exist in the database
-- Requires a secret key stored in environment variables
+- Automatically activates when no superadmin exists in the database
+- Generates a one-time setup token printed to the server terminal
+- Guides you through creating the first superadmin account
+- Includes an interactive tutorial after account creation
 - Automatically disables after the first superadmin is created
 
 ---
@@ -18,165 +19,156 @@ MovaLab solves this with a **secure one-time setup mechanism** that:
 ## Prerequisites
 
 Before starting, ensure you have:
-- [Supabase CLI](https://supabase.com/docs/guides/cli) installed (`npm install -g supabase`)
-- A Supabase project created at [supabase.com/dashboard](https://supabase.com/dashboard)
-- Access to your deployment's environment variables (Vercel, etc.)
+
+- **Node.js 18.0+** ([Download](https://nodejs.org/))
+- **Docker Desktop** installed and running ([Download](https://www.docker.com/products/docker-desktop))
+- **Git** for cloning the repository
 
 ---
 
 ## Setup Steps
 
-### Step 1: Push the Database Schema
-
-The database migrations create all tables, RLS policies, functions, departments, and roles.
+### Step 1: Clone and Run Setup
 
 ```bash
-# Link your local repo to your cloud Supabase project
-supabase link --project-ref your-project-ref
-
-# Push all migrations to cloud database
-supabase db push
+git clone https://github.com/itigges22/MovaLab.git
+cd MovaLab
+npm run setup
 ```
 
-> **Where to find your project ref:** In the Supabase Dashboard URL: `https://supabase.com/dashboard/project/<project-ref>`
+The `npm run setup` script (`scripts/first-time-setup.sh`) automatically:
+1. Checks prerequisites (Node.js, Docker, Supabase CLI)
+2. Installs npm dependencies
+3. Creates `.env.local` from the template (if it doesn't exist)
+4. Starts local Supabase via Docker
+5. Applies all 7 database migrations
+6. Loads seed data (3 system roles: Superadmin, Client, No Assigned Role)
 
-**What this creates:**
-- 42+ tables with Row Level Security policies
-- 5 core departments (Leadership, Marketing, Design, Development, Operations)
-- 15 predefined roles with appropriate permissions
+**What gets created in the database:**
+- Tables with Row Level Security policies
 - System roles (Superadmin, Client, No Assigned Role)
 - Database functions (auto clock-out, week start date, etc.)
+- Onboarding system tables (setup_tokens, onboarding_state)
 
-> **Note:** Migrations are idempotent and safe to run multiple times.
+No departments, users, accounts, or projects are created. The platform starts empty.
 
-### Step 2: Configure the Setup Secret
-
-Generate a secure random string for your setup secret:
+### Step 2: Start the App
 
 ```bash
-# Using OpenSSL (recommended)
-openssl rand -hex 32
-
-# Or using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+npm run dev
 ```
 
-Add this to your environment variables:
+Open [http://localhost:3000](http://localhost:3000).
 
-**For Vercel:**
-1. Go to your project settings
-2. Navigate to Environment Variables
-3. Add: `SETUP_SECRET` = `your-generated-secret`
+### Step 3: Complete the Onboarding Wizard
 
-**For local `.env.local`:**
-```env
-SETUP_SECRET=your-generated-secret
-```
+1. The app automatically redirects to `/onboarding`
+2. **Check your terminal** -- a one-time setup token is printed to the server console output
+3. Enter the setup token in the wizard
+4. Create your superadmin account (email + password)
+5. Follow the interactive tutorial that walks you through the platform
 
-### Step 3: Create Your Account
+### Step 4: Build Your Organization
 
-1. Navigate to your MovaLab deployment
-2. Click **Sign Up** and create an account with your email
-3. Verify your email if required
+Once you're logged in as superadmin:
 
-### Step 4: Become Superadmin
+1. **Create Departments** -- Go to Admin > Departments
+2. **Create Roles** -- Go to Admin > Roles (assign permissions and departments)
+3. **Invite Team Members** -- Go to Admin > Invite Users (sends email invitations)
+4. **Create Accounts** -- Add client accounts and assign account managers
+5. **Set Up Workflows** -- Go to Admin > Workflows to create workflow templates
 
-1. Navigate to `/setup?key=YOUR_SETUP_SECRET`
-   - Replace `YOUR_SETUP_SECRET` with your actual secret
-   - Example: `https://your-app.vercel.app/setup?key=abc123...`
+### Step 5: Invite Team Members
 
-2. You'll see a setup form confirming:
-   - SQL schema is ready
-   - SETUP_SECRET is configured
-   - You're logged in
+Team members are invited via the invitation system:
 
-3. Enter your setup secret and click **"Become Superadmin"**
-
-4. You'll be redirected to the Admin panel as a superadmin
+1. Go to Admin > Invite Users
+2. Enter the team member's email address
+3. An invitation email is sent (via Nodemailer in production, via Inbucket locally)
+4. In local development, check Inbucket at http://localhost:54324 to see the invitation email
+5. The invited user clicks the link, creates their account, and is assigned a role
 
 ---
 
 ## Security Features
 
-### One-Time Use
-The setup mechanism automatically disables after the first superadmin is created. Any subsequent visits to `/setup` will show "Setup Complete" with no option to create another superadmin via this method.
-
-### Secret Verification
-The setup secret must match exactly what's stored in the environment variable. This prevents unauthorized users from becoming superadmin even if they discover the `/setup` route.
+### One-Time Setup Token
+The setup token is generated once and printed to the server terminal. It is stored in the `setup_tokens` database table and expires after use. This prevents unauthorized users from becoming superadmin.
 
 ### Authentication Required
-Users must sign up and be logged in before they can use the setup mechanism. This ensures the superadmin account is tied to a verified email address.
+The onboarding wizard creates a new Supabase Auth user as part of the flow. The superadmin account is tied to a verified email address.
+
+### Automatic Disabling
+After the first superadmin is created, the onboarding wizard is disabled. Visiting `/onboarding` after setup will redirect to the main app.
 
 ---
 
 ## Troubleshooting
 
-### "Configuration Required" Error
-**Cause:** The `SETUP_SECRET` environment variable is not set.
+### Setup Token Not Appearing in Terminal
+**Cause:** The dev server may not have started cleanly.
 
 **Solution:**
-1. Add `SETUP_SECRET` to your environment variables
-2. Redeploy your application (for Vercel) or restart the dev server
+1. Stop the dev server (Ctrl+C)
+2. Run `npm run dev` again
+3. Visit http://localhost:3000 -- the token should appear in the terminal
 
-### "Setup Complete" Message
+### "Setup Complete" / Redirect Away from Onboarding
 **Cause:** A superadmin already exists in the database.
 
-**Solution:** This is expected behavior. The setup mechanism is one-time use. If you need to:
-- Add more superadmins: Have the existing superadmin assign the role via Admin > Role Management
-- Reset everything: Clear the database and start fresh (development only)
+**Solution:** This is expected. If you need to start fresh:
+```bash
+npm run docker:reset
+npm run dev
+```
 
-### "Create Your Account First" Message
-**Cause:** You're not logged in.
-
-**Solution:**
-1. Click the link to sign up or log in
-2. Return to the setup page after authentication
-3. The URL will preserve your setup key
-
-### Invalid Setup Secret Error
-**Cause:** The secret you entered doesn't match the environment variable.
+### Docker Services Not Starting
+**Cause:** Docker Desktop may not be running.
 
 **Solution:**
-1. Double-check the `SETUP_SECRET` value in your environment
-2. Ensure no extra spaces or characters
-3. Try copying the full secret again
+1. Start Docker Desktop
+2. Wait for it to fully initialize
+3. Run `npm run docker:start` or `npm run setup`
+
+### Database Connection Failed
+**Solution:**
+```bash
+npm run docker:stop
+npm run docker:start
+npm run docker:health
+```
 
 ---
 
 ## After Setup
 
-Once you're a superadmin, you can:
+Once your superadmin account is created, the platform is ready for daily use:
 
-1. **Assign Roles to Users**
-   - Go to Admin > Role Management
-   - Find users and assign appropriate roles
-
-2. **Create Accounts**
-   - Go to Admin > Accounts
-   - Create client accounts and assign account managers
-
-3. **Manage Departments**
-   - Go to Admin > Departments
-   - Customize department structure if needed
-
-4. **Configure Workflows**
-   - Go to Admin > Workflows
-   - Create workflow templates for your processes
+1. **Invite your team** via Admin > Invite Users
+2. **Create client accounts** via Accounts section
+3. **Start projects** and assign team members
+4. **Build workflows** to standardize your processes
+5. **Track time** with clock in/out or manual entry
 
 ---
 
-## Environment Variable Reference
+## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SETUP_SECRET` | Yes* | Secret key for first-time superadmin setup |
+The `.env.local` file is created automatically from `.env.local.template` during setup. Key variables:
 
-*Required only for initial setup. Can be removed after setup is complete for added security.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `http://127.0.0.1:54321` | Local Supabase API URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | `sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH` | Local publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | (set in template) | Service role key for server-side operations |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Application URL |
+| `NEXT_PUBLIC_DEMO_MODE` | `false` | Enable demo mode (optional) |
+| `SMTP_*` | (commented out) | SMTP settings for production email delivery |
 
 ---
 
 ## Related Documentation
 
-- [Demo Mode Guide](./DEMO_MODE.md) - Local development with pre-loaded data
-- [Docker Setup](./docker-setup.md) - Local development environment
-- [Security Guide](./security/SECURITY.md) - Security architecture overview
+- [Docker Setup Guide](./docker-setup.md) -- Local development environment details
+- [Demo Mode Guide](./DEMO_MODE.md) -- Running demos locally
+- [Contributing Guide](../../CONTRIBUTING.md) -- Development workflow

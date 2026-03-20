@@ -1,25 +1,20 @@
 # MovaLab Demo Mode
 
-Demo mode allows you to showcase MovaLab without risking data corruption or requiring user signup. It's perfect for public demonstrations, testing, and evaluation.
+Demo mode allows you to showcase MovaLab without risking data corruption or requiring user signup. It is an optional configuration for local demonstrations and testing.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Critical: Database Architecture](#critical-database-architecture)
-3. [Quick Start](#quick-start)
-4. [Demo Users](#demo-users)
-5. [Features in Demo Mode](#features-in-demo-mode)
-6. [Local Demo Setup](#local-demo-setup)
-7. [Switching from Demo to Production](#switching-from-demo-to-production)
-8. [Cloud Demo Setup (Vercel)](#cloud-demo-setup-vercel)
-9. [Automatic Daily Reset (Cron Job)](#automatic-daily-reset-cron-job)
-10. [Resetting and Clearing Demo Data](#resetting-and-clearing-demo-data)
-11. [Security Considerations](#security-considerations)
-12. [Technical Implementation](#technical-implementation)
-13. [Troubleshooting](#troubleshooting)
-14. [FAQ](#faq)
+2. [Quick Start](#quick-start)
+3. [Features in Demo Mode](#features-in-demo-mode)
+4. [Local Demo Setup](#local-demo-setup)
+5. [Resetting and Clearing Demo Data](#resetting-and-clearing-demo-data)
+6. [Security Considerations](#security-considerations)
+7. [Technical Implementation](#technical-implementation)
+8. [Troubleshooting](#troubleshooting)
+9. [FAQ](#faq)
 
 ---
 
@@ -27,10 +22,10 @@ Demo mode allows you to showcase MovaLab without risking data corruption or requ
 
 Demo mode is a special configuration that:
 
-- **Enables quick-login buttons** - Users can log in as different roles with one click (no signup required)
-- **Disables destructive actions** - Delete, remove, and dangerous operations are blocked
-- **Hides superadmin access** - Prevents exposure of sensitive admin features
-- **Protects demo data** - Ensures the demo environment stays clean for the next user
+- **Enables quick-login buttons** -- Users can log in as different roles with one click (no signup required)
+- **Disables destructive actions** -- Delete, remove, and dangerous operations are blocked
+- **Hides superadmin access** -- Prevents exposure of sensitive admin features
+- **Protects demo data** -- Ensures the demo environment stays clean for the next user
 
 ### When to Use Demo Mode
 
@@ -41,51 +36,14 @@ Demo mode is a special configuration that:
 | Evaluating MovaLab | Yes |
 | Development with test data | Optional |
 | Production deployment | **No** |
-| Staging with real data | **No** |
 
----
+### Prerequisites
 
-## Critical: Database Architecture
+Demo mode requires demo users to exist in the database. The `scripts/create-seed-users.ts` utility can create these, but it is **not** run automatically by any npm script. You must run it manually if you want demo users:
 
-### Understanding Demo vs Production Databases
-
-**This is the most important concept to understand:**
-
-| Mode | Database | Location | Isolated? |
-|------|----------|----------|-----------|
-| **Local Demo** (Docker) | PostgreSQL in Docker | Your machine | Yes - from cloud |
-| **Local "Production"** (Docker) | **Same** PostgreSQL in Docker | Your machine | **NO - same as demo!** |
-| **Cloud Production** | Supabase Cloud | Supabase servers | Yes - completely separate |
-
-### The Critical Point
-
-**Local Docker Demo and Local Docker "Production" use the SAME database.**
-
-The Supabase CLI creates a single set of containers with a fixed project name. There is only ONE local database. Demo mode is purely a **UI/API protection layer** - it does NOT create a separate database.
-
+```bash
+npx tsx scripts/create-seed-users.ts
 ```
-Local Docker Database (ONE database)
-├── With NEXT_PUBLIC_DEMO_MODE=true  → Demo UI, blocked actions
-└── With NEXT_PUBLIC_DEMO_MODE=false → Full UI, all actions allowed
-    ↑
-    Same data in both cases!
-```
-
-### What This Means
-
-1. **Demo mode protects data from deletion** - but it's the same data either way
-2. **Disabling demo mode exposes the same data** - just without protections
-3. **For true data isolation, use Cloud Supabase** for production
-
-### Recommended Architecture
-
-| Environment | Database | Demo Mode | Purpose |
-|-------------|----------|-----------|---------|
-| **Production** | Cloud Supabase (`movalab-prod`) | `false` | Real users, real data |
-| **Demo/Testing** | Local Docker | `true` | Safe testing, demos |
-| **Staging** (optional) | Cloud Supabase (`movalab-staging`) | `false` | Pre-production testing |
-
-**Do NOT use local Docker for production data.** See [Security Considerations](#security-considerations) for why.
 
 ---
 
@@ -129,32 +87,6 @@ npm run docker:stop
 
 ---
 
-## Demo Users
-
-Demo mode provides 6 pre-configured users representing different roles:
-
-| User | Email | Role | Access Level |
-|------|-------|------|--------------|
-| Alex Executive | `exec@test.local` | Executive Director | Full visibility across all accounts |
-| Morgan Manager | `manager@test.local` | Account Manager | Manages client accounts and teams |
-| Pat ProjectManager | `pm@test.local` | Project Manager | Oversees project execution |
-| Dana Designer | `designer@test.local` | Senior Designer | Creative work and deliverables |
-| Dev Developer | `dev@test.local` | Senior Developer | Technical implementation |
-| Chris Client | `client@test.local` | Client | Client portal access only |
-
-**Password for all users:** `Test1234!`
-
-### Why No Superadmin?
-
-The superadmin user (`superadmin@test.local`) is intentionally excluded from demo mode to:
-- Prevent accidental system configuration changes
-- Protect sensitive admin functionality
-- Keep the demo focused on typical user workflows
-
-**Note:** The superadmin still exists in the database. Disabling demo mode will expose superadmin login.
-
----
-
 ## Features in Demo Mode
 
 ### Login Experience
@@ -187,34 +119,28 @@ When a user attempts a blocked action, they see a friendly message explaining th
 
 ### Hidden Features
 
-- Superadmin setup page (`/admin/superadmin-setup`)
+- Superadmin setup page
 - User signup toggle on login page
 
 ---
 
 ## Local Demo Setup
 
-### Prerequisites
-
-1. **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop)
-2. **Node.js 18+** - [Download here](https://nodejs.org/)
-3. **Git** - For cloning the repository
-
 ### First-Time Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/MovaLab.git
+git clone https://github.com/itigges22/MovaLab.git
 cd MovaLab
 
-# Install dependencies
-npm install
+# Run the full setup
+npm run setup
 
-# Run the full first-time setup (includes database seeding)
-./scripts/first-time-setup.sh
+# Create demo users (required for demo mode quick-login buttons)
+npx tsx scripts/create-seed-users.ts
 
-# Or on Windows (Git Bash)
-bash scripts/first-time-setup.sh
+# Start demo mode
+npm run dev:demo
 ```
 
 ### Daily Usage
@@ -234,251 +160,10 @@ Local demo mode runs several Docker containers:
 - Supabase Auth (GoTrue)
 - Supabase API (PostgREST)
 - Supabase Studio (optional, for database UI)
-- And more...
 
 **Typical RAM usage:** 2-4 GB
 
-To minimize resource usage:
-- Stop Docker when not in use: `npm run docker:stop`
-- Use cloud demo mode for presentations (see below)
-
----
-
-## Switching from Demo to Production
-
-### Step-by-Step: Local Demo to Cloud Production
-
-This is the correct way to transition from demo/testing to production:
-
-#### 1. Create a Cloud Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Name it something like `movalab-prod`
-3. Wait for the project to be provisioned
-4. Note your project URL and publishable key from Project Settings > API
-
-#### 2. Apply Database Migrations
-
-```bash
-# Link to your production project
-npx supabase link --project-ref YOUR_PROJECT_REF
-
-# Push all migrations to cloud
-npx supabase db push
-```
-
-#### 3. Create Production Users
-
-You'll need to create real users in your cloud project:
-- Use the Supabase dashboard Authentication tab, OR
-- Invite users via email through the app
-
-**Important:** Do NOT use the demo seed users (`exec@test.local`, etc.) in production.
-
-#### 4. Update Environment Variables
-
-Edit `.env.local`:
-
-```bash
-# Comment out local Docker settings
-# NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=eyJhbGciOiJIUzI1NiIs...
-
-# Use cloud settings
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-cloud-publishable-key
-
-# IMPORTANT: Disable demo mode for production!
-# NEXT_PUBLIC_DEMO_MODE=true  # <-- Comment this out or set to false
-```
-
-#### 5. Stop Docker (No Longer Needed)
-
-```bash
-npm run docker:stop
-```
-
-#### 6. Start in Production Mode
-
-```bash
-npm run dev
-```
-
-You're now connected to your cloud production database with full functionality.
-
-### For Vercel Deployment
-
-Set these environment variables in Vercel dashboard:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-cloud-publishable-key
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-```
-
-Do NOT set `NEXT_PUBLIC_DEMO_MODE=true` unless you're deploying a public demo instance.
-
----
-
-## Cloud Demo Setup (Vercel)
-
-For production demos (shareable URL, no Docker required):
-
-### Step 1: Create a Demo Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Name it something like `movalab-demo` (separate from production!)
-3. Note your project URL and publishable key
-
-### Step 2: Apply Migrations
-
-```bash
-# Link to your demo project
-npx supabase link --project-ref YOUR_DEMO_PROJECT_REF
-
-# Push migrations
-npx supabase db push
-```
-
-### Step 3: Create Demo Users
-
-Create the 6 demo users in your cloud Supabase project:
-1. Use the Supabase dashboard Authentication tab
-2. Create users with the emails from the [Demo Users](#demo-users) table
-3. Set password `Test1234!` for all
-
-### Step 4: Deploy to Vercel
-
-1. Connect your GitHub repository to Vercel
-2. Set these environment variables in Vercel dashboard:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://your-demo-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
-NEXT_PUBLIC_DEMO_MODE=true
-NEXT_PUBLIC_APP_URL=https://demo.your-domain.com
-```
-
-3. Deploy!
-
-### Recommended Multi-Environment Setup
-
-| Environment | Supabase Project | Demo Mode | URL |
-|-------------|------------------|-----------|-----|
-| Production | `movalab-prod` | `false` | app.your-domain.com |
-| Demo | `movalab-demo` | `true` | demo.your-domain.com |
-| Local Dev | Docker | Either | localhost:3000 |
-
----
-
-## Automatic Daily Reset (Cron Job)
-
-For cloud demo deployments, MovaLab includes a Vercel cron job that automatically resets demo data daily. This ensures the demo environment stays fresh with up-to-date sample data.
-
-### How It Works
-
-- **Runs daily at midnight UTC** (configured in `vercel.json`)
-- **Only runs when demo mode is enabled** - Will not execute on production deployments
-- **Generates fresh data with current dates** - All projects, tasks, time entries have dates relative to "today"
-- **Preserves demo users and accounts** - Only resets activity data (projects, tasks, time entries, etc.)
-
-### Setting Up the Cron Job (Vercel)
-
-#### Step 1: Generate a CRON_SECRET
-
-The cron endpoint requires authentication. Generate a random secret:
-
-```bash
-openssl rand -hex 32
-```
-
-#### Step 2: Get Your Service Role Key
-
-1. Go to your Supabase dashboard
-2. Navigate to **Settings** → **API**
-3. Copy the `service_role` key (the secret one, NOT the anon key)
-
-#### Step 3: Add Environment Variables in Vercel
-
-Go to your Vercel project → **Settings** → **Environment Variables** and add:
-
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `NEXT_PUBLIC_DEMO_MODE` | `true` | Enables demo mode (required for cron to run) |
-| `DEMO_MODE` | `true` | Server-side fallback |
-| `CRON_SECRET` | `<your-generated-secret>` | Authenticates cron requests |
-| `DEMO_SUPABASE_SERVICE_ROLE_KEY` | `<your-service-role-key>` | Bypasses RLS for data reset |
-
-**Important:** Scope these variables to only your demo environment if you have multiple deployments.
-
-#### Step 4: Verify Cron Registration
-
-After deploying:
-1. Go to **Vercel Dashboard** → Your project → **Settings** → **Crons**
-2. You should see `/api/cron/reset-demo-data` with schedule `0 0 * * *`
-
-### Testing the Cron Job
-
-You can manually trigger the cron job to verify it works:
-
-```bash
-curl -X GET 'https://demo.your-domain.com/api/cron/reset-demo-data' \
-  -H 'Authorization: Bearer YOUR_CRON_SECRET'
-```
-
-**Expected Responses:**
-
-| Response | Status | Meaning |
-|----------|--------|---------|
-| `{"success":true,"message":"Demo data reset successfully",...}` | 200 | Success |
-| `{"error":"Demo mode is not enabled",...}` | 403 | Demo mode not enabled (safe!) |
-| `{"error":"Unauthorized"}` | 401 | Wrong or missing CRON_SECRET |
-| `{"error":"Service role key not configured"}` | 500 | Missing DEMO_SUPABASE_SERVICE_ROLE_KEY |
-
-### Local Testing
-
-You can test the cron job locally, but you'll need to:
-
-1. Set the environment variables in `.env.local`:
-   ```bash
-   NEXT_PUBLIC_DEMO_MODE=true
-   DEMO_MODE=true
-   CRON_SECRET=test-secret-for-local
-   DEMO_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   ```
-
-2. Start the dev server:
-   ```bash
-   npm run dev
-   ```
-
-3. Trigger the endpoint:
-   ```bash
-   curl -X GET 'http://localhost:3000/api/cron/reset-demo-data' \
-     -H 'Authorization: Bearer test-secret-for-local'
-   ```
-
-### What Gets Reset
-
-The cron job resets the following data with fresh, current-date-relative content:
-
-| Data Type | Description |
-|-----------|-------------|
-| **Projects** | 8 sample projects across 5 accounts |
-| **Tasks** | 13+ tasks with various statuses (done, in_progress, todo) |
-| **Project Assignments** | Team member assignments to projects |
-| **Account Members** | User-to-account relationships |
-| **Time Entries** | Recent time logs (past 7 days) |
-| **Project Updates** | Status updates and progress notes |
-| **Milestones** | Upcoming project milestones |
-| **User Availability** | Weekly capacity settings |
-
-### Security Notes
-
-- **The cron job ONLY runs when demo mode is enabled** - This is enforced as the first check
-- **Vercel authenticates cron requests** using the CRON_SECRET
-- **Service role key bypasses RLS** - Keep this secret secure
-- **Never set demo mode on production** - The cron job check will block execution, but best practice is to not set DEMO_MODE at all on production
+To minimize resource usage, stop Docker when not in use: `npm run docker:stop`
 
 ---
 
@@ -486,17 +171,21 @@ The cron job resets the following data with fresh, current-date-relative content
 
 ### Full Database Reset
 
-To completely reset the database to a fresh state with seed data:
+To completely reset the database to a clean slate:
 
 ```bash
-npm run docker:seed
+npm run docker:reset
 ```
 
 This will:
 1. Drop all existing data
 2. Re-run all migrations
-3. Create fresh demo users
-4. Seed sample data (accounts, projects, tasks, etc.)
+3. Load seed data (3 system roles only)
+
+**Note:** After a reset, you'll need to either go through the onboarding wizard again or re-create demo users:
+```bash
+npx tsx scripts/create-seed-users.ts
+```
 
 **Warning:** This destroys ALL data in the local database.
 
@@ -519,56 +208,12 @@ npm run docker:clean
 # This runs: supabase stop --no-backup && docker system prune -f
 
 # Start fresh
-npm run dev:demo
+npm run setup
 ```
-
-### Cloud Demo Reset
-
-For cloud demo environments, you can:
-1. Use Supabase dashboard to truncate tables
-2. Re-run seed scripts
-3. Or create a new project and re-deploy
 
 ---
 
 ## Security Considerations
-
-### Why NOT to Use Local Docker for Production
-
-**Do not run production data in local Docker.** Here's why:
-
-| Risk | Description |
-|------|-------------|
-| **No automatic backups** | Docker volumes can be lost if you prune, reset, or have disk issues |
-| **Single point of failure** | Your laptop/desktop is the only copy of your data |
-| **No disaster recovery** | Hard drive dies = data gone forever |
-| **No high availability** | Computer sleeps/restarts = app unavailable |
-| **No team access** | Only accessible from your machine |
-| **Resource intensive** | Consumes 2-4 GB RAM constantly |
-
-**Always use Cloud Supabase for production data.**
-
-### Security Risks of Disabling Demo Mode Locally
-
-If you disable demo mode while using local Docker:
-
-```bash
-# .env.local
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-# NEXT_PUBLIC_DEMO_MODE=true  # <-- Disabled
-```
-
-**Risks:**
-1. **All destructive actions are enabled** - Anyone can delete data
-2. **Superadmin setup is exposed** - `/admin/superadmin-setup` is accessible
-3. **Standard login form shown** - Exposes superadmin login option
-4. **Same demo database** - You're still using the same data, just without protections
-
-**If you must run without demo mode locally:**
-- Understand this is the SAME database as demo mode
-- Your test data can be permanently deleted
-- Use `npm run docker:seed` to restore if needed
-- Never put real/important data in the local Docker database
 
 ### Demo Mode is NOT a Security Boundary
 
@@ -583,9 +228,13 @@ Demo mode does NOT provide:
 - API security (beyond blocking specific endpoints)
 
 For true security, use:
-- Separate Cloud Supabase projects for demo vs production
+- Row Level Security (RLS) policies (always enabled)
 - Proper authentication and authorization
-- Row Level Security (RLS) policies
+- The standard login flow (non-demo mode) for production
+
+### Local Docker Data
+
+Local Docker volumes are not backed up. If you prune Docker volumes or reset, all data is lost. This is expected for a development/demo environment.
 
 ---
 
@@ -599,6 +248,7 @@ For true security, use:
 | `lib/api-demo-guard.ts` | API route protection |
 | `components/demo-login-form.tsx` | Quick-login UI component |
 | `scripts/start-demo.js` | Smart startup script |
+| `scripts/create-seed-users.ts` | Dev utility to create demo users (not run by npm scripts) |
 
 ### Environment Variables
 
@@ -614,7 +264,7 @@ Note: `NEXT_PUBLIC_` prefix makes the variable available in browser code.
 **Option 1: Via `npm run dev:demo`**
 - Sets `NEXT_PUBLIC_DEMO_MODE=true` at runtime
 - Also starts Supabase containers automatically
-- Includes safety checks (won't run against cloud DB)
+- Includes safety checks
 
 **Option 2: Via `.env.local`**
 - Add `NEXT_PUBLIC_DEMO_MODE=true` to your `.env.local`
@@ -705,34 +355,6 @@ docker stop $(docker ps -q)
 npm run dev:demo
 ```
 
-### Stale Container Conflict
-
-**Error:** `container name is already in use`
-
-**Solution:**
-```bash
-# Remove stale containers (Windows)
-docker ps -aq --filter "name=supabase" | ForEach-Object { docker rm -f $_ }
-
-# Or on Mac/Linux
-docker rm -f $(docker ps -aq --filter "name=supabase")
-
-# Try again
-npm run dev:demo
-```
-
-### API Not Responding
-
-**Error:** `Supabase API did not become ready`
-
-**Solution:**
-```bash
-# Full restart
-npm run docker:stop
-docker system prune -f
-npm run dev:demo
-```
-
 ### Demo Mode Not Working
 
 **Symptoms:** Delete buttons still visible, normal login shown
@@ -743,25 +365,22 @@ npm run dev:demo
 3. Clear browser cache / hard refresh (Ctrl+Shift+R)
 4. Check browser console for errors
 
-### Login Page Stuck on "Checking authentication..."
+### No Demo Users Available
 
-**Symptoms:** Login page shows loading state forever
+**Symptoms:** Quick-login buttons show but no users exist to log in as
+
+**Solution:** Create demo users manually:
+```bash
+npx tsx scripts/create-seed-users.ts
+```
+
+### Login Page Stuck on "Checking authentication..."
 
 **Solutions:**
 1. Verify Supabase is running: `npx supabase status`
 2. Check the Supabase API: `curl http://127.0.0.1:54321/rest/v1/`
 3. Clear `.next` cache: `rm -rf .next && npm run dev`
 4. Check for JavaScript errors in browser console
-
-### High Memory Usage
-
-**Symptoms:** Computer slow, Docker using lots of RAM
-
-**Solutions:**
-1. Stop Docker when not in use: `npm run docker:stop`
-2. Use cloud demo mode instead
-3. Allocate less memory to Docker in Docker Desktop settings
-4. Close Supabase Studio if open
 
 ---
 
@@ -773,8 +392,7 @@ Yes! Demo users can create projects, tasks, log time, etc. They just can't delet
 
 ### Is demo data persistent?
 
-- **Local Docker:** Yes, data persists in Docker volumes until you run `npm run docker:seed`
-- **Cloud Demo:** Yes, until manually cleaned or the project is reset
+Yes, data persists in Docker volumes until you run `npm run docker:reset`.
 
 ### Can I customize demo users?
 
@@ -785,28 +403,16 @@ Yes, edit `lib/demo-mode.ts` to change:
 
 ### How do I add more demo data?
 
-Edit `supabase/seed.sql` or `scripts/create-seed-users.ts` to add more sample accounts, projects, tasks, etc.
-
-### Can I use local Docker for production?
-
-**Not recommended.** See [Security Considerations](#security-considerations). Use Cloud Supabase for any data you care about.
+Run `npx tsx scripts/create-seed-users.ts` to create demo users. For additional data (projects, tasks, etc.), use the application UI or insert data via Supabase Studio.
 
 ### What happens if I disable demo mode locally?
 
-You'll have full access to delete data, access superadmin features, etc. But it's the SAME database - there's no separate "local production" database. See [Critical: Database Architecture](#critical-database-architecture).
-
-### How do I switch from demo to real production?
-
-Follow the [Switching from Demo to Production](#switching-from-demo-to-production) guide. The key is using Cloud Supabase, not local Docker.
-
-### Is the demo database backed up?
-
-**No.** Local Docker volumes are not backed up. If you need backups, use Cloud Supabase which has automatic backups.
+You'll have full access to delete data, access superadmin features, etc. But it's the SAME database -- there's no separate "local production" database.
 
 ---
 
 ## Need Help?
 
 - **Discord:** [Join the MovaLab community](https://discord.gg/99SpYzNbcu)
-- **GitHub Issues:** [Report bugs or request features](https://github.com/your-org/MovaLab/issues)
+- **GitHub Issues:** [Report bugs or request features](https://github.com/itigges22/MovaLab/issues)
 - **Documentation:** Check `CLAUDE.md` for comprehensive technical docs
