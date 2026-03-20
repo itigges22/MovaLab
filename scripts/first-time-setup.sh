@@ -133,15 +133,11 @@ done
 curl -s -o /dev/null http://127.0.0.1:54321/rest/v1/ 2>/dev/null || fail "Supabase API not responding"
 ok "API ready at http://127.0.0.1:54321"
 
-# ============================================================
-header "Step 5: Reset Database"
-
-info "Applying migrations and seed data..."
-npx supabase db reset 2>&1 | grep -v "^NOTICE" || true
-ok "Database ready"
+# Note: supabase start already ran migrations + seed.sql
+# No need for a separate db reset — that would double-run everything
 
 # ============================================================
-header "Step 6: Create Test Users"
+header "Step 5: Create Test Users"
 
 info "Creating test users and sample data..."
 npx tsx scripts/create-seed-users.ts 2>&1
