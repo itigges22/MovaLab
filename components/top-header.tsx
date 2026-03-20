@@ -49,7 +49,8 @@ export function TopHeader({ onMobileMenuToggle, isMobileMenuOpen: _isMobileMenuO
       await signOut();
       router.push('/login');
       router.refresh();
-    } catch (error) {
+    } catch (_error) {
+      // Sign-out errors are non-critical - user is redirected to login regardless
     } finally {
       setIsSigningOut(false);
     }

@@ -6,6 +6,7 @@ import { sendClientInvitation } from '@/lib/client-portal-service';
 import { validateRequestBody, sendClientInvitationSchema } from '@/lib/validation-schemas';
 import { hasAccountAccessServer } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 // POST /api/accounts/[id]/invite-client - Send client portal invitation
 export async function POST(
@@ -14,6 +15,11 @@ export async function POST(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });

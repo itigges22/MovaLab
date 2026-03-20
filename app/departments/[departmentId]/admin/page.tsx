@@ -52,7 +52,7 @@ export default async function DepartmentAdminPage({ params }: DepartmentAdminPag
   }
 
   // Check if user has admin privileges
-  const hasAdminPrivileges = isAdminLevel(userProfile as unknown as import('@/lib/rbac-types').UserWithRoles);
+  const hasAdminPrivileges = await isAdminLevel(userProfile as unknown as import('@/lib/rbac-types').UserWithRoles);
 
   if (!hasAdminPrivileges) {
     redirect('/');

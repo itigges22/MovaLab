@@ -5,6 +5,7 @@ import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards'
 import { Permission } from '@/lib/permissions';
 import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 export async function DELETE(
   request: NextRequest,
@@ -12,6 +13,10 @@ export async function DELETE(
 ) {
   const startTime = Date.now();
   const { roleId } = await params;
+
+  if (!isValidUUID(roleId)) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
 
   try {
     // Block in demo mode
@@ -291,6 +296,10 @@ export async function PATCH(
 ) {
   const startTime = Date.now();
   const { roleId } = await params;
+
+  if (!isValidUUID(roleId)) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
 
   try {
     // Check authentication and permission

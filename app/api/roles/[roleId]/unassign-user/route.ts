@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 export async function POST(
   request: NextRequest,
@@ -10,10 +11,14 @@ export async function POST(
 ) {
   try {
     const { roleId } = await params;
-    
+
+    if (!isValidUUID(roleId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     // Check authentication and permission
     const userProfile = await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);
-    
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });

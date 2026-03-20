@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "setup": "bash scripts/first-time-setup.sh",
     "dev": "node scripts/dev-wrapper.js dev",
     "dev:clean": "rm -rf .next && node scripts/dev-wrapper.js dev",
     "dev:fresh": "lsof -ti:3000 | xargs kill -9 2>/dev/null; rm -rf .next && node scripts/dev-wrapper.js dev",
     "dev:demo": "node scripts/start-demo.js",
-    "dev:cloud": "node scripts/dev-wrapper.js dev",
+    "dev:cloud": "echo 'Cloud mode removed. Use local Docker Supabase.' && exit 1",
     "clean": "rm -rf .next node_modules/.cache",
     "build": "node scripts/dev-wrapper.js build",
     "start": "node scripts/dev-wrapper.js start",

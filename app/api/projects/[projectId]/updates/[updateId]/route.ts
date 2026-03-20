@@ -63,7 +63,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Update content cannot be empty' }, { status: 400 });
     }
 
-    // Update the update
+    // Only the creator can edit their update (or superadmin via RLS)
     const { data: update, error } = await supabase
       .from('project_updates')
       .update({
@@ -72,6 +72,7 @@ export async function PUT(
       })
       .eq('id', updateId)
       .eq('project_id', projectId)
+      .eq('created_by', user.id)
       .select(`
         *,
         user_profiles:user_profiles(id, name, email, image)
@@ -142,12 +143,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions to delete updates' }, { status: 403 });
     }
 
-    // Delete update
+    // Only the creator can delete their update (or superadmin via RLS)
     const { error } = await supabase
       .from('project_updates')
       .delete()
       .eq('id', updateId)
-      .eq('project_id', projectId);
+      .eq('project_id', projectId)
+      .eq('created_by', user.id);
 
     if (error) {
       logger.error('Error deleting update:', {}, error as unknown as Error);

@@ -117,7 +117,7 @@ export default function ProjectCreationDialog({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const supabase = createClientSupabase()!;
+        const supabase = createClientSupabase();
         if (!supabase) return;
 
         // Load accounts
@@ -179,14 +179,14 @@ export default function ProjectCreationDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }
 
-      // Get current user
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      // Get current user (use getUser() for server-verified auth, not getSession())
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
         toast.error('You must be logged in to create a project.');
         setLoading(false);
         return;
@@ -205,7 +205,7 @@ export default function ProjectCreationDialog({
           end_date: formData.endDate,
           estimated_hours: formData.estimatedHours ? parseInt(formData.estimatedHours) : null,
           actual_hours: 0,
-          created_by: session.user.id,
+          created_by: authUser.id,
         })
         .select()
         .single();

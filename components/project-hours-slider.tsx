@@ -28,13 +28,13 @@ export default function ProjectHoursSlider({
   // Use the higher of estimated hours or task sum as max
   const maxHours = Math.max(estimatedHours || 0, taskHoursSum || 0);
 
-  const [hours, setHours] = useState(initialHours || maxHours);
+  const [hours, setHours] = useState(initialHours ?? maxHours);
   const [saving, setSaving] = useState(false);
-  const [inputValue, setInputValue] = useState(String(initialHours || maxHours));
+  const [inputValue, setInputValue] = useState(String(initialHours ?? maxHours));
 
   // Update local state when props change
   useEffect(() => {
-    const remaining = initialHours || maxHours;
+    const remaining = initialHours ?? maxHours;
     setHours(remaining);
     setInputValue(String(remaining));
   }, [initialHours, maxHours]);
@@ -59,7 +59,13 @@ export default function ProjectHoursSlider({
   // Calculate progress percentage
   const progressPercent = maxHours > 0 ? Math.round(((maxHours - hours) / maxHours) * 100) : 0;
 
-  const handleSliderChange = async (value: number[]) => {
+  const handleSliderChange = (value: number[]) => {
+    const newHours = value[0];
+    setHours(newHours);
+    setInputValue(String(newHours));
+  };
+
+  const handleSliderCommit = async (value: number[]) => {
     const newHours = value[0];
     setHours(newHours);
     setInputValue(String(newHours));
@@ -89,7 +95,7 @@ export default function ProjectHoursSlider({
   const saveHours = async (newHours: number) => {
     setSaving(true);
     try {
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) {
         toast.error('Failed to connect to database');
         return;
@@ -130,6 +136,7 @@ export default function ProjectHoursSlider({
           <Slider
             value={[hours]}
             onValueChange={handleSliderChange}
+            onValueCommit={handleSliderCommit}
             max={maxHours}
             step={0.5}
             className="flex-1"

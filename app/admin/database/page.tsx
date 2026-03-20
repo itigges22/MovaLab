@@ -64,6 +64,12 @@ export default function DatabaseStatusPage() {
           <h1 className="text-3xl font-bold text-gray-900">Database Status</h1>
           <p className="text-gray-600 mt-2">Monitor your Supabase database health and performance</p>
         </div>
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm text-amber-800 font-medium">Placeholder Page</p>
+          <p className="text-xs text-amber-700 mt-1">
+            This page displays static placeholder data. Real-time database metrics are available in your Supabase dashboard.
+          </p>
+        </div>
         <div className="flex justify-end">
           <Button onClick={() => router.back()}>
             Back to Admin

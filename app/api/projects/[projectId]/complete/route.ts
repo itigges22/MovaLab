@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
+import { isValidUUID } from '@/lib/validation-helpers'
 
 /**
  * POST /api/projects/[projectId]/complete
@@ -14,6 +15,10 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params
+
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+    }
 
     const supabase = createApiSupabaseClient(request)
     if (!supabase) {

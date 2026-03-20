@@ -69,7 +69,7 @@ export function DepartmentOverview({
     const fetchTaskHours = async () => {
       if (!projects || projects.length === 0) return;
 
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) return;
 
       const projectIds = projects.map((p: any) => p.id);
@@ -123,7 +123,7 @@ export function DepartmentOverview({
     }
 
     async function fetchWorkflowSteps() {
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) return;
 
       const projectIds = projects.map((p: any) => p.id);

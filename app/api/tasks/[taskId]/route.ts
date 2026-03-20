@@ -4,6 +4,7 @@ import { userHasProjectAccess } from '@/lib/rbac'
 import { taskServiceDB, UpdateTaskData } from '@/lib/task-service-db'
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard'
 import { logger } from '@/lib/debug-logger'
+import { isValidUUID } from '@/lib/validation-helpers'
 
 // Helper function to get task's project info
 async function getTaskProject(supabase: any, taskId: string): Promise<{ project_id: string; status: string } | null> {
@@ -29,6 +30,10 @@ export async function PUT(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   const { taskId } = await params;
+
+  if (!isValidUUID(taskId)) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
 
   try {
     const supabase = createApiSupabaseClient(request)
@@ -102,24 +107,23 @@ export async function PUT(
       ...(body.assigned_to !== undefined && { assigned_to: body.assigned_to })
     }
 
-    const task = await taskServiceDB.updateTask(updateData)
+    // Use authenticated supabase client directly (not taskServiceDB which uses browser client)
+    const { id, ...fieldsToUpdate } = updateData;
+    const { data: task, error: updateError } = await supabase
+      .from('tasks')
+      .update({ ...fieldsToUpdate, updated_at: new Date().toISOString() })
+      .eq('id', taskId)
+      .select()
+      .single();
 
-    if (!task) {
-      // Check if task exists
-      const { data: existingTask } = await supabase
-        .from('tasks')
-        .select('id')
-        .eq('id', taskId)
-        .single()
-
-      if (!existingTask) {
-        return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    if (updateError) {
+      if (updateError.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 });
       }
-
-      logger.error('Failed to update task - possible permission issue:', { taskId, userId: user.id })
+      logger.error('Failed to update task:', { taskId, userId: user.id }, updateError as unknown as Error);
       return NextResponse.json({
         error: 'Failed to update task. You may not have permission to modify this task.'
-      }, { status: 403 })
+      }, { status: 403 });
     }
 
     return NextResponse.json({ success: true, task })
@@ -138,6 +142,10 @@ export async function PATCH(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   const { taskId } = await params;
+
+  if (!isValidUUID(taskId)) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
 
   try {
     const supabase = createApiSupabaseClient(request)
@@ -272,6 +280,10 @@ export async function DELETE(
 ) {
   const { taskId } = await params;
 
+  if (!isValidUUID(taskId)) {
+    return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+  }
+
   try {
     // Block in demo mode
     const blocked = checkDemoModeForDestructiveAction('delete_task');
@@ -327,10 +339,15 @@ export async function DELETE(
       }, { status: 400 })
     }
 
-    const success = await taskServiceDB.deleteTask(taskId)
+    // Use authenticated supabase client directly (not taskServiceDB which uses browser client)
+    const { error: deleteError } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
 
-    if (!success) {
-      return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 })
+    if (deleteError) {
+      logger.error('Failed to delete task:', { taskId }, deleteError as unknown as Error);
+      return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true })

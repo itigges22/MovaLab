@@ -102,7 +102,7 @@ export default function ProjectsPage() {
 
       try {
         setLoading(true)
-        const supabase = createClientSupabase()!
+        const supabase = createClientSupabase()
         if (!supabase) {
           throw new Error('Failed to create Supabase client')
         }
@@ -362,25 +362,27 @@ export default function ProjectsPage() {
   // Filter projects based on permissions - ONLY runs on login or explicit refresh
   // This prevents race conditions with optimistic updates
   const filterProjects = useCallback(async () => {
-    const filtered: ProjectWithDetails[] = []
     const hasViewAllProjects = await hasPermission(userProfile, Permission.VIEW_ALL_PROJECTS)
-    const hasViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS)
 
-    for (const project of projects) {
-      if (hasViewAllProjects) {
-        filtered.push(project)
-        continue
-      }
-
-      if (hasViewProjects) {
-        const canView = await canViewProject(userProfile, project.id)
-        if (canView) {
-          filtered.push(project)
-        }
-      }
+    if (hasViewAllProjects) {
+      setVisibleProjects(projects)
+      return
     }
 
-    setVisibleProjects(filtered)
+    const hasViewProjects = await hasPermission(userProfile, Permission.VIEW_PROJECTS)
+    if (!hasViewProjects) {
+      setVisibleProjects([])
+      return
+    }
+
+    // Check all project access in parallel (not sequential)
+    const accessChecks = await Promise.all(
+      projects.map(async (project) => {
+        const canView = await canViewProject(userProfile, project.id)
+        return canView ? project : null
+      })
+    )
+    setVisibleProjects(accessChecks.filter(Boolean) as ProjectWithDetails[])
   }, [userProfile, projects])
 
   useEffect(() => {
@@ -452,7 +454,7 @@ export default function ProjectsPage() {
         return
       }
 
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (!supabase) {
         throw new Error('Failed to create Supabase client')
       }

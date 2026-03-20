@@ -80,7 +80,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
 
   const loadData = useCallback(async () => {
     try {
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) return;
 
       // Load roles
@@ -144,13 +144,15 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
         setSettingsForm({
           name: dept.name as string,
           description: (dept.description as string) || '',
-          notificationSettings: (dept.notification_settings as unknown as { projectDeadlines: boolean; taskAssignments: boolean; deliverableApprovals: boolean; weeklyDigest: boolean }) || {
+          // Note: notification_settings and workflow_rules columns do not exist in DB schema
+          // These use default values only (settings are not persisted)
+          notificationSettings: {
             projectDeadlines: true,
             taskAssignments: true,
             deliverableApprovals: true,
             weeklyDigest: true,
           },
-          workflowRules: (dept.workflow_rules as unknown as { requireApproval: boolean; autoAssignTasks: boolean; defaultPriority: string }) || {
+          workflowRules: {
             requireApproval: false,
             autoAssignTasks: false,
             defaultPriority: 'medium',
@@ -172,7 +174,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
 
   const handleSaveSettings = async () => {
     try {
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) return;
 
       const { error } = await (supabase as any)
@@ -321,6 +323,7 @@ export default function DepartmentAdminTabs({ departmentId }: DepartmentAdminTab
 
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Notification Settings</h3>
+              <p className="text-xs text-amber-600">These settings are not yet persisted to the database. Changes will be lost on page reload.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">

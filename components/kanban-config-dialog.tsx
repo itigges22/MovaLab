@@ -155,7 +155,7 @@ export function KanbanConfigDialog({
     }
 
     const newColumn: KanbanColumn = {
-      id: newColumnName.toLowerCase().replace(/\s+/g, '-'),
+      id: `${newColumnName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
       name: newColumnName.trim(),
       color: newColumnColor,
       order: columns.length + 1,

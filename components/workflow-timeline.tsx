@@ -145,8 +145,18 @@ export function WorkflowTimeline({ workflowInstanceId }: WorkflowTimelineProps) 
     while (iterations < maxIterations) {
       iterations++;
 
-      // Find next node from connections
-      const connection = connections.find((c: any) => c.from_node_id === currentNode.id);
+      // Find next node from connections - prefer non-rejection paths for branching workflows
+      const outgoing = connections.filter((c: any) => c.from_node_id === currentNode.id);
+      if (outgoing.length === 0) break;
+
+      // Prefer the "approved" or non-rejection path; fall back to first connection
+      const connection = outgoing.find((c: any) => {
+        const cond = c.condition as Record<string, unknown> | null;
+        return cond?.decision === 'approved' || cond?.label === 'Approved';
+      }) || outgoing.find((c: any) => {
+        const cond = c.condition as Record<string, unknown> | null;
+        return !cond?.decision || (cond?.decision !== 'rejected');
+      }) || outgoing[0];
       if (!connection) break;
 
       const nextNode = nodes.find((n: any) => n.id === connection.to_node_id);

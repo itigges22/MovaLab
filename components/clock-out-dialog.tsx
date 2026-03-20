@@ -91,7 +91,7 @@ export function ClockOutDialog({
   const loadProjects = async () => {
     setLoading(true)
     try {
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (!supabase) return
 
       // Get user's assigned projects

@@ -206,7 +206,7 @@ export function LogTimeDialog({ open, onOpenChange, onSuccess }: LogTimeDialogPr
       // Success
       onOpenChange(false);
       onSuccess?.();
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

@@ -43,9 +43,10 @@ export async function PATCH(
       );
     }
 
-    // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
-    const canEdit = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
-    if (!canEdit) {
+    // Admin edit requires VIEW_ALL_TIME_ENTRIES + MANAGE_TIME (view alone shouldn't grant write access)
+    const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
+    const canManageTime = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
+    if (!canViewAll || !canManageTime) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }
@@ -144,9 +145,10 @@ export async function DELETE(
       );
     }
 
-    // Phase 9: VIEW_TEAM_TIME_ENTRIES → VIEW_ALL_TIME_ENTRIES
-    const canDelete = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
-    if (!canDelete) {
+    // Admin delete requires VIEW_ALL_TIME_ENTRIES + MANAGE_TIME (view alone shouldn't grant delete access)
+    const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_TIME_ENTRIES, undefined, supabase);
+    const canManageTime = await hasPermission(userProfile, Permission.MANAGE_TIME, undefined, supabase);
+    if (!canViewAll || !canManageTime) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }

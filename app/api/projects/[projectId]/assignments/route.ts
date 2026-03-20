@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin, userHasProjectAccess } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
+import { isValidUUID } from '@/lib/validation-helpers'
 
 /**
  * GET /api/projects/[projectId]/assignments
@@ -15,6 +16,10 @@ export async function GET(
 ) {
   try {
     const { projectId } = await params
+
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+    }
 
     const supabase = createApiSupabaseClient(request)
     if (!supabase) {
@@ -293,6 +298,11 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params
+
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+    }
+
     let body;
     try {
       body = await request.json();
@@ -426,6 +436,11 @@ export async function DELETE(
 ) {
   try {
     const { projectId } = await params
+
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+    }
+
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
 

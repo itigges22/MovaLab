@@ -39,15 +39,12 @@ export async function GET(request: NextRequest) {
     const hasSuperadmin = superadmins && superadmins.length > 0;
     const setupSecretConfigured = !!process.env.SETUP_SECRET;
 
+    // Only expose whether setup is available, not internal details
     return NextResponse.json({
       setupAvailable: !hasSuperadmin && setupSecretConfigured,
-      hasSuperadmin,
-      setupSecretConfigured,
-      message: hasSuperadmin
-        ? 'Setup already completed. A superadmin exists.'
-        : setupSecretConfigured
-          ? 'Setup available. Provide the correct secret key to become superadmin.'
-          : 'SETUP_SECRET environment variable not configured.'
+      message: !hasSuperadmin && setupSecretConfigured
+        ? 'Setup available. Provide the correct secret key to become superadmin.'
+        : 'Setup is not available.'
     });
   } catch (error) {
     logger.error('Error in GET /api/setup', {}, error as Error);
@@ -100,8 +97,7 @@ export async function POST(request: NextRequest) {
 
     if (existingSuperadmins && existingSuperadmins.length > 0) {
       return NextResponse.json({
-        error: 'Setup already completed. A superadmin already exists.',
-        existingAdmin: existingSuperadmins[0].email
+        error: 'Setup already completed. A superadmin already exists.'
       }, { status: 400 });
     }
 

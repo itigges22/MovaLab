@@ -125,7 +125,7 @@ export function AssignedProjectsSection({ userProfile }: AssignedProjectsSection
     let cancelled = false
 
     async function fetchWorkflowSteps() {
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (!supabase) return
 
       const projectIds = visibleProjects.map((p: any) => p.id)

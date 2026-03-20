@@ -189,12 +189,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions to delete issues' }, { status: 403 });
     }
 
-    // Delete issue
+    // Only the creator can delete their issue (or superadmin via RLS)
     const { error } = await supabase
       .from('project_issues')
       .delete()
       .eq('id', issueId)
-      .eq('project_id', projectId);
+      .eq('project_id', projectId)
+      .eq('created_by', user.id);
 
     if (error) {
       logger.error('Error deleting issue:', {}, error as unknown as Error);

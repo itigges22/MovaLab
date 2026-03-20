@@ -146,8 +146,8 @@ function SortableRoleItem({
 
       {/* Role Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-sm truncate">{role.name}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium text-sm" title={role.name}>{role.name}</span>
           {role.is_system_role && (
             <Badge variant="secondary" className="text-xs flex items-center gap-1">
               <Shield className="h-3 w-3" />
@@ -166,18 +166,18 @@ function SortableRoleItem({
       </div>
 
       {/* Hierarchy Level Badge - Editable */}
-      <div className="flex items-center gap-2">
-        <Badge 
-          variant="secondary" 
-          className="text-sm font-mono px-2 cursor-help" 
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Badge
+          variant="secondary"
+          className="text-sm font-mono px-2 cursor-help whitespace-nowrap"
           title="Hierarchy Level (100 = highest, 1 = lowest)"
         >
           Level {role.hierarchy_level}
         </Badge>
         {role.reporting_role_id && (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
+          <Badge
+            variant="outline"
+            className="text-xs whitespace-nowrap"
             title={`Reports to: ${role.reporting_role?.name ?? 'Unknown'}`}
           >
             Reports to: {role.reporting_role?.name ?? 'Unknown'}

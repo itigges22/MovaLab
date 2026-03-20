@@ -435,7 +435,7 @@ export default function ProjectDetailPage() {
       const _remainingHours = calculateRemainingHours(projectTasks)
 
       // Also fetch project-level time entries (logged to project without a specific task)
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (supabase) {
         const { data: projectTimeEntries } = await supabase
           .from('time_entries')
@@ -743,10 +743,6 @@ export default function ProjectDetailPage() {
           setCanEditProject(canEdit)
         }
 
-        // Initialize estimated hours calculation (will be updated when tasks load)
-        // If tasks haven't loaded yet, use project-level estimated_hours
-        if (tasks.length === 0) {
-        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load project')
       } finally {
@@ -755,7 +751,7 @@ export default function ProjectDetailPage() {
     }
 
     loadProject()
-  }, [userProfile, projectId, tasks.length])
+  }, [userProfile, projectId])
 
   // Handle task delete
   const handleDeleteTask = useCallback((taskId: string) => {
@@ -858,7 +854,7 @@ export default function ProjectDetailPage() {
     setWorkflowRefreshKey(prev => prev + 1)
 
     try {
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (!supabase) return
 
       // Refresh workflow step name AND check if workflow is completed
@@ -962,7 +958,7 @@ export default function ProjectDetailPage() {
       toast.success('Project reopened! It now operates without a workflow.')
 
       // Refresh project data to update UI
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (supabase) {
         const { data: projectData } = await supabase
           .from('projects')
@@ -1014,7 +1010,7 @@ export default function ProjectDetailPage() {
       toast.success('Project completed successfully!')
 
       // Refresh project data to update UI
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (supabase) {
         const { data: projectData } = await supabase
           .from('projects')
@@ -1051,7 +1047,7 @@ export default function ProjectDetailPage() {
 
     setSavingProjectHours(true)
     try {
-      const supabase = createClientSupabase()!
+      const supabase = createClientSupabase()
       if (!supabase) throw new Error('Failed to create Supabase client')
 
       // Calculate task sum

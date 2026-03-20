@@ -5,6 +5,7 @@ import { Permission } from '@/lib/permissions';
 import { accountService } from '@/lib/account-service';
 import { isSuperadmin, hasPermission } from '@/lib/rbac';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 // Type definitions
 interface AuthErrorWithStatus extends Error {
@@ -58,6 +59,11 @@ export async function GET(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     logger.debug(`[GET /api/accounts/${accountId}/members] Starting request`);
 
     // Create Supabase client once for the entire request
@@ -284,6 +290,11 @@ export async function POST(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     let body;
     try {
       body = await request.json();
@@ -296,8 +307,8 @@ export async function POST(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     
-    // Require permission to assign users to accounts
-    await requireAuthAndPermission(Permission.MANAGE_USERS_IN_ACCOUNTS, {}, request);
+    // Require permission to assign users to this specific account
+    await requireAuthAndPermission(Permission.MANAGE_USERS_IN_ACCOUNTS, { accountId }, request);
 
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {

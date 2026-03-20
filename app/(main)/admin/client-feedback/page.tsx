@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { RoleGuard } from '@/components/role-guard';
+import { Permission } from '@/lib/permissions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -195,6 +197,7 @@ export default function ClientFeedbackPage() {
   };
 
   return (
+    <RoleGuard requirePermission={Permission.MANAGE_CLIENT_INVITES}>
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div>
@@ -419,5 +422,6 @@ export default function ClientFeedbackPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </RoleGuard>
   );
 }

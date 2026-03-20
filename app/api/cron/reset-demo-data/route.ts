@@ -28,16 +28,22 @@ export async function GET(_request: NextRequest) {
     );
   }
 
-  // Validate CRON_SECRET if configured (prevents unauthorized triggering of demo reset)
+  // Validate CRON_SECRET (required - prevents unauthorized triggering of demo reset)
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = _request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized: invalid or missing CRON_SECRET' },
-        { status: 401 }
-      );
-    }
+  if (!cronSecret) {
+    logger.error('CRON_SECRET not configured - cron endpoint disabled for security');
+    return NextResponse.json(
+      { error: 'CRON_SECRET environment variable is required but not configured' },
+      { status: 500 }
+    );
+  }
+
+  const authHeader = _request.headers.get('authorization');
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json(
+      { error: 'Unauthorized: invalid or missing CRON_SECRET' },
+      { status: 401 }
+    );
   }
 
   const serviceRoleKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY;

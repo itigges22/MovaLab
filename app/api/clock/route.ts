@@ -153,6 +153,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      // Handle unique constraint violation (race condition - another request already clocked in)
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'Already clocked in. Please clock out first.' },
+          { status: 400 }
+        );
+      }
       logger.error('Error creating clock session', {}, error as unknown as Error);
       return NextResponse.json(
         { error: 'Failed to clock in' },

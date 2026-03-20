@@ -3,6 +3,7 @@ import { createClientSupabase } from './supabase';
 import { Permission } from './permissions';
 import { logger, databaseQuery, databaseError, roleManagement, performance } from './debug-logger';
 import { validateRole } from './validation';
+import { clearPermissionCache } from './permission-checker';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Types for database responses
@@ -643,6 +644,8 @@ class RoleManagementService {
         }
       }
 
+      // Clear permission cache for this user since their roles changed
+      clearPermissionCache(userId);
       return true;
     } catch (error: unknown) {
       logger.error('Error in assignUserToRole', {}, error as Error);
@@ -676,6 +679,8 @@ class RoleManagementService {
         return false;
       }
 
+      // Clear permission cache for this user since their roles changed
+      clearPermissionCache(userId);
       return true;
     } catch (error: unknown) {
       logger.error('Error in removeUserFromRole', {}, error as Error);

@@ -274,18 +274,21 @@ export default function ProfilePage() {
                   <span className="text-sm font-medium">Departments</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {userProfile.user_roles?.map((userRole, index) => (
-                    userRole.roles.departments && (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                      >
-                        {userRole.roles.departments.name}
-                      </span>
-                    )
-                  )) || (
-                    <span className="text-sm text-gray-500">No departments assigned</span>
-                  )}
+                  {(() => {
+                    const depts = userProfile.user_roles
+                      ?.map((userRole: any) => userRole.roles?.departments?.name)
+                      .filter(Boolean);
+                    return depts && depts.length > 0
+                      ? depts.map((name: string, index: number) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                          >
+                            {name}
+                          </span>
+                        ))
+                      : <span className="text-sm text-gray-500">No departments assigned</span>;
+                  })()}
                 </div>
               </div>
             </CardContent>
@@ -316,9 +319,10 @@ export default function ProfilePage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => { setFormData(prev => ({ ...prev, email: e.target.value })); }}
-                    disabled={!isEditing}
+                    disabled
+                    className="bg-gray-50"
                   />
+                  <p className="text-xs text-muted-foreground">Email cannot be changed from your profile</p>
                 </div>
               </div>
 

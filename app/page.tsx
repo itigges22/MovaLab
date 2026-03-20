@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { LoginForm } from "@/components/login-form"
@@ -83,7 +83,9 @@ export default function Home() {
           </div>
         )}
 
-        {demoMode ? <DemoLoginForm /> : <LoginForm />}
+        <Suspense fallback={<div className="text-center">Loading...</div>}>
+          {demoMode ? <DemoLoginForm /> : <LoginForm />}
+        </Suspense>
       </div>
     </div>
   )

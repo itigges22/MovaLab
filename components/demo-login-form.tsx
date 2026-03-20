@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DEMO_USERS, DemoUser } from '@/lib/demo-mode';
+import { DEMO_USERS, DEMO_PASSWORD, DemoUser } from '@/lib/demo-mode';
 import { signInWithEmail } from '@/lib/auth';
 import {
   User,
@@ -49,7 +49,7 @@ export function DemoLoginForm() {
     setMessage('');
 
     try {
-      const { user: authUser } = await signInWithEmail(user.email, user.password);
+      const { user: authUser } = await signInWithEmail(user.email, DEMO_PASSWORD);
       if (authUser) {
         setMessage(`Logged in as ${user.name}! Redirecting...`);
         setTimeout(() => {

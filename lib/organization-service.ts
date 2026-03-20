@@ -509,7 +509,7 @@ class OrganizationService {
             )
           )
         `)
-        .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+        .or(`name.ilike.%${query.replace(/[%_.,()]/g, '')}%,email.ilike.%${query.replace(/[%_.,()]/g, '')}%`)
         .limit(50);
 
       if (error) {

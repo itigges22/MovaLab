@@ -10,6 +10,8 @@ import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Node, Edge } from '@xyflow/react';
 import type { WorkflowNodeData } from '@/components/workflow-editor/workflow-node';
+import { RoleGuard } from '@/components/role-guard';
+import { Permission } from '@/lib/permissions';
 
 // Dynamically import WorkflowCanvas with SSR disabled
 const WorkflowCanvas = dynamic(
@@ -279,6 +281,7 @@ export default function WorkflowEditorPage() {
   }
 
   return (
+    <RoleGuard requirePermission={Permission.MANAGE_WORKFLOWS}>
     <div className="flex flex-col h-screen">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -345,5 +348,6 @@ export default function WorkflowEditorPage() {
         />
       </div>
     </div>
+    </RoleGuard>
   );
 }

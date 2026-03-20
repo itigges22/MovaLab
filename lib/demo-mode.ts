@@ -17,6 +17,10 @@ export interface DemoUser {
   color: string;
 }
 
+// Demo password constant - all demo users share this password
+// Only used at login time in demo-login-form.tsx
+export const DEMO_PASSWORD = 'Test1234!';
+
 /**
  * Demo users - excludes superadmin for security
  * These match the seed users created by scripts/create-seed-users.ts

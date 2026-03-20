@@ -363,11 +363,11 @@ class ServerDepartmentService {
     const userIds = Array.from(new Set(usersInDept?.map((ur: any) => ur.user_id) || []));
 
     // Get projects where users from this department are assigned
-    // Note: We fetch all assignments and filter manually to avoid RLS policy issues
-    // with complex permission functions that may have schema qualification bugs
-    const { data: allAssignments, error: assignmentsError } = await supabase
+    // Filter by department's user IDs directly instead of fetching all assignments
+    const { data: projectAssignments, error: assignmentsError } = await supabase
       .from('project_assignments')
       .select('project_id, user_id')
+      .in('user_id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000'])
       .is('removed_at', null);
 
     if (assignmentsError) {
@@ -391,11 +391,6 @@ class ServerDepartmentService {
         recentProjects: []
       };
     }
-
-    // Filter to only this department's users
-    const projectAssignments = (allAssignments || []).filter((a: any) =>
-      userIds.includes(a.user_id)
-    );
 
     // Extract unique project IDs
     const projectIds = Array.from(new Set(projectAssignments?.map((a: any) => a.project_id) || []));

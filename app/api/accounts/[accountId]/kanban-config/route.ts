@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 /**
  * GET /api/accounts/[accountId]/kanban-config
@@ -15,6 +16,10 @@ export async function GET(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     // Require VIEW_PROJECTS permission (kanban view permissions are deprecated)
     await requireAuthAndPermission(Permission.VIEW_PROJECTS, { accountId }, request);
@@ -56,6 +61,10 @@ export async function PUT(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     // Authenticate before parsing body
     await requireAuthAndPermission(Permission.MANAGE_PROJECTS, { accountId }, request);

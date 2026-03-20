@@ -3,6 +3,7 @@ import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
+import { isValidUUID } from '@/lib/validation-helpers'
 
 // Type definitions
 export async function GET(
@@ -12,6 +13,10 @@ export async function GET(
   try {
     // Await params (Next.js 15 requirement)
     const { projectId } = await params
+
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+    }
 
     // Check authentication and permission
     await requireAuthAndPermission(Permission.VIEW_PROJECTS, { projectId }, request)

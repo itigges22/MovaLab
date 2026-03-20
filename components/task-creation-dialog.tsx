@@ -145,57 +145,7 @@ export default function TaskCreationDialog({
   const loadData = async () => {
     try {
       const supabase = createClientSupabase() as any;
-      
-      // Load all users
-      const allUsersData = await accountService.getAllUsers();
-
-      // Departments no longer needed - derived from user assignments
-
-      // Load user roles for all users
       if (!supabase) return;
-
-      const { data: userRolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select(`
-          user_id,
-          role_id,
-          roles:role_id (
-            id,
-            name,
-            departments:department_id (
-              name
-            )
-          )
-        `);
-
-      if (!rolesError) {
-        // Create a map of userId -> array of role names
-        const rolesMap = new Map<string, string[]>();
-        const roleIdsMap = new Map<string, string>();
-        userRolesData?.forEach((ur: any) => {
-          const userId = ur.user_id as string;
-          const roleId = ur.role_id as string;
-          const roles = ur.roles as { name?: string; departments?: { name?: string } } | null;
-          const roleName = roles?.name || 'Team Member';
-          const deptName = roles?.departments?.name;
-
-          // Format: "Role Name (Department)" or just "Role Name" if no department
-          const displayRole = deptName ? `${roleName} (${deptName})` : roleName;
-
-          if (!rolesMap.has(userId)) {
-            rolesMap.set(userId, []);
-          }
-          rolesMap.get(userId)?.push(displayRole);
-
-          // Store the first (primary) role ID for each user
-          if (!roleIdsMap.has(userId)) {
-            roleIdsMap.set(userId, roleId);
-          }
-        });
-
-        // Filter users to only include those with at least one role
-        const usersWithRoles = (allUsersData || []).filter((user: any) => rolesMap.has((user as any).id as string));
-      }
 
       // Load workflows
       const { data: workflowsData, error: workflowsError } = await supabase
@@ -237,7 +187,7 @@ export default function TaskCreationDialog({
       toast.error('Project name is required');
       return;
     }
-    // assigned_user_id is auto-set to session.user.id for new projects
+    // assigned_user_id is auto-set to authUser.id for new projects
     // Department validation removed - departments are now derived from user assignments
 
     // Date validation
@@ -267,9 +217,9 @@ export default function TaskCreationDialog({
       }
       const supabase = supabaseClient as any;
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
 
-      if (!session) {
+      if (!authUser) {
         toast.error('You must be logged in to create or edit a project.');
         return;
       }
@@ -313,8 +263,8 @@ export default function TaskCreationDialog({
             priority: formData.priority,
             start_date: formData.start_date,
             end_date: formData.end_date,
-            assigned_user_id: session.user.id, // Auto-assign to creator - workflow will update as needed
-            created_by: session.user.id,
+            assigned_user_id: authUser.id, // Auto-assign to creator - workflow will update as needed
+            created_by: authUser.id,
             actual_hours: 0,
             estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
           } as never)

@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import { hasAccountAccessServer } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 // GET /api/accounts/[id]/client-feedback - View feedback for specific account
 export async function GET(
@@ -12,6 +13,11 @@ export async function GET(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
     const supabase = createApiSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });

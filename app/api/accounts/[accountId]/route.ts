@@ -4,6 +4,7 @@ import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards'
 import { Permission } from '@/lib/permissions';
 import { updateAccountSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 /**
  * PATCH /api/accounts/[accountId]
@@ -15,6 +16,10 @@ export async function PATCH(
 ) {
   try {
     const { accountId } = await params;
+
+    if (!isValidUUID(accountId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     // Require MANAGE_ACCOUNTS permission (consolidated from EDIT_ACCOUNT)
     await requireAuthAndPermission(

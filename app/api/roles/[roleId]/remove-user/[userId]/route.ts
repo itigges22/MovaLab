@@ -4,6 +4,7 @@ import { requireAuthAndPermission, handleGuardError } from '@/lib/server-guards'
 import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 import { logger } from '@/lib/debug-logger';
+import { isValidUUID } from '@/lib/validation-helpers';
 
 export async function DELETE(
   request: NextRequest,
@@ -15,6 +16,10 @@ export async function DELETE(
     if (blocked) return blocked;
 
     const { roleId, userId } = await params;
+
+    if (!isValidUUID(roleId) || !isValidUUID(userId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     // Check authentication and permission
     const userProfile = await requireAuthAndPermission(Permission.MANAGE_USER_ROLES, {}, request);

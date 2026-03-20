@@ -252,7 +252,7 @@ function WorkflowCanvasInner({
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [nodes, setEdges]
+    [nodes, edges, setEdges]
   );
 
   const handleEdgeConfigSave = useCallback(

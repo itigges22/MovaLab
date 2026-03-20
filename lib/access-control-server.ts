@@ -103,13 +103,37 @@ export async function getProjectIdFromWorkflowHistory(
 }
 
 /**
- * Check if user has access to account (via project assignments or task assignments)
+ * Check if user has access to account (via membership, account manager, project assignments, or task assignments)
  */
 export async function hasAccountAccessServer(
   supabase: any,
   userId: string,
   accountId: string
 ): Promise<boolean> {
+  // Check if user is an account member
+  const { data: memberData } = await supabase
+    .from('account_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('account_id', accountId)
+    .limit(1);
+
+  if (memberData && memberData.length > 0) {
+    return true;
+  }
+
+  // Check if user is the account manager
+  const { data: accountData } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('id', accountId)
+    .eq('account_manager_id', userId)
+    .limit(1);
+
+  if (accountData && accountData.length > 0) {
+    return true;
+  }
+
   // Get all projects in the account
   const { data: projects } = await supabase
     .from('projects')
@@ -203,9 +227,21 @@ export async function verifyFormResponseAccess(
     return { hasAccess: false, error: 'Form response not found' };
   }
 
-  // If not linked to workflow, user just needs MANAGE_WORKFLOWS permission (forms are inline only)
+  // If not linked to workflow, check if user submitted it or has MANAGE_WORKFLOWS permission
   if (!formResponse.workflow_history_id) {
-    return { hasAccess: true };
+    // Check if user is the submitter
+    const { data: fullResponse } = await supabase
+      .from('form_responses')
+      .select('submitted_by')
+      .eq('id', formResponseId)
+      .single();
+
+    if (fullResponse?.submitted_by === userId) {
+      return { hasAccess: true };
+    }
+
+    // Otherwise deny access to unlinked form responses
+    return { hasAccess: false, error: 'Access denied to this form response' };
   }
 
   // If linked to workflow, verify workflow access

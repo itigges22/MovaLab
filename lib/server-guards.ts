@@ -77,16 +77,18 @@ export async function requireAuthentication(request?: NextRequest): Promise<User
         throw new AuthenticationError('Supabase not configured');
       }
       supabase = apiClient;
-      const cookieHeader = request.headers.get('cookie') || '';
-      const allCookies = request.cookies.getAll();
-      logger.debug('Using API Supabase client', { 
-        hasCookies: allCookies.length > 0,
-        cookieCount: allCookies.length,
-        cookieNames: allCookies.map((c: { name: string }) => c.name),
-        cookieHeaderLength: cookieHeader.length,
-        cookieHeaderPreview: cookieHeader.substring(0, 300),
-        hasSupabaseCookies: cookieHeader.includes('sb-') || allCookies.some((c: { name: string }) => c.name.startsWith('sb-'))
-      });
+      if (process.env.NODE_ENV === 'development') {
+        const cookieHeader = request.headers.get('cookie') || '';
+        const allCookies = request.cookies.getAll();
+        logger.debug('Using API Supabase client', {
+          hasCookies: allCookies.length > 0,
+          cookieCount: allCookies.length,
+          cookieNames: allCookies.map((c: { name: string }) => c.name),
+          cookieHeaderLength: cookieHeader.length,
+          cookieHeaderPreview: cookieHeader.substring(0, 300),
+          hasSupabaseCookies: cookieHeader.includes('sb-') || allCookies.some((c: { name: string }) => c.name.startsWith('sb-'))
+        });
+      }
     } else {
       // Server component - use next/headers cookies
       try {

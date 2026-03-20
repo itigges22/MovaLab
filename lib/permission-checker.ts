@@ -480,7 +480,7 @@ export async function checkPermissionHybrid(
       // Time Tracking
       [Permission.VIEW_TIME_ENTRIES]: [Permission.VIEW_ALL_TIME_ENTRIES],
       [Permission.EDIT_TIME_ENTRIES]: [Permission.VIEW_ALL_TIME_ENTRIES],
-      [Permission.MANAGE_TIME]: [Permission.VIEW_ALL_TIME_ENTRIES],
+      // Note: MANAGE_TIME intentionally has no override — VIEW_ALL_TIME_ENTRIES should NOT grant write access
 
       // Workflows
       [Permission.MANAGE_WORKFLOWS]: [Permission.MANAGE_ALL_WORKFLOWS],

@@ -61,7 +61,7 @@ const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
   { id: 'complete', name: 'Complete', color: '#10B981', order: 4 },
 ];
 
-export function AccountOverview({ account, metrics, urgentItems, userProfile }: AccountOverviewProps) {
+export function AccountOverview({ account, metrics, urgentItems, userProfile, hasFullAccess = true }: AccountOverviewProps) {
   // Account overview component
   // NOTE: Kanban/Gantt for projects is deprecated (workflows replace it), only table view remains
   const router = useRouter();
@@ -158,53 +158,46 @@ export function AccountOverview({ account, metrics, urgentItems, userProfile }: 
     loadAccountMembers();
   }, [loadAccountMembers]);
 
-  // Fetch remaining hours for all projects
-  const fetchRemainingHours = useCallback(async () => {
-      if (!projects || projects.length === 0) return;
+  // Separate state for remaining hours to avoid infinite loop
+  // (fetching updates projects → re-triggers fetch → infinite loop)
+  const [projectHoursData, setProjectHoursData] = useState<Record<string, { remaining: number | null; taskSum: number }>>({});
 
+  // Fetch remaining hours for all projects - use projectIds as stable dependency
+  const projectIds = useMemo(() => projects.map((p: any) => p.id).join(','), [projects]);
+
+  useEffect(() => {
+    if (!projectIds) return;
+
+    const fetchRemainingHours = async () => {
       try {
         const supabase = createClientSupabase() as any;
         if (!supabase) return;
 
-        const projectIds = projects.map((p: any) => p.id);
+        const ids = projectIds.split(',');
         const { data: tasksData } = await supabase
           .from('tasks')
           .select('project_id, remaining_hours, estimated_hours')
-          .in('project_id', projectIds);
+          .in('project_id', ids);
 
         if (tasksData) {
-          // Calculate remaining hours and task sum per project
-          const projectRemainingHours: Record<string, number> = {};
-          const projectTaskSum: Record<string, number> = {};
+          const hoursData: Record<string, { remaining: number | null; taskSum: number }> = {};
           tasksData.forEach((task: any) => {
-            const projectId = task.project_id as string;
-            if (!projectRemainingHours[projectId]) {
-              projectRemainingHours[projectId] = 0;
+            const pid = task.project_id as string;
+            if (!hoursData[pid]) {
+              hoursData[pid] = { remaining: 0, taskSum: 0 };
             }
-            if (!projectTaskSum[projectId]) {
-              projectTaskSum[projectId] = 0;
-            }
-            projectRemainingHours[projectId] += (task.remaining_hours as number ?? task.estimated_hours as number ?? 0);
-            projectTaskSum[projectId] += (task.estimated_hours as number ?? 0);
+            hoursData[pid].remaining = (hoursData[pid].remaining ?? 0) + (task.remaining_hours as number ?? task.estimated_hours as number ?? 0);
+            hoursData[pid].taskSum += (task.estimated_hours as number ?? 0);
           });
-
-          // Update projects with remaining hours and task sum
-          setProjects(prevProjects =>
-            prevProjects.map((project: any) => ({
-              ...project,
-              remaining_hours: projectRemainingHours[project.id] ?? null,
-              task_hours_sum: projectTaskSum[project.id] ?? 0
-            }))
-          );
+          setProjectHoursData(hoursData);
         }
       } catch {
         // Silently handle remaining hours fetch errors
       }
-    }, [projects]);
+    };
 
-  useEffect(() => {
     fetchRemainingHours();
-  }, [fetchRemainingHours, projects]);
+  }, [projectIds]);
 
   // Check permissions
   // NOTE: Table view is just the project list (no separate permission needed)

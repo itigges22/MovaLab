@@ -107,7 +107,7 @@ export function getUserDepartments(userProfile: UserWithRoles | null): string[] 
  */
 export function getUserDepartmentIds(userProfile: UserWithRoles | null): string[] {
   if (!userProfile?.user_roles) return [];
-  return [...new Set(userProfile.user_roles.map(userRole => userRole.roles.department_id))];
+  return [...new Set(userProfile.user_roles.map(userRole => userRole.roles.department_id).filter(Boolean))];
 }
 
 /**

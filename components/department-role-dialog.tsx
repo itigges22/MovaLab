@@ -49,16 +49,17 @@ export default function DepartmentRoleDialog({
   const [loading, setLoading] = useState(false);
 
   // Form state
+  // Permission keys aligned with the system Permission enum (lib/permissions.ts)
   const [formData, setFormData] = useState({
     name: '',
     permissions: {
-      canViewProjects: true,
-      canCreateProjects: false,
-      canEditProjects: false,
-      canDeleteProjects: false,
-      canAssignTasks: false,
-      canViewAnalytics: false,
-      canManageTeam: false,
+      view_projects: true,
+      manage_projects: false,
+      view_departments: true,
+      execute_workflows: false,
+      manage_time: true,
+      view_team_capacity: false,
+      edit_own_availability: true,
     }
   });
 
@@ -70,26 +71,26 @@ export default function DepartmentRoleDialog({
         setFormData({
           name: existingRole.name,
           permissions: {
-            canViewProjects: existingPermissions.canViewProjects ?? true,
-            canCreateProjects: existingPermissions.canCreateProjects ?? false,
-            canEditProjects: existingPermissions.canEditProjects ?? false,
-            canDeleteProjects: existingPermissions.canDeleteProjects ?? false,
-            canAssignTasks: existingPermissions.canAssignTasks ?? false,
-            canViewAnalytics: existingPermissions.canViewAnalytics ?? false,
-            canManageTeam: existingPermissions.canManageTeam ?? false,
+            view_projects: existingPermissions.view_projects ?? true,
+            manage_projects: existingPermissions.manage_projects ?? false,
+            view_departments: existingPermissions.view_departments ?? true,
+            execute_workflows: existingPermissions.execute_workflows ?? false,
+            manage_time: existingPermissions.manage_time ?? true,
+            view_team_capacity: existingPermissions.view_team_capacity ?? false,
+            edit_own_availability: existingPermissions.edit_own_availability ?? true,
           }
         });
       } else {
         setFormData({
           name: '',
           permissions: {
-            canViewProjects: true,
-            canCreateProjects: false,
-            canEditProjects: false,
-            canDeleteProjects: false,
-            canAssignTasks: false,
-            canViewAnalytics: false,
-            canManageTeam: false,
+            view_projects: true,
+            manage_projects: false,
+            view_departments: true,
+            execute_workflows: false,
+            manage_time: true,
+            view_team_capacity: false,
+            edit_own_availability: true,
           }
         });
       }
@@ -101,7 +102,7 @@ export default function DepartmentRoleDialog({
     setLoading(true);
 
     try {
-      const supabase = createClientSupabase()!;
+      const supabase = createClientSupabase();
       if (!supabase) {
         throw new Error('Failed to create Supabase client');
       }
@@ -216,96 +217,35 @@ export default function DepartmentRoleDialog({
 
           <div className="space-y-4">
             <Label className="text-base font-medium">Permissions</Label>
+            <p className="text-xs text-muted-foreground">These permissions align with the system RBAC. For full permission management, use Admin &gt; Role Management.</p>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canViewProjects"
-                  checked={formData.permissions.canViewProjects}
-                  onChange={(e) => handleInputChange('permissions.canViewProjects', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canViewProjects" className="text-sm font-normal">
-                  View Projects
-                </Label>
+                <input type="checkbox" id="view_projects" checked={formData.permissions.view_projects} onChange={(e) => handleInputChange('permissions.view_projects', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="view_projects" className="text-sm font-normal">View Projects</Label>
               </div>
-
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canCreateProjects"
-                  checked={formData.permissions.canCreateProjects}
-                  onChange={(e) => handleInputChange('permissions.canCreateProjects', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canCreateProjects" className="text-sm font-normal">
-                  Create Projects
-                </Label>
+                <input type="checkbox" id="manage_projects" checked={formData.permissions.manage_projects} onChange={(e) => handleInputChange('permissions.manage_projects', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="manage_projects" className="text-sm font-normal">Manage Projects (create, edit, delete)</Label>
               </div>
-
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canEditProjects"
-                  checked={formData.permissions.canEditProjects}
-                  onChange={(e) => handleInputChange('permissions.canEditProjects', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canEditProjects" className="text-sm font-normal">
-                  Edit Projects
-                </Label>
+                <input type="checkbox" id="view_departments" checked={formData.permissions.view_departments} onChange={(e) => handleInputChange('permissions.view_departments', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="view_departments" className="text-sm font-normal">View Departments</Label>
               </div>
-
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canDeleteProjects"
-                  checked={formData.permissions.canDeleteProjects}
-                  onChange={(e) => handleInputChange('permissions.canDeleteProjects', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canDeleteProjects" className="text-sm font-normal">
-                  Delete Projects
-                </Label>
+                <input type="checkbox" id="execute_workflows" checked={formData.permissions.execute_workflows} onChange={(e) => handleInputChange('permissions.execute_workflows', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="execute_workflows" className="text-sm font-normal">Execute Workflows</Label>
               </div>
-
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canAssignTasks"
-                  checked={formData.permissions.canAssignTasks}
-                  onChange={(e) => handleInputChange('permissions.canAssignTasks', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canAssignTasks" className="text-sm font-normal">
-                  Assign Tasks
-                </Label>
+                <input type="checkbox" id="manage_time" checked={formData.permissions.manage_time} onChange={(e) => handleInputChange('permissions.manage_time', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="manage_time" className="text-sm font-normal">Manage Time (log and edit entries)</Label>
               </div>
-
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canViewAnalytics"
-                  checked={formData.permissions.canViewAnalytics}
-                  onChange={(e) => handleInputChange('permissions.canViewAnalytics', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canViewAnalytics" className="text-sm font-normal">
-                  View Analytics
-                </Label>
+                <input type="checkbox" id="view_team_capacity" checked={formData.permissions.view_team_capacity} onChange={(e) => handleInputChange('permissions.view_team_capacity', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="view_team_capacity" className="text-sm font-normal">View Team Capacity</Label>
               </div>
-
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="canManageTeam"
-                  checked={formData.permissions.canManageTeam}
-                  onChange={(e) => handleInputChange('permissions.canManageTeam', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="canManageTeam" className="text-sm font-normal">
-                  Manage Team
-                </Label>
+                <input type="checkbox" id="edit_own_availability" checked={formData.permissions.edit_own_availability} onChange={(e) => handleInputChange('permissions.edit_own_availability', e.target.checked)} className="rounded border-gray-300" />
+                <Label htmlFor="edit_own_availability" className="text-sm font-normal">Edit Own Availability</Label>
               </div>
             </div>
           </div>

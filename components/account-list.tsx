@@ -49,24 +49,25 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
       const hasViewAllAccounts = await hasPermission(userProfile, Permission.VIEW_ALL_ACCOUNTS);
       const hasViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS);
 
-      for (const account of accounts) {
-        // If user has MANAGE_ACCOUNTS or VIEW_ALL_ACCOUNTS, they can see all accounts
-        if (canManage || hasViewAllAccounts) {
-          filtered.push(account);
-          continue;
-        }
-
-        // If user has VIEW_ACCOUNTS, check if they have access to this specific account
-        if (hasViewAccounts) {
-          // Check if user has account access (via project assignments)
-          const hasAccess = await hasAccountAccess((userProfile as any).id, account.id);
-          if (hasAccess) {
-            filtered.push(account);
-          }
-        }
+      // If user has MANAGE_ACCOUNTS or VIEW_ALL_ACCOUNTS, they can see all accounts
+      if (canManage || hasViewAllAccounts) {
+        setVisibleAccounts(accounts);
+        return;
       }
 
-      setVisibleAccounts(filtered);
+      // If user has VIEW_ACCOUNTS, check access in parallel (not sequential)
+      if (hasViewAccounts) {
+        const accessChecks = await Promise.all(
+          accounts.map(async (account: any) => {
+            const hasAccess = await hasAccountAccess((userProfile as any).id, account.id);
+            return hasAccess ? account : null;
+          })
+        );
+        setVisibleAccounts(accessChecks.filter(Boolean) as Account[]);
+        return;
+      }
+
+      setVisibleAccounts([]);
     }
     
     void checkPermissionsAndFilter();
