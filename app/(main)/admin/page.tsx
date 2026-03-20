@@ -12,16 +12,19 @@ import {
   Database,
   Activity,
   Loader2,
-  BarChart3
+  BarChart3,
+  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { isSuperadmin } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { InvitationDialog } from '@/components/onboarding/invitation-dialog';
 
 export default function AdminHubPage() {
   const { userProfile, loading } = useAuth();
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Get user permissions from their roles
   const userPermissions = useMemo(() => {
@@ -218,12 +221,29 @@ export default function AdminHubPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">Administration</h1>
-        <p className="text-muted-foreground mt-2 text-lg">
-          Manage platform settings, users, workflows, and operations
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">Administration</h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Manage platform settings, users, workflows, and operations
+          </p>
+        </div>
+        {(isSuperadminUser || hasPermission(Permission.MANAGE_USER_ROLES)) && (
+          <Button
+            data-tutorial="invite-user"
+            onClick={() => setInviteDialogOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Invite User
+          </Button>
+        )}
       </div>
+
+      <InvitationDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+      />
 
       {/* User Management */}
       {visibleUserManagement.length > 0 && (

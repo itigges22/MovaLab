@@ -526,7 +526,7 @@ export default function ProjectsPage() {
             <ProjectCreationDialog
               onProjectCreated={handleProjectCreated}
             >
-              <Button>
+              <Button data-tutorial="create-project">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Project
               </Button>

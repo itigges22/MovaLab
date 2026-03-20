@@ -407,7 +407,7 @@ export default function RoleManagementPage() {
             Refresh
           </Button>
           {canCreateRole && (
-            <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+            <Button data-tutorial="create-role" onClick={() => setCreateDialogOpen(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Create Role
             </Button>

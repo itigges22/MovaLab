@@ -98,7 +98,7 @@ export function DepartmentList({
               window.location.reload();
             }}
           >
-            <Button className="inline-flex items-center space-x-2">
+            <Button data-tutorial="create-department" className="inline-flex items-center space-x-2">
               <Plus className="w-4 h-4" />
               <span>Create Department</span>
             </Button>
@@ -125,7 +125,7 @@ export function DepartmentList({
                   window.location.reload();
                 }}
               >
-                <Button>
+                <Button data-tutorial="create-department">
                   <Plus className="w-4 h-4 mr-2" />
                   Create First Department
                 </Button>

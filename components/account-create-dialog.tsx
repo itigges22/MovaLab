@@ -109,7 +109,7 @@ export function AccountCreateDialog({ onAccountCreated, userProfile }: AccountCr
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button data-tutorial="create-account">
           <Plus className="w-4 h-4 mr-2" />
           Create Account
         </Button>
