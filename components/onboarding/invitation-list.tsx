@@ -59,7 +59,7 @@ export function InvitationList() {
     fetchInvitations();
   }, [fetchInvitations]);
 
-  async function handleRevoke(id: string) {
+  async function handleRevoke(id: string, isPending: boolean) {
     setRevoking(id);
     try {
       const res = await fetch(`/api/invitations/${id}`, {
@@ -68,14 +68,18 @@ export function InvitationList() {
       });
 
       if (res.ok) {
-        toast.success('Invitation revoked');
-        // Update local state
-        setInvitations((prev) =>
-          prev.map((inv) => (inv.id === id ? { ...inv, status: 'revoked' as const } : inv))
-        );
+        if (isPending) {
+          toast.success('Invitation revoked');
+          setInvitations((prev) =>
+            prev.map((inv) => (inv.id === id ? { ...inv, status: 'revoked' as const } : inv))
+          );
+        } else {
+          toast.success('Invitation deleted');
+          setInvitations((prev) => prev.filter((inv) => inv.id !== id));
+        }
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Failed to revoke invitation');
+        toast.error(data.error || 'Failed to process invitation');
       }
     } catch {
       toast.error('Network error. Please try again.');
@@ -173,29 +177,49 @@ export function InvitationList() {
                       {formatDate(inv.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {inv.status === 'pending' && (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={() => handleResend(inv.id)}
-                            disabled={resending === inv.id}
-                          >
-                            {resending === inv.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Send className="mr-1 h-4 w-4" />
-                                Resend
-                              </>
-                            )}
-                          </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {inv.status === 'pending' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleResend(inv.id)}
+                              disabled={resending === inv.id}
+                            >
+                              {resending === inv.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Send className="mr-1 h-4 w-4" />
+                                  Resend
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRevoke(inv.id, true)}
+                              disabled={revoking === inv.id}
+                            >
+                              {revoking === inv.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <XCircle className="mr-1 h-4 w-4" />
+                                  Revoke
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
+                        {inv.status !== 'pending' && (
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleRevoke(inv.id)}
+                            onClick={() => handleRevoke(inv.id, false)}
                             disabled={revoking === inv.id}
                           >
                             {revoking === inv.id ? (
@@ -203,12 +227,12 @@ export function InvitationList() {
                             ) : (
                               <>
                                 <XCircle className="mr-1 h-4 w-4" />
-                                Revoke
+                                Delete
                               </>
                             )}
                           </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

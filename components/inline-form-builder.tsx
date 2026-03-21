@@ -243,17 +243,18 @@ export function InlineFormBuilder({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {FIELD_TYPES.map((fieldType) => (
                 <Button
                   key={fieldType.value}
                   variant="outline"
                   size="sm"
                   onClick={() => { addField(fieldType.value); }}
-                  className="justify-start text-xs h-8"
+                  className="justify-start text-xs h-8 overflow-hidden"
+                  title={fieldType.description}
                 >
-                  <span className="mr-1">{fieldType.icon}</span>
-                  {fieldType.label}
+                  <span className="mr-1 flex-shrink-0">{fieldType.icon}</span>
+                  <span className="truncate">{fieldType.label}</span>
                 </Button>
               ))}
             </div>

@@ -411,6 +411,7 @@ export function SidebarNavigation() {
                 href={item.href}
                 label={item.name}
                 icon={item.icon as any}
+                exactMatch={item.href === '/admin'}
               />
             ))}
           </SidebarSection>

@@ -157,6 +157,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Use the most recent availability record as the default for missing weeks,
+    // rather than always assuming 40 hours. If the user has set their availability
+    // to 0 for a week, future weeks without records should also default to their
+    // last known availability, not 40.
+    let userDefaultHours = DEFAULT_WEEKLY_HOURS;
+    if (availabilityData.data && availabilityData.data.length > 0) {
+      const sorted = [...availabilityData.data].sort((a: any, b: any) =>
+        (b.week_start_date as string).localeCompare(a.week_start_date as string)
+      );
+      userDefaultHours = sorted[0].available_hours as number;
+    }
+
     // Build a map of project end dates for tasks to inherit when they have no due_date
     const projectEndDateMap = new Map<string, Date | null>();
     if (projectAssignmentsData.data) {
@@ -195,13 +207,13 @@ export async function GET(request: NextRequest) {
       if (period === 'daily') {
         // For daily, get the week's availability and divide by 5 (workdays)
         const weekStart = getWeekStartDate(periodStart);
-        const weeklyHours = availabilityMap.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
+        const weeklyHours = availabilityMap.get(weekStart) ?? userDefaultHours;
         available = weeklyHours / 5; // Assume 5 workdays
         weeksInPeriod = 0.2;
       } else if (period === 'weekly') {
-        // Check if we have availability set for this week (default to 40 hours)
+        // Check if we have availability set for this week
         const weekStart = getWeekStartDate(periodStart);
-        available = availabilityMap.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
+        available = availabilityMap.get(weekStart) ?? userDefaultHours;
         weeksInPeriod = 1;
       } else if (period === 'monthly' || period === 'quarterly') {
         // Sum up weekly availabilities that fall within this period
@@ -224,7 +236,7 @@ export async function GET(request: NextRequest) {
 
         while (currentWeek.getTime() <= endTime) {
           const weekStr = formatLocalDate(currentWeek);
-          const weekHours = availabilityMap.get(weekStr) ?? DEFAULT_WEEKLY_HOURS;
+          const weekHours = availabilityMap.get(weekStr) ?? userDefaultHours;
           totalHours += weekHours;
           weeksInPeriod++;
           // Move to next week

@@ -161,7 +161,10 @@ function WorkflowCanvasInner({
         return false;
       };
 
-      if (wouldCreateCycle(params.source!, params.target!)) {
+      // Skip cycle check for approval nodes — the user may be creating a rejection
+      // loop, which is allowed. The edge config dialog will set the decision type,
+      // and save-time validation will catch actual invalid cycles.
+      if (sourceNode?.data.type !== 'approval' && wouldCreateCycle(params.source!, params.target!)) {
         toast.error('This connection would create a cycle. Cycles are only allowed via rejection paths.');
         return;
       }

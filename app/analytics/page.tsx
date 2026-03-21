@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import { RoleGuard } from '@/components/role-guard'
+import { Permission } from '@/lib/permissions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   LayoutDashboard,
@@ -95,7 +96,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <RoleGuard allowUnassigned={false}>
+    <RoleGuard allowUnassigned={false} requireAnyPermission={[Permission.VIEW_ALL_ANALYTICS, Permission.VIEW_ALL_DEPARTMENT_ANALYTICS, Permission.VIEW_ALL_ACCOUNT_ANALYTICS]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

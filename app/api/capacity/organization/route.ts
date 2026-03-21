@@ -123,8 +123,9 @@ export async function GET(request: NextRequest) {
       projectTasksData = data;
     }
 
-    // Build availability map per user per week
+    // Build availability map per user per week and per-user defaults
     const availabilityMap = new Map<string, Map<string, number>>();
+    const userDefaultHoursMap = new Map<string, number>();
     if (availabilityData.data) {
       availabilityData.data.forEach((a: any) => {
         const userId = a.user_id as string;
@@ -136,6 +137,16 @@ export async function GET(request: NextRequest) {
         }
         availabilityMap.get(userId)?.set(weekStartDate, availableHours);
       });
+      // Use most recent availability as default for each user
+      const byUser = new Map<string, { date: string; hours: number }>();
+      availabilityData.data.forEach((a: any) => {
+        const userId = a.user_id as string;
+        const existing = byUser.get(userId);
+        if (!existing || (a.week_start_date as string) > existing.date) {
+          byUser.set(userId, { date: a.week_start_date as string, hours: a.available_hours as number });
+        }
+      });
+      byUser.forEach((val, userId) => userDefaultHoursMap.set(userId, val.hours));
     }
 
     // Build a map of project end dates for tasks to inherit when they have no due_date
@@ -163,15 +174,15 @@ export async function GET(request: NextRequest) {
       userIds.forEach(userId => {
         const userAvailability = availabilityMap.get(userId) ?? new Map<string, number>();
 
+        const defaultHours = userDefaultHoursMap.get(userId) ?? DEFAULT_WEEKLY_HOURS;
+
         if (period === 'daily') {
           const weekStart = getWeekStartDate(periodStart);
-          // Use default 40 hours/week if not explicitly set
-          const weeklyHours = userAvailability.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
+          const weeklyHours = userAvailability.get(weekStart) ?? defaultHours;
           totalAvailable += weeklyHours / 5;
         } else if (period === 'weekly') {
           const weekStart = getWeekStartDate(periodStart);
-          // Use default 40 hours/week if not explicitly set
-          totalAvailable += userAvailability.get(weekStart) ?? DEFAULT_WEEKLY_HOURS;
+          totalAvailable += userAvailability.get(weekStart) ?? defaultHours;
         } else {
           // Monthly/quarterly - sum up weeks
           const currentWeek = new Date(periodStart);
@@ -181,8 +192,7 @@ export async function GET(request: NextRequest) {
 
           while (currentWeek <= periodEnd) {
             const weekStr = format(currentWeek, 'yyyy-MM-dd');
-            // Use default 40 hours/week if not explicitly set
-            const weekHours = userAvailability.get(weekStr) ?? DEFAULT_WEEKLY_HOURS;
+            const weekHours = userAvailability.get(weekStr) ?? defaultHours;
             totalAvailable += weekHours;
             currentWeek.setDate(currentWeek.getDate() + 7);
           }

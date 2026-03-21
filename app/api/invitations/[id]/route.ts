@@ -35,27 +35,35 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
     }
 
-    if (invitation.status !== 'pending') {
-      return NextResponse.json(
-        { error: `Cannot revoke an invitation with status "${invitation.status}". Only pending invitations can be revoked.` },
-        { status: 400 }
-      );
+    if (invitation.status === 'pending') {
+      // Soft delete: revoke pending invitations
+      const { data: updated, error: updateError } = await adminSupabase
+        .from('user_invitations')
+        .update({ status: 'revoked' })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        logger.error('Failed to revoke invitation', { error: updateError.message, invitationId: id });
+        return NextResponse.json({ error: 'Failed to revoke invitation' }, { status: 500 });
+      }
+
+      return NextResponse.json({ invitation: updated });
     }
 
-    // Update status to revoked (soft delete)
-    const { data: updated, error: updateError } = await adminSupabase
+    // Hard delete: remove non-pending invitations (revoked, accepted, expired)
+    const { error: deleteError } = await adminSupabase
       .from('user_invitations')
-      .update({ status: 'revoked' })
-      .eq('id', id)
-      .select()
-      .single();
+      .delete()
+      .eq('id', id);
 
-    if (updateError) {
-      logger.error('Failed to revoke invitation', { error: updateError.message, invitationId: id });
-      return NextResponse.json({ error: 'Failed to revoke invitation' }, { status: 500 });
+    if (deleteError) {
+      logger.error('Failed to delete invitation', { error: deleteError.message, invitationId: id });
+      return NextResponse.json({ error: 'Failed to delete invitation' }, { status: 500 });
     }
 
-    return NextResponse.json({ invitation: updated });
+    return NextResponse.json({ deleted: true });
 
   } catch (error: unknown) {
     return handleGuardError(error);
