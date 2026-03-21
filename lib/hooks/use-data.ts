@@ -30,9 +30,9 @@ export function useCapacityHistory(userId: string | undefined, period: TimePerio
 }
 
 // Organization capacity hook
-export function useOrganizationCapacity(period: TimePeriod) {
+export function useOrganizationCapacity(period: TimePeriod, enabled: boolean = true) {
   const { data, error, isLoading, mutate } = useSWR(
-    `/api/capacity/organization?period=${period}`,
+    enabled ? `/api/capacity/organization?period=${period}` : null,
     {
       // Disable focus-based refresh to prevent jarring UI updates when filling forms
       revalidateOnFocus: false,

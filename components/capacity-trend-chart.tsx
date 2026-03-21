@@ -55,7 +55,7 @@ export default function CapacityTrendChart({
 }: CapacityTrendChartProps) {
   // Use optimized SWR hooks based on mode - automatic caching & deduplication
   const userCapacity = useCapacityHistory(mode === 'user' ? userId : undefined, timePeriod);
-  const orgCapacity = useOrganizationCapacity(timePeriod);
+  const orgCapacity = useOrganizationCapacity(timePeriod, mode === 'organization');
   const deptCapacity = useDepartmentCapacity(mode === 'department' ? departmentId : undefined, timePeriod);
   const acctCapacity = useAccountCapacity(mode === 'account' ? accountId : undefined, timePeriod);
 
