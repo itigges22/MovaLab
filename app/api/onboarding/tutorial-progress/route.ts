@@ -20,15 +20,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: state, error } = await supabase
+  // Use admin client to bypass RLS (onboarding_state RLS can be tricky with proxy URLs)
+  const adminSupabase = createAdminSupabaseClient();
+  const queryClient = adminSupabase || supabase;
+
+  const { data: state, error } = await queryClient
     .from('onboarding_state')
     .select('tutorial_step, tutorial_completed, tutorial_data')
     .eq('user_id', user.id)
     .single();
 
   if (error || !state) {
-    // No onboarding state found — user may not need tutorial
-    return NextResponse.json({ step: 0, completed: true, data: {} });
+    // No onboarding state found — assume tutorial NOT completed (show it)
+    return NextResponse.json({ step: 0, completed: false, data: {} });
   }
 
   return NextResponse.json({
@@ -116,7 +120,10 @@ export async function PATCH(request: NextRequest) {
     updatePayload.setup_completed_at = new Date().toISOString();
   }
 
-  const { error: updateError } = await supabase
+  // Use admin client for updates to bypass RLS issues with proxy cookie naming
+  const writeClient = createAdminSupabaseClient() || supabase;
+
+  const { error: updateError } = await writeClient
     .from('onboarding_state')
     .update(updatePayload)
     .eq('user_id', user.id);
@@ -128,7 +135,7 @@ export async function PATCH(request: NextRequest) {
 
   // If marking as completed, also set has_completed_onboarding on user_profiles
   if (completed) {
-    const { error: profileError } = await supabase
+    const { error: profileError } = await writeClient
       .from('user_profiles')
       .update({ has_completed_onboarding: true })
       .eq('id', user.id);
