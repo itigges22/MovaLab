@@ -27,8 +27,16 @@ export function SetupWizard() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Step 1 -> Step 2: Token was already generated on page load
-  function handleBeginSetup() {
+  // Step 1 -> Step 2: Generate token and move to verify step
+  async function handleBeginSetup() {
+    setLoading(true);
+    try {
+      await fetch('/api/onboarding/setup-token');
+      // Token is printed to server console — user reads it from there
+    } catch {
+      // Non-fatal — token may already exist
+    }
+    setLoading(false);
     setStep('verify');
   }
 

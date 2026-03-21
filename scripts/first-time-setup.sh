@@ -142,7 +142,18 @@ header "Step 5: Configure Environment Keys"
 # Read actual keys from running Supabase instance and update .env.local
 info "Reading Supabase keys from running instance..."
 
-SUPABASE_URL="http://127.0.0.1:54321"
+# Detect public IP for Supabase URL (so browsers can reach it)
+# On a VPS, the client browser needs to reach Supabase directly
+PUBLIC_IP=$(curl -s -4 ifconfig.me 2>/dev/null || curl -s -4 icanhazip.com 2>/dev/null || echo "")
+
+if [ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != "127.0.0.1" ]; then
+  SUPABASE_URL="http://${PUBLIC_IP}:54321"
+  info "Detected public IP: $PUBLIC_IP"
+  info "Supabase URL: $SUPABASE_URL"
+else
+  SUPABASE_URL="http://127.0.0.1:54321"
+  info "No public IP detected — using localhost (local development)"
+fi
 
 # Get publishable key from supabase status
 PUB_KEY=$(npx supabase status 2>/dev/null | grep "Publishable" | awk '{print $NF}' | tr -d '│ ')
@@ -158,10 +169,11 @@ if [ -z "$SERVICE_KEY" ]; then
 fi
 
 if [ -n "$PUB_KEY" ] && [ -n "$SERVICE_KEY" ]; then
-  # Update .env.local with actual keys
+  # Update .env.local with actual keys and detected Supabase URL
+  sed -i "s|^NEXT_PUBLIC_SUPABASE_URL=.*|NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}|" .env.local
   sed -i "s|^NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=.*|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${PUB_KEY}|" .env.local
   sed -i "s|^SUPABASE_SERVICE_ROLE_KEY=.*|SUPABASE_SERVICE_ROLE_KEY=${SERVICE_KEY}|" .env.local
-  ok "Updated .env.local with Supabase keys"
+  ok "Updated .env.local with Supabase URL and keys"
 else
   warn "Could not auto-detect Supabase keys. You may need to update .env.local manually."
   warn "Run: npx supabase status"

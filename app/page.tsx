@@ -22,7 +22,7 @@ export default function Home() {
       setFirstRunChecked(true)
       return
     }
-    fetch('/api/onboarding/setup-token', { method: 'GET' })
+    fetch('/api/onboarding/check-first-run')
       .then(res => res.json())
       .then(data => {
         if (data.firstRun) {

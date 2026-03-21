@@ -10,7 +10,7 @@ export default function OnboardingPage() {
   const [isFirstRun, setIsFirstRun] = useState(false);
 
   useEffect(() => {
-    fetch('/api/onboarding/setup-token')
+    fetch('/api/onboarding/check-first-run')
       .then((res) => res.json())
       .then((data) => {
         if (!data.firstRun) {
