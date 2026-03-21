@@ -36,9 +36,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!firstRunChecked || isFirstRun) return
-    if (!loading && user) {
-      // User is authenticated, check if they have roles
-      const hasRoles = userProfile?.user_roles && userProfile.user_roles.length > 0
+    if (!loading && user && userProfile) {
+      // User is authenticated AND profile is loaded — safe to redirect
+      const hasRoles = userProfile.user_roles && userProfile.user_roles.length > 0
       if (hasRoles) {
         router.push('/dashboard')
       } else {
