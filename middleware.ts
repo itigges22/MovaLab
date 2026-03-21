@@ -34,23 +34,12 @@ const publicRoutes = [
  * We only check for cookie presence, not validity, to avoid Edge Runtime issues
  */
 function hasAuthCookies(req: NextRequest): boolean {
-  // Supabase stores auth tokens in cookies with these patterns
-  const authCookieNames = [
-    'sb-access-token',
-    'sb-refresh-token',
-  ];
-
-  // Check for any Supabase auth cookie
-  const cookies = req.cookies;
-  for (const cookieName of authCookieNames) {
-    if (cookies.get(cookieName)) {
-      return true;
-    }
-  }
-
-  // Also check for cookies with sb- prefix (Supabase cookies)
-  const allCookies = cookies.getAll();
-  return allCookies.some(cookie => cookie.name.startsWith('sb-') && cookie.name.includes('auth-token'));
+  const allCookies = req.cookies.getAll();
+  // Check for any Supabase auth cookie (handles all naming patterns):
+  // - sb-movalab-auth (our custom cookie name)
+  // - sb-access-token / sb-refresh-token (default Supabase)
+  // - sb-<project-ref>-auth-token (Supabase SSR format)
+  return allCookies.some(cookie => cookie.name.startsWith('sb-'));
 }
 
 export async function middleware(req: NextRequest) {
