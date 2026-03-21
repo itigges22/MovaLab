@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { SUPERADMIN_TUTORIAL, generateUserTutorial, TutorialStep } from '@/lib/onboarding/tutorial-steps';
 import { TutorialOverlay } from '@/components/onboarding/tutorial-overlay';
@@ -50,6 +50,7 @@ const TUTORIAL_EXCLUDED_PATHS = ['/login', '/signup', '/onboarding', '/invite', 
 export function TutorialProvider({ children }: TutorialProviderProps) {
   const { userProfile, loading: authLoading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   const [tutorialActive, setTutorialActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -107,6 +108,11 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
           const step = Math.min(data.step ?? 0, tutorialSteps.length - 1);
           setCurrentStep(step);
           setTutorialActive(true);
+          // Navigate to the current step's page if not already there
+          const targetPage = tutorialSteps[step]?.targetPage;
+          if (targetPage && !pathname.startsWith(targetPage)) {
+            router.push(targetPage);
+          }
         }
       } catch {
         // Silently fail -- don't block the app
@@ -156,8 +162,13 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
       markComplete();
     } else {
       setCurrentStep(nextStep);
+      // Navigate to the next step's target page if we're not already there
+      const nextPage = tutorialSteps[nextStep]?.targetPage;
+      if (nextPage && !pathname.startsWith(nextPage)) {
+        router.push(nextPage);
+      }
     }
-  }, [currentStep, tutorialSteps.length, markComplete]);
+  }, [currentStep, tutorialSteps, pathname, router, markComplete]);
 
   const handleSkip = useCallback(() => {
     markComplete();
