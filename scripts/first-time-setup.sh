@@ -229,8 +229,19 @@ if [ "$IS_VPS" = true ]; then
   if command_exists nginx; then
     ok "Nginx installed"
 
-    # Deploy config
-    cp nginx/movalab.conf /etc/nginx/sites-available/movalab 2>/dev/null || true
+    # Ask for domain name (optional — needed for SSL)
+    echo ""
+    printf "  Enter your domain name (e.g., movalab.example.com)\n"
+    printf "  Or press Enter to skip (use IP address only): "
+    read -r DOMAIN_NAME
+
+    if [ -n "$DOMAIN_NAME" ]; then
+      # Update Nginx config with the domain name
+      sed "s/server_name _;/server_name ${DOMAIN_NAME};/" nginx/movalab.conf > /etc/nginx/sites-available/movalab
+    else
+      cp nginx/movalab.conf /etc/nginx/sites-available/movalab
+    fi
+
     ln -sf /etc/nginx/sites-available/movalab /etc/nginx/sites-enabled/movalab 2>/dev/null || true
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
@@ -245,6 +256,34 @@ if [ "$IS_VPS" = true ]; then
       info "  /mail/ → Mailpit email testing (port 54324)"
     else
       warn "Nginx config test failed. Check: nginx -t"
+    fi
+
+    # SSL with Let's Encrypt (only if domain was provided)
+    if [ -n "$DOMAIN_NAME" ]; then
+      info "Setting up SSL with Let's Encrypt..."
+
+      if ! command_exists certbot; then
+        apt-get install -y -qq certbot python3-certbot-nginx >/dev/null 2>&1 || {
+          warn "Could not install certbot. Install manually: sudo apt install certbot python3-certbot-nginx"
+        }
+      fi
+
+      if command_exists certbot; then
+        # Get SSL cert (non-interactive, auto-agree to TOS)
+        certbot --nginx -d "$DOMAIN_NAME" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 | tail -5
+
+        if [ $? -eq 0 ]; then
+          ok "SSL certificate installed for ${DOMAIN_NAME}"
+          info "  HTTPS enabled — all HTTP traffic will redirect to HTTPS"
+          info "  Certificate auto-renews via certbot timer"
+          APP_URL="https://${DOMAIN_NAME}"
+          # Update .env.local with HTTPS app URL
+          sed -i "s|^NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=${APP_URL}|" .env.local
+        else
+          warn "SSL setup failed. You can retry later with:"
+          warn "  sudo certbot --nginx -d ${DOMAIN_NAME}"
+        fi
+      fi
     fi
   fi
 else
@@ -268,13 +307,22 @@ if [ "$IS_VPS" = true ]; then
     echo "Or run in background:"
     printf "  ${GREEN}nohup npm start > movalab.log 2>&1 &${NC}\n"
     echo ""
-    echo "Then open: http://${PUBLIC_IP}"
+    if [ -n "$DOMAIN_NAME" ]; then
+      echo "Then open: https://${DOMAIN_NAME}"
+    else
+      echo "Then open: http://${PUBLIC_IP}"
+    fi
     echo ""
     echo "The setup wizard will guide you through creating your"
     echo "superadmin account. Check the terminal (or movalab.log) for your setup token."
     echo ""
-    echo "Supabase Studio: http://${PUBLIC_IP}/studio/"
-    echo "Email Testing:   http://${PUBLIC_IP}/mail/"
+    if [ -n "$DOMAIN_NAME" ]; then
+      echo "Supabase Studio: https://${DOMAIN_NAME}/studio/"
+      echo "Email Testing:   https://${DOMAIN_NAME}/mail/"
+    else
+      echo "Supabase Studio: http://${PUBLIC_IP}/studio/"
+      echo "Email Testing:   http://${PUBLIC_IP}/mail/"
+    fi
   else
     warn "Production build failed. Falling back to dev mode."
     echo ""
