@@ -110,10 +110,13 @@ const nextConfig: NextConfig = {
     } : false,
   },
 
-  // Reduce compilation overhead
+  // Skip lint and type checking during build (already verified in CI/dev)
+  // This cuts build time in half on low-memory VPS machines
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   typescript: {
-    // Skip type checking during build for faster dev compilation
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
 
   // Security Headers
