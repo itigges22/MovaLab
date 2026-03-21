@@ -17,8 +17,10 @@ const projectRoot = getRealPath(process.cwd());
 const realNodeModulesPath = path.join(projectRoot, 'node_modules');
 
 const nextConfig: NextConfig = {
-  // Allow cross-origin requests from any domain (VPS deployments with custom domains)
-  allowedDevOrigins: ['*'],
+  // Allow all dev origins (VPS deployments accessed via custom domains/IPs)
+  allowedDevOrigins: (process.env.NEXT_PUBLIC_APP_URL
+    ? [new URL(process.env.NEXT_PUBLIC_APP_URL).hostname]
+    : []).concat(['localhost', '127.0.0.1']),
 
   // CRITICAL: Fix Windows path casing issues
   // On Windows, paths like C:\Users\user\Desktop and C:\Users\user\desktop are the same folder
