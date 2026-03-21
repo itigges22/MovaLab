@@ -1,38 +1,11 @@
-import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
-
-let transporter: Transporter | null = null;
-
-function getTransporter(): Transporter {
-  if (transporter) return transporter;
-
-  if (process.env.SMTP_HOST) {
-    // External SMTP configured (Brevo, Gmail, SendGrid, etc.)
-    const authConfig = process.env.SMTP_USER ? {
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    } : {};
-
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      ...authConfig,
-    });
-  } else {
-    // No SMTP configured — use Supabase Mailpit (local catch-all, emails viewable at /mail/)
-    transporter = nodemailer.createTransport({
-      host: '127.0.0.1',
-      port: 54325,
-      secure: false,
-      tls: { rejectUnauthorized: false },
-    });
-  }
-
-  return transporter;
-}
+/**
+ * Email sending service
+ *
+ * Supports two modes:
+ * 1. Resend HTTP API (recommended for VPS — no SMTP ports needed)
+ *    Set RESEND_API_KEY in .env.local
+ * 2. Fallback: Supabase Mailpit (local catch-all, viewable at /mail/)
+ */
 
 export async function sendEmail(options: {
   to: string;
@@ -40,11 +13,71 @@ export async function sendEmail(options: {
   html: string;
   text?: string;
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const transport = getTransporter();
-    const from = process.env.SMTP_FROM || `MovaLab <noreply@${process.env.NEXT_PUBLIC_APP_URL?.replace(/https?:\/\//, '') || 'movalab.local'}>`;
+  const resendKey = process.env.RESEND_API_KEY || process.env.SMTP_PASS;
 
-    const info = await transport.sendMail({
+  if (resendKey && resendKey.startsWith('re_')) {
+    // Use Resend HTTP API (works even when SMTP ports are blocked)
+    return sendViaResend(resendKey, options);
+  }
+
+  // Fallback: Supabase Mailpit (local email testing)
+  return sendViaMailpit(options);
+}
+
+async function sendViaResend(
+  apiKey: string,
+  options: { to: string; subject: string; html: string; text?: string }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const from = process.env.SMTP_FROM || 'MovaLab <onboarding@resend.dev>';
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [options.to],
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error('Resend API error:', data);
+      return { success: false, error: data.message || `HTTP ${res.status}` };
+    }
+
+    console.warn(`📧 Email sent to ${options.to} via Resend: ${data.id}`);
+    return { success: true, messageId: data.id };
+  } catch (error) {
+    console.error('Failed to send email via Resend:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+async function sendViaMailpit(
+  options: { to: string; subject: string; html: string; text?: string }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    // Dynamic import to avoid bundling nodemailer when using Resend
+    const nodemailer = await import('nodemailer');
+
+    const transporter = nodemailer.default.createTransport({
+      host: '127.0.0.1',
+      port: 54325,
+      secure: false,
+      tls: { rejectUnauthorized: false },
+    });
+
+    const from = process.env.SMTP_FROM || 'MovaLab <noreply@movalab.local>';
+
+    const info = await transporter.sendMail({
       from,
       to: options.to,
       subject: options.subject,
@@ -52,10 +85,10 @@ export async function sendEmail(options: {
       text: options.text,
     });
 
-    console.warn(`📧 Email sent to ${options.to}: ${info.messageId}`);
+    console.warn(`📧 Email sent to ${options.to} via Mailpit: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('Failed to send email via Mailpit:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
