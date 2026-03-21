@@ -17,6 +17,9 @@ const projectRoot = getRealPath(process.cwd());
 const realNodeModulesPath = path.join(projectRoot, 'node_modules');
 
 const nextConfig: NextConfig = {
+  // Allow cross-origin requests from any domain (VPS deployments with custom domains)
+  allowedDevOrigins: ['*'],
+
   // CRITICAL: Fix Windows path casing issues
   // On Windows, paths like C:\Users\user\Desktop and C:\Users\user\desktop are the same folder
   // but webpack treats them as different modules, causing duplicate React instances

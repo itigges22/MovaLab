@@ -12,11 +12,24 @@ const getSupabasePublishableKey = () => {
   return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 };
 
-// Get the server-side Supabase URL (may differ from client URL when using Nginx proxy)
-// On VPS: client uses /supabase (relative), server uses http://127.0.0.1:54321 (direct)
-// On local dev: both use http://127.0.0.1:54321
-const getServerSupabaseUrl = () => {
+// Get the direct Supabase URL for server-side API calls
+// On VPS: http://127.0.0.1:54321 (direct, bypassing Nginx)
+// On local dev: http://127.0.0.1:54321
+const getDirectSupabaseUrl = () => {
   return process.env.SUPABASE_SERVER_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+};
+
+// Get a full HTTP URL for the Supabase client (needed for cookie name consistency)
+// If NEXT_PUBLIC_SUPABASE_URL is relative (/supabase), we use the direct URL
+// but the cookie names need to match what the browser client uses
+const getServerSupabaseUrl = () => {
+  const publicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // If it's a relative URL (Nginx proxy mode), use the direct URL for the server client
+  // Cookie names are based on the URL, so we use the direct URL everywhere on the server
+  if (publicUrl && publicUrl.startsWith('/')) {
+    return process.env.SUPABASE_SERVER_URL || 'http://127.0.0.1:54321';
+  }
+  return publicUrl || process.env.SUPABASE_SERVER_URL;
 };
 
 // Check if Supabase is configured (runtime check)
