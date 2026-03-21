@@ -237,16 +237,12 @@ LOG_LEVEL=debug
 NODE_ENV=development
 ENVEOF
 
-# Append Resend SMTP config if API key was provided
+# Append Resend config if API key was provided
 if [ -n "$RESEND_API_KEY" ]; then
-  cat >> .env.local << SMTPEOF
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=resend
-SMTP_PASS=${RESEND_API_KEY}
+  cat >> .env.local << RESENDEOF
+RESEND_API_KEY=${RESEND_API_KEY}
 SMTP_FROM=MovaLab <onboarding@resend.dev>
-SMTPEOF
+RESENDEOF
 fi
 
 ok "Generated .env.local"
