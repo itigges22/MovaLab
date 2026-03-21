@@ -195,51 +195,65 @@ fi
 ok "Found publishable key: ${PUB_KEY:0:20}..."
 ok "Found secret key: ${SERVICE_KEY:0:20}..."
 
-# SMTP configuration (VPS only — for sending real invitation emails)
-SMTP_HOST=""
-SMTP_PORT=""
-SMTP_USER=""
-SMTP_PASS=""
-SMTP_FROM=""
-
+# Configure local mail server on VPS (for sending real invitation emails)
 if [ "$IS_VPS" = true ]; then
-  echo ""
-  header "Email Configuration (SMTP)"
-  echo "  MovaLab sends invitation emails when you invite team members."
-  echo "  You need an SMTP server to deliver real emails."
-  echo ""
-  echo "  Common options:"
-  echo "    - Gmail: smtp.gmail.com (use App Password, not your login password)"
-  echo "    - Outlook: smtp.office365.com"
-  echo "    - Mailgun/SendGrid/Amazon SES: check their docs for SMTP credentials"
-  echo ""
-  printf "  Configure SMTP now? (y/n): "
-  read -r CONFIGURE_SMTP
+  header "Email Configuration"
 
-  if [ "$CONFIGURE_SMTP" = "y" ] || [ "$CONFIGURE_SMTP" = "Y" ]; then
-    printf "  SMTP Host (e.g., smtp.gmail.com): "
-    read -r SMTP_HOST
-    printf "  SMTP Port (default 587): "
-    read -r SMTP_PORT
-    SMTP_PORT=${SMTP_PORT:-587}
-    printf "  SMTP Username (your email): "
-    read -r SMTP_USER
-    printf "  SMTP Password (app password): "
-    read -rs SMTP_PASS
-    echo ""
-    printf "  From address (e.g., MovaLab <you@domain.com>): "
-    read -r SMTP_FROM
-    SMTP_FROM=${SMTP_FROM:-"MovaLab <${SMTP_USER}>"}
+  # Configure exim4 for internet delivery (most Debian/Ubuntu VPS have it pre-installed)
+  if command_exists exim4 || command_exists sendmail; then
+    MAIL_DOMAIN="${DOMAIN_NAME:-$(hostname -f)}"
 
-    if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then
-      ok "SMTP configured: ${SMTP_HOST}:${SMTP_PORT}"
-    else
-      warn "Incomplete SMTP config — emails will be caught locally (Mailpit)"
-      SMTP_HOST=""
+    # Configure exim4 for internet delivery
+    if [ -f /etc/exim4/update-exim4.conf.conf ]; then
+      cat > /etc/exim4/update-exim4.conf.conf << EXIMEOF
+dc_eximconfig_configtype='internet'
+dc_other_hostnames='$(hostname)'
+dc_local_interfaces='127.0.0.1 ; ::1'
+dc_readhost='${MAIL_DOMAIN}'
+dc_relay_domains=''
+dc_minimaldns='false'
+dc_relay_nets=''
+dc_smarthost=''
+CFILEMODE='644'
+dc_use_split_config='false'
+dc_hide_mailname='true'
+dc_mailname_in_oh='true'
+dc_localdelivery='mail_spool'
+EXIMEOF
+      echo "$MAIL_DOMAIN" > /etc/mailname
+      update-exim4.conf 2>/dev/null && systemctl restart exim4 2>/dev/null
+      ok "Local mail server configured (exim4)"
+      info "  Emails sent from: noreply@${MAIL_DOMAIN}"
+      info "  No third-party SMTP service needed"
     fi
   else
-    info "Skipping SMTP — emails will be caught locally by Mailpit"
-    info "You can configure SMTP later by editing .env.local"
+    # No local MTA — install one
+    info "Installing mail server (exim4)..."
+    apt-get install -y -qq exim4 >/dev/null 2>&1
+    if command_exists exim4; then
+      MAIL_DOMAIN="${DOMAIN_NAME:-$(hostname -f)}"
+      cat > /etc/exim4/update-exim4.conf.conf << EXIMEOF
+dc_eximconfig_configtype='internet'
+dc_other_hostnames='$(hostname)'
+dc_local_interfaces='127.0.0.1 ; ::1'
+dc_readhost='${MAIL_DOMAIN}'
+dc_relay_domains=''
+dc_minimaldns='false'
+dc_relay_nets=''
+dc_smarthost=''
+CFILEMODE='644'
+dc_use_split_config='false'
+dc_hide_mailname='true'
+dc_mailname_in_oh='true'
+dc_localdelivery='mail_spool'
+EXIMEOF
+      echo "$MAIL_DOMAIN" > /etc/mailname
+      update-exim4.conf 2>/dev/null && systemctl restart exim4 2>/dev/null
+      ok "Local mail server installed and configured"
+    else
+      warn "Could not install exim4. Emails will be caught by Mailpit (local only)."
+      warn "View emails at: /mail/"
+    fi
   fi
 fi
 
@@ -255,18 +269,6 @@ NEXT_PUBLIC_DEMO_MODE=false
 LOG_LEVEL=debug
 NODE_ENV=development
 ENVEOF
-
-# Append SMTP config if provided
-if [ -n "$SMTP_HOST" ]; then
-  cat >> .env.local << SMTPEOF
-SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
-SMTP_SECURE=false
-SMTP_USER=${SMTP_USER}
-SMTP_PASS=${SMTP_PASS}
-SMTP_FROM=${SMTP_FROM}
-SMTPEOF
-fi
 
 ok "Generated .env.local"
 info "  Supabase URL: $SUPABASE_URL"

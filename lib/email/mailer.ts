@@ -6,16 +6,8 @@ let transporter: Transporter | null = null;
 function getTransporter(): Transporter {
   if (transporter) return transporter;
 
-  if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
-    // Development: use Supabase Inbucket (local email testing)
-    transporter = nodemailer.createTransport({
-      host: '127.0.0.1',
-      port: 54325,
-      secure: false,
-      tls: { rejectUnauthorized: false },
-    });
-  } else {
-    // Production: use configured SMTP server
+  if (process.env.SMTP_HOST) {
+    // Explicit SMTP config provided (Gmail, SendGrid, Mailgun, etc.)
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -24,6 +16,16 @@ function getTransporter(): Transporter {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+    });
+  } else {
+    // No SMTP configured — use local mail server (exim4/postfix/sendmail on port 25)
+    // Falls back to Mailpit (port 54325) if local MTA isn't available
+    transporter = nodemailer.createTransport({
+      host: '127.0.0.1',
+      port: 25,
+      secure: false,
+      tls: { rejectUnauthorized: false },
+      // No auth needed for local MTA
     });
   }
 
@@ -38,7 +40,7 @@ export async function sendEmail(options: {
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const transport = getTransporter();
-    const from = process.env.SMTP_FROM || 'MovaLab <noreply@movalab.local>';
+    const from = process.env.SMTP_FROM || `MovaLab <noreply@${process.env.NEXT_PUBLIC_APP_URL?.replace(/https?:\/\//, '') || 'movalab.local'}>`;
 
     const info = await transport.sendMail({
       from,
@@ -48,7 +50,7 @@ export async function sendEmail(options: {
       text: options.text,
     });
 
-    console.log(`Email sent to ${options.to}: ${info.messageId}`);
+    console.warn(`📧 Email sent to ${options.to}: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Failed to send email:', error);
