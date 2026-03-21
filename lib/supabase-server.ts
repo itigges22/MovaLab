@@ -12,9 +12,16 @@ const getSupabasePublishableKey = () => {
   return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 };
 
+// Get the server-side Supabase URL (may differ from client URL when using Nginx proxy)
+// On VPS: client uses /supabase (relative), server uses http://127.0.0.1:54321 (direct)
+// On local dev: both use http://127.0.0.1:54321
+const getServerSupabaseUrl = () => {
+  return process.env.SUPABASE_SERVER_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+};
+
 // Check if Supabase is configured (runtime check)
 const isSupabaseConfigured = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = getServerSupabaseUrl();
   const supabasePublishableKey = getSupabasePublishableKey();
   return supabaseUrl && supabasePublishableKey &&
     supabaseUrl !== 'your-supabase-project-url' &&
@@ -27,7 +34,7 @@ export const createServerSupabase = async () => {
     logger.error('Supabase not configured: Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', {});
     return null;
   }
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = getServerSupabaseUrl();
   const supabasePublishableKey = getSupabasePublishableKey();
   const cookieStore = await cookies();
   return createServerClient(supabaseUrl!, supabasePublishableKey!, {
@@ -71,7 +78,7 @@ export const createApiSupabaseClient = (request: NextRequest) => {
     return null;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = getServerSupabaseUrl();
   const supabasePublishableKey = getSupabasePublishableKey();
 
   // Parse cookies from request header - this is the correct way for Route Handlers
@@ -139,7 +146,7 @@ export const createApiSupabaseClient = (request: NextRequest) => {
 // Admin client for privileged operations (user creation, setup tokens)
 // Uses service role key - NEVER expose to client
 export const createAdminSupabaseClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getServerSupabaseUrl();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) return null;
   return createClient(url, serviceKey);
