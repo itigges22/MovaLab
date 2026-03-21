@@ -13,6 +13,19 @@ export default function Page() {
   const router = useRouter()
   const supabaseReady = isSupabaseConfigured()
 
+  // Check for first-run (no users) and redirect to onboarding
+  useEffect(() => {
+    if (!supabaseReady) return
+    fetch('/api/onboarding/check-first-run')
+      .then(res => res.json())
+      .then(data => {
+        if (data.firstRun) {
+          router.replace('/onboarding')
+        }
+      })
+      .catch(() => {})
+  }, [router, supabaseReady])
+
   useEffect(() => {
     // Wait for auth to finish loading before checking
     if (loading) return
