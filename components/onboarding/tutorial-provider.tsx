@@ -45,6 +45,9 @@ function extractUserPermissions(userProfile: Record<string, unknown>): string[] 
  * - Superadmin: Shows SUPERADMIN_TUTORIAL with required action validation
  * - Regular user: Shows dynamically generated tutorial based on role permissions
  */
+// Pages where the tutorial should never render (public pages, onboarding itself)
+const TUTORIAL_EXCLUDED_PATHS = ['/login', '/signup', '/onboarding', '/invite', '/auth', '/reset-password', '/forgot-password', '/setup', '/pending-approval'];
+
 export function TutorialProvider({ children }: TutorialProviderProps) {
   const { userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -72,8 +75,11 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
 
   const hasCompletedOnboarding = !!(profileAny?.has_completed_onboarding === true);
 
+  // Skip tutorial on public/onboarding pages (no auth required there)
+  const isExcludedPath = TUTORIAL_EXCLUDED_PATHS.some(p => pathname.startsWith(p));
+
   // Determine if the user needs the tutorial (superadmin OR regular user)
-  const needsTutorial = !!(
+  const needsTutorial = !isExcludedPath && !!(
     userProfile &&
     profileAny?.has_completed_onboarding === false
   );

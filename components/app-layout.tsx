@@ -11,7 +11,7 @@ interface AppLayoutProps {
 }
 
 // Pages that should NOT show the sidebar (auth pages, etc.)
-const noSidebarPages = ['/login', '/signup', '/auth', '/reset-password', '/update-password'];
+const noSidebarPages = ['/login', '/signup', '/auth', '/reset-password', '/update-password', '/onboarding', '/invite'];
 
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();

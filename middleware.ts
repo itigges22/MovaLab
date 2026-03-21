@@ -20,6 +20,8 @@ const publicRoutes = [
   '/login',
   '/signup',
   '/setup',
+  '/onboarding',
+  '/invite',
   '/pending-approval',
   '/welcome',
   '/reset-password',
@@ -76,8 +78,9 @@ export async function middleware(req: NextRequest) {
     res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
-  // Allow public routes, Next.js internals, and API routes
-  if (publicRoutes.includes(pathname) || pathname.startsWith('/_next') || pathname.startsWith('/api')) {
+  // Allow public routes (and their sub-paths), Next.js internals, and API routes
+  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
+  if (isPublicRoute || pathname.startsWith('/_next') || pathname.startsWith('/api')) {
     return res;
   }
 
