@@ -195,65 +195,55 @@ fi
 ok "Found publishable key: ${PUB_KEY:0:20}..."
 ok "Found secret key: ${SERVICE_KEY:0:20}..."
 
-# Configure local mail server on VPS (for sending real invitation emails)
+# SMTP configuration (VPS only — most cloud providers block port 25)
+SMTP_HOST=""
+SMTP_PORT=""
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM=""
+
 if [ "$IS_VPS" = true ]; then
   header "Email Configuration"
 
-  # Configure exim4 for internet delivery (most Debian/Ubuntu VPS have it pre-installed)
-  if command_exists exim4 || command_exists sendmail; then
-    MAIL_DOMAIN="${DOMAIN_NAME:-$(hostname -f)}"
+  echo "  MovaLab sends invitation emails when you add team members."
+  echo "  Most cloud VPS providers (DigitalOcean, AWS, etc.) block direct"
+  echo "  email sending. You need a free SMTP relay service."
+  echo ""
+  echo "  Recommended (free, no credit card):"
+  echo "    Brevo (brevo.com) — 300 emails/day free"
+  echo "      Host: smtp-relay.brevo.com"
+  echo "      Port: 587"
+  echo "      User: your Brevo login email"
+  echo "      Pass: SMTP key from Settings → SMTP & API"
+  echo ""
+  printf "  Configure SMTP now? (y/n): "
+  read -r CONFIGURE_SMTP
 
-    # Configure exim4 for internet delivery
-    if [ -f /etc/exim4/update-exim4.conf.conf ]; then
-      cat > /etc/exim4/update-exim4.conf.conf << EXIMEOF
-dc_eximconfig_configtype='internet'
-dc_other_hostnames='$(hostname)'
-dc_local_interfaces='127.0.0.1 ; ::1'
-dc_readhost='${MAIL_DOMAIN}'
-dc_relay_domains=''
-dc_minimaldns='false'
-dc_relay_nets=''
-dc_smarthost=''
-CFILEMODE='644'
-dc_use_split_config='false'
-dc_hide_mailname='true'
-dc_mailname_in_oh='true'
-dc_localdelivery='mail_spool'
-EXIMEOF
-      echo "$MAIL_DOMAIN" > /etc/mailname
-      update-exim4.conf 2>/dev/null && systemctl restart exim4 2>/dev/null
-      ok "Local mail server configured (exim4)"
-      info "  Emails sent from: noreply@${MAIL_DOMAIN}"
-      info "  No third-party SMTP service needed"
+  if [ "$CONFIGURE_SMTP" = "y" ] || [ "$CONFIGURE_SMTP" = "Y" ]; then
+    printf "  SMTP Host: "
+    read -r SMTP_HOST
+    printf "  SMTP Port (default 587): "
+    read -r SMTP_PORT
+    SMTP_PORT=${SMTP_PORT:-587}
+    printf "  SMTP Username: "
+    read -r SMTP_USER
+    printf "  SMTP Password/Key: "
+    read -rs SMTP_PASS
+    echo ""
+    printf "  From address (default: MovaLab <${SMTP_USER}>): "
+    read -r SMTP_FROM
+    SMTP_FROM=${SMTP_FROM:-"MovaLab <${SMTP_USER}>"}
+
+    if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then
+      ok "SMTP configured: ${SMTP_HOST}:${SMTP_PORT}"
+    else
+      warn "Incomplete SMTP config — emails will be caught locally (view at /mail/)"
+      SMTP_HOST=""
     fi
   else
-    # No local MTA — install one
-    info "Installing mail server (exim4)..."
-    apt-get install -y -qq exim4 >/dev/null 2>&1
-    if command_exists exim4; then
-      MAIL_DOMAIN="${DOMAIN_NAME:-$(hostname -f)}"
-      cat > /etc/exim4/update-exim4.conf.conf << EXIMEOF
-dc_eximconfig_configtype='internet'
-dc_other_hostnames='$(hostname)'
-dc_local_interfaces='127.0.0.1 ; ::1'
-dc_readhost='${MAIL_DOMAIN}'
-dc_relay_domains=''
-dc_minimaldns='false'
-dc_relay_nets=''
-dc_smarthost=''
-CFILEMODE='644'
-dc_use_split_config='false'
-dc_hide_mailname='true'
-dc_mailname_in_oh='true'
-dc_localdelivery='mail_spool'
-EXIMEOF
-      echo "$MAIL_DOMAIN" > /etc/mailname
-      update-exim4.conf 2>/dev/null && systemctl restart exim4 2>/dev/null
-      ok "Local mail server installed and configured"
-    else
-      warn "Could not install exim4. Emails will be caught by Mailpit (local only)."
-      warn "View emails at: /mail/"
-    fi
+    info "Skipping SMTP — emails will be caught locally by Mailpit"
+    info "View them at /mail/ through your browser"
+    info "You can add SMTP later by editing .env.local"
   fi
 fi
 
@@ -270,9 +260,26 @@ LOG_LEVEL=debug
 NODE_ENV=development
 ENVEOF
 
+# Append SMTP config if provided
+if [ -n "$SMTP_HOST" ]; then
+  cat >> .env.local << SMTPEOF
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_SECURE=false
+SMTP_USER=${SMTP_USER}
+SMTP_PASS=${SMTP_PASS}
+SMTP_FROM=${SMTP_FROM}
+SMTPEOF
+fi
+
 ok "Generated .env.local"
 info "  Supabase URL: $SUPABASE_URL"
 info "  App URL:      $APP_URL"
+if [ -n "$SMTP_HOST" ]; then
+  info "  SMTP:         $SMTP_HOST:$SMTP_PORT"
+else
+  info "  Email:        Local (Mailpit at /mail/)"
+fi
 
 # ============================================================
 header "Step 6: Nginx Reverse Proxy"

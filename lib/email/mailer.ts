@@ -7,25 +7,27 @@ function getTransporter(): Transporter {
   if (transporter) return transporter;
 
   if (process.env.SMTP_HOST) {
-    // Explicit SMTP config provided (Gmail, SendGrid, Mailgun, etc.)
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+    // External SMTP configured (Brevo, Gmail, SendGrid, etc.)
+    const authConfig = process.env.SMTP_USER ? {
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+    } : {};
+
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      ...authConfig,
     });
   } else {
-    // No SMTP configured — use local mail server (exim4/postfix/sendmail on port 25)
-    // Falls back to Mailpit (port 54325) if local MTA isn't available
+    // No SMTP configured — use Supabase Mailpit (local catch-all, emails viewable at /mail/)
     transporter = nodemailer.createTransport({
       host: '127.0.0.1',
-      port: 25,
+      port: 54325,
       secure: false,
       tls: { rejectUnauthorized: false },
-      // No auth needed for local MTA
     });
   }
 
