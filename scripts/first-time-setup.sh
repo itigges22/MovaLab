@@ -153,16 +153,34 @@ fi
 info "Reading Supabase keys..."
 SUPABASE_STATUS=$(npx supabase status 2>/dev/null)
 
+# Parse publishable key (look for "Publishable" or "anon" row)
 PUB_KEY=$(echo "$SUPABASE_STATUS" | grep -i "publishable" | grep -oE 'sb_publishable_[A-Za-z0-9_-]+' | head -1)
 if [ -z "$PUB_KEY" ]; then
-  PUB_KEY=$(echo "$SUPABASE_STATUS" | grep -i "anon" | grep -oE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
+  PUB_KEY=$(echo "$SUPABASE_STATUS" | grep -i "anon\|publishable" | grep -oE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
 fi
 
-SERVICE_KEY=$(echo "$SUPABASE_STATUS" | grep -i "service_role" | grep -oE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
-
-if [ -z "$PUB_KEY" ] || [ -z "$SERVICE_KEY" ]; then
-  fail "Could not read Supabase keys. Run 'npx supabase status' to check."
+# Parse service/secret key (look for "Secret" or "service_role" row)
+SERVICE_KEY=$(echo "$SUPABASE_STATUS" | grep -i "secret\|service_role" | grep -oE 'sb_secret_[A-Za-z0-9_-]+' | head -1)
+if [ -z "$SERVICE_KEY" ]; then
+  SERVICE_KEY=$(echo "$SUPABASE_STATUS" | grep -i "secret\|service_role" | grep -oE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
 fi
+
+if [ -z "$PUB_KEY" ]; then
+  warn "Could not detect publishable key"
+  warn "Supabase status output:"
+  echo "$SUPABASE_STATUS"
+  fail "Fix: copy the Publishable key from above into .env.local"
+fi
+
+if [ -z "$SERVICE_KEY" ]; then
+  warn "Could not detect secret/service key"
+  warn "Supabase status output:"
+  echo "$SUPABASE_STATUS"
+  fail "Fix: copy the Secret key from above into .env.local"
+fi
+
+ok "Found publishable key: ${PUB_KEY:0:20}..."
+ok "Found secret key: ${SERVICE_KEY:0:20}..."
 
 # Write .env.local from scratch (no sed, no template copying)
 cat > .env.local << ENVEOF
