@@ -9,8 +9,17 @@ export function generateToken(): string {
 // Check if this is a first run (no user_profiles exist)
 export async function isFirstRun(): Promise<boolean> {
   const supabase = createAdminSupabaseClient();
-  if (!supabase) return false;
-  const { count } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true });
+  if (!supabase) {
+    console.error('isFirstRun: SUPABASE_SERVICE_ROLE_KEY not configured. Cannot check first-run status.');
+    // Fallback: assume first run if admin client unavailable
+    // This ensures the onboarding wizard shows even if the env var is missing
+    return true;
+  }
+  const { count, error } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true });
+  if (error) {
+    console.error('isFirstRun: Failed to query user_profiles:', error.message);
+    return true; // Assume first run on error — better to show onboarding than login
+  }
   return (count ?? 0) === 0;
 }
 

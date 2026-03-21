@@ -137,7 +137,39 @@ ok "API ready at http://127.0.0.1:54321"
 # No need for a separate db reset — that would double-run everything
 
 # ============================================================
-header "Step 5: Ready!"
+header "Step 5: Configure Environment Keys"
+
+# Read actual keys from running Supabase instance and update .env.local
+info "Reading Supabase keys from running instance..."
+
+SUPABASE_URL="http://127.0.0.1:54321"
+
+# Get publishable key from supabase status
+PUB_KEY=$(npx supabase status 2>/dev/null | grep "Publishable" | awk '{print $NF}' | tr -d '│ ')
+SERVICE_KEY=$(npx supabase status 2>/dev/null | grep "service_role" | awk '{print $NF}' | tr -d '│ ')
+
+if [ -z "$PUB_KEY" ]; then
+  # Fallback: try different parsing
+  PUB_KEY=$(npx supabase status 2>/dev/null | grep -i "publishable" | grep -oE 'sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+')
+fi
+
+if [ -z "$SERVICE_KEY" ]; then
+  SERVICE_KEY=$(npx supabase status 2>/dev/null | grep -i "service_role" | grep -oE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+')
+fi
+
+if [ -n "$PUB_KEY" ] && [ -n "$SERVICE_KEY" ]; then
+  # Update .env.local with actual keys
+  sed -i "s|^NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=.*|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${PUB_KEY}|" .env.local
+  sed -i "s|^SUPABASE_SERVICE_ROLE_KEY=.*|SUPABASE_SERVICE_ROLE_KEY=${SERVICE_KEY}|" .env.local
+  ok "Updated .env.local with Supabase keys"
+else
+  warn "Could not auto-detect Supabase keys. You may need to update .env.local manually."
+  warn "Run: npx supabase status"
+  warn "Copy the Publishable key and service_role key into .env.local"
+fi
+
+# ============================================================
+header "Step 6: Ready!"
 
 echo ""
 echo "Start the app:"

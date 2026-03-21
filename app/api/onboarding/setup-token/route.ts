@@ -10,7 +10,10 @@ export async function GET() {
 
   const token = await createSetupToken();
   if (!token) {
-    return NextResponse.json({ error: 'Failed to generate setup token' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Failed to generate setup token. Make sure SUPABASE_SERVICE_ROLE_KEY is set in .env.local',
+      hint: 'Check that your .env.local file has the SUPABASE_SERVICE_ROLE_KEY from your Supabase config.'
+    }, { status: 500 });
   }
 
   // Log token to server console (admin sees this in VPS terminal)
