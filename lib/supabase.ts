@@ -10,9 +10,9 @@ const getSupabasePublishableKey = () => {
 export const isSupabaseConfigured = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabasePublishableKey = getSupabasePublishableKey();
-  return supabaseUrl && supabasePublishableKey &&
+  return !!(supabaseUrl && supabasePublishableKey &&
     supabaseUrl !== 'your-supabase-project-url' &&
-    supabasePublishableKey !== 'your-supabase-publishable-key';
+    supabasePublishableKey !== 'your-supabase-publishable-key');
 };
 
 // Singleton client instance to avoid multiple GoTrueClient instances
@@ -42,7 +42,13 @@ export const createClientSupabase = () => {
       logger.error('Supabase environment variables are not set', {});
       return null;
     }
-    clientInstance = createBrowserClient(supabaseUrl, supabasePublishableKey);
+    // If URL is a relative path (e.g., /supabase from Nginx proxy),
+    // resolve it to a full URL using the current browser origin
+    let resolvedUrl = supabaseUrl;
+    if (resolvedUrl.startsWith('/') && typeof window !== 'undefined') {
+      resolvedUrl = `${window.location.origin}${resolvedUrl}`;
+    }
+    clientInstance = createBrowserClient(resolvedUrl, supabasePublishableKey);
     
     // Set up automatic session refresh on token expiry
     // This prevents "Auth session missing!" errors when idle
