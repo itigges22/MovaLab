@@ -167,6 +167,88 @@ The `.env.local` file is created automatically from `.env.local.template` during
 
 ---
 
+## Troubleshooting
+
+### Stuck on Welcome/Login page after database reset
+
+**Symptom:** After resetting the database (`npx supabase db reset`), you get stuck in a loop between `/welcome` and `/login`, or the onboarding wizard doesn't appear.
+
+**Cause:** Your browser has stale authentication tokens from a previous session. The tokens reference a user that no longer exists in the reset database, so the auth refresh fails (HTTP 400), but the browser keeps trying.
+
+**Fix:** Clear all site data for your domain:
+1. Open browser DevTools (F12)
+2. Go to **Application** → **Storage** → click **Clear site data**
+3. Or open an **incognito/private window** and navigate to your site
+
+### Setup token not appearing in console
+
+**Symptom:** You click "Begin Setup" but no token appears in the server terminal.
+
+**Cause:** In production mode (`npm start`), `console.log` is stripped. The setup token uses `console.warn` which survives production builds.
+
+**Fix:** Check the terminal where `npm start` is running. The token appears as:
+```
+========================================
+SUPERADMIN SETUP TOKEN
+   Token: abc123...
+   Expires in 15 minutes
+========================================
+```
+
+If running in background (`nohup npm start > movalab.log 2>&1 &`), check the log:
+```bash
+tail -20 movalab.log
+```
+
+### "Could not find table setup_tokens" error
+
+**Symptom:** `PGRST205` error — table not found in schema cache.
+
+**Cause:** PostgREST (Supabase's API layer) caches the database schema. After applying new migrations, the cache is stale.
+
+**Fix:** Restart Supabase to refresh the schema cache:
+```bash
+npx supabase stop --no-backup && npx supabase start
+```
+
+### Supabase containers crashing or hanging
+
+**Symptom:** `supabase start` hangs, or containers keep dying.
+
+**Cause:** Insufficient memory. Supabase runs ~12 Docker containers that need ~2-3 GB RAM. With Next.js and the OS, you need at least 4 GB total (8 GB recommended).
+
+**Fix:**
+```bash
+docker system prune -f          # Free up Docker disk/memory
+systemctl restart docker         # Restart Docker daemon
+npx supabase start               # Try again
+```
+
+If it persists, upgrade to an 8 GB VPS.
+
+### Mixed content / CORS / CSP errors
+
+**Symptom:** Browser console shows "Mixed Content", "CORS policy", or "Content Security Policy" errors when trying to reach Supabase.
+
+**Cause:** The browser is accessing the site via HTTPS but Supabase is on HTTP, or the Supabase URL doesn't match the CSP.
+
+**Fix:** This is handled automatically by the setup script — Supabase is proxied through Nginx at `/supabase/` so everything stays on the same origin. If you see these errors:
+1. Make sure Nginx is running: `systemctl status nginx`
+2. Make sure the config is correct: `nginx -t`
+3. Rebuild the app: `rm -rf .next && npm run build && npm start`
+
+### Docker Hub rate limiting
+
+**Symptom:** `supabase start` fails with "Rate exceeded" errors when pulling images.
+
+**Fix:** Log into Docker Hub (free account gets 200 pulls/6hr instead of 100):
+```bash
+docker login
+```
+Then retry `npx supabase start`. Already-pulled images are cached.
+
+---
+
 ## Related Documentation
 
 - [Docker Setup Guide](./docker-setup.md) -- Local development environment details
