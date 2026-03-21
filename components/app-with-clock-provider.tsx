@@ -3,6 +3,7 @@
 import { ClockWidgetStateProvider } from '@/lib/hooks/use-clock-widget-state';
 import { AppLayout } from '@/components/app-layout';
 import { ClockWidgetManager } from '@/components/clock-widget-manager';
+import { BugReporter } from '@/components/bug-reporter';
 import { TutorialProvider } from '@/components/onboarding/tutorial-provider';
 
 interface AppWithClockProviderProps {
@@ -24,6 +25,7 @@ export function AppWithClockProvider({ children }: AppWithClockProviderProps) {
         </TutorialProvider>
       </AppLayout>
       <ClockWidgetManager />
+      <BugReporter />
     </ClockWidgetStateProvider>
   );
 }

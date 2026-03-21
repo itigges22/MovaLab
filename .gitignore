@@ -137,3 +137,6 @@ bun.lockb
 # Local documentation (keep main docs/)
 docs/phase*.md
 docs/*-status.md
+
+# Bug report data (local only)
+/data/
