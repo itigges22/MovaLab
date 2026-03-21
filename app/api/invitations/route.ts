@@ -104,8 +104,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create invitation' }, { status: 500 });
     }
 
-    // Build accept URL
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // Build accept URL from the incoming request (auto-detects domain)
+    const proto = request.headers.get('x-forwarded-proto') || 'http';
+    const host = request.headers.get('host') || 'localhost:3000';
+    const appUrl = `${proto}://${host}`;
     const acceptUrl = `${appUrl}/invite/${token}`;
 
     // Determine department name

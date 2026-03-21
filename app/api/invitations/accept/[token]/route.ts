@@ -224,8 +224,10 @@ export async function POST(
       // Non-fatal: onboarding state can be created later
     }
 
-    // 6. Send welcome email
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // 6. Send welcome email (auto-detect domain from request)
+    const proto = request.headers.get('x-forwarded-proto') || 'http';
+    const host = request.headers.get('host') || 'localhost:3000';
+    const appUrl = `${proto}://${host}`;
     const roleName = (invitation.roles as any)?.name || 'Team Member';
 
     const emailContent = welcomeEmailTemplate({
