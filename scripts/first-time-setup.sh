@@ -135,18 +135,27 @@ ok "API ready at http://127.0.0.1:54321"
 # ============================================================
 header "Step 5: Generate .env.local"
 
-# Detect public IP (for VPS — browsers need to reach Supabase externally)
+# Detect public IP
 info "Detecting server IP..."
 PUBLIC_IP=$(curl -s -4 --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s -4 --connect-timeout 5 icanhazip.com 2>/dev/null || echo "")
 
 if [ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != "127.0.0.1" ]; then
-  SUPABASE_URL="http://${PUBLIC_IP}:54321"
-  APP_URL="http://${PUBLIC_IP}:3000"
+  IS_VPS=true
   ok "Public IP detected: $PUBLIC_IP"
 else
+  IS_VPS=false
+  ok "Local development mode (no public IP)"
+fi
+
+# Supabase URL: use /supabase/ proxy path if Nginx will be set up, otherwise direct
+if [ "$IS_VPS" = true ]; then
+  # VPS: browser goes through Nginx proxy at /supabase/
+  SUPABASE_URL="http://${PUBLIC_IP}/supabase"
+  APP_URL="http://${PUBLIC_IP}"
+else
+  # Local dev: direct connection
   SUPABASE_URL="http://127.0.0.1:54321"
   APP_URL="http://localhost:3000"
-  ok "Local development mode (no public IP)"
 fi
 
 # Read keys from running Supabase
@@ -199,19 +208,69 @@ info "  Supabase URL: $SUPABASE_URL"
 info "  App URL:      $APP_URL"
 
 # ============================================================
-header "Step 6: Ready!"
+header "Step 6: Nginx Reverse Proxy"
+
+if [ "$IS_VPS" = true ]; then
+  # Install Nginx if not present
+  if ! command_exists nginx; then
+    info "Installing Nginx..."
+    apt-get update -qq && apt-get install -y -qq nginx >/dev/null 2>&1 || {
+      warn "Could not install Nginx automatically."
+      warn "Install it manually: sudo apt install nginx"
+      warn "Then copy nginx/movalab.conf to /etc/nginx/sites-enabled/"
+    }
+  fi
+
+  if command_exists nginx; then
+    ok "Nginx installed"
+
+    # Deploy config
+    cp nginx/movalab.conf /etc/nginx/sites-available/movalab 2>/dev/null || true
+    ln -sf /etc/nginx/sites-available/movalab /etc/nginx/sites-enabled/movalab 2>/dev/null || true
+    rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+    # Test and reload
+    if nginx -t 2>/dev/null; then
+      systemctl enable nginx 2>/dev/null || true
+      systemctl restart nginx 2>/dev/null || true
+      ok "Nginx configured and running"
+      info "  Port 80 → Next.js (port 3000)"
+      info "  /supabase/ → Supabase API (port 54321)"
+      info "  /studio/ → Supabase Studio (port 54323)"
+      info "  /mail/ → Mailpit email testing (port 54324)"
+    else
+      warn "Nginx config test failed. Check: nginx -t"
+    fi
+  fi
+else
+  info "Skipping Nginx (local development — not needed)"
+fi
+
+# ============================================================
+header "Step 7: Ready!"
 
 echo ""
 echo "Start the app:"
 printf "  ${GREEN}npm run dev${NC}\n"
 echo ""
-echo "Then open: http://localhost:3000"
-echo ""
-echo "The setup wizard will guide you through creating your"
-echo "superadmin account. Check the terminal for your setup token."
-echo ""
-echo "Supabase Studio: http://localhost:54323"
-echo "Email Testing:   http://localhost:54324 (Inbucket)"
+
+if [ "$IS_VPS" = true ]; then
+  echo "Then open: http://${PUBLIC_IP}"
+  echo ""
+  echo "The setup wizard will guide you through creating your"
+  echo "superadmin account. Check the terminal for your setup token."
+  echo ""
+  echo "Supabase Studio: http://${PUBLIC_IP}/studio/"
+  echo "Email Testing:   http://${PUBLIC_IP}/mail/"
+else
+  echo "Then open: http://localhost:3000"
+  echo ""
+  echo "The setup wizard will guide you through creating your"
+  echo "superadmin account. Check the terminal for your setup token."
+  echo ""
+  echo "Supabase Studio: http://localhost:54323"
+  echo "Email Testing:   http://localhost:54324 (Inbucket)"
+fi
 echo ""
 
 if [ "$IS_WINDOWS" = true ]; then

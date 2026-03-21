@@ -164,14 +164,14 @@ const nextConfig: NextConfig = {
                   "frame-ancestors 'none'",
                   "upgrade-insecure-requests"
                 ].join('; ')
-              : // More lenient CSP for development
+              : // Development CSP — allow self + Supabase URL + local dev servers
                 [
                   "default-src 'self'",
                   "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
                   "style-src 'self' 'unsafe-inline'",
                   "img-src 'self' data: https: blob:",
                   "font-src 'self' data:",
-                  "connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* https://*.supabase.co",
+                  `connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* https://*.supabase.co ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}`,
                   "frame-src 'self'",
                 ].join('; ')
           }
