@@ -55,15 +55,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const initialProfileRequest = getCurrentUserProfile()
           currentProfileRequest = initialProfileRequest
           initialProfileRequest
-            .then(profile => {
+            .then(async (profile) => {
               if (isMounted && currentProfileRequest === initialProfileRequest) {
-                setUserProfile(profile)
+                if (!profile) {
+                  // User exists in auth but not in user_profiles (stale session after DB reset)
+                  logger.error('User session exists but profile not found — clearing stale session')
+                  try { await supabase.auth.signOut() } catch { /* ignore */ }
+                  setUser(null)
+                  setUserProfile(null)
+                } else {
+                  setUserProfile(profile)
+                }
                 setLoading(false)
               }
             })
-            .catch(error => {
+            .catch(async (error) => {
               if (isMounted) {
                 logger.error('Error loading initial user profile', {}, error as Error)
+                // Profile fetch failed — session is likely stale (user doesn't exist in DB)
+                // Sign out to clear invalid cookies and prevent login/welcome loop
+                try {
+                  await supabase.auth.signOut()
+                } catch { /* ignore signout errors */ }
+                setUser(null)
                 setUserProfile(null)
                 setLoading(false)
               }
