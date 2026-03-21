@@ -154,20 +154,25 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value: process.env.NODE_ENV === 'production'
-              ? [
-                  "default-src 'self'",
-                  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-                  "style-src 'self' 'unsafe-inline'",
-                  "img-src 'self' data: https: blob:",
-                  "font-src 'self' data:",
-                  `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}`,
-                  "frame-src 'self'",
-                  "object-src 'none'",
-                  "base-uri 'self'",
-                  "form-action 'self'",
-                  "frame-ancestors 'none'",
-                  "upgrade-insecure-requests"
-                ].join('; ')
+              ? (() => {
+                  // Build connect-src with both http and https variants of Supabase URL
+                  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+                  const sbHttps = sbUrl.replace('http://', 'https://');
+                  const connectSrc = `connect-src 'self' ${sbUrl} ${sbHttps}`.trim();
+                  return [
+                    "default-src 'self'",
+                    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+                    "style-src 'self' 'unsafe-inline'",
+                    "img-src 'self' data: https: blob:",
+                    "font-src 'self' data:",
+                    connectSrc,
+                    "frame-src 'self'",
+                    "object-src 'none'",
+                    "base-uri 'self'",
+                    "form-action 'self'",
+                    "frame-ancestors 'none'",
+                  ].join('; ');
+                })()
               : // Development CSP — allow self + Supabase URL + local dev servers
                 [
                   "default-src 'self'",
