@@ -252,22 +252,40 @@ else
 fi
 
 # ============================================================
-header "Step 7: Ready!"
-
-echo ""
-echo "Start the app:"
-printf "  ${GREEN}npm run dev${NC}\n"
-echo ""
+header "Step 7: Build & Start"
 
 if [ "$IS_VPS" = true ]; then
-  echo "Then open: http://${PUBLIC_IP}"
-  echo ""
-  echo "The setup wizard will guide you through creating your"
-  echo "superadmin account. Check the terminal for your setup token."
-  echo ""
-  echo "Supabase Studio: http://${PUBLIC_IP}/studio/"
-  echo "Email Testing:   http://${PUBLIC_IP}/mail/"
+  # VPS: build for production (no cross-origin issues, faster, optimized)
+  info "Building for production..."
+  NODE_ENV=production npm run build 2>&1 | tail -5
+
+  if [ $? -eq 0 ]; then
+    ok "Production build complete"
+    echo ""
+    echo "Start the app:"
+    printf "  ${GREEN}npm start${NC}\n"
+    echo ""
+    echo "Or run in background:"
+    printf "  ${GREEN}nohup npm start > movalab.log 2>&1 &${NC}\n"
+    echo ""
+    echo "Then open: http://${PUBLIC_IP}"
+    echo ""
+    echo "The setup wizard will guide you through creating your"
+    echo "superadmin account. Check the terminal (or movalab.log) for your setup token."
+    echo ""
+    echo "Supabase Studio: http://${PUBLIC_IP}/studio/"
+    echo "Email Testing:   http://${PUBLIC_IP}/mail/"
+  else
+    warn "Production build failed. Falling back to dev mode."
+    echo ""
+    echo "Start the app:"
+    printf "  ${GREEN}npm run dev${NC}\n"
+  fi
 else
+  echo ""
+  echo "Start the app:"
+  printf "  ${GREEN}npm run dev${NC}\n"
+  echo ""
   echo "Then open: http://localhost:3000"
   echo ""
   echo "The setup wizard will guide you through creating your"
