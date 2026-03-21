@@ -36,16 +36,12 @@ export default function Home() {
 
   useEffect(() => {
     if (!firstRunChecked || isFirstRun) return
-    if (!loading && user && userProfile) {
-      // User is authenticated AND profile is loaded — safe to redirect
-      const hasRoles = userProfile.user_roles && userProfile.user_roles.length > 0
-      if (hasRoles) {
-        router.push('/dashboard')
-      } else {
-        router.push('/welcome')
-      }
+    if (!loading && user) {
+      // User is authenticated — always go to dashboard
+      // Dashboard handles its own auth and permission checks
+      router.push('/dashboard')
     }
-  }, [user, userProfile, loading, router, firstRunChecked, isFirstRun])
+  }, [user, loading, router, firstRunChecked, isFirstRun])
 
   // Show spinner while checking first-run or redirecting to onboarding
   if (!firstRunChecked || isFirstRun) {
