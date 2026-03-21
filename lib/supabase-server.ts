@@ -51,6 +51,9 @@ export const createServerSupabase = async () => {
   const supabasePublishableKey = getSupabasePublishableKey();
   const cookieStore = await cookies();
   return createServerClient(supabaseUrl!, supabasePublishableKey!, {
+    cookieOptions: {
+      name: 'sb-movalab-auth',
+    },
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -131,6 +134,9 @@ export const createApiSupabaseClient = (request: NextRequest) => {
   });
 
   return createServerClient(supabaseUrl!, supabasePublishableKey!, {
+    cookieOptions: {
+      name: 'sb-movalab-auth',
+    },
     cookies: {
       get(name: string) {
         // Return the exact cookie value as-is

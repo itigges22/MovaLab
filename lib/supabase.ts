@@ -48,7 +48,11 @@ export const createClientSupabase = () => {
     if (resolvedUrl.startsWith('/') && typeof window !== 'undefined') {
       resolvedUrl = `${window.location.origin}${resolvedUrl}`;
     }
-    clientInstance = createBrowserClient(resolvedUrl, supabasePublishableKey);
+    clientInstance = createBrowserClient(resolvedUrl, supabasePublishableKey, {
+      cookieOptions: {
+        name: 'sb-movalab-auth',
+      },
+    });
     
     // Set up automatic session refresh on token expiry
     // This prevents "Auth session missing!" errors when idle

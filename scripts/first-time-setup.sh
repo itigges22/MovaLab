@@ -149,10 +149,10 @@ fi
 
 # Supabase URL: use /supabase/ proxy path if Nginx will be set up, otherwise direct
 if [ "$IS_VPS" = true ]; then
-  # VPS mode: both browser and server use the same Supabase URL
-  # Browser reaches Supabase via public IP (port 54321 must be open)
-  # This ensures cookie names match between client and server
-  SUPABASE_URL="http://${PUBLIC_IP}:54321"
+  # VPS mode: Supabase is proxied through Nginx at /supabase/
+  # Browser calls same-origin /supabase/* (works with HTTPS, no mixed content)
+  # Server calls localhost directly (fast, no proxy overhead)
+  SUPABASE_URL="/supabase"
   SUPABASE_SERVER_URL="http://127.0.0.1:54321"
   APP_URL="http://${PUBLIC_IP}"
 else
