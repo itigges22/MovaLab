@@ -195,55 +195,32 @@ fi
 ok "Found publishable key: ${PUB_KEY:0:20}..."
 ok "Found secret key: ${SERVICE_KEY:0:20}..."
 
-# SMTP configuration (VPS only — most cloud providers block port 25)
-SMTP_HOST=""
-SMTP_PORT=""
-SMTP_USER=""
-SMTP_PASS=""
-SMTP_FROM=""
+# Email configuration (VPS only)
+RESEND_API_KEY=""
 
 if [ "$IS_VPS" = true ]; then
   header "Email Configuration"
 
-  echo "  MovaLab sends invitation emails when you add team members."
-  echo "  Most cloud VPS providers (DigitalOcean, AWS, etc.) block direct"
-  echo "  email sending. You need a free SMTP relay service."
+  echo "  MovaLab uses Resend (resend.com) to send invitation emails."
+  echo "  Sign up free at https://resend.com (100 emails/day, no credit card)."
+  echo "  Then copy your API key from the dashboard."
   echo ""
-  echo "  Recommended (free, no credit card):"
-  echo "    Brevo (brevo.com) — 300 emails/day free"
-  echo "      Host: smtp-relay.brevo.com"
-  echo "      Port: 587"
-  echo "      User: your Brevo login email"
-  echo "      Pass: SMTP key from Settings → SMTP & API"
-  echo ""
-  printf "  Configure SMTP now? (y/n): "
-  read -r CONFIGURE_SMTP
+  printf "  Resend API Key (starts with re_): "
+  read -r RESEND_API_KEY
 
-  if [ "$CONFIGURE_SMTP" = "y" ] || [ "$CONFIGURE_SMTP" = "Y" ]; then
-    printf "  SMTP Host: "
-    read -r SMTP_HOST
-    printf "  SMTP Port (default 587): "
-    read -r SMTP_PORT
-    SMTP_PORT=${SMTP_PORT:-587}
-    printf "  SMTP Username: "
-    read -r SMTP_USER
-    printf "  SMTP Password/Key: "
-    read -rs SMTP_PASS
-    echo ""
-    printf "  From address (default: MovaLab <${SMTP_USER}>): "
-    read -r SMTP_FROM
-    SMTP_FROM=${SMTP_FROM:-"MovaLab <${SMTP_USER}>"}
-
-    if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then
-      ok "SMTP configured: ${SMTP_HOST}:${SMTP_PORT}"
-    else
-      warn "Incomplete SMTP config — emails will be caught locally (view at /mail/)"
-      SMTP_HOST=""
-    fi
+  if [ -n "$RESEND_API_KEY" ]; then
+    ok "Resend configured"
   else
-    info "Skipping SMTP — emails will be caught locally by Mailpit"
-    info "View them at /mail/ through your browser"
-    info "You can add SMTP later by editing .env.local"
+    warn "No API key entered — invitation emails will be caught locally"
+    warn "View them at /mail/ in your browser"
+    warn ""
+    warn "To enable real email delivery later, add to .env.local:"
+    warn "  SMTP_HOST=smtp.resend.com"
+    warn "  SMTP_PORT=465"
+    warn "  SMTP_SECURE=true"
+    warn "  SMTP_USER=resend"
+    warn "  SMTP_PASS=re_your_api_key"
+    warn "  SMTP_FROM=MovaLab <onboarding@resend.dev>"
   fi
 fi
 
@@ -260,25 +237,25 @@ LOG_LEVEL=debug
 NODE_ENV=development
 ENVEOF
 
-# Append SMTP config if provided
-if [ -n "$SMTP_HOST" ]; then
+# Append Resend SMTP config if API key was provided
+if [ -n "$RESEND_API_KEY" ]; then
   cat >> .env.local << SMTPEOF
-SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
-SMTP_SECURE=false
-SMTP_USER=${SMTP_USER}
-SMTP_PASS=${SMTP_PASS}
-SMTP_FROM=${SMTP_FROM}
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=resend
+SMTP_PASS=${RESEND_API_KEY}
+SMTP_FROM=MovaLab <onboarding@resend.dev>
 SMTPEOF
 fi
 
 ok "Generated .env.local"
 info "  Supabase URL: $SUPABASE_URL"
 info "  App URL:      $APP_URL"
-if [ -n "$SMTP_HOST" ]; then
-  info "  SMTP:         $SMTP_HOST:$SMTP_PORT"
+if [ -n "$RESEND_API_KEY" ]; then
+  info "  Email:        Resend (smtp.resend.com)"
 else
-  info "  Email:        Local (Mailpit at /mail/)"
+  info "  Email:        Local only (Mailpit at /mail/)"
 fi
 
 # ============================================================
