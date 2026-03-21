@@ -13,7 +13,7 @@ import {
   FolderOpen,
   CheckCircle,
   ChevronRight,
-  SkipForward,
+  X,
   Minimize2,
   Maximize2,
   Loader2,
@@ -48,13 +48,12 @@ export function TutorialOverlay({
   onSkip,
   onComplete,
   loading = false,
-  actionCompleted = false,
 }: TutorialOverlayProps) {
   const [minimized, setMinimized] = useState(false);
 
   const step = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
-  const progressPercent = ((currentStep) / (steps.length - 1)) * 100;
+  const progressPercent = steps.length > 1 ? ((currentStep) / (steps.length - 1)) * 100 : 100;
 
   const StepIcon = step ? ICON_MAP[step.icon] || CheckCircle : CheckCircle;
 
@@ -67,12 +66,11 @@ export function TutorialOverlay({
 
     if (!step?.targetSelector || minimized) return;
 
-    // Small delay to let the page render after navigation
+    // Small delay to let the page render
     const timer = setTimeout(() => {
       const target = document.querySelector(step.targetSelector!);
       if (target) {
         target.classList.add('tutorial-highlight');
-        // Scroll the target into view if needed
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 500);
@@ -92,9 +90,6 @@ export function TutorialOverlay({
   }, [highlightTarget]);
 
   if (!step) return null;
-
-  // Determine if the Next button should be disabled
-  const nextDisabled = loading || (step.isRequired && !!step.requiredAction && !actionCompleted);
 
   if (minimized) {
     return (
@@ -173,29 +168,18 @@ export function TutorialOverlay({
               {step.description}
             </p>
 
-            {/* Required action hint */}
-            {step.isRequired && step.requiredAction && !actionCompleted && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                Complete the action above to continue
-              </p>
-            )}
-
             {/* Buttons */}
             <div className="flex items-center justify-between pt-1">
-              <div>
-                {!step.isRequired && !isLastStep && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onSkip}
-                    disabled={loading}
-                    className="text-muted-foreground"
-                  >
-                    <SkipForward className="h-3.5 w-3.5 mr-1.5" />
-                    Skip
-                  </Button>
-                )}
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSkip}
+                disabled={loading}
+                className="text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5 mr-1.5" />
+                Skip Tutorial
+              </Button>
 
               <div>
                 {isLastStep ? (
@@ -208,12 +192,12 @@ export function TutorialOverlay({
                     Finish Tutorial
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={onNext} disabled={nextDisabled}>
+                  <Button size="sm" onClick={onNext} disabled={loading}>
                     {loading ? (
                       <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     ) : (
                       <>
-                        Next Step
+                        Next
                         <ChevronRight className="h-3.5 w-3.5 ml-1" />
                       </>
                     )}

@@ -218,8 +218,8 @@ export function generateUserTutorial(permissions: string[]): TutorialStep[] {
   if (permissions.some(p => ['manage_user_roles', 'manage_users'].includes(p))) {
     steps.push({
       id: 'admin_roles',
-      title: 'Role Management',
-      description: 'As an admin, you can create roles, set permissions, and manage the organizational hierarchy.',
+      title: 'User Management',
+      description: 'As an admin, you can create roles, set permissions, manage the organizational hierarchy, and invite team members.',
       targetPage: '/admin/roles',
       order: order++,
       isRequired: false,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { Loader2, RefreshCw, XCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -37,6 +37,7 @@ export function InvitationList() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [resending, setResending] = useState<string | null>(null);
 
   const fetchInvitations = useCallback(async () => {
     try {
@@ -80,6 +81,27 @@ export function InvitationList() {
       toast.error('Network error. Please try again.');
     } finally {
       setRevoking(null);
+    }
+  }
+
+  async function handleResend(id: string) {
+    setResending(id);
+    try {
+      const res = await fetch(`/api/invitations/${id}/resend`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        toast.success('Invitation email resent');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to resend invitation');
+      }
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setResending(null);
     }
   }
 
@@ -152,22 +174,40 @@ export function InvitationList() {
                     </TableCell>
                     <TableCell className="text-right">
                       {inv.status === 'pending' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleRevoke(inv.id)}
-                          disabled={revoking === inv.id}
-                        >
-                          {revoking === inv.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <XCircle className="mr-1 h-4 w-4" />
-                              Revoke
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={() => handleResend(inv.id)}
+                            disabled={resending === inv.id}
+                          >
+                            {resending === inv.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="mr-1 h-4 w-4" />
+                                Resend
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleRevoke(inv.id)}
+                            disabled={revoking === inv.id}
+                          >
+                            {revoking === inv.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <XCircle className="mr-1 h-4 w-4" />
+                                Revoke
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

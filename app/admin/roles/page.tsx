@@ -15,12 +15,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Plus, 
-  RefreshCw, 
+import {
+  Plus,
+  RefreshCw,
   Building2,
   Network,
-  Briefcase
+  Briefcase,
+  UserPlus,
+  Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RoleHierarchyDnd, RoleWithUsers } from '@/components/org-chart/role-hierarchy-dnd';
@@ -30,6 +32,8 @@ import { UserAssignmentDialog } from '@/components/org-chart/user-assignment-dia
 import { ReportingRoleDialog } from '@/components/org-chart/reporting-role-dialog';
 import { DepartmentView } from '@/components/org-chart/department-view';
 import { AccountView } from '@/components/org-chart/account-view';
+import { InvitationDialog } from '@/components/onboarding/invitation-dialog';
+import { InvitationList } from '@/components/onboarding/invitation-list';
 import { RoleGuard } from '@/components/role-guard';
 import { Permission } from '@/lib/permissions';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -50,7 +54,9 @@ export default function RoleManagementPage() {
   const [roles, setRoles] = useState<RoleWithUsers[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewType, setViewType] = useState<'hierarchy' | 'department' | 'accounts'>('hierarchy');
+  const [viewType, setViewType] = useState<'hierarchy' | 'department' | 'accounts' | 'invitations'>('hierarchy');
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [invitationRefreshKey, setInvitationRefreshKey] = useState(0);
   
   
   // Dialogs
@@ -396,9 +402,9 @@ export default function RoleManagementPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Role Management</h1>
+          <h1 className="text-3xl font-bold">User Management</h1>
           <p className="text-gray-500 mt-1">
-            Manage organizational roles and hierarchy
+            Manage organizational roles, hierarchy, and team invitations
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -407,16 +413,26 @@ export default function RoleManagementPage() {
             Refresh
           </Button>
           {canCreateRole && (
-            <Button data-tutorial="create-role" onClick={() => setCreateDialogOpen(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Role
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setInviteDialogOpen(true)}
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invite User
+              </Button>
+              <Button data-tutorial="create-role" onClick={() => setCreateDialogOpen(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Role
+              </Button>
+            </>
           )}
         </div>
       </div>
 
       {/* View Toggle */}
-      <Tabs value={viewType} onValueChange={(v) => setViewType(v as 'hierarchy' | 'department' | 'accounts')} className="w-full">
+      <Tabs value={viewType} onValueChange={(v) => setViewType(v as 'hierarchy' | 'department' | 'accounts' | 'invitations')} className="w-full">
         <TabsList>
           <TabsTrigger value="hierarchy" className="flex items-center gap-2">
             <Network className="h-4 w-4" />
@@ -432,6 +448,10 @@ export default function RoleManagementPage() {
               Accounts View
             </TabsTrigger>
           )}
+          <TabsTrigger value="invitations" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Invitations
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="hierarchy" className="space-y-6 mt-6">
@@ -488,9 +508,40 @@ export default function RoleManagementPage() {
             />
           </TabsContent>
         )}
+
+        <TabsContent value="invitations" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Team Invitations</CardTitle>
+                  <CardDescription>
+                    Invite new team members and manage pending invitations.
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => setInviteDialogOpen(true)}
+                  size="sm"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite User
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <InvitationList key={invitationRefreshKey} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
+      <InvitationDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        onInvited={() => setInvitationRefreshKey(k => k + 1)}
+      />
+
       <RoleCreationDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}

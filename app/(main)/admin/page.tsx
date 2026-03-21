@@ -46,8 +46,8 @@ export default function AdminHubPage() {
   const isSuperadminUser = userProfile ? isSuperadmin(userProfile) : false;
   const userManagementFeatures = [
     {
-      title: 'Role Management',
-      description: 'Manage organizational roles, permissions, and hierarchies. Assign users to roles and define reporting structures.',
+      title: 'User Management',
+      description: 'Manage organizational roles, permissions, hierarchies, and team invitations. Assign users to roles and define reporting structures.',
       icon: Shield,
       href: '/admin/roles',
       color: 'text-red-600 bg-red-50',

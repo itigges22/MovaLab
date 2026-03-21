@@ -104,7 +104,7 @@ const adminMenuItems: AdminMenuItem[] = [
     anyPermission: [Permission.MANAGE_WORKFLOWS, Permission.MANAGE_ALL_WORKFLOWS],
   },
   {
-    name: 'Role Management',
+    name: 'User Management',
     href: '/admin/roles',
     icon: Shield,
     anyPermission: [Permission.MANAGE_USER_ROLES, Permission.MANAGE_USERS],

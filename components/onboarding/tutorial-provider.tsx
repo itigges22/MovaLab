@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { SUPERADMIN_TUTORIAL, generateUserTutorial, TutorialStep } from '@/lib/onboarding/tutorial-steps';
 import { TutorialOverlay } from '@/components/onboarding/tutorial-overlay';
@@ -37,33 +37,24 @@ function extractUserPermissions(userProfile: Record<string, unknown>): string[] 
   return Array.from(permissionSet);
 }
 
-/**
- * Wraps the app and shows the tutorial overlay when the authenticated user
- * has not yet completed onboarding (has_completed_onboarding === false).
- *
- * Supports two tutorial modes:
- * - Superadmin: Shows SUPERADMIN_TUTORIAL with required action validation
- * - Regular user: Shows dynamically generated tutorial based on role permissions
- */
 // Pages where the tutorial should never render (public pages, onboarding itself)
 const TUTORIAL_EXCLUDED_PATHS = ['/login', '/signup', '/onboarding', '/invite', '/auth', '/reset-password', '/forgot-password', '/setup', '/pending-approval'];
 
+/**
+ * Passive tutorial overlay provider.
+ *
+ * Shows a floating card at the bottom of the screen with informational tips
+ * about what the user can do. Does NOT navigate or redirect the user.
+ * User can click "Next" to see the next tip or "Skip Tutorial" to dismiss.
+ */
 export function TutorialProvider({ children }: TutorialProviderProps) {
   const { userProfile, loading: authLoading } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
 
   const [tutorialActive, setTutorialActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [actionCompleted, setActionCompleted] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
-
-  // Prevent double navigation
-  const navigatingRef = useRef(false);
-
-  // Track polling interval
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Determine user type.
   // has_completed_onboarding and is_superadmin are added by migration and not
@@ -72,8 +63,6 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
   const profileAny = userProfile as any;
 
   const isSuperadminUser = !!(profileAny?.is_superadmin === true);
-
-  const hasCompletedOnboarding = !!(profileAny?.has_completed_onboarding === true);
 
   // Skip tutorial on public/onboarding pages (no auth required there)
   const isExcludedPath = TUTORIAL_EXCLUDED_PATHS.some(p => pathname.startsWith(p));
@@ -120,7 +109,7 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
           setTutorialActive(true);
         }
       } catch {
-        // Silently fail — don't block the app
+        // Silently fail -- don't block the app
       } finally {
         setInitialFetchDone(true);
       }
@@ -129,142 +118,54 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
     fetchProgress();
   }, [authLoading, needsTutorial, initialFetchDone, tutorialSteps.length]);
 
-  // Navigate to the current step's target page when tutorial is active
-  useEffect(() => {
-    if (!tutorialActive || navigatingRef.current || tutorialSteps.length === 0) return;
+  const markComplete = useCallback(async () => {
+    setProgressLoading(true);
+    try {
+      const res = await fetch('/api/onboarding/tutorial-progress', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          step: currentStep,
+          completed: true,
+          isSuperadmin: isSuperadminUser,
+        }),
+      });
 
-    const step = tutorialSteps[currentStep];
-    if (!step) return;
-
-    // Only navigate if we're not already on the target page
-    if (pathname !== step.targetPage) {
-      navigatingRef.current = true;
-      router.push(step.targetPage);
-      // Reset after a short delay to allow navigation to complete
-      setTimeout(() => {
-        navigatingRef.current = false;
-      }, 1000);
-    }
-  }, [tutorialActive, currentStep, pathname, router, tutorialSteps]);
-
-  // Poll to check if the required action was completed
-  // (e.g., user created a department via the normal UI)
-  useEffect(() => {
-    if (!tutorialActive || tutorialSteps.length === 0) return;
-
-    const step = tutorialSteps[currentStep];
-    if (!step?.requiredAction) {
-      setActionCompleted(true);
-      return;
-    }
-
-    // Reset action completed when step changes
-    setActionCompleted(false);
-
-    async function checkAction() {
-      try {
-        const res = await fetch(
-          `/api/onboarding/tutorial-progress/check-action?action=${step.requiredAction}`,
-          { credentials: 'include' },
-        );
-        // If the endpoint doesn't exist, fall back to trying to advance
-        if (!res.ok) {
-          // Try advancing to see if the server accepts it
-          const advanceRes = await fetch('/api/onboarding/tutorial-progress', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ step: currentStep + 1 }),
-          });
-          if (advanceRes.ok) {
-            setActionCompleted(true);
-          }
-          return;
-        }
+      if (!res.ok) {
         const data = await res.json();
-        if (data.completed) {
-          setActionCompleted(true);
-        }
-      } catch {
-        // Ignore errors from polling
+        console.warn('Tutorial completion failed:', data.error);
+        return;
       }
+
+      setTutorialActive(false);
+      // Clean up any highlights
+      document.querySelectorAll('.tutorial-highlight').forEach((el) => {
+        el.classList.remove('tutorial-highlight');
+      });
+    } catch (err) {
+      console.warn('Tutorial completion error:', err);
+    } finally {
+      setProgressLoading(false);
     }
-
-    // Check immediately and then poll every 3 seconds
-    checkAction();
-    pollingRef.current = setInterval(checkAction, 3000);
-
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-  }, [tutorialActive, currentStep, tutorialSteps]);
-
-  const advanceStep = useCallback(
-    async (nextStep: number, complete = false) => {
-      setProgressLoading(true);
-      try {
-        const res = await fetch('/api/onboarding/tutorial-progress', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            step: nextStep,
-            completed: complete,
-            isSuperadmin: isSuperadminUser,
-          }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          console.error('Tutorial advance failed:', data.error);
-          return;
-        }
-
-        if (complete) {
-          setTutorialActive(false);
-          // Clean up any highlights
-          document.querySelectorAll('.tutorial-highlight').forEach((el) => {
-            el.classList.remove('tutorial-highlight');
-          });
-          router.push('/dashboard');
-        } else {
-          setCurrentStep(nextStep);
-          setActionCompleted(false);
-        }
-      } catch (err) {
-        console.error('Tutorial advance error:', err);
-      } finally {
-        setProgressLoading(false);
-      }
-    },
-    [router, isSuperadminUser],
-  );
+  }, [currentStep, isSuperadminUser]);
 
   const handleNext = useCallback(() => {
     const nextStep = currentStep + 1;
     if (nextStep >= tutorialSteps.length) {
-      advanceStep(currentStep, true);
+      markComplete();
     } else {
-      advanceStep(nextStep);
+      setCurrentStep(nextStep);
     }
-  }, [currentStep, advanceStep, tutorialSteps.length]);
+  }, [currentStep, tutorialSteps.length, markComplete]);
 
   const handleSkip = useCallback(() => {
-    // Skip advances to the next step without requiring action completion
-    const nextStep = currentStep + 1;
-    if (nextStep >= tutorialSteps.length) {
-      advanceStep(currentStep, true);
-    } else {
-      advanceStep(nextStep);
-    }
-  }, [currentStep, advanceStep, tutorialSteps.length]);
+    markComplete();
+  }, [markComplete]);
 
   const handleComplete = useCallback(() => {
-    advanceStep(currentStep, true);
-  }, [currentStep, advanceStep]);
+    markComplete();
+  }, [markComplete]);
 
   return (
     <>
@@ -277,7 +178,7 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
           onSkip={handleSkip}
           onComplete={handleComplete}
           loading={progressLoading}
-          actionCompleted={actionCompleted}
+          actionCompleted={true}
         />
       )}
     </>

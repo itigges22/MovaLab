@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient, createAdminSupabaseClient } from '@/lib/supabase-server';
 import { requireAuthentication, requirePermission, handleGuardError } from '@/lib/server-guards';
 import { Permission } from '@/lib/permissions';
 import { logger } from '@/lib/debug-logger';
@@ -17,18 +17,21 @@ export async function DELETE(
     const supabase = createApiSupabaseClient(request);
     await requirePermission(user, Permission.MANAGE_USER_ROLES, {}, supabase);
 
-    if (!supabase) {
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    // Use admin client to bypass RLS for invitation management
+    const adminSupabase = createAdminSupabaseClient();
+    if (!adminSupabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
     // Verify invitation exists and is pending
-    const { data: invitation, error: fetchError } = await supabase
+    const { data: invitation, error: fetchError } = await adminSupabase
       .from('user_invitations')
       .select('id, status')
       .eq('id', id)
       .single();
 
     if (fetchError || !invitation) {
+      logger.error('Invitation not found for revoke', { invitationId: id, error: fetchError?.message });
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
     }
 
@@ -40,7 +43,7 @@ export async function DELETE(
     }
 
     // Update status to revoked (soft delete)
-    const { data: updated, error: updateError } = await supabase
+    const { data: updated, error: updateError } = await adminSupabase
       .from('user_invitations')
       .update({ status: 'revoked' })
       .eq('id', id)
