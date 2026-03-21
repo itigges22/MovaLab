@@ -15,15 +15,7 @@ const createAvailabilitySchema = z.object({
   userId: z.string().uuid('Invalid user ID'),
   weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
   availableHours: z.number().min(0).max(168),
-  scheduleData: z.object({
-    monday: z.number().min(0).max(24).optional(),
-    tuesday: z.number().min(0).max(24).optional(),
-    wednesday: z.number().min(0).max(24).optional(),
-    thursday: z.number().min(0).max(24).optional(),
-    friday: z.number().min(0).max(24).optional(),
-    saturday: z.number().min(0).max(24).optional(),
-    sunday: z.number().min(0).max(24).optional(),
-  }).optional().nullable(),
+  scheduleData: z.record(z.unknown()).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 });
 
