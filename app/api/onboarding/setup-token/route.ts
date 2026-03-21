@@ -16,13 +16,13 @@ export async function GET() {
     }, { status: 500 });
   }
 
-  // Log token to server console (admin sees this in VPS terminal)
-  console.log('\n========================================');
-  console.log('SUPERADMIN SETUP TOKEN');
-  console.log(`   Token: ${token}`);
-  console.log('   Expires in 15 minutes');
-  console.log('   Enter this token at the setup screen');
-  console.log('========================================\n');
+  // Log token to server console (uses console.warn so it survives production mode)
+  console.warn('\n========================================');
+  console.warn('SUPERADMIN SETUP TOKEN');
+  console.warn(`   Token: ${token}`);
+  console.warn('   Expires in 15 minutes');
+  console.warn('   Enter this token at the setup screen');
+  console.warn('========================================\n');
 
   return NextResponse.json({ firstRun: true, tokenGenerated: true });
 }
