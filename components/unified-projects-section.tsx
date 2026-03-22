@@ -429,8 +429,30 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
   if (loading || projectsLoading) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <CardHeader>
+          <div className="h-6 w-32 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-64 bg-muted/60 rounded animate-pulse mt-1" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="h-8 w-28 bg-muted/50 rounded animate-pulse" />
+            ))}
+          </div>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="grid grid-cols-7 gap-4 p-3 border-b bg-muted/30">
+              {[1,2,3,4,5,6,7].map(i => (
+                <div key={i} className="h-4 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+            {[1,2,3].map(i => (
+              <div key={i} className="grid grid-cols-7 gap-4 p-3 border-b last:border-0">
+                {[1,2,3,4,5,6,7].map(j => (
+                  <div key={j} className="h-4 bg-muted/40 rounded animate-pulse" />
+                ))}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     );

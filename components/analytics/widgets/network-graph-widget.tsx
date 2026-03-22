@@ -193,11 +193,11 @@ function NetworkGraphContent() {
     setSelectedNode(null);
   }, []);
 
-  if (!networkData && !isLoading && !error) {
+  if (!networkData && !isLoading) {
     return (
       <WidgetEmptyState
-        title="No network data"
-        description="Assign users to projects to see the network graph"
+        title={error ? "Unable to load network data" : "No network data"}
+        description={error ? "You may not have permission to view network analytics." : "Assign users to projects to see the network graph"}
         icon={<GitBranch className="h-8 w-8" />}
       />
     );

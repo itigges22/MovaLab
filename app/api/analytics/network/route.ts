@@ -67,9 +67,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Require analytics permission
+    // Require analytics or account analytics permission
     const hasAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_ANALYTICS, undefined, supabase);
-    if (!hasAnalytics) {
+    const hasAccountAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_ACCOUNT_ANALYTICS, undefined, supabase);
+    if (!hasAnalytics && !hasAccountAnalytics) {
       return NextResponse.json(
         { error: 'Insufficient permissions to view network analytics' },
         { status: 403 }
