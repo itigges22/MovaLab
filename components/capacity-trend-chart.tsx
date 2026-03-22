@@ -267,9 +267,8 @@ export default function CapacityTrendChart({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="h-64"
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={256}>
               <LineChart
                 data={data}
                 margin={{ top: 10, right: 50, left: 10, bottom: 5 }}
