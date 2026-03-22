@@ -1,24 +1,19 @@
 'use client'
 
 /**
- * Drag-to-Set Availability Calendar
- * Motion/Akiflow-style calendar for setting work availability
+ * Weekly Availability Editor
+ * Simple per-day hours input for setting work availability
  */
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calendar, Save, ChevronLeft, ChevronRight, Clock, Info } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Calendar, Save, ChevronLeft, ChevronRight, Clock, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { hasPermission } from '@/lib/permission-checker'
 import { Permission } from '@/lib/permissions'
 import { UserWithRoles } from '@/lib/rbac-types'
-
-interface TimeBlock {
-  day: string
-  startHour: number
-  endHour: number
-}
 
 interface DragAvailabilityCalendarProps {
   userProfile: UserWithRoles
@@ -26,7 +21,8 @@ interface DragAvailabilityCalendarProps {
   onSave?: () => void
 }
 
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function DragAvailabilityCalendar({ userProfile, userId, onSave }: DragAvailabilityCalendarProps) {
   const targetUserId = userId ?? (userProfile as any).id
@@ -35,187 +31,77 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
   const [canEdit, setCanEdit] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-
-  // Week navigation
   const [currentWeekStart, setCurrentWeekStart] = useState<string>('')
+  const [hoursPerDay, setHoursPerDay] = useState<Record<string, number>>({
+    monday: 0, tuesday: 0, wednesday: 0, thursday: 0,
+    friday: 0, saturday: 0, sunday: 0,
+  })
 
-  // Availability blocks (unavailable time = user can't work)
-  const [unavailableBlocks, setUnavailableBlocks] = useState<TimeBlock[]>([])
-  
-  // Dragging state
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState<{ day: string; hour: number } | null>(null)
-  const [dragEnd, setDragEnd] = useState<{ day: string; hour: number } | null>(null)
+  const totalHours = Object.values(hoursPerDay).reduce((sum, h) => sum + h, 0)
 
-  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const hours = Array.from({ length: 24 }, (_, i) => i) // 0-23
-
-  // Get actual dates for each day of the week
-  const getWeekDates = (): Date[] => {
-    if (!currentWeekStart) return []
-    const dates: Date[] = []
-    // Parse date string properly to avoid timezone issues
-    const [year, month, day] = currentWeekStart.split('-').map(Number)
-    const startDate = new Date(year, month - 1, day)
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startDate)
-      date.setDate(startDate.getDate() + i)
-      dates.push(date)
-    }
-    return dates
-  }
-
-  const weekDates = getWeekDates()
-
-  // Get Monday of current week (using local time to match capacity chart)
+  // Get Monday of current week
   const getWeekStartDate = (date: Date = new Date()): string => {
     const d = new Date(date)
     const day = d.getDay()
     const diff = d.getDate() - day + (day === 0 ? -6 : 1)
     const monday = new Date(d.setDate(diff))
-    // Use local date format (YYYY-MM-DD) instead of UTC to match capacity chart
     const year = monday.getFullYear()
     const month = String(monday.getMonth() + 1).padStart(2, '0')
     const dayOfMonth = String(monday.getDate()).padStart(2, '0')
     return `${year}-${month}-${dayOfMonth}`
   }
 
-  // Format date for display
+  // Get dates for each day of the week
+  const getWeekDates = (): Date[] => {
+    if (!currentWeekStart) return []
+    const [year, month, day] = currentWeekStart.split('-').map(Number)
+    const startDate = new Date(year, month - 1, day)
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(startDate)
+      date.setDate(startDate.getDate() + i)
+      return date
+    })
+  }
+
+  const weekDates = getWeekDates()
+
   const formatWeekDisplay = (weekStart: string): string => {
-    // Parse date string properly to avoid timezone issues
     const [year, month, day] = weekStart.split('-').map(Number)
     const start = new Date(year, month - 1, day)
     const end = new Date(start)
     end.setDate(end.getDate() + 6)
-
     const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
     return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}, ${start.getFullYear()}`
   }
 
-  // Navigate weeks
   const navigateWeek = (direction: 'prev' | 'next') => {
-    // Parse the date string properly to avoid timezone issues
     const [year, month, day] = currentWeekStart.split('-').map(Number)
-    const current = new Date(year, month - 1, day) // month is 0-indexed
-    const daysToAdd = direction === 'next' ? 7 : -7
-    current.setDate(current.getDate() + daysToAdd)
+    const current = new Date(year, month - 1, day)
+    current.setDate(current.getDate() + (direction === 'next' ? 7 : -7))
     setCurrentWeekStart(getWeekStartDate(current))
   }
 
-  // Go to current week
-  const goToCurrentWeek = () => {
-    setCurrentWeekStart(getWeekStartDate())
-  }
-
-  // Check if a time slot is unavailable
-  const isSlotUnavailable = (day: string, hour: number): boolean => {
-    return unavailableBlocks.some((block: any) => 
-      block.day === day && hour >= block.startHour && hour < block.endHour
-    )
-  }
-
-  // Calculate available hours
-  const calculateAvailableHours = (): Record<string, number> => {
-    const hoursPerDay: Record<string, number> = {}
-    DAYS.forEach((day: any) => {
-      // Get all unavailable blocks for this day
-      const dayBlocks = unavailableBlocks.filter((block: any) => block.day === day)
-
-      // Merge overlapping blocks to avoid double-counting
-      const mergedBlocks: TimeBlock[] = []
-      dayBlocks
-        .sort((a, b) => a.startHour - b.startHour)
-        .forEach((block: any) => {
-          if (mergedBlocks.length === 0) {
-            mergedBlocks.push(block)
-          } else {
-            const lastBlock = mergedBlocks[mergedBlocks.length - 1]
-            if (block.startHour <= lastBlock.endHour) {
-              // Overlapping or adjacent - merge
-              lastBlock.endHour = Math.max(lastBlock.endHour, block.endHour)
-            } else {
-              // Separate block
-              mergedBlocks.push(block)
-            }
-          }
-        })
-
-      // Calculate total unavailable hours from merged blocks
-      const unavailableHours = mergedBlocks.reduce(
-        (sum, block) => sum + (block.endHour - block.startHour),
-        0
-      )
-
-      // Cap at 24 hours
-      hoursPerDay[day] = Math.max(0, 24 - Math.min(24, unavailableHours))
-    })
-    return hoursPerDay
-  }
-
-  const availableHours = calculateAvailableHours()
-  const totalHours = Object.values(availableHours).reduce((sum, h) => sum + h, 0)
-
-  // Format hour to 12-hour AM/PM format
-  const formatHour = (hour: number): string => {
-    if (hour === 0) return '12 AM'
-    if (hour < 12) return `${hour} AM`
-    if (hour === 12) return '12 PM'
-    return `${hour - 12} PM`
-  }
-
-  // Mouse down - start dragging
-  const handleMouseDown = (day: string, hour: number) => {
-    if (!canEdit) return
-    setIsDragging(true)
-    setDragStart({ day, hour })
-    setDragEnd({ day, hour })
-  }
-
-  // Mouse move - update drag end
-  const handleMouseMove = (day: string, hour: number) => {
-    if (!isDragging || !dragStart) return
-    // Only allow dragging within the same day
-    if (day === dragStart.day) {
-      setDragEnd({ day, hour })
-    }
-  }
-
-  // Mouse up - finalize block
-  const handleMouseUp = () => {
-    if (!isDragging || !dragStart || !dragEnd) {
-      setIsDragging(false)
-      return
-    }
-
-    const day = dragStart.day
-    const startHour = Math.min(dragStart.hour, dragEnd.hour)
-    const endHour = Math.max(dragStart.hour, dragEnd.hour) + 1
-
-    // Toggle: If the block is already unavailable, make it available
-    const existingBlock = unavailableBlocks.find(
-      block => block.day === day &&
-      ((startHour >= block.startHour && startHour < block.endHour) ||
-       (endHour > block.startHour && endHour <= block.endHour))
-    )
-
-    if (existingBlock) {
-      // Remove overlapping blocks
-      setUnavailableBlocks(prev =>
-        prev.filter((block: any) =>
-          !(block.day === day &&
-            ((startHour >= block.startHour && startHour < block.endHour) ||
-             (endHour > block.startHour && endHour <= block.endHour) ||
-             (startHour <= block.startHour && endHour >= block.endHour)))
-        )
-      )
+  const setDayHours = (day: string, value: string) => {
+    const num = parseFloat(value)
+    if (isNaN(num)) {
+      setHoursPerDay(prev => ({ ...prev, [day]: 0 }))
     } else {
-      // Add new unavailable block
-      setUnavailableBlocks(prev => [...prev, { day, startHour, endHour }])
+      setHoursPerDay(prev => ({ ...prev, [day]: Math.min(24, Math.max(0, num)) }))
+    }
+  }
+
+  // Quick-set presets
+  const setPreset = (preset: 'clear' | '9to5' | '8h' | '6h') => {
+    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+    const newHours: Record<string, number> = { monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 }
+
+    if (preset === '9to5' || preset === '8h') {
+      weekdays.forEach(d => { newHours[d] = 8 })
+    } else if (preset === '6h') {
+      weekdays.forEach(d => { newHours[d] = 6 })
     }
 
-    setIsDragging(false)
-    setDragStart(null)
-    setDragEnd(null)
+    setHoursPerDay(newHours)
   }
 
   // Check permissions
@@ -251,50 +137,34 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
         if (data.success && data.availability?.schedule_data) {
           const scheduleData = data.availability.schedule_data
 
-          // Check if we have the new format with unavailableBlocks
-          if (scheduleData.unavailableBlocks && Array.isArray(scheduleData.unavailableBlocks)) {
-            // Use saved block positions directly
-            setUnavailableBlocks(scheduleData.unavailableBlocks)
-          } else {
-            // Legacy format: convert hours per day to blocks (approximate)
-            const blocks: TimeBlock[] = []
-
-            DAYS.forEach((day: any) => {
-              const hoursAvailable = scheduleData.hoursPerDay?.[day] ?? scheduleData[day] ?? 0
-              const unavailableHours = 24 - hoursAvailable
-              const isWeekend = day === 'saturday' || day === 'sunday'
-
-              if (unavailableHours >= 24 || (isWeekend && hoursAvailable === 0)) {
-                // Fully unavailable - block entire day
-                blocks.push({ day, startHour: 0, endHour: 24 })
-              } else if (unavailableHours > 0) {
-                // Partially available - create blocks before and after work hours
-                if (hoursAvailable >= 8) {
-                  // Standard workday or more: 9am-5pm available
-                  blocks.push({ day, startHour: 0, endHour: 9 })
-                  blocks.push({ day, startHour: 17, endHour: 24 })
-                } else if (hoursAvailable > 0) {
-                  // Shorter day: center available hours around midday
-                  const workStart = Math.floor(12 - hoursAvailable / 2)
-                  const workEnd = Math.ceil(12 + hoursAvailable / 2)
-                  blocks.push({ day, startHour: 0, endHour: workStart })
-                  blocks.push({ day, startHour: workEnd, endHour: 24 })
-                } else {
-                  // No hours available - block entire day
-                  blocks.push({ day, startHour: 0, endHour: 24 })
-                }
-              }
+          if (scheduleData.hoursPerDay) {
+            setHoursPerDay({
+              monday: Number(scheduleData.hoursPerDay.monday) || 0,
+              tuesday: Number(scheduleData.hoursPerDay.tuesday) || 0,
+              wednesday: Number(scheduleData.hoursPerDay.wednesday) || 0,
+              thursday: Number(scheduleData.hoursPerDay.thursday) || 0,
+              friday: Number(scheduleData.hoursPerDay.friday) || 0,
+              saturday: Number(scheduleData.hoursPerDay.saturday) || 0,
+              sunday: Number(scheduleData.hoursPerDay.sunday) || 0,
             })
-
-            setUnavailableBlocks(blocks)
+          } else {
+            // Legacy format: day names directly on schedule_data
+            setHoursPerDay({
+              monday: Number(scheduleData.monday) || 0,
+              tuesday: Number(scheduleData.tuesday) || 0,
+              wednesday: Number(scheduleData.wednesday) || 0,
+              thursday: Number(scheduleData.thursday) || 0,
+              friday: Number(scheduleData.friday) || 0,
+              saturday: Number(scheduleData.saturday) || 0,
+              sunday: Number(scheduleData.sunday) || 0,
+            })
           }
         } else {
-          // Default: All time unavailable (0 hours available) - user can add their open times
-          const defaultBlocks: TimeBlock[] = []
-          DAYS.forEach((day: any) => {
-            defaultBlocks.push({ day, startHour: 0, endHour: 24 })
+          // No record — default to 0 hours
+          setHoursPerDay({
+            monday: 0, tuesday: 0, wednesday: 0, thursday: 0,
+            friday: 0, saturday: 0, sunday: 0,
           })
-          setUnavailableBlocks(defaultBlocks)
         }
       } catch {
         toast.error('Failed to load availability')
@@ -322,10 +192,8 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
           userId: targetUserId,
           weekStartDate: currentWeekStart,
           availableHours: totalHours,
-          // Save both hours per day and the actual block positions
           scheduleData: {
-            hoursPerDay: availableHours,
-            unavailableBlocks: unavailableBlocks,
+            hoursPerDay: hoursPerDay,
           },
           notes: '',
         }),
@@ -346,40 +214,60 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
     }
   }
 
+  // Copy current week to next week
+  const copyToNextWeek = async () => {
+    const [year, month, day] = currentWeekStart.split('-').map(Number)
+    const nextWeek = new Date(year, month - 1, day)
+    nextWeek.setDate(nextWeek.getDate() + 7)
+    const nextWeekStr = getWeekStartDate(nextWeek)
+
+    setSaving(true)
+    try {
+      const response = await fetch('/api/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: targetUserId,
+          weekStartDate: nextWeekStr,
+          availableHours: totalHours,
+          scheduleData: { hoursPerDay },
+          notes: '',
+        }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast.success(`Copied to week of ${formatWeekDisplay(nextWeekStr)}`)
+      } else {
+        toast.error(data.error || 'Failed to copy')
+      }
+    } catch {
+      toast.error('Failed to copy availability')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
-              <div className="h-4 w-64 bg-gray-100 rounded animate-pulse mt-2" />
+              <div className="h-6 w-40 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-64 bg-muted/60 rounded animate-pulse mt-2" />
             </div>
-            <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+            <div className="h-5 w-20 bg-muted rounded animate-pulse" />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Week navigation skeleton */}
-          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
-            <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
-            <div className="h-5 w-40 bg-gray-200 rounded animate-pulse" />
-            <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
+          <div className="flex items-center justify-between bg-muted/30 rounded-lg p-4">
+            <div className="h-8 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+            <div className="h-8 w-24 bg-muted rounded animate-pulse" />
           </div>
-          {/* Calendar grid skeleton */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="grid grid-cols-8 border-b bg-gray-50">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="p-2 border-r last:border-r-0">
-                  <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-            {Array.from({ length: 8 }).map((_, row) => (
-              <div key={row} className="grid grid-cols-8 border-b last:border-b-0">
-                {Array.from({ length: 8 }).map((_, col) => (
-                  <div key={col} className="h-6 border-r last:border-r-0 bg-gray-100 animate-pulse" />
-                ))}
-              </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="h-20 bg-muted/40 rounded animate-pulse" />
             ))}
           </div>
         </CardContent>
@@ -397,147 +285,93 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
               Work Availability
             </CardTitle>
             <CardDescription>
-              Drag to toggle time slots (gray = unavailable, white = available)
+              Set your available hours for each day
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <Clock className="w-4 h-4 text-gray-500" />
-            <span className="font-semibold text-blue-600">{totalHours}h</span>
-            <span className="text-gray-500">available</span>
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <span className="font-semibold text-primary">{totalHours}h</span>
+            <span className="text-muted-foreground">/ week</span>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         {/* Week Navigation */}
-        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { navigateWeek('prev'); }}
-            className="gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Previous
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')} className="gap-1">
+            <ChevronLeft className="w-4 h-4" /> Prev
           </Button>
-          
           <div className="flex items-center gap-2">
-            <span className="font-semibold">{formatWeekDisplay(currentWeekStart)}</span>
-            <Button variant="ghost" size="sm" onClick={goToCurrentWeek}>
+            <span className="font-medium text-sm">{formatWeekDisplay(currentWeekStart)}</span>
+            <Button variant="ghost" size="sm" onClick={() => setCurrentWeekStart(getWeekStartDate())}>
               Today
             </Button>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { navigateWeek('next'); }}
-            className="gap-1"
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={() => navigateWeek('next')} className="gap-1">
+            Next <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
 
-        {/* Instructions */}
-        <div className="flex items-start gap-2 text-sm text-blue-600 bg-blue-50 rounded-lg p-3">
-          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <div>
-            <strong>How to use:</strong> Drag across time slots to toggle availability.
-            Gray blocks = unavailable (you can&apos;t work). White blocks = available (you can work).
-            Click and drag on gray to make time available, or drag on white to make time unavailable.
-          </div>
+        {/* Day inputs */}
+        <div className="grid grid-cols-7 gap-2">
+          {DAYS.map((day, idx) => {
+            const isWeekend = day === 'saturday' || day === 'sunday'
+            const dateNum = weekDates[idx]?.getDate()
+            return (
+              <div
+                key={day}
+                className={`rounded-lg border p-3 text-center space-y-2 ${
+                  isWeekend ? 'bg-muted/30' : 'bg-background'
+                } ${hoursPerDay[day] > 0 ? 'border-primary/40' : 'border-border'}`}
+              >
+                <div className="text-xs font-medium text-muted-foreground">{DAY_LABELS[idx]}</div>
+                {dateNum && (
+                  <div className="text-sm font-semibold">{dateNum}</div>
+                )}
+                <Input
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={hoursPerDay[day] || ''}
+                  onChange={(e) => setDayHours(day, e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  disabled={!canEdit}
+                  className="text-center h-9 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0"
+                />
+                <div className="text-xs text-muted-foreground">hrs</div>
+              </div>
+            )
+          })}
         </div>
 
-        {/* Calendar Grid */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-8 border-b bg-gray-50">
-            <div className="p-2 text-xs font-medium text-gray-600 border-r">Time</div>
-            {dayLabels.map((label:any, idx:any) => (
-              <div key={label} className="p-2 text-center text-xs font-medium text-gray-600 border-r last:border-r-0">
-                <div className="text-gray-800 font-bold">
-                  {weekDates[idx] ? weekDates[idx].getDate() : ''}
-                </div>
-                <div className="text-gray-600">{label}</div>
-                <div className="text-blue-600 font-semibold">{availableHours[DAYS[idx]]}h</div>
-              </div>
-            ))}
+        {/* Presets */}
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground mr-1">Quick set:</span>
+            <Button variant="outline" size="sm" onClick={() => setPreset('9to5')} className="text-xs h-7">
+              8h weekdays
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPreset('6h')} className="text-xs h-7">
+              6h weekdays
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPreset('clear')} className="text-xs h-7">
+              Clear all
+            </Button>
           </div>
-
-          {/* Hour rows - show all 24 hours so users can mark any time unavailable */}
-          <div>
-            {hours.map((hour: any) => (
-              <div key={hour} className="grid grid-cols-8 border-b last:border-b-0">
-                <div className="p-1 text-xs text-gray-600 border-r bg-gray-50">
-                  {formatHour(hour)}
-                </div>
-                {DAYS.map((day: any) => {
-                  const isUnavailable = isSlotUnavailable(day, hour)
-                  const isInDragSelection = isDragging && dragStart && dragEnd &&
-                    day === dragStart.day &&
-                    hour >= Math.min(dragStart.hour, dragEnd.hour) &&
-                    hour <= Math.max(dragStart.hour, dragEnd.hour)
-
-                  return (
-                    <div
-                      key={`${day}-${hour}`}
-                      className={`
-                        h-6 border-r last:border-r-0 cursor-pointer transition-colors
-                        ${isUnavailable ? 'bg-gray-300' : 'bg-white hover:bg-blue-50'}
-                        ${isInDragSelection ? 'bg-blue-200' : ''}
-                        ${!canEdit ? 'cursor-not-allowed opacity-60' : ''}
-                      `}
-                      onMouseDown={() => { handleMouseDown(day, hour); }}
-                      onMouseMove={() => { handleMouseMove(day, hour); }}
-                      onMouseUp={handleMouseUp}
-                    />
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
 
         {/* Actions */}
         {canEdit && (
-          <div className="flex items-center gap-3 pt-4 border-t">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="gap-2"
-            >
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
               <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Availability'}
+              {saving ? 'Saving...' : 'Save'}
             </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Clear all blocks (make all time available)
-                setUnavailableBlocks([])
-              }}
-              disabled={saving}
-            >
-              Clear All
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Set default: weekdays 9-5
-                const defaultBlocks: TimeBlock[] = []
-                DAYS.forEach((day: any) => {
-                  if (day === 'saturday' || day === 'sunday') {
-                    defaultBlocks.push({ day, startHour: 0, endHour: 24 })
-                  } else {
-                    defaultBlocks.push({ day, startHour: 0, endHour: 9 })
-                    defaultBlocks.push({ day, startHour: 17, endHour: 24 })
-                  }
-                })
-                setUnavailableBlocks(defaultBlocks)
-              }}
-              disabled={saving}
-            >
-              Reset to 9-5
+            <Button variant="outline" onClick={copyToNextWeek} disabled={saving} className="gap-2">
+              <Copy className="w-4 h-4" />
+              Copy to next week
             </Button>
           </div>
         )}
@@ -551,4 +385,3 @@ export default function DragAvailabilityCalendar({ userProfile, userId, onSave }
     </Card>
   )
 }
-
