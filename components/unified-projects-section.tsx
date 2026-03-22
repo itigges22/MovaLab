@@ -450,40 +450,40 @@ export function UnifiedProjectsSection({ userProfile }: UnifiedProjectsSectionPr
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="projects" className="flex items-center gap-1 text-xs sm:text-sm">
+            <TabsTrigger value="projects" className="flex items-center gap-1 text-xs sm:text-sm" aria-label="My Projects">
               <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">My Projects</span>
-              <span className="sm:hidden">Projects</span>
+              <span className="hidden sm:inline" aria-hidden="true">My Projects</span>
+              <span className="sm:hidden" aria-hidden="true">Projects</span>
               {visibleProjects.length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-[10px] px-1">
                   {visibleProjects.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="pipeline" className="flex items-center gap-1 text-xs sm:text-sm">
+            <TabsTrigger value="pipeline" className="flex items-center gap-1 text-xs sm:text-sm" aria-label="In the Pipeline">
               <GitBranch className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">In the Pipeline</span>
-              <span className="sm:hidden">Pipeline</span>
+              <span className="hidden sm:inline" aria-hidden="true">In the Pipeline</span>
+              <span className="sm:hidden" aria-hidden="true">Pipeline</span>
               {pipelineProjects.length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-[10px] px-1">
                   {pipelineProjects.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="flex items-center gap-1 text-xs sm:text-sm">
+            <TabsTrigger value="approvals" className="flex items-center gap-1 text-xs sm:text-sm" aria-label="Pending Approvals">
               <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Pending Approvals</span>
-              <span className="sm:hidden">Approvals</span>
+              <span className="hidden sm:inline" aria-hidden="true">Pending Approvals</span>
+              <span className="sm:hidden" aria-hidden="true">Approvals</span>
               {pendingApprovals.length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-[10px] px-1">
                   {pendingApprovals.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="past" className="flex items-center gap-1 text-xs sm:text-sm">
+            <TabsTrigger value="past" className="flex items-center gap-1 text-xs sm:text-sm" aria-label="Completed">
               <History className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Completed</span>
-              <span className="sm:hidden">Done</span>
+              <span className="hidden sm:inline" aria-hidden="true">Completed</span>
+              <span className="sm:hidden" aria-hidden="true">Done</span>
               {pastProjects.filter((p: any) => p.completion_reason === 'project_completed').length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-[10px] px-1">
                   {pastProjects.filter((p: any) => p.completion_reason === 'project_completed').length}

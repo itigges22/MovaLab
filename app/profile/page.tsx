@@ -341,6 +341,9 @@ export default function ProfilePage() {
               <div className="space-y-2">
                 <Label>Skills</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.skills.length === 0 && !isEditing && (
+                    <span className="text-sm text-muted-foreground">No skills added yet. Click Edit Profile to add skills.</span>
+                  )}
                   {formData.skills.map((skill:any, index:any) => (
                     <span
                       key={index}

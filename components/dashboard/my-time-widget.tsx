@@ -49,7 +49,10 @@ function DailyActivityBars({
     <div className="flex items-end justify-between gap-3 h-28">
       {data.map((item, index) => {
         const heightPercentage = Math.min((item.hours / maxHours) * 100, 100);
-        const isToday = index === data.length - 1;
+        // Map day labels to day-of-week: M=1, T=2, W=3, T=4, F=5, S=6, S=0
+        const dayMap: Record<string, number> = { 'M': 1, 'T': 2, 'W': 3 };
+        const todayDow = new Date().getDay(); // 0=Sun, 1=Mon, ...
+        const isToday = index === (todayDow === 0 ? 6 : todayDow - 1);
 
         return (
           <div key={index} className="flex flex-col items-center gap-2 flex-1">

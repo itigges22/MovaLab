@@ -1888,9 +1888,9 @@ export default function ProjectDetailPage() {
         {/* Back Button */}
         <div className="mb-4">
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/accounts/${project.account_id}`}>
+            <Link href="/projects">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Account
+              Back to Projects
             </Link>
           </Button>
         </div>
@@ -3129,7 +3129,7 @@ export default function ProjectDetailPage() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase mb-2">Account</p>
-                  <p className="text-base font-semibold">{project.account?.name || 'Unknown'}</p>
+                  <p className="text-base font-semibold">{project.account?.name || 'Unassigned'}</p>
                 </div>
                 
                 {project.departments.length > 0 ? (

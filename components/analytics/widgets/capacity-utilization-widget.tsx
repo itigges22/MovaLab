@@ -171,7 +171,7 @@ export function CapacityUtilizationWidget() {
           <StatCard
             label="Avg Utilization"
             value={`${avgUtilization}%`}
-            change={avgUtilization >= 70 ? 5 : -3}
+            change={0}
             icon={<TrendingUp className="h-4 w-4" />}
           />
           <StatCard

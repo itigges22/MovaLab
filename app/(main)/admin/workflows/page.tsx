@@ -6,6 +6,8 @@ import { UserWithRoles } from '@/lib/rbac';
 import { AccessDeniedPage } from '@/components/access-denied-page';
 import WorkflowsClient from './workflows-client';
 
+export const metadata = { title: 'Workflows | MovaLab' };
+
 async function getUserWithRoles(): Promise<UserWithRoles | null> {
   const supabase = await createServerSupabase();
   if (!supabase) return null;

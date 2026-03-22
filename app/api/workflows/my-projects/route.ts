@@ -48,6 +48,10 @@ export async function GET(request: NextRequest) {
             priority,
             created_at,
             account_id,
+            estimated_hours,
+            actual_hours,
+            end_date,
+            start_date,
             accounts(id, name)
           ),
           user_profiles!project_assignments_user_id_fkey(

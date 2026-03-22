@@ -27,6 +27,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  FolderOpen,
 } from 'lucide-react';
 import { SidebarItem } from './sidebar-item';
 import { SidebarSection } from './sidebar-section';
@@ -77,10 +78,24 @@ const navigationItems: NavigationItem[] = [
     allowUnassigned: false,
   },
   {
+    name: 'Projects',
+    href: '/projects',
+    icon: FolderOpen,
+    anyPermission: [Permission.VIEW_PROJECTS, Permission.VIEW_ALL_PROJECTS],
+    allowUnassigned: false,
+  },
+  {
     name: 'Accounts',
     href: '/accounts',
     icon: Users,
     anyPermission: [Permission.VIEW_ACCOUNTS, Permission.VIEW_ALL_ACCOUNTS],
+    allowUnassigned: false,
+  },
+  {
+    name: 'Time Entries',
+    href: '/time-entries',
+    icon: Clock,
+    anyPermission: [Permission.MANAGE_TIME, Permission.VIEW_TIME_ENTRIES, Permission.VIEW_ALL_TIME_ENTRIES],
     allowUnassigned: false,
   },
 ];
