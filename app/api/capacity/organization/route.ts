@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     const [availabilityData, timeEntriesData, projectAssignmentsData, tasksData] = await Promise.all([
       supabase
         .from('user_availability')
-        .select('user_id, week_start_date, available_hours')
+        .select('user_id, week_start_date, available_hours, schedule_data')
         .in('user_id', userIds)
         .gte('week_start_date', earliestDate)
         .lte('week_start_date', latestDate),
@@ -123,8 +123,9 @@ export async function GET(request: NextRequest) {
       projectTasksData = data;
     }
 
-    // Build availability map per user per week and per-user defaults
+    // Build availability map per user per week, schedule data map, and per-user defaults
     const availabilityMap = new Map<string, Map<string, number>>();
+    const scheduleDataMap = new Map<string, Map<string, Record<string, any>>>();
     const userDefaultHoursMap = new Map<string, number>();
     if (availabilityData.data) {
       availabilityData.data.forEach((a: any) => {
@@ -136,6 +137,13 @@ export async function GET(request: NextRequest) {
           availabilityMap.set(userId, new Map<string, number>());
         }
         availabilityMap.get(userId)?.set(weekStartDate, availableHours);
+
+        if (a.schedule_data) {
+          if (!scheduleDataMap.has(userId)) {
+            scheduleDataMap.set(userId, new Map<string, Record<string, any>>());
+          }
+          scheduleDataMap.get(userId)?.set(weekStartDate, a.schedule_data as Record<string, any>);
+        }
       });
       // Use most recent availability as default for each user
       const byUser = new Map<string, { date: string; hours: number }>();
@@ -176,15 +184,28 @@ export async function GET(request: NextRequest) {
 
         const defaultHours = userDefaultHoursMap.get(userId) ?? DEFAULT_WEEKLY_HOURS;
 
+        const userScheduleData = scheduleDataMap.get(userId);
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
         if (period === 'daily') {
           const weekStart = getWeekStartDate(periodStart);
-          const weeklyHours = userAvailability.get(weekStart) ?? defaultHours;
-          totalAvailable += weeklyHours / 5;
+          const schedule = userScheduleData?.get(weekStart);
+          const dayName = dayNames[periodStart.getDay()];
+          if (schedule?.hoursPerDay && schedule.hoursPerDay[dayName] !== undefined) {
+            totalAvailable += Number(schedule.hoursPerDay[dayName]);
+          } else {
+            totalAvailable += (userAvailability.get(weekStart) ?? defaultHours) / 7;
+          }
         } else if (period === 'weekly') {
           const weekStart = getWeekStartDate(periodStart);
-          totalAvailable += userAvailability.get(weekStart) ?? defaultHours;
+          const schedule = userScheduleData?.get(weekStart);
+          if (schedule?.hoursPerDay) {
+            totalAvailable += allDays.reduce((sum, d) => sum + (Number(schedule.hoursPerDay[d]) || 0), 0);
+          } else {
+            totalAvailable += userAvailability.get(weekStart) ?? defaultHours;
+          }
         } else {
-          // Monthly/quarterly - sum up weeks
           const currentWeek = new Date(periodStart);
           const dayOfWeek = currentWeek.getDay();
           const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -192,7 +213,13 @@ export async function GET(request: NextRequest) {
 
           while (currentWeek <= periodEnd) {
             const weekStr = format(currentWeek, 'yyyy-MM-dd');
-            const weekHours = userAvailability.get(weekStr) ?? defaultHours;
+            const schedule = userScheduleData?.get(weekStr);
+            let weekHours: number;
+            if (schedule?.hoursPerDay) {
+              weekHours = allDays.reduce((sum, d) => sum + (Number(schedule.hoursPerDay[d]) || 0), 0);
+            } else {
+              weekHours = userAvailability.get(weekStr) ?? defaultHours;
+            }
             totalAvailable += weekHours;
             currentWeek.setDate(currentWeek.getDate() + 7);
           }

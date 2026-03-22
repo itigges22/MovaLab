@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
       // Get user availability for all weeks in range (use extended range)
       supabase
         .from('user_availability')
-        .select('week_start_date, available_hours')
+        .select('week_start_date, available_hours, schedule_data')
         .eq('user_id', userId)
         .gte('week_start_date', extendedEarliestDate)
         .lte('week_start_date', latestDate),
@@ -149,11 +149,15 @@ export async function GET(request: NextRequest) {
       projectTasksData = data;
     }
 
-    // Build availability map (week_start_date -> hours)
+    // Build availability map (week_start_date -> hours) and schedule data map
     const availabilityMap = new Map<string, number>();
+    const scheduleDataMap = new Map<string, Record<string, any>>();
     if (availabilityData.data) {
       availabilityData.data.forEach((a: any) => {
         availabilityMap.set(a.week_start_date as string, a.available_hours as number);
+        if (a.schedule_data) {
+          scheduleDataMap.set(a.week_start_date as string, a.schedule_data as Record<string, any>);
+        }
       });
     }
 
@@ -205,15 +209,33 @@ export async function GET(request: NextRequest) {
       const periodEnd = parseLocalDate(range.endDate);
 
       if (period === 'daily') {
-        // For daily, get the week's availability and divide by 5 (workdays)
+        // For daily, use per-day hours from schedule_data if available
         const weekStart = getWeekStartDate(periodStart);
-        const weeklyHours = availabilityMap.get(weekStart) ?? userDefaultHours;
-        available = weeklyHours / 5; // Assume 5 workdays
-        weeksInPeriod = 0.2;
+        const scheduleData = scheduleDataMap.get(weekStart);
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[periodStart.getDay()];
+
+        if (scheduleData?.hoursPerDay && scheduleData.hoursPerDay[dayName] !== undefined) {
+          available = Number(scheduleData.hoursPerDay[dayName]);
+        } else if (scheduleData?.[dayName] !== undefined) {
+          // Legacy format: schedule_data has day names directly
+          available = Number(scheduleData[dayName]);
+        } else {
+          // Fallback: divide weekly hours by 7 days
+          const weeklyHours = availabilityMap.get(weekStart) ?? userDefaultHours;
+          available = weeklyHours / 7;
+        }
+        weeksInPeriod = 1 / 7;
       } else if (period === 'weekly') {
-        // Check if we have availability set for this week
         const weekStart = getWeekStartDate(periodStart);
-        available = availabilityMap.get(weekStart) ?? userDefaultHours;
+        const scheduleData = scheduleDataMap.get(weekStart);
+        // Use per-day sum from schedule_data if available (source of truth)
+        if (scheduleData?.hoursPerDay) {
+          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          available = days.reduce((sum, d) => sum + (Number(scheduleData.hoursPerDay[d]) || 0), 0);
+        } else {
+          available = availabilityMap.get(weekStart) ?? userDefaultHours;
+        }
         weeksInPeriod = 1;
       } else if (period === 'monthly' || period === 'quarterly') {
         // Sum up weekly availabilities that fall within this period
@@ -236,7 +258,14 @@ export async function GET(request: NextRequest) {
 
         while (currentWeek.getTime() <= endTime) {
           const weekStr = formatLocalDate(currentWeek);
-          const weekHours = availabilityMap.get(weekStr) ?? userDefaultHours;
+          const weekSchedule = scheduleDataMap.get(weekStr);
+          let weekHours: number;
+          if (weekSchedule?.hoursPerDay) {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            weekHours = days.reduce((sum, d) => sum + (Number(weekSchedule.hoursPerDay[d]) || 0), 0);
+          } else {
+            weekHours = availabilityMap.get(weekStr) ?? userDefaultHours;
+          }
           totalHours += weekHours;
           weeksInPeriod++;
           // Move to next week
