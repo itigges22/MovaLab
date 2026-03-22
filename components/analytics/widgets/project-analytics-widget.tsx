@@ -79,7 +79,7 @@ export function ProjectAnalyticsWidget() {
     }
   };
 
-  if (!analytics && !isLoading && !error) {
+  if (!analytics && !isLoading) {
     return (
       <WidgetBase
         title="Project Analytics"
@@ -89,8 +89,8 @@ export function ProjectAnalyticsWidget() {
         isLoading={false}
       >
         <WidgetEmptyState
-          title="No project data"
-          description="Create some projects to see analytics"
+          title={error ? "Unable to load analytics" : "No project data"}
+          description={error ? "You may not have permission to view analytics, or no projects are available." : "Create some projects to see analytics"}
           icon={<FolderKanban className="h-8 w-8" />}
         />
       </WidgetBase>

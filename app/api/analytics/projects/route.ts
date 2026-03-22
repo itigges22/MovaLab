@@ -58,9 +58,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Require analytics permission
-    const hasAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_ANALYTICS, undefined, supabase);
-    if (!hasAnalytics) {
+    // Check if user has full analytics access or just project-level access
+    const hasAllAnalytics = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_ANALYTICS, undefined, supabase);
+    const hasProjectAccess = await checkPermissionHybrid(userProfile, Permission.VIEW_PROJECTS, undefined, supabase);
+    if (!hasAllAnalytics && !hasProjectAccess) {
       return NextResponse.json(
         { error: 'Insufficient permissions to view project analytics' },
         { status: 403 }

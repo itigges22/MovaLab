@@ -68,14 +68,25 @@ export async function GET(request: NextRequest) {
       logger.error('Error fetching task deadlines', {}, tasksError as unknown as Error);
     }
 
-    // Also get projects assigned to user with end dates (including overdue)
+    // Get projects the user can see: assigned via project_assignments, assigned_user_id, or created_by
     const { data: assignments } = await supabase
       .from('project_assignments')
       .select('project_id')
       .eq('user_id', userId)
       .is('removed_at', null);
 
-    const projectIds = assignments?.map((a: any) => a.project_id) || [];
+    const assignedProjectIds = new Set(assignments?.map((a: any) => a.project_id) || []);
+
+    // Also get projects where user is assigned_user_id or created_by
+    const { data: ownedProjects } = await supabase
+      .from('projects')
+      .select('id')
+      .or(`assigned_user_id.eq.${userId},created_by.eq.${userId}`)
+      .not('status', 'eq', 'complete');
+
+    (ownedProjects || []).forEach((p: any) => assignedProjectIds.add(p.id));
+
+    const projectIds = Array.from(assignedProjectIds);
 
     let projects: any[] = [];
     if (projectIds.length > 0) {
