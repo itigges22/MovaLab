@@ -189,7 +189,7 @@ export async function PATCH(
       ...validation.data,
       description: validation.data.description === null ? undefined : validation.data.description
     };
-    const template = await updateWorkflowTemplate(id, updates);
+    const template = await updateWorkflowTemplate(id, updates, supabase);
 
     if (!template) {
       return NextResponse.json({ error: 'Workflow template not found' }, { status: 404 });
@@ -255,7 +255,7 @@ export async function DELETE(
 
     // Permanently delete template and all associated nodes/connections
     // NOTE: In-progress workflows will continue to work - they have their own snapshots
-    await deleteWorkflowTemplate(id);
+    await deleteWorkflowTemplate(id, supabase);
 
     return NextResponse.json({
       success: true,

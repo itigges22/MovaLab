@@ -217,9 +217,10 @@ export async function createWorkflowTemplate(
  */
 export async function updateWorkflowTemplate(
   templateId: string,
-  updates: { name?: string; description?: string; is_active?: boolean }
+  updates: { name?: string; description?: string; is_active?: boolean },
+  supabaseClient?: any
 ): Promise<WorkflowTemplate> {
-  const supabase = await getSupabase();
+  const supabase = supabaseClient || await getSupabase();
 
   const { data, error } = await supabase
     .from('workflow_templates')
@@ -244,8 +245,8 @@ export async function updateWorkflowTemplate(
  * does NOT affect any in-progress or completed workflows. They will continue to use their
  * snapshot data. Only NEW projects will be unable to use this workflow.
  */
-export async function deleteWorkflowTemplate(templateId: string): Promise<void> {
-  const supabase = await getSupabase();
+export async function deleteWorkflowTemplate(templateId: string, supabaseClient?: any): Promise<void> {
+  const supabase = supabaseClient || await getSupabase();
 
   // Get template name for logging
   const { data: template } = await supabase
