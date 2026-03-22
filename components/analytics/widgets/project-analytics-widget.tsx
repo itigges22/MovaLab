@@ -161,6 +161,8 @@ export function ProjectAnalyticsWidget() {
                         cy="50%"
                         innerRadius={50}
                         outerRadius={80}
+                        startAngle={90}
+                        endAngle={-270}
                         label={({ name, value }) => `${name}: ${value}`}
                         labelLine={false}
                       >

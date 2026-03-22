@@ -36,14 +36,23 @@ const fetcher = (url: string) => fetch(url).then(res => res.json());
 export function CapacityUtilizationWidget() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('weekly');
 
-  const { data, error, isLoading, mutate } = useSWR<{ success: boolean; data: CapacityDataPoint[] }>(
+  // Try organization-level first, fall back to user-level
+  const orgResult = useSWR<{ success: boolean; data: CapacityDataPoint[] }>(
     `/api/capacity/organization?period=${timePeriod}`,
     fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000,
-    }
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
   );
+
+  const userResult = useSWR<{ success: boolean; data: CapacityDataPoint[] }>(
+    orgResult.error ? `/api/capacity/history?period=${timePeriod}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  );
+
+  const data = orgResult.error ? userResult.data : orgResult.data;
+  const error = orgResult.error && userResult.error ? userResult.error : undefined;
+  const isLoading = orgResult.isLoading || (orgResult.error ? userResult.isLoading : false);
+  const mutate = orgResult.error ? userResult.mutate : orgResult.mutate;
 
   const capacityData = data?.data || [];
 

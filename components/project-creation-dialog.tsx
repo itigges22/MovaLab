@@ -87,11 +87,11 @@ export default function ProjectCreationDialog({
     accountId: propAccountId || '',
     workflowTemplateId: null as string | null,
     startDate: initialStartDate
-      ? initialStartDate.toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
+      ? initialStartDate.toLocaleDateString('en-CA')
+      : new Date().toLocaleDateString('en-CA'),
     endDate: initialStartDate
-      ? addDays(initialStartDate, 30).toISOString().split('T')[0]
-      : addDays(new Date(), 30).toISOString().split('T')[0],
+      ? addDays(initialStartDate, 30).toLocaleDateString('en-CA')
+      : addDays(new Date(), 30).toLocaleDateString('en-CA'),
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     estimatedHours: '',
   });
@@ -107,8 +107,8 @@ export default function ProjectCreationDialog({
     if (initialStartDate) {
       setFormData(prev => ({
         ...prev,
-        startDate: initialStartDate.toISOString().split('T')[0],
-        endDate: addDays(initialStartDate, 30).toISOString().split('T')[0],
+        startDate: initialStartDate.toLocaleDateString('en-CA'),
+        endDate: addDays(initialStartDate, 30).toLocaleDateString('en-CA'),
       }));
     }
   }, [initialStartDate]);
@@ -246,8 +246,8 @@ export default function ProjectCreationDialog({
         description: '',
         accountId: '',
         workflowTemplateId: null,
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: addDays(new Date(), 30).toISOString().split('T')[0],
+        startDate: new Date().toLocaleDateString('en-CA'),
+        endDate: addDays(new Date(), 30).toLocaleDateString('en-CA'),
         priority: 'medium',
         estimatedHours: '',
       });

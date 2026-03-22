@@ -184,6 +184,8 @@ export function TeamPerformanceWidget() {
                         cy="50%"
                         innerRadius={40}
                         outerRadius={70}
+                        startAngle={90}
+                        endAngle={-270}
                         label={({ value }) => value && value > 0 ? `${value}` : ''}
                       >
                         {analytics.workloadDistribution.map((entry, index) => (

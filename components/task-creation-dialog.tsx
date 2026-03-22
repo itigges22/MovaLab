@@ -96,8 +96,8 @@ export default function TaskCreationDialog({
   const [formData, setFormData] = useState({
     name: '',
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent' | 'idea',
-    start_date: initialStartDate ? initialStartDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    end_date: initialStartDate ? addDays(initialStartDate, 7).toISOString().split('T')[0] : addDays(new Date(), 7).toISOString().split('T')[0],
+    start_date: initialStartDate ? initialStartDate.toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+    end_date: initialStartDate ? addDays(initialStartDate, 7).toLocaleDateString('en-CA') : addDays(new Date(), 7).toLocaleDateString('en-CA'),
     estimated_hours: '',
     workflowTemplateId: '',
   });
@@ -113,8 +113,8 @@ export default function TaskCreationDialog({
     if (initialStartDate) {
       setFormData(prev => ({
         ...prev,
-        start_date: initialStartDate.toISOString().split('T')[0],
-        end_date: addDays(initialStartDate, 7).toISOString().split('T')[0],
+        start_date: initialStartDate.toLocaleDateString('en-CA'),
+        end_date: addDays(initialStartDate, 7).toLocaleDateString('en-CA'),
       }));
     }
   }, [initialStartDate]);
@@ -132,8 +132,8 @@ export default function TaskCreationDialog({
       setFormData({
         name: (existingProject.name as string | undefined) || '',
         priority: (existingProject.priority as 'low' | 'medium' | 'high' | 'urgent' | 'idea' | undefined) || 'medium',
-        start_date: existingProject.start_date ? new Date(existingProject.start_date as string).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        end_date: existingProject.end_date ? new Date(existingProject.end_date as string).toISOString().split('T')[0] : addDays(new Date(), 7).toISOString().split('T')[0],
+        start_date: existingProject.start_date ? new Date(existingProject.start_date as string).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+        end_date: existingProject.end_date ? new Date(existingProject.end_date as string).toLocaleDateString('en-CA') : addDays(new Date(), 7).toLocaleDateString('en-CA'),
         estimated_hours: existingProject.estimated_hours ? String(existingProject.estimated_hours) : '',
         workflowTemplateId: (existingProject.workflow_template_id as string | undefined) || '',
       });
@@ -321,8 +321,8 @@ export default function TaskCreationDialog({
     setFormData({
       name: '',
       priority: 'medium',
-      start_date: new Date().toISOString().split('T')[0],
-      end_date: addDays(new Date(), 7).toISOString().split('T')[0],
+      start_date: new Date().toLocaleDateString('en-CA'),
+      end_date: addDays(new Date(), 7).toLocaleDateString('en-CA'),
       estimated_hours: '',
       workflowTemplateId: '',
     });
