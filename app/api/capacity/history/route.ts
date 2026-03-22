@@ -161,17 +161,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Use the most recent availability record as the default for missing weeks,
-    // rather than always assuming 40 hours. If the user has set their availability
-    // to 0 for a week, future weeks without records should also default to their
-    // last known availability, not 40.
-    let userDefaultHours = DEFAULT_WEEKLY_HOURS;
-    if (availabilityData.data && availabilityData.data.length > 0) {
-      const sorted = [...availabilityData.data].sort((a: any, b: any) =>
-        (b.week_start_date as string).localeCompare(a.week_start_date as string)
-      );
-      userDefaultHours = sorted[0].available_hours as number;
-    }
+    // Default to 0 hours for weeks without an explicit availability record.
+    // Users must set their availability — unset weeks = not available.
+    const userDefaultHours = 0;
 
     // Build a map of project end dates for tasks to inherit when they have no due_date
     const projectEndDateMap = new Map<string, Date | null>();

@@ -213,16 +213,6 @@ export async function GET(request: NextRequest) {
           scheduleDataMap.get(userId)?.set(weekStartDate, a.schedule_data as Record<string, any>);
         }
       });
-      // Use most recent availability as default for each user
-      const byUser = new Map<string, { date: string; hours: number }>();
-      availabilityData.data.forEach((a: any) => {
-        const userId = a.user_id as string;
-        const existing = byUser.get(userId);
-        if (!existing || (a.week_start_date as string) > existing.date) {
-          byUser.set(userId, { date: a.week_start_date as string, hours: a.available_hours as number });
-        }
-      });
-      byUser.forEach((val, userId) => userDefaultHoursMap.set(userId, val.hours));
     }
 
     // Calculate how many accounts each user is working on (for proportional allocation)
@@ -253,7 +243,7 @@ export async function GET(request: NextRequest) {
         const accountCount = userAccounts ? userAccounts.size : 1;
         const allocationFactor = 1 / accountCount; // Split capacity evenly across accounts
 
-        const defaultHours = userDefaultHoursMap.get(userId) ?? DEFAULT_WEEKLY_HOURS;
+        const defaultHours = 0; // No record = not available
 
         const userScheduleData = scheduleDataMap.get(userId);
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
