@@ -103,9 +103,6 @@ const formatStatus = (status: ProjectStatus): string => {
 
 const formatHours = (hours?: { estimated?: number; actual?: number; remaining?: number }): string => {
   if (!hours) return '-';
-  if (hours.remaining != null && hours.estimated != null) {
-    return `${hours.remaining}h / ${hours.estimated}h`;
-  }
   if (hours.actual != null && hours.estimated != null) {
     return `${hours.actual}h / ${hours.estimated}h`;
   }
@@ -392,7 +389,7 @@ export const ProjectDataTable = ({
 
                       {visibleColumns.has("account") && (
                         <TableCell>
-                          <span className="text-sm">{project.account || '-'}</span>
+                          <span className="text-sm">{project.account || 'Unassigned'}</span>
                         </TableCell>
                       )}
 

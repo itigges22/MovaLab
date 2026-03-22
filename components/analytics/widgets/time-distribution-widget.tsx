@@ -129,7 +129,7 @@ export function TimeDistributionWidget() {
             <StatCard
               label="Tracking Rate"
               value={`${analytics.summary.trackingCompliance}%`}
-              change={analytics.summary.trackingCompliance >= 80 ? 5 : -5}
+              change={0}
               icon={<CheckCircle className="h-4 w-4" />}
             />
           </div>

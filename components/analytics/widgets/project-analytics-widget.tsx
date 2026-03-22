@@ -127,7 +127,7 @@ export function ProjectAnalyticsWidget() {
             <StatCard
               label="Health Score"
               value={`${analytics.summary.healthScore}%`}
-              change={analytics.summary.healthScore >= 80 ? 5 : -5}
+              change={0}
               icon={<AlertTriangle className="h-4 w-4" />}
             />
             <StatCard
@@ -190,7 +190,7 @@ export function ProjectAnalyticsWidget() {
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={analytics.priorityDistribution} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis type="number" />
+                      <XAxis type="number" allowDecimals={false} />
                       <YAxis dataKey="priority" type="category" width={60} tick={{ fontSize: 12 }} />
                       <Tooltip />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]}>

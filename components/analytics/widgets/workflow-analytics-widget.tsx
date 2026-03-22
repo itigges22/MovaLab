@@ -128,7 +128,7 @@ export function WorkflowAnalyticsWidget() {
             <StatCard
               label="Completion Rate"
               value={`${analytics.summary.completionRate}%`}
-              change={analytics.summary.completionRate >= 80 ? 5 : -5}
+              change={0}
               icon={<CheckCircle className="h-4 w-4" />}
             />
           </div>

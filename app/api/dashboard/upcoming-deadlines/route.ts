@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { format, addDays, differenceInDays, isPast, isToday } from 'date-fns';
 import { logger } from '@/lib/debug-logger';
+import { checkPermissionHybrid } from '@/lib/permission-checker';
+import { Permission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,33 +70,16 @@ export async function GET(request: NextRequest) {
       logger.error('Error fetching task deadlines', {}, tasksError as unknown as Error);
     }
 
-    // Get projects the user can see: assigned via project_assignments, assigned_user_id, or created_by
-    const { data: assignments } = await supabase
-      .from('project_assignments')
-      .select('project_id')
-      .eq('user_id', userId)
-      .is('removed_at', null);
-
-    const assignedProjectIds = new Set(assignments?.map((a: any) => a.project_id) || []);
-
-    // Also get projects where user is assigned_user_id or created_by
-    const { data: ownedProjects } = await supabase
-      .from('projects')
-      .select('id')
-      .or(`assigned_user_id.eq.${userId},created_by.eq.${userId}`)
-      .not('status', 'eq', 'complete');
-
-    (ownedProjects || []).forEach((p: any) => assignedProjectIds.add(p.id));
-
-    const projectIds = Array.from(assignedProjectIds);
+    // Check if user can see all projects
+    const canViewAll = await checkPermissionHybrid(userProfile, Permission.VIEW_ALL_PROJECTS, undefined, supabase);
 
     let projects: any[] = [];
-    if (projectIds.length > 0) {
-      // Get projects with end dates (including overdue - no max date filter)
+
+    if (canViewAll) {
+      // User has VIEW_ALL_PROJECTS — show all project deadlines
       const { data: projectData, error: projectsError } = await supabase
         .from('projects')
         .select('id, name, end_date, status, priority, account_id, accounts(name)')
-        .in('id', projectIds)
         .not('status', 'eq', 'complete')
         .not('end_date', 'is', null)
         .order('end_date', { ascending: true })
@@ -104,6 +89,42 @@ export async function GET(request: NextRequest) {
         logger.error('Error fetching project deadlines', {}, projectsError as unknown as Error);
       } else {
         projects = projectData || [];
+      }
+    } else {
+      // Get projects the user can see: assigned via project_assignments, assigned_user_id, or created_by
+      const { data: assignments } = await supabase
+        .from('project_assignments')
+        .select('project_id')
+        .eq('user_id', userId)
+        .is('removed_at', null);
+
+      const assignedProjectIds = new Set(assignments?.map((a: any) => a.project_id) || []);
+
+      const { data: ownedProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .or(`assigned_user_id.eq.${userId},created_by.eq.${userId}`)
+        .not('status', 'eq', 'complete');
+
+      (ownedProjects || []).forEach((p: any) => assignedProjectIds.add(p.id));
+
+      const projectIds = Array.from(assignedProjectIds);
+
+      if (projectIds.length > 0) {
+        const { data: projectData, error: projectsError } = await supabase
+          .from('projects')
+          .select('id, name, end_date, status, priority, account_id, accounts(name)')
+          .in('id', projectIds)
+          .not('status', 'eq', 'complete')
+          .not('end_date', 'is', null)
+          .order('end_date', { ascending: true })
+          .limit(20);
+
+        if (projectsError) {
+          logger.error('Error fetching project deadlines', {}, projectsError as unknown as Error);
+        } else {
+          projects = projectData || [];
+        }
       }
     }
 

@@ -119,7 +119,7 @@ export function TeamPerformanceWidget() {
             <StatCard
               label="Avg Utilization"
               value={`${analytics.summary.avgUtilization}%`}
-              change={analytics.summary.avgUtilization >= 70 ? 5 : -5}
+              change={0}
               icon={<TrendingUp className="h-4 w-4" />}
             />
             <StatCard
