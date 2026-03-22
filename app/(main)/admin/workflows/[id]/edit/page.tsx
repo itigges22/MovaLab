@@ -318,7 +318,7 @@ export default function WorkflowEditorPage() {
                 <span>No nodes configured</span>
               </div>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" title={!hasNodes && !isActive ? 'Add Start and End nodes before activating' : ''}>
               <Switch
                 id="workflow-active"
                 checked={isActive}
@@ -327,7 +327,7 @@ export default function WorkflowEditorPage() {
               />
               <Label
                 htmlFor="workflow-active"
-                className={`text-sm cursor-pointer ${togglingActive ? 'opacity-50' : ''}`}
+                className={`text-sm cursor-pointer ${togglingActive ? 'opacity-50' : ''} ${!hasNodes && !isActive ? 'text-muted-foreground' : ''}`}
               >
                 {togglingActive ? 'Updating...' : isActive ? 'Active' : 'Inactive'}
               </Label>

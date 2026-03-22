@@ -17,11 +17,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Permission check: requires VIEW_DEPARTMENTS or VIEW_ALL_DEPARTMENTS
+    // Permission check: requires VIEW_DEPARTMENTS, VIEW_ALL_DEPARTMENTS, or MANAGE_WORKFLOWS
     const canView = await hasPermission(userProfile, Permission.VIEW_DEPARTMENTS, undefined, supabase);
     const canViewAll = await hasPermission(userProfile, Permission.VIEW_ALL_DEPARTMENTS, undefined, supabase);
+    const canManageWorkflows = await hasPermission(userProfile, Permission.MANAGE_WORKFLOWS, undefined, supabase);
 
-    if (!canView && !canViewAll) {
+    if (!canView && !canViewAll && !canManageWorkflows) {
       return NextResponse.json(
         { error: 'Insufficient permissions to view departments' },
         { status: 403 }
