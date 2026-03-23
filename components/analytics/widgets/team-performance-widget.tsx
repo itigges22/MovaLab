@@ -149,7 +149,7 @@ export function TeamPerformanceWidget() {
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={analytics.topPerformers} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis type="number" />
+                      <XAxis type="number" allowDecimals={false} />
                       <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11 }} />
                       <Tooltip
                         formatter={(value: number, name: string) => [

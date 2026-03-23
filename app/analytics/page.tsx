@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
               title="Team Utilization"
               value={`${overview.team.avgUtilization}%`}
               subtitle={`${overview.team.activeUsers} active users`}
-              trend={{ value: overview.team.avgUtilization >= 70 ? 5 : -5, isPositive: overview.team.avgUtilization >= 70 }}
+              trend={{ value: 0, isPositive: true }}
               icon={<Users className="h-4 w-4" />}
             />
             <SummaryStatCard
