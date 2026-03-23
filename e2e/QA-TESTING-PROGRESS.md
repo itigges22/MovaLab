@@ -72,3 +72,16 @@
 ## Remaining Cosmetic Items (Not Bugs)
 - Gantt chart shows "No dates set" for tasks without start_date (data issue)
 - Analytics page redirects to /welcome for unauthorized users (could show Access Denied)
+
+## Additional Tests (Session 2)
+
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| 19 | Delete task (with confirmation) | PASS | Task removed, lead time recalculated |
+| 20 | Account search (type "bloom") | PASS | Filters to Bloom Coffee Co only |
+| 21 | Issue resolve (In Progress -> Resolved) | PASS | "Resolved by Isaac Tigges" shown |
+| 22 | Create project via UI (full flow) | PASS | With workflow, account, dates correct |
+| 23 | Column sorting (priority) | PASS | Ascending sort, rows reordered |
+| 24 | Workflow dropdown in Create Project | PASS | Graphics Workflow shown (active) |
+| 25 | Proactive UTC date sweep | FIXED | 3 more instances found and fixed |
+| 26 | Docker image cleanup on VPS | DONE | 58GB free, 24% used |
