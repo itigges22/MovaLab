@@ -30,48 +30,26 @@ export function AccountList({ accounts, userProfile, onAccountCreated }: Account
   const [searchTerm, setSearchTerm] = useState('');
   const [canCreateAccount, setCanCreateAccount] = useState(false);
   const [hasManageAccountsPermission, setHasManageAccountsPermission] = useState(false);
-  const [visibleAccounts, setVisibleAccounts] = useState<Account[]>([]);
+  // Accounts are pre-filtered by the server page component — trust the passed data
+  const [visibleAccounts, setVisibleAccounts] = useState<Account[]>(accounts);
 
-  // Check permissions and filter accounts
+  // Check permissions for UI controls (create button, manage actions)
   useEffect(() => {
-    if (!userProfile) {
-      setVisibleAccounts([]);
-      return;
-    }
-    
-    async function checkPermissionsAndFilter() {
+    if (!userProfile) return;
+
+    async function checkPermissions() {
       const canManage = await hasPermission(userProfile, Permission.MANAGE_ACCOUNTS);
       setCanCreateAccount(canManage);
       setHasManageAccountsPermission(canManage);
-
-      // Filter accounts based on permissions
-      const filtered: Account[] = [];
-      const hasViewAllAccounts = await hasPermission(userProfile, Permission.VIEW_ALL_ACCOUNTS);
-      const hasViewAccounts = await hasPermission(userProfile, Permission.VIEW_ACCOUNTS);
-
-      // If user has MANAGE_ACCOUNTS or VIEW_ALL_ACCOUNTS, they can see all accounts
-      if (canManage || hasViewAllAccounts) {
-        setVisibleAccounts(accounts);
-        return;
-      }
-
-      // If user has VIEW_ACCOUNTS, check access in parallel (not sequential)
-      if (hasViewAccounts) {
-        const accessChecks = await Promise.all(
-          accounts.map(async (account: any) => {
-            const hasAccess = await hasAccountAccess((userProfile as any).id, account.id);
-            return hasAccess ? account : null;
-          })
-        );
-        setVisibleAccounts(accessChecks.filter(Boolean) as Account[]);
-        return;
-      }
-
-      setVisibleAccounts([]);
     }
-    
-    void checkPermissionsAndFilter();
-  }, [userProfile, accounts]);
+
+    void checkPermissions();
+  }, [userProfile]);
+
+  // Update visible accounts when props change
+  useEffect(() => {
+    setVisibleAccounts(accounts);
+  }, [accounts]);
 
   const filteredAccounts = visibleAccounts.filter((account: any) =>
     account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

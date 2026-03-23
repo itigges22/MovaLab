@@ -57,11 +57,9 @@ export default async function AccountsPage() {
   // Use admin client for reads — server component auth doesn't carry through RLS properly
   // Permission checks are done above via canViewAccounts/canManageAccounts
   const adminClient = createAdminSupabaseClient();
-  console.warn('[Accounts Page] userId:', (userProfile as any).id, 'isAdminLevel:', isAdminLevel, 'adminClient:', !!adminClient);
   const accounts = isAdminLevel
     ? await accountService.getAllAccounts(adminClient)
     : await accountService.getUserAccounts((userProfile as any).id, adminClient);
-  console.warn('[Accounts Page] accounts fetched:', accounts.length);
 
   return (
     <div className="min-h-screen bg-background">
