@@ -189,9 +189,16 @@ export default function AdminTimeTrackingPage() {
     })
   }
 
-  // Format date
+  // Format date — parse date-only strings as local to avoid UTC off-by-one
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    let date: Date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(dateStr);
+    }
+    return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric'

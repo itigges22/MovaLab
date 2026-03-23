@@ -270,23 +270,16 @@ export default function TaskCreateEditDialog({
     // Validate task dates are within project dates
     if (project) {
       if (formData.start_date && project.start_date) {
-        const taskStart = new Date(formData.start_date);
-        const projectStart = new Date(project.start_date);
-
-        if (taskStart < projectStart) {
-          const formattedProjectStart = new Date(project.start_date).toLocaleDateString();
-          toast.error(`Task start date cannot be before project start date (${formattedProjectStart})`);
+        // Compare date strings directly (YYYY-MM-DD) to avoid UTC parsing issues
+        if (formData.start_date < String(project.start_date).split('T')[0]) {
+          toast.error(`Task start date cannot be before project start date (${String(project.start_date).split('T')[0]})`);
           return;
         }
       }
 
       if (formData.due_date && project.end_date) {
-        const taskDue = new Date(formData.due_date);
-        const projectEnd = new Date(project.end_date);
-
-        if (taskDue > projectEnd) {
-          const formattedProjectEnd = new Date(project.end_date).toLocaleDateString();
-          toast.error(`Task due date cannot be after project end date (${formattedProjectEnd})`);
+        if (formData.due_date > String(project.end_date).split('T')[0]) {
+          toast.error(`Task due date cannot be after project end date (${String(project.end_date).split('T')[0]})`);
           return;
         }
       }
