@@ -1210,13 +1210,10 @@ async function completeProject(
       })
       .eq('id', projectId);
 
-    // Mark all project assignments as removed
-    // Everyone loses active access when project is complete
-    await supabase
-      .from('project_assignments')
-      .update({ removed_at: new Date().toISOString() })
-      .eq('project_id', projectId)
-      .is('removed_at', null);
+    // NOTE: Do NOT remove project assignments on completion.
+    // Assignments are historical records showing who worked on the project.
+    // The project's status='complete' handles removing it from active views.
+    // Removing assignments erases the team roster and breaks completed project views.
 
     // Auto-resolve all open issues for this project
     // When a project is complete, any open issues are automatically resolved

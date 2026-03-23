@@ -130,17 +130,9 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to complete project' }, { status: 500 })
     }
 
-    // Soft-delete all project assignments (set removed_at)
-    const { error: assignmentError } = await supabase
-      .from('project_assignments')
-      .update({ removed_at: new Date().toISOString() })
-      .eq('project_id', projectId)
-      .is('removed_at', null)
-
-    if (assignmentError) {
-      logger.error('Error updating project assignments', {}, assignmentError as Error)
-      // Don't fail the request, just log the error
-    }
+    // NOTE: Do NOT remove project assignments on completion.
+    // Assignments are historical records showing who worked on the project.
+    // The project's status='complete' handles removing it from active views.
 
     return NextResponse.json({
       success: true,

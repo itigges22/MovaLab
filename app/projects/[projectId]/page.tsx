@@ -3684,7 +3684,7 @@ export default function ProjectDetailPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Complete Project</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to complete this project? This will mark the project as finished and remove all team assignments.
+                Are you sure you want to complete this project? This will mark the project as finished. Team members and workflow history will be preserved.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
