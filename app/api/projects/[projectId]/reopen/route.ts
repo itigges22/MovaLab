@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createApiSupabaseClient } from '@/lib/supabase-server'
+import { createApiSupabaseClient, createAdminSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
@@ -77,18 +77,17 @@ export async function POST(
       }, { status: 403 })
     }
 
-    // Reopen the project:
-    // 1. Clear workflow_instance_id (project now operates without workflow)
-    // 2. Set status to 'in_progress'
-    // 3. Clear completed_at timestamp
-    // 4. Set reopened_at timestamp for badge display
-    const { error: updateError } = await supabase
+    // Use admin client for writes — permission already checked above
+    const adminClient = createAdminSupabaseClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Admin client unavailable' }, { status: 500 })
+    }
+
+    // Reopen the project: set status back to in_progress
+    const { error: updateError } = await adminClient
       .from('projects')
       .update({
-        workflow_instance_id: null,
         status: 'in_progress',
-        completed_at: null,
-        reopened_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId)
@@ -98,9 +97,8 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to reopen project' }, { status: 500 })
     }
 
-    // Reactivate ALL previously assigned team members
-    // This preserves the team that was working on the project when it was completed
-    const { error: reactivateError } = await supabase
+    // Reactivate ALL previously assigned team members (from before our fix)
+    const { error: reactivateError } = await adminClient
       .from('project_assignments')
       .update({ removed_at: null })
       .eq('project_id', projectId)
@@ -108,33 +106,6 @@ export async function POST(
 
     if (reactivateError) {
       logger.error('Error reactivating team assignments', {}, reactivateError as Error)
-      // Continue anyway - this is not a critical failure
-    }
-
-    // Ensure project creator is assigned with 'creator' role
-    const { data: creatorAssignment } = await supabase
-      .from('project_assignments')
-      .select('id')
-      .eq('project_id', projectId)
-      .eq('user_id', project.created_by)
-      .single()
-
-    if (creatorAssignment) {
-      // Update role to creator if needed (and ensure not removed)
-      await supabase
-        .from('project_assignments')
-        .update({ role_in_project: 'creator', removed_at: null })
-        .eq('id', creatorAssignment.id)
-    } else {
-      // Create new assignment for creator
-      await supabase
-        .from('project_assignments')
-        .insert({
-          project_id: projectId,
-          user_id: project.created_by,
-          role_in_project: 'creator',
-          assigned_by: user.id
-        })
     }
 
     return NextResponse.json({
