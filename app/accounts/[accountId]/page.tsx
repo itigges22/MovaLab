@@ -5,7 +5,7 @@ import { accountService } from '@/lib/account-service';
 import { AccountOverview } from '@/components/account-overview';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createServerSupabase, createAdminSupabaseClient } from '@/lib/supabase-server';
 
 export async function generateMetadata({ params }: { params: Promise<{ accountId: string }> }): Promise<Metadata> {
   const { accountId } = await params;
@@ -98,13 +98,15 @@ export default async function AccountPage({ params }: AccountPageProps) {
                        hasManageAllProjects ||
                        hasFullAccessViaService;
 
-  // Fetch account data - pass supabase client for proper auth
-  // Don't pass userMap - let the service query the database for ALL assigned users
-   
+  // Use admin client for data fetch — permission already verified above
+  // Server component auth doesn't carry through RLS for account_members
+  const adminClient = createAdminSupabaseClient();
+  const queryClient = adminClient || supabase;
+
   const [account, metrics, urgentItems] = await Promise.all([
-    accountService.getAccountById(accountId, undefined, supabase as any),
-    accountService.getAccountMetrics(accountId, supabase as any),
-    accountService.getUrgentItems(accountId, supabase as any),
+    accountService.getAccountById(accountId, undefined, queryClient as any),
+    accountService.getAccountMetrics(accountId, queryClient as any),
+    accountService.getUrgentItems(accountId, queryClient as any),
   ]);
 
   if (!account) {

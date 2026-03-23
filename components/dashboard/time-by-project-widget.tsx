@@ -184,7 +184,7 @@ export function TimeByProjectWidget() {
                   </motion.div>
                 </div>
 
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height={160} minWidth={0}>
                   <PieChart>
                     <Pie
                       data={projects}
