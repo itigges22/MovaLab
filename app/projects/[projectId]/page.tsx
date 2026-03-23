@@ -1864,9 +1864,13 @@ export default function ProjectDetailPage() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set'
-    // Parse as local date to avoid UTC off-by-one
-    const [year, month, day] = dateString.split('-').map(Number)
-    return new Date(year, month - 1, day).toLocaleDateString()
+    // Date-only strings (YYYY-MM-DD): parse as local to avoid UTC off-by-one
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split('-').map(Number)
+      return new Date(year, month - 1, day).toLocaleDateString()
+    }
+    // Full timestamps: parse normally
+    return new Date(dateString).toLocaleDateString()
   }
 
   if (loading) {
