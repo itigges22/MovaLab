@@ -60,9 +60,7 @@ export async function PUT(
     const { content, status } = body;
 
     // Build update object
-    const updates: Record<string, unknown> = {
-      updated_at: new Date().toISOString()
-    };
+    const updates: Record<string, unknown> = {};
 
     if (content !== undefined) {
       if (!content.trim()) {
