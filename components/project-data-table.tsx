@@ -114,7 +114,14 @@ const formatHours = (hours?: { estimated?: number; actual?: number; remaining?: 
 const formatDeadline = (deadline?: string): { text: string; isOverdue: boolean; isNear: boolean } => {
   if (!deadline) return { text: '-', isOverdue: false, isNear: false };
 
-  const date = new Date(deadline);
+  // Parse date-only strings as local to avoid UTC off-by-one
+  let date: Date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+    const [year, month, day] = deadline.split('-').map(Number);
+    date = new Date(year, month - 1, day);
+  } else {
+    date = new Date(deadline);
+  }
   const now = new Date();
   const daysUntil = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
