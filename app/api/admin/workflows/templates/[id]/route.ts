@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient, createAdminSupabaseClient } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
 import {
@@ -189,9 +189,7 @@ export async function PATCH(
       ...validation.data,
       description: validation.data.description === null ? undefined : validation.data.description
     };
-    // Use admin client for writes — permission already checked above
-    const adminClient = createAdminSupabaseClient();
-    const template = await updateWorkflowTemplate(id, updates, adminClient);
+    const template = await updateWorkflowTemplate(id, updates, supabase);
 
     if (!template) {
       return NextResponse.json({ error: 'Workflow template not found' }, { status: 404 });
@@ -257,9 +255,7 @@ export async function DELETE(
 
     // Permanently delete template and all associated nodes/connections
     // NOTE: In-progress workflows will continue to work - they have their own snapshots
-    // Use admin client for writes — permission already checked above
-    const adminClient = createAdminSupabaseClient();
-    await deleteWorkflowTemplate(id, adminClient);
+    await deleteWorkflowTemplate(id, supabase);
 
     return NextResponse.json({
       success: true,

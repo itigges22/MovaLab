@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient, createAdminSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
+import { createApiSupabaseClient, getUserProfileFromRequest } from '@/lib/supabase-server';
 import { startWorkflowForProject } from '@/lib/workflow-execution-service';
 import { hasPermission } from '@/lib/permission-checker';
 import { Permission } from '@/lib/permissions';
@@ -53,9 +53,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Start the workflow — use admin client for writes (permission already checked above)
-    const adminClient = createAdminSupabaseClient();
-    const result = await startWorkflowForProject(adminClient, projectId, workflowTemplateId, userProfile.id);
+    // Start the workflow
+    const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, userProfile.id);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createApiSupabaseClient, createAdminSupabaseClient } from '@/lib/supabase-server'
+import { createApiSupabaseClient } from '@/lib/supabase-server'
 import { hasPermission, isSuperadmin } from '@/lib/rbac'
 import { Permission } from '@/lib/permissions'
 import { logger } from '@/lib/debug-logger'
@@ -77,14 +77,8 @@ export async function POST(
       }, { status: 403 })
     }
 
-    // Use admin client for writes — permission already checked above
-    const adminClient = createAdminSupabaseClient()
-    if (!adminClient) {
-      return NextResponse.json({ error: 'Admin client unavailable' }, { status: 500 })
-    }
-
     // Reopen the project: set status back to in_progress
-    const { error: updateError } = await adminClient
+    const { error: updateError } = await supabase
       .from('projects')
       .update({
         status: 'in_progress',
@@ -98,7 +92,7 @@ export async function POST(
     }
 
     // Reactivate ALL previously assigned team members (from before our fix)
-    const { error: reactivateError } = await adminClient
+    const { error: reactivateError } = await supabase
       .from('project_assignments')
       .update({ removed_at: null })
       .eq('project_id', projectId)
