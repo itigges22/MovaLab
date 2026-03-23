@@ -132,8 +132,8 @@ export default function TaskCreationDialog({
       setFormData({
         name: (existingProject.name as string | undefined) || '',
         priority: (existingProject.priority as 'low' | 'medium' | 'high' | 'urgent' | 'idea' | undefined) || 'medium',
-        start_date: existingProject.start_date ? new Date(existingProject.start_date as string).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
-        end_date: existingProject.end_date ? new Date(existingProject.end_date as string).toLocaleDateString('en-CA') : addDays(new Date(), 7).toLocaleDateString('en-CA'),
+        start_date: existingProject.start_date ? String(existingProject.start_date).split('T')[0] : new Date().toLocaleDateString('en-CA'),
+        end_date: existingProject.end_date ? String(existingProject.end_date).split('T')[0] : addDays(new Date(), 7).toLocaleDateString('en-CA'),
         estimated_hours: existingProject.estimated_hours ? String(existingProject.estimated_hours) : '',
         workflowTemplateId: (existingProject.workflow_template_id as string | undefined) || '',
       });

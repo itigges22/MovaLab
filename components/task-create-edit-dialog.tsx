@@ -223,8 +223,8 @@ export default function TaskCreateEditDialog({
         description: task.description || '',
         status: task.status,
         priority: task.priority,
-        start_date: task.start_date ? new Date(task.start_date).toLocaleDateString('en-CA') : '',
-        due_date: task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : '',
+        start_date: task.start_date ? String(task.start_date).split('T')[0] : '',
+        due_date: task.due_date ? String(task.due_date).split('T')[0] : '',
         estimated_hours: task.estimated_hours?.toString() || '',
         assigned_to: task.assigned_to || 'unassigned',
       });
