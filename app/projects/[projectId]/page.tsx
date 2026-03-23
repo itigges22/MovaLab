@@ -161,7 +161,7 @@ function TaskItem({
             )}
             {task.start_date && task.due_date && (
               <span>
-                {new Date(task.start_date).toLocaleDateString()} - {new Date(task.due_date).toLocaleDateString()}
+                {formatDate(task.start_date)} - {formatDate(task.due_date)}
               </span>
             )}
             {task.estimated_hours && (
@@ -3272,7 +3272,7 @@ export default function ProjectDetailPage() {
                                 {task.due_date && (
                                   <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
-                                    {new Date(task.due_date).toLocaleDateString()}
+                                    {formatDate(task.due_date)}
                                   </span>
                                 )}
                                 {task.estimated_hours && (
@@ -3517,7 +3517,7 @@ export default function ProjectDetailPage() {
                                   <span className={`w-2.5 h-2.5 rounded-full ${statusColors[task.status]}`}></span>
                                   <span className="text-xs text-gray-500 truncate">
                                     {task.start_date && task.due_date
-                                      ? `${new Date(task.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                      ? `${formatDate(task.start_date)} - ${formatDate(task.due_date)}`
                                       : 'No dates set'}
                                   </span>
                                 </div>
@@ -3646,7 +3646,7 @@ export default function ProjectDetailPage() {
                                   height: `${rowHeight - 12}px`,
                                   zIndex: 5
                                 }}
-                                title={`${task.name}\n${task.start_date ? new Date(task.start_date).toLocaleDateString() : 'No start'} - ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No end'}\nStatus: ${task.status.replace('_', ' ')}`}
+                                title={`${task.name}\n${task.start_date ? formatDate(task.start_date) : 'No start'} - ${task.due_date ? formatDate(task.due_date) : 'No end'}\nStatus: ${task.status.replace('_', ' ')}`}
                                 onClick={() => {
                                   setGanttDialogOpen(false)
                                   handleEditTask(task)
