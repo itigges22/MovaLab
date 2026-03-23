@@ -3,7 +3,7 @@ import { getCurrentUserProfileServer } from '@/lib/auth-server';
 import { accountService } from '@/lib/account-service';
 import { AccountsClientWrapper } from '@/components/accounts-client-wrapper';
 import { isSuperadmin, canManageAccounts, canViewAccounts } from '@/lib/rbac';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createServerSupabase, createAdminSupabaseClient } from '@/lib/supabase-server';
 
 export const metadata: Metadata = {
   title: 'Accounts',
@@ -54,10 +54,12 @@ export default async function AccountsPage() {
   // Check if user has admin-level access (can manage all accounts)
   const isAdminLevel = isSuperadmin(userProfile) || await canManageAccounts(userProfile, supabase);
 
-  // Fetch accounts based on user role - pass supabase client for proper auth
+  // Use admin client for reads — server component auth doesn't carry through RLS properly
+  // Permission checks are done above via canViewAccounts/canManageAccounts
+  const adminClient = createAdminSupabaseClient();
   const accounts = isAdminLevel
-    ? await accountService.getAllAccounts(supabase)
-    : await accountService.getUserAccounts((userProfile as any).id, supabase);
+    ? await accountService.getAllAccounts(adminClient)
+    : await accountService.getUserAccounts((userProfile as any).id, adminClient);
 
   return (
     <div className="min-h-screen bg-background">
