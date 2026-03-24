@@ -189,6 +189,22 @@
 | 123 | Invalid UUID format in URL | PASS | Graceful error page, no 500 |
 | 124 | XSS injection in search box | PASS | Script rendered as plain text, React escaping works |
 | 125 | SQL injection attempt via API | PASS | Parameterized queries, returns 200 with empty results |
+| 126 | Second cycle revision loop (Role→Approval again) | PASS | Progressed on second loop, audit trail grows |
+| 127 | Full revision loop: reject → revise → approve (production) | PASS | Workflow completed, 4 audit entries, issue auto-resolved |
+| 128 | Unauthenticated API access | PASS | Returns 401 Unauthorized |
+| 129 | Project with end date before start date | PASS | Returns 400 validation error |
+| 130 | Empty project name | PASS | "Project name is required" |
+| 131 | 10,000 char project name | PASS | "Project name too long" |
+| 132 | Task with due before start (pre-fix) | BUG #18 | Created successfully — no server validation |
+| 133 | Negative estimated hours | PASS | "Too small: expected number to be >=0" |
+| 134 | Non-existent project API | PASS | 404 "Project not found" |
+| 135 | Delete project via API | 200 | Succeeded (superadmin has permission) — restored project |
+| 136 | Users API access | PASS | Returns data for authenticated superadmin |
+| 137 | Clock API state check | PASS | No active session |
+| 138 | Non-existent API endpoint | PASS | 404 |
+| 139 | Clock in | PASS | Session started |
+| 140 | Double clock in | PASS | 400 "Already clocked in" — race condition protected |
+| 141 | Task with due before start (post-fix, production) | PASS | 400 "Due date cannot be before start date" |
 
 ## Bugs Found and Fixed (Session 3 continued)
 
@@ -196,6 +212,7 @@
 |---|-----|-----------|-----------|-----|
 | 16 | Workflow approval/rejection 500 error | workflow-execution-service.ts | workflow_approvals table didn't exist | Created table with migration |
 | 17 | Department admin page redirects to dashboard | departments/[id]/admin/page.tsx | User profile query missing is_superadmin, permissions, is_system_role | Changed to select('*') with proper FK hints |
+| 18 | Task API allows due_date before start_date | api/tasks/route.ts | No server-side date relationship validation | Added Zod refinement to validate due_date >= start_date |
 
 ## Workflow Edge Case Analysis
 
@@ -240,8 +257,10 @@
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer) — all tested locally**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**125 total tests. Bugs #16 (workflow approvals) and #17 (department admin) found and fixed on production.**
-**Security tests pass: XSS injection blocked, SQL injection blocked, invalid IDs handled gracefully.**
+**141 total tests across local + production environments.**
+**18 bugs found and fixed total (all deployed to production).**
+**Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
+**Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
 
 ### Test Coverage by Category
 | Category | Tests | Status |
