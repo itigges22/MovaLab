@@ -279,6 +279,19 @@
 | 213 | Clock in via widget (production) | PASS | Timer starts, "Clocked in successfully" toast |
 | 214 | Clock out dialog (production) | PASS | Time allocation form, project/task dropdowns |
 | 215 | Discard clock session (production) | PASS | "Clocked out without saving time" toast |
+| 216 | Departments list page (production) | PASS | 3 depts, health scores, project counts, capacity |
+| 217 | Workflow my-pipeline API | PASS | 200 |
+| 218 | Workflow my-approvals API | PASS | 200 |
+| 219 | Workflow my-projects API | PASS | 200 |
+| 220 | Workflow my-past-projects API | PASS | 200 |
+| 221 | Capacity by department API | PASS | 200 with dept filter |
+| 222 | Project notes update via PATCH | PASS | 200, notes saved |
+| 223 | XSS in project update content | PASS | Stored as-is but React escapes on render |
+| 224 | Update >5000 chars (pre-fix) | BUG #24 | 201 — no length validation |
+| 225 | Update >5000 chars (post-fix) | PASS | 400 "must be 5000 characters or less" |
+| 226 | Issue >5000 chars (post-fix) | PASS | 400 "must be 5000 characters or less" |
+| 227 | Update exactly 5000 chars (boundary) | PASS | 201 — accepted at boundary |
+| 228 | Test data cleanup (updates + issues) | PASS | 4 updates + 1 issue deleted |
 
 ## Bugs Found and Fixed (Session 3 continued)
 
@@ -297,6 +310,8 @@
 | 20b | Project update Zod error returns 500 | api/projects/[projectId]/route.ts | Used .errors instead of .issues on ZodError | Changed to .issues[0] (correct Zod API) |
 | 21 | Duplicate account name returns 500 | api/accounts/route.ts | Unique constraint violation (23505) not caught | Added 23505 check returning 409 with descriptive message |
 | 22 | Task update PATCH/PUT accepts invalid status | api/tasks/[taskId]/route.ts | No Zod validation on update body | Added updateTaskSchema with enum/date/hours validation |
+| 23 | Project update accepts >5000 char content | api/projects/[projectId]/updates/route.ts | No max length validation | Added 5000 char limit check |
+| 24 | Project issue accepts >5000 char content | api/projects/[projectId]/issues/route.ts | No max length validation | Added 5000 char limit check |
 
 ## Workflow Edge Case Analysis
 
@@ -336,13 +351,13 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 215 end-to-end interactions + edge case analysis across 4 sessions**
-**Total Bugs Found: 22 (all fixed and deployed to production)**
+**Total Tests: 228 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Bugs Found: 24 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**215 total tests across local + production environments.**
-**22 bugs found and fixed total (all deployed to production).**
+**228 total tests across local + production environments.**
+**24 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
 **API validation: All CRUD endpoints validated with Zod — invalid enums, dates, UUIDs, negative numbers all return 400.**
