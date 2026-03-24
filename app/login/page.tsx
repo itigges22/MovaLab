@@ -9,7 +9,7 @@ import { isDemoMode } from "@/lib/demo-mode"
 import { isSupabaseConfigured } from "@/lib/supabase"
 
 export default function Page() {
-  const { user, loading } = useAuth()
+  const { user, userProfile, loading } = useAuth()
   const router = useRouter()
   const supabaseReady = isSupabaseConfigured()
 
@@ -30,11 +30,16 @@ export default function Page() {
     // Wait for auth to finish loading before checking
     if (loading) return
 
-    // If user is already authenticated, redirect to welcome page
+    // If user is already authenticated, redirect appropriately
     if (user) {
-      router.replace('/welcome')
+      // Client users go to client portal
+      if (userProfile && (userProfile as any).is_client) {
+        router.replace('/client-portal')
+      } else {
+        router.replace('/welcome')
+      }
     }
-  }, [user, loading, router])
+  }, [user, userProfile, loading, router])
 
   // Show loading state while checking auth
   if (loading) {

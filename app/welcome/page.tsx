@@ -89,6 +89,13 @@ export default function WelcomePage() {
     }
   }, [user, loading, router])
 
+  // Client users should not see the internal welcome page
+  useEffect(() => {
+    if (!loading && userProfile && (userProfile as any).is_client) {
+      router.replace('/client-portal')
+    }
+  }, [loading, userProfile, router])
+
 
   // Helper functions for project display
 

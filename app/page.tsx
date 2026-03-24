@@ -36,12 +36,15 @@ export default function Home() {
 
   useEffect(() => {
     if (!firstRunChecked || isFirstRun) return
-    if (!loading && user) {
-      // User is authenticated — always go to dashboard
-      // Dashboard handles its own auth and permission checks
-      router.push('/dashboard')
+    if (!loading && user && userProfile) {
+      // Client users go to client portal, internal users to dashboard
+      if ((userProfile as any).is_client) {
+        router.push('/client-portal')
+      } else {
+        router.push('/dashboard')
+      }
     }
-  }, [user, loading, router, firstRunChecked, isFirstRun])
+  }, [user, userProfile, loading, router, firstRunChecked, isFirstRun])
 
   // Show spinner while checking first-run or redirecting to onboarding
   if (!firstRunChecked || isFirstRun) {
