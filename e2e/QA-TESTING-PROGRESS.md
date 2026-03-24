@@ -443,6 +443,14 @@
 | 377 | Capacity history 12 weeks | PASS | 200 |
 | 378 | Capacity history 52 weeks | PASS | 200 |
 | 379 | User profile sidebar dropdown menu | PASS | Name, email, Profile, Sign out |
+| 380 | Edit Layout mode (production) | PASS | 11 widgets with toggles, Cancel/Done |
+| 381 | Edit Layout cancel | PASS | Reverts to normal view |
+| 382 | Bug reporter dialog | PASS | Description, Category, Severity, Submit |
+| 383 | Bug reporter debug info telemetry | PASS | URL, viewport, browser, user captured |
+| 384 | Navigation: non-existent project URL | PASS | 200 (renders, client shows not found) |
+| 385 | Navigation: non-existent account URL | PASS | 200 |
+| 386 | Navigation: random 404 page | PASS | 404 |
+| 387 | Navigation: login while authenticated | PASS | 200 (redirects client-side) |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -511,12 +519,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 379 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 387 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**379 total tests across local + production environments.**
+**387 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
