@@ -227,19 +227,21 @@ export async function PUT(
     const existingNodeIds = existingNodes?.map(n => n.id) || [];
     logger.debug('[Workflow Save] Found existing nodes', { count: existingNodeIds.length });
 
-    // Nullify current_node_id on any workflow_instances referencing these nodes
-    // This prevents FK constraint violations when deleting nodes
+    // Clear FK references to these nodes before deleting them
     if (existingNodeIds.length > 0) {
-      logger.debug('[Workflow Save] Nullifying current_node_id on affected workflow_instances');
-      const { error: nullifyError } = await supabase
+      logger.debug('[Workflow Save] Clearing FK references for node deletion');
+
+      // Nullify current_node_id on workflow_instances
+      await supabase
         .from('workflow_instances')
         .update({ current_node_id: null })
         .in('current_node_id', existingNodeIds);
 
-      if (nullifyError) {
-        logger.error('[Workflow Save] Error nullifying current_node_id', {}, nullifyError as Error);
-        // Continue anyway - this is a best effort to avoid FK issues
-      }
+      // Delete workflow_active_steps referencing these nodes
+      await supabase
+        .from('workflow_active_steps')
+        .delete()
+        .in('node_id', existingNodeIds);
     }
 
     // Delete existing nodes and connections for this template
