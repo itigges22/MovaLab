@@ -307,6 +307,18 @@
 | 241 | Issue in completed project | PASS | 400 "read-only mode" |
 | 242 | Reopen completed project | PASS | 200, status → in_progress |
 | 243 | Concurrent rapid-fire project updates (3x) | PASS | All 200, no race condition |
+| 244 | Role update empty name (pre-fix) | BUG #25 | 500 instead of 400 |
+| 245 | Role update empty name (post-fix) | PASS | 400 "required and cannot be empty" |
+| 246 | Role update 101-char name (post-fix) | PASS | 400 "100 characters or less" |
+| 247 | Role update 501-char description (post-fix) | PASS | 400 "500 characters or less" |
+| 248 | Invitation with non-existent role_id | PASS | 400 "Role ID is required" |
+| 249 | Project create with non-existent account_id | PASS | 400 validation error |
+| 238 | Complete project via API | PASS | 200, status → complete |
+| 239 | Task creation in completed project | PASS | 400 "read-only mode" |
+| 240 | Update in completed project | PASS | 400 "read-only mode" |
+| 241 | Issue in completed project | PASS | 400 "read-only mode" |
+| 242 | Reopen completed project | PASS | 200, status → in_progress |
+| 243 | Concurrent rapid-fire project updates (3x) | PASS | All 200, no race condition |
 
 ## Bugs Found and Fixed (Session 3 continued)
 
@@ -327,6 +339,8 @@
 | 22 | Task update PATCH/PUT accepts invalid status | api/tasks/[taskId]/route.ts | No Zod validation on update body | Added updateTaskSchema with enum/date/hours validation |
 | 23 | Project update accepts >5000 char content | api/projects/[projectId]/updates/route.ts | No max length validation | Added 5000 char limit check |
 | 24 | Project issue accepts >5000 char content | api/projects/[projectId]/issues/route.ts | No max length validation | Added 5000 char limit check |
+| 25 | Role update with empty name returns 500 | api/roles/[roleId]/route.ts | No input validation on PATCH body | Added name/description length validation |
+| 26 | Role update with 256-char name returns 500 | api/roles/[roleId]/route.ts | Same as #25 | Same fix — 100 char limit on name |
 
 ## Workflow Edge Case Analysis
 
@@ -366,13 +380,13 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 243 end-to-end interactions + edge case analysis across 4 sessions**
-**Total Bugs Found: 24 (all fixed and deployed to production)**
+**Total Tests: 249 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Bugs Found: 26 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**243 total tests across local + production environments.**
-**24 bugs found and fixed total (all deployed to production).**
+**249 total tests across local + production environments.**
+**26 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
 **API validation: All CRUD endpoints validated with Zod — invalid enums, dates, UUIDs, negative numbers all return 400.**
