@@ -424,6 +424,10 @@
 | 358 | Department detail breadcrumbs | PASS | Home > Departments > Accounts |
 | 359 | Department deadline countdown | PASS | "6 days left", "29 days left" etc |
 | 360 | Department project priority filter | PASS | Dropdown shown |
+| 361 | Account search filter "Bloom" | PASS | Filters to 1 result |
+| 362 | Account search clear | PASS | Shows all 4 accounts |
+| 363 | Create Account dialog | PASS | Name, Description, Client Name, Status fields |
+| 364 | Create Account dialog close (Escape) | PASS | Closes without creating |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -492,12 +496,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 360 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 364 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**360 total tests across local + production environments.**
+**364 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
