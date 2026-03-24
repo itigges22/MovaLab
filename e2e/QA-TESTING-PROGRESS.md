@@ -401,6 +401,10 @@
 | 335 | User Mgmt — Department View | PASS | 3 depts, 8 roles, user counts |
 | 336 | User Mgmt — Accounts View | PASS | 4 accounts, 9 members, account managers |
 | 337 | User Mgmt — Invitations (previously tested) | PASS | 7 invitations, statuses |
+| 338 | Projects list sort by Priority ascending | PASS | Medium first, then high |
+| 339 | Projects list sort by Priority descending | PASS | High first, then medium |
+| 340 | Projects list department filter dropdown | PASS | "All Departments" shown |
+| 341 | Projects list 7 projects rendered | PASS | All with correct data |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -469,12 +473,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 337 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 341 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**337 total tests across local + production environments.**
+**341 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
