@@ -322,6 +322,27 @@ export async function PATCH(
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
+
+    // Validate role name if provided
+    if (body.name !== undefined) {
+      if (typeof body.name !== 'string' || !body.name.trim()) {
+        return NextResponse.json({ error: 'Role name is required and cannot be empty' }, { status: 400 });
+      }
+      if (body.name.trim().length > 100) {
+        return NextResponse.json({ error: 'Role name must be 100 characters or less' }, { status: 400 });
+      }
+    }
+
+    // Validate description if provided
+    if (body.description !== undefined && body.description !== null) {
+      if (typeof body.description !== 'string') {
+        return NextResponse.json({ error: 'Description must be a string' }, { status: 400 });
+      }
+      if (body.description.length > 500) {
+        return NextResponse.json({ error: 'Description must be 500 characters or less' }, { status: 400 });
+      }
+    }
+
     logger.info('Role update request body', { action: 'updateRole', roleId, body });
 
     // Use roleManagementService to update the role
