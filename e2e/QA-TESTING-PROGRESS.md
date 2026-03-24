@@ -292,6 +292,21 @@
 | 226 | Issue >5000 chars (post-fix) | PASS | 400 "must be 5000 characters or less" |
 | 227 | Update exactly 5000 chars (boundary) | PASS | 201 — accepted at boundary |
 | 228 | Test data cleanup (updates + issues) | PASS | 4 updates + 1 issue deleted |
+| 229 | Account members API | PASS | 200, 3 members with roles |
+| 230 | Account kanban config API | PASS | 200 |
+| 231 | Profile update API (PATCH) | PASS | 200, bio updated + cleared |
+| 232 | Account creation with full data | PASS | 201, all fields saved |
+| 233 | Account PATCH (mark inactive) | PASS | 200 |
+| 234 | Account DELETE (no handler) | 405 | Expected — no DELETE handler |
+| 235 | Workflow my-pipeline API | PASS | 200 |
+| 236 | Workflow my-approvals API | PASS | 200 |
+| 237 | Capacity by department filter | PASS | 200 |
+| 238 | Complete project via API | PASS | 200, status → complete |
+| 239 | Task creation in completed project | PASS | 400 "read-only mode" |
+| 240 | Update in completed project | PASS | 400 "read-only mode" |
+| 241 | Issue in completed project | PASS | 400 "read-only mode" |
+| 242 | Reopen completed project | PASS | 200, status → in_progress |
+| 243 | Concurrent rapid-fire project updates (3x) | PASS | All 200, no race condition |
 
 ## Bugs Found and Fixed (Session 3 continued)
 
@@ -351,12 +366,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 228 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 243 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 24 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**228 total tests across local + production environments.**
+**243 total tests across local + production environments.**
 **24 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
