@@ -80,6 +80,18 @@ interface WorkflowFormDataEntry {
   approvalDecision?: 'approved' | 'rejected' | null
 }
 
+// Helper function to format dates - handles both date-only and full timestamp strings
+function formatDate(dateString: string | null): string {
+  if (!dateString) return 'Not set'
+  // Date-only strings (YYYY-MM-DD): parse as local to avoid UTC off-by-one
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [year, month, day] = dateString.split('-').map(Number)
+    return new Date(year, month - 1, day).toLocaleDateString()
+  }
+  // Full timestamps: parse normally
+  return new Date(dateString).toLocaleDateString()
+}
+
 // Helper function to render simple markdown (bold text) as React elements
 function renderMarkdownContent(content: string): React.ReactNode {
   if (!content) return null
@@ -1862,16 +1874,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Not set'
-    // Date-only strings (YYYY-MM-DD): parse as local to avoid UTC off-by-one
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split('-').map(Number)
-      return new Date(year, month - 1, day).toLocaleDateString()
-    }
-    // Full timestamps: parse normally
-    return new Date(dateString).toLocaleDateString()
-  }
+  // formatDate is now a module-level function (defined above)
 
   if (loading) {
     return (

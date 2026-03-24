@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { isSuperadmin, isUnassigned, hasPermission } from '@/lib/rbac';
 import { Permission } from '@/lib/permissions';
+import { AccessDeniedPage } from '@/components/access-denied-page';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -12,6 +13,8 @@ interface RoleGuardProps {
   requirePermission?: Permission;
   requireAnyPermission?: Permission[];
   allowUnassigned?: boolean;
+  /** When set, shows an inline Access Denied page instead of redirecting */
+  accessDeniedMessage?: string;
 }
 
 /**
@@ -25,16 +28,18 @@ interface RoleGuardProps {
  * @param requireAnyPermission - User needs any of these permissions
  * @param allowUnassigned - Allow unassigned users (default: false)
  */
-export function RoleGuard({ 
-  children, 
-  fallbackPath = '/welcome', 
+export function RoleGuard({
+  children,
+  fallbackPath = '/welcome',
   requirePermission,
   requireAnyPermission,
-  allowUnassigned = false
+  allowUnassigned = false,
+  accessDeniedMessage,
 }: RoleGuardProps) {
   const { user, userProfile, loading } = useAuth();
   const router = useRouter();
   const [permissionCheck, setPermissionCheck] = useState<boolean | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -61,6 +66,7 @@ export function RoleGuard({
       const userIsUnassigned = isUnassigned(userProfile);
 
       if (userIsUnassigned && !allowUnassigned) {
+        if (accessDeniedMessage) { setAccessDenied(true); setPermissionCheck(false); return; }
         router.push(fallbackPath);
         return;
       }
@@ -81,6 +87,7 @@ export function RoleGuard({
       if (requirePermission) {
         const hasAccess = await hasPermission(userProfile, requirePermission);
         if (!hasAccess) {
+          if (accessDeniedMessage) { setAccessDenied(true); setPermissionCheck(false); return; }
           router.push(fallbackPath);
           return;
         }
@@ -99,6 +106,7 @@ export function RoleGuard({
         }
         
         if (!hasAnyAccess) {
+          if (accessDeniedMessage) { setAccessDenied(true); setPermissionCheck(false); return; }
           router.push(fallbackPath);
           return;
         }
@@ -110,10 +118,10 @@ export function RoleGuard({
     }
 
     void checkAccess();
-  }, [user, userProfile, loading, router, fallbackPath, requirePermission, requireAnyPermission, allowUnassigned]);
+  }, [user, userProfile, loading, router, fallbackPath, requirePermission, requireAnyPermission, allowUnassigned, accessDeniedMessage]);
 
-  // Show loading state
-  if (loading || !user || !userProfile || permissionCheck === null) {
+  // Show loading state (but not if access was explicitly denied)
+  if (!accessDenied && (loading || !user || !userProfile || permissionCheck === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -127,6 +135,17 @@ export function RoleGuard({
   // Permission check passed, render children
   if (permissionCheck) {
     return <>{children}</>;
+  }
+
+  // Permission check failed — show Access Denied inline if configured
+  if (accessDenied && accessDeniedMessage) {
+    const permName = requirePermission || (requireAnyPermission ? requireAnyPermission.join(' or ') : undefined);
+    return (
+      <AccessDeniedPage
+        description={accessDeniedMessage}
+        requiredPermission={permName}
+      />
+    );
   }
 
   // Permission check failed (will redirect)
