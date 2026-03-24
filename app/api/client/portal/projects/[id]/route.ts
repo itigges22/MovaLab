@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiSupabaseClient, createServerSupabase } from '@/lib/supabase-server';
+import { createApiSupabaseClient } from '@/lib/supabase-server';
 import { getClientProjectById } from '@/lib/client-portal-service';
 import { logger } from '@/lib/debug-logger';
 
@@ -54,9 +54,9 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });
     }
 
-    // Fetch additional data in parallel: team, updates, workflow nodes, workflow history
-    const adminSupabase = await createServerSupabase();
-    const db = adminSupabase || supabase;
+    // Fetch additional data in parallel using the authenticated client's supabase
+    // (NOT createServerSupabase which may lack the client user's RLS context)
+    const db = supabase;
 
     const [teamResult, updatesResult, workflowNodesResult, workflowHistoryResult] = await Promise.all([
       // Team members: project assignments with user profile info
