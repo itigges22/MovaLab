@@ -397,6 +397,10 @@
 | 331 | Analytics — Time tab | PASS | Daily trend, total 1h, tracking rate |
 | 332 | Analytics — Workflows tab | PASS | 1 active, 2 completed, 67% rate |
 | 333 | Analytics — Network tab | PASS | React Flow graph: 3 users, 7 projects, 3 accounts, 18 edges |
+| 334 | User Mgmt — Hierarchy View | PASS | 11 roles, levels, reporting structure |
+| 335 | User Mgmt — Department View | PASS | 3 depts, 8 roles, user counts |
+| 336 | User Mgmt — Accounts View | PASS | 4 accounts, 9 members, account managers |
+| 337 | User Mgmt — Invitations (previously tested) | PASS | 7 invitations, statuses |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -465,12 +469,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 333 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 337 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**333 total tests across local + production environments.**
+**337 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
