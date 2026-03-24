@@ -325,6 +325,14 @@
 | 259 | Role update empty name (post-fix production) | PASS | 400 "required and cannot be empty" |
 | 260 | Role update 101-char name (post-fix production) | PASS | 400 "100 characters or less" |
 | 261 | Role update 501-char description (post-fix prod) | PASS | 400 "500 characters or less" |
+| 262 | Time entry with 0 hours | PASS | 400 validation |
+| 263 | Time entry missing project | PASS | 400 validation |
+| 264 | Time entry missing date | PASS | 400 validation |
+| 265 | Time entry API validation (all fields) | PASS | All invalid inputs rejected with 400 |
+| 266 | Edit Project dialog pre-fill (production) | PASS | All fields correct, dates no off-by-one |
+| 267 | XSS task name rendered safely | PASS | `<b>bold</b>` shown as text, not HTML |
+| 268 | Emoji in task name (🎨✨🚀) | PASS | Rendered correctly |
+| 269 | Special chars in task name (quotes, slashes) | PASS | Properly escaped and displayed |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -392,12 +400,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 261 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 269 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 26 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**261 total tests across local + production environments.**
+**269 total tests across local + production environments.**
 **26 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
