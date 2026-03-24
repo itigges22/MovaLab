@@ -356,6 +356,14 @@
 | 290 | Workflow revision loop visible in editor | PASS | Approval→Role rejection edge visible |
 | 291 | Workflow editor node palette | PASS | Start, Role, Approval, Form, Conditional, End |
 | 292 | Workflow editor controls | PASS | Save, Delete, Clear, Tutorial, Zoom |
+| 293 | Project Notes edit via UI | PASS | Inline textarea, save, clear, "Notes saved" toast |
+| 294 | Project Notes multi-line content | PASS | Saved and displayed |
+| 295 | Project Notes clear (empty save) | PASS | Reverts to "No notes yet" placeholder |
+| 296 | Sidebar department navigation | PASS | Expands with "All Departments" link |
+| 297 | Complete Project via UI dialog | PASS | Confirmation dialog, "Project completed successfully!" toast |
+| 298 | Team preserved after completion | PASS | Team members still shown |
+| 299 | Reopen completed project via API | PASS | 200, status → in_progress |
+| 300 | Capacity page quick set interactions | PASS | 6h/8h weekdays toggle correctly |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -424,12 +432,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 292 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 300 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**292 total tests across local + production environments.**
+**300 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
