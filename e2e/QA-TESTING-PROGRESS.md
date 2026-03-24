@@ -405,6 +405,11 @@
 | 339 | Projects list sort by Priority descending | PASS | High first, then medium |
 | 340 | Projects list department filter dropdown | PASS | "All Departments" shown |
 | 341 | Projects list 7 projects rendered | PASS | All with correct data |
+| 342 | Profile update empty name | PASS | 400 "Name must be a non-empty string" |
+| 343 | Profile update bio >2000 chars | PASS | 400 "Bio must be 2000 characters or less" |
+| 344 | Account member add empty | PASS | 400 "User ID is required" |
+| 345 | Project assignment add empty | PASS | 400 "User ID is required" |
+| 346 | Bulk update 3 projects simultaneously | PASS | All 200, no race condition |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -473,12 +478,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 341 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 346 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**341 total tests across local + production environments.**
+**346 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
