@@ -19,10 +19,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    // Fetch user profile
+    // Fetch user profile (include client-specific fields)
     const { data: profile, error } = await supabase
       .from('user_profiles')
-      .select('id, name, email, bio, skills, image, created_at, updated_at')
+      .select('id, name, email, bio, skills, image, is_client, client_account_id, client_contact_name, client_company_position, created_at, updated_at')
       .eq('id', userProfile.id)
       .single();
 
@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
-    const { name, bio, skills } = body;
+    const { name, bio, skills, client_company_position } = body;
 
     // Validate that user can only update their own profile
     if (body.id && body.id !== userProfile.id) {
@@ -99,12 +99,21 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Maximum 50 skills allowed' }, { status: 400 });
       }
     }
+    if (client_company_position !== undefined && client_company_position !== null) {
+      if (typeof client_company_position !== 'string') {
+        return NextResponse.json({ error: 'Company position must be a string' }, { status: 400 });
+      }
+      if (client_company_position.length > 200) {
+        return NextResponse.json({ error: 'Company position must be 200 characters or less' }, { status: 400 });
+      }
+    }
 
     // Prepare update data (only whitelisted fields)
     const updateData: {
       name?: string;
       bio?: string;
       skills?: string[];
+      client_company_position?: string | null;
       updated_at: string;
     } = {
       updated_at: new Date().toISOString()
@@ -113,6 +122,7 @@ export async function PATCH(request: NextRequest) {
     if (name !== undefined) updateData.name = name.trim();
     if (bio !== undefined) updateData.bio = bio;
     if (skills !== undefined) updateData.skills = skills;
+    if (client_company_position !== undefined) updateData.client_company_position = client_company_position;
 
     logger.info('Updating user profile', {
       action: 'updateProfile',
@@ -125,7 +135,7 @@ export async function PATCH(request: NextRequest) {
       .from('user_profiles')
       .update(updateData)
       .eq('id', userProfile.id)
-      .select('id, name, email, bio, skills, image, created_at, updated_at')
+      .select('id, name, email, bio, skills, image, is_client, client_account_id, client_contact_name, client_company_position, created_at, updated_at')
       .single();
 
     if (error) {
