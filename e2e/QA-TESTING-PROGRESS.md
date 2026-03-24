@@ -182,6 +182,20 @@
 | 116 | Workflow approve & complete (Review→Delivered) | PASS | Workflow "Completed", full audit trail (2 entries) |
 | 117 | Completed workflow project UI state | PASS | "Complete Project" button returns, "No active workflow", audit preserved |
 | 118 | Workflow snapshot integrity (code verification) | PASS | started_snapshot stores nodes+connections at start, all progression uses snapshot not live template |
+| 119 | Department admin settings tab (production) | PASS | Name/description editable, notification settings, workflow rules |
+| 120 | Department detail page (production) | PASS | 7 projects, capacity chart (422h allocated), issues, activity |
+| 121 | Non-existent project ID | PASS | "Project Not Found" page, no crash |
+| 122 | Non-existent department ID | PASS | "Department Not Found" page, no crash |
+| 123 | Invalid UUID format in URL | PASS | Graceful error page, no 500 |
+| 124 | XSS injection in search box | PASS | Script rendered as plain text, React escaping works |
+| 125 | SQL injection attempt via API | PASS | Parameterized queries, returns 200 with empty results |
+
+## Bugs Found and Fixed (Session 3 continued)
+
+| # | Bug | Component | Root Cause | Fix |
+|---|-----|-----------|-----------|-----|
+| 16 | Workflow approval/rejection 500 error | workflow-execution-service.ts | workflow_approvals table didn't exist | Created table with migration |
+| 17 | Department admin page redirects to dashboard | departments/[id]/admin/page.tsx | User profile query missing is_superadmin, permissions, is_system_role | Changed to select('*') with proper FK hints |
 
 ## Workflow Edge Case Analysis
 
@@ -226,7 +240,8 @@
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer) — all tested locally**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**Last 53 tests (66-118) found ZERO new bugs — platform is rock solid.**
+**125 total tests. Bugs #16 (workflow approvals) and #17 (department admin) found and fixed on production.**
+**Security tests pass: XSS injection blocked, SQL injection blocked, invalid IDs handled gracefully.**
 
 ### Test Coverage by Category
 | Category | Tests | Status |

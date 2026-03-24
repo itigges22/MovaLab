@@ -15,7 +15,12 @@ const createTaskSchema = z.object({
   due_date: z.string().optional().nullable(),
   estimated_hours: z.number().min(0).max(10000).optional().nullable(),
   assigned_to: z.string().uuid('Invalid assignee ID').optional().nullable(),
-})
+}).refine((data) => {
+  if (data.start_date && data.due_date) {
+    return data.due_date >= data.start_date;
+  }
+  return true;
+}, { message: 'Due date cannot be before start date', path: ['due_date'] })
 
 // POST /api/tasks - Create a new task
 // NOTE: Task permissions are now inherited from project access
