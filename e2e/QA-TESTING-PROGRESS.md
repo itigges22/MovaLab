@@ -313,6 +313,18 @@
 | 247 | Role update 501-char description (post-fix) | PASS | 400 "500 characters or less" |
 | 248 | Invitation with non-existent role_id | PASS | 400 "Role ID is required" |
 | 249 | Project create with non-existent account_id | PASS | 400 validation error |
+| 250 | Availability GET API | PASS | 200, returns current week data |
+| 251 | Availability by week API | PASS | 200, schedule data with hoursPerDay |
+| 252 | Project search API | PASS | 200 with search param |
+| 253 | Account search API | PASS | 200 with search param |
+| 254 | Task name 500 chars boundary | PASS | 201, accepted at limit |
+| 255 | Project name 501 chars | PASS | 400 "Project name too long" |
+| 256 | Project estimated hours at max (100000) | PASS | 200, accepted |
+| 257 | Project estimated hours over max (100001) | PASS | 400 "Too big" |
+| 258 | Task estimated hours over max (10001) | PASS | 400 "Too big" |
+| 259 | Role update empty name (post-fix production) | PASS | 400 "required and cannot be empty" |
+| 260 | Role update 101-char name (post-fix production) | PASS | 400 "100 characters or less" |
+| 261 | Role update 501-char description (post-fix prod) | PASS | 400 "500 characters or less" |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -380,12 +392,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 249 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 261 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 26 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**249 total tests across local + production environments.**
+**261 total tests across local + production environments.**
 **26 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
