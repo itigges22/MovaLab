@@ -173,3 +173,26 @@ CREATE POLICY client_portal_workflow_history_select ON workflow_history FOR SELE
       AND user_is_client_for_project(wi.project_id)
     )
   );
+
+-- 6. Additional client SELECT policies for workflow nodes, templates, accounts
+
+CREATE POLICY client_portal_workflow_nodes_select ON workflow_nodes FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM workflow_instances wi
+      WHERE wi.workflow_template_id = workflow_nodes.workflow_template_id
+      AND user_is_client_for_project(wi.project_id)
+    )
+  );
+
+CREATE POLICY client_portal_workflow_templates_select ON workflow_templates FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM workflow_instances wi
+      WHERE wi.workflow_template_id = workflow_templates.id
+      AND user_is_client_for_project(wi.project_id)
+    )
+  );
+
+CREATE POLICY client_portal_accounts_select ON accounts FOR SELECT
+  USING (user_is_client_for_account(id));
