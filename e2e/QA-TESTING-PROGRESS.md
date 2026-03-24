@@ -339,6 +339,15 @@
 | 273 | Client invite with empty body | PASS | 400 validation error |
 | 274 | Non-existent page (404 page) | PASS | 404 |
 | 275 | Non-existent API endpoint | PASS | 404 |
+| 276 | New Task dialog via UI (production) | PASS | All fields render, Create disabled until name filled |
+| 277 | Create task via UI dialog | PASS | 201, task appears in list with correct data |
+| 278 | Task hours recalculation after create | PASS | Project hours updated (10h → 13h) |
+| 279 | Delete task via UI with confirmation | PASS | Confirmation dialog, task removed, hours recalculated |
+| 280 | New Update via UI | PASS | Inline form, disabled until content, posts correctly |
+| 281 | Update appears in list after posting | PASS | Shows author, timestamp, content |
+| 282 | Report Issue via UI | PASS | Inline form, issue posted with Open status |
+| 283 | Issue has status dropdown (Open) | PASS | Combobox to change status |
+| 284 | Test data cleanup (update + issue) | PASS | Both deleted via API |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -407,13 +416,14 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 275 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 284 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**275 total tests across local + production environments.**
+**284 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
+**UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
 **API validation: All CRUD endpoints validated with Zod — invalid enums, dates, UUIDs, negative numbers all return 400.**
