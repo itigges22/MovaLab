@@ -364,6 +364,32 @@
 | 298 | Team preserved after completion | PASS | Team members still shown |
 | 299 | Reopen completed project via API | PASS | 200, status → in_progress |
 | 300 | Capacity page quick set interactions | PASS | 6h/8h weekdays toggle correctly |
+| 301 | Task update — status only | PASS | 200 |
+| 302 | Task update — multiple fields at once | PASS | 200, name+priority changed |
+| 303 | Task assign user | PASS | 200 |
+| 304 | Task unassign user (null) | PASS | 200 |
+| 305 | Task set valid dates | PASS | 200 |
+| 306 | Task clear dates (null) | PASS | 200 |
+| 307 | Task set display_order | PASS | 200 |
+| 308 | XSS in task name via PATCH update | PASS | Stored as-is, React escapes |
+| 309 | Account update long description (>2000) | PASS | 400 validation |
+| 310 | Account update empty body | PASS | 400 "No valid fields" |
+| 311 | Issue status change via PUT | PASS | Route uses PUT not PATCH (405 on PATCH is correct) |
+| 312 | Issue PUT → in_progress | PASS | 200 |
+| 313 | Issue PUT → resolved | PASS | 200 |
+| 314 | Issue PUT invalid status | PASS | 400 "Invalid status" |
+| 315 | Project stakeholders GET | PASS | 200 |
+| 316 | Project assignments GET | PASS | 200 |
+| 317 | Workflow instance start empty body | PASS | 400 validation |
+| 318 | Profile GET API | PASS | 200 with user data |
+| 319 | Dashboard "In the Pipeline" tab | PASS | Empty state message |
+| 320 | Dashboard "Pending Approvals" tab | PASS | Empty state message |
+| 321 | Dashboard "Completed" tab | PASS | Empty state message |
+| 322 | Issue status PUT → in_progress | PASS | 200 |
+| 323 | Issue status PUT → resolved | PASS | 200 |
+| 324 | Issue PUT invalid status | PASS | 400 "Invalid status" |
+| 325 | Project stakeholders GET | PASS | 200 |
+| 326 | Project assignments GET | PASS | 200 |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -432,12 +458,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 300 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 326 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**300 total tests across local + production environments.**
+**326 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
