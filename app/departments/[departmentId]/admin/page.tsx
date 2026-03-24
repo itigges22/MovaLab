@@ -24,20 +24,21 @@ export default async function DepartmentAdminPage({ params }: DepartmentAdminPag
     redirect('/login');
   }
 
-  // Get user profile with roles
+  // Get user profile with roles (must include is_superadmin and role permissions)
   const { data: userProfile, error: profileError } = await supabase
     .from('user_profiles')
     .select(`
-      id,
-      name,
+      *,
       user_roles!user_roles_user_id_fkey (
         id,
         role_id,
-        roles (
+        roles!user_roles_role_id_fkey (
           id,
           name,
           department_id,
-          departments (
+          permissions,
+          is_system_role,
+          departments!roles_department_id_fkey (
             id,
             name
           )
@@ -55,7 +56,7 @@ export default async function DepartmentAdminPage({ params }: DepartmentAdminPag
   const hasAdminPrivileges = await isAdminLevel(userProfile as unknown as import('@/lib/rbac-types').UserWithRoles);
 
   if (!hasAdminPrivileges) {
-    redirect('/');
+    redirect('/departments');
   }
 
   // Get department details

@@ -334,9 +334,12 @@ export async function GET(request: NextRequest) {
           const project = Array.isArray(pa.projects) ? pa.projects[0] : pa.projects;
           if (!project || (project as Record<string, unknown>).status === 'complete') continue;
 
-          const projectHasTasks = (projectTasksData ?? []).some((t: any) => t.project_id === (project as Record<string, unknown>).id);
+          // Check if project has tasks WITH estimated hours — if not, use project-level estimate as fallback
+          const projectTasks = (projectTasksData ?? []).filter((t: any) => t.project_id === (project as Record<string, unknown>).id);
+          const taskEstimatedTotal = projectTasks.reduce((sum: number, t: any) => sum + ((t.remaining_hours ?? t.estimated_hours ?? 0) as number), 0);
+          const projectHasTaskEstimates = taskEstimatedTotal > 0;
 
-          if (!projectHasTasks && (project as Record<string, unknown>).estimated_hours) {
+          if (!projectHasTaskEstimates && (project as Record<string, unknown>).estimated_hours) {
             const projectStart = (project as Record<string, unknown>).start_date ? new Date((project as Record<string, unknown>).start_date as string) : new Date();
             const projectDueDate = (project as Record<string, unknown>).end_date ? new Date((project as Record<string, unknown>).end_date as string) : null;
             const estimatedHours = (project as Record<string, unknown>).estimated_hours as number;
