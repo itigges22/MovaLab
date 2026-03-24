@@ -451,6 +451,12 @@
 | 385 | Navigation: non-existent account URL | PASS | 200 |
 | 386 | Navigation: random 404 page | PASS | 404 |
 | 387 | Navigation: login while authenticated | PASS | 200 (redirects client-side) |
+| 388 | Capacity history by account filter | PASS | 200 |
+| 389 | Capacity by user filter | PASS | 200 |
+| 390 | Update create + delete lifecycle | PASS | 201 → 200 delete |
+| 391 | Issue create + delete lifecycle | PASS | 201 → 200 delete |
+| 392 | Account edit valid data | PASS | 200, description updated |
+| 393 | Account edit invalid service_tier | PASS | 400 "No valid fields" |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -519,12 +525,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 387 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 393 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**387 total tests across local + production environments.**
+**393 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
