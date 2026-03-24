@@ -410,6 +410,16 @@
 | 344 | Account member add empty | PASS | 400 "User ID is required" |
 | 345 | Project assignment add empty | PASS | 400 "User ID is required" |
 | 346 | Bulk update 3 projects simultaneously | PASS | All 200, no race condition |
+| 347 | Workflow handoff nonexistent instance | PASS | 400 validation |
+| 348 | Workflow next-nodes nonexistent instance | PASS | 403 "not found" |
+| 349 | Workflow history nonexistent instance | PASS | 200 empty array |
+| 350 | Workflow active-steps nonexistent instance | PASS | 200 with empty metadata |
+| 351 | Project status → on_hold | PASS | 200, verified via GET |
+| 352 | Task creation in on_hold project | PASS | 201 (only 'complete' is read-only) |
+| 353 | Project status → review | PASS | 200 |
+| 354 | Client invites list for account | PASS | 200 |
+| 355 | Remove nonexistent account member | PASS | 200 soft success |
+| 356 | All project statuses cycle | PASS | planning → in_progress → review → on_hold → complete → reopen |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -478,12 +488,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 346 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 356 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**346 total tests across local + production environments.**
+**356 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
