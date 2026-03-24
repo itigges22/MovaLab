@@ -191,7 +191,7 @@ export async function PUT(
     // Validate input
     const parseResult = updateProjectSchema.safeParse(rawBody);
     if (!parseResult.success) {
-      const firstError = parseResult.error.errors[0];
+      const firstError = parseResult.error.issues[0];
       return NextResponse.json({ error: `${firstError.path.join('.')}: ${firstError.message}` }, { status: 400 });
     }
     const body = parseResult.data;
