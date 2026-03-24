@@ -469,6 +469,12 @@
 | 403 | Account Manager collaborators | PASS | Shows KR and IT, 3 projects together |
 | 404 | Account Manager upcoming deadlines | PASS | Shows tasks AND projects with dates |
 | 405 | Account Manager recent activity | PASS | Task assignments, workflow updates |
+| 406 | Account Manager analytics access | PASS | Full analytics with all 7 tabs (has VIEW_ALL_ANALYTICS) |
+| 407 | Account Manager create role API | PASS | 403 "Permission denied" |
+| 408 | Account Manager delete project API | PASS | 200 — has MANAGE_PROJECTS permission (by design) |
+| 409 | Admin pages return 200 for non-admin | Expected | Server renders HTML, client handles redirect |
+| 410 | Account Manager projects visible | PASS | 7 projects accessible |
+| 411 | Account Manager project detail | PASS | Can view, edit tasks, post updates |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -537,12 +543,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 405 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 411 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**405 total tests across local + production environments.**
+**411 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
