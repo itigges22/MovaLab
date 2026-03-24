@@ -457,6 +457,18 @@
 | 391 | Issue create + delete lifecycle | PASS | 201 → 200 delete |
 | 392 | Account edit valid data | PASS | 200, description updated |
 | 393 | Account edit invalid service_tier | PASS | 400 "No valid fields" |
+| 394 | Full clock-in → select project → allocate → save | PASS | Complete lifecycle, "Logged 0.01 hours" |
+| 395 | Clock allocation project dropdown | PASS | Shows accessible projects only |
+| 396 | Clock allocation task dropdown enables on project select | PASS | Was disabled, enabled after selection |
+| 397 | Sign out via profile dropdown | PASS | Redirects to login page |
+| 398 | Login as Account Manager (itigges22) | PASS | Dashboard loads with limited nav |
+| 399 | Account Manager sidebar — no admin links | PASS | No Admin Dashboard, User Mgmt, Invites, Time Tracking |
+| 400 | Account Manager capacity — proportional | PASS | 20h available (vs 40h for superadmin) |
+| 401 | Account Manager My Tasks widget | PASS | Shows 3 assigned tasks, 1 overdue |
+| 402 | Account Manager My Accounts | PASS | 3 accounts (no QA test account) |
+| 403 | Account Manager collaborators | PASS | Shows KR and IT, 3 projects together |
+| 404 | Account Manager upcoming deadlines | PASS | Shows tasks AND projects with dates |
+| 405 | Account Manager recent activity | PASS | Task assignments, workflow updates |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -525,12 +537,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 393 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 405 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**393 total tests across local + production environments.**
+**405 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
