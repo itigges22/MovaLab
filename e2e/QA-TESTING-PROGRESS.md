@@ -479,6 +479,12 @@
 | 413 | STRESS: 10 concurrent task writes | PASS | 10/10 created, 1805ms, no errors |
 | 414 | STRESS: 10 concurrent deletes | PASS | 10/10 deleted, no errors |
 | 415 | Server stability under load | PASS | No crashes, no 500 errors |
+| 416 | Login as Kyle Reilly (No Assigned Role) | PASS | Redirects to welcome page |
+| 417 | Kyle Reilly sidebar — empty | PASS | No nav links at all (only Main header) |
+| 418 | Kyle Reilly welcome — role pending state | PASS | Shows account status, pending message, "View Profile" only |
+| 419 | Kyle Reilly no clock widget | PASS | Not shown in sidebar |
+| 420 | Sign out as Kyle, sign in as superadmin | PASS | Full nav restored |
+| 421 | 3-user login cycle verified on production | PASS | Superadmin → Account Manager → No Role → Superadmin |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -547,12 +553,14 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 415 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 421 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**415 total tests across local + production environments.**
+**421 total tests across local + production environments.**
+**3 user roles tested: Superadmin (full access), Account Manager (limited admin), No Assigned Role (pending state).**
+**Stress tested: 20 concurrent reads + 10 concurrent writes — no 500 errors.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
