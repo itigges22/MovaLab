@@ -79,6 +79,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'A department with this name already exists' }, { status: 409 });
+      }
       logger.error('Error creating department', {}, error as unknown as Error);
       return NextResponse.json({ error: 'Failed to create department' }, { status: 500 });
     }

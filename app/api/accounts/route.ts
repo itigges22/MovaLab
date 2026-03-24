@@ -151,6 +151,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
+      // Check for unique constraint violation (duplicate name)
+      if (error.code === '23505') {
+        return NextResponse.json({
+          error: 'An account with this name already exists'
+        }, { status: 409 })
+      }
+
       logger.error('Failed to create account in database', {
         action: 'create_account',
         userId: user.id
