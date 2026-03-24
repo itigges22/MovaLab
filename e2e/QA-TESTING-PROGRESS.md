@@ -333,6 +333,12 @@
 | 267 | XSS task name rendered safely | PASS | `<b>bold</b>` shown as text, not HTML |
 | 268 | Emoji in task name (🎨✨🚀) | PASS | Rendered correctly |
 | 269 | Special chars in task name (quotes, slashes) | PASS | Properly escaped and displayed |
+| 270 | Workflow start with non-existent template (pre-fix) | BUG #27 | 500 instead of 404 |
+| 271 | Workflow progress with non-existent instance | PASS | 400 "Missing required field" |
+| 272 | Account member add with empty body | PASS | 400 "User ID is required" |
+| 273 | Client invite with empty body | PASS | 400 validation error |
+| 274 | Non-existent page (404 page) | PASS | 404 |
+| 275 | Non-existent API endpoint | PASS | 404 |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -361,6 +367,7 @@
 | 24 | Project issue accepts >5000 char content | api/projects/[projectId]/issues/route.ts | No max length validation | Added 5000 char limit check |
 | 25 | Role update with empty name returns 500 | api/roles/[roleId]/route.ts | No input validation on PATCH body | Added name/description length validation |
 | 26 | Role update with 256-char name returns 500 | api/roles/[roleId]/route.ts | Same as #25 | Same fix — 100 char limit on name |
+| 27 | Workflow start with non-existent template returns 500 | api/workflows/start/route.ts | Always returned 500 for service errors | Added status code mapping: 404 for not found, 409 for conflicts |
 
 ## Workflow Edge Case Analysis
 
@@ -400,13 +407,13 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 269 end-to-end interactions + edge case analysis across 4 sessions**
-**Total Bugs Found: 26 (all fixed and deployed to production)**
+**Total Tests: 275 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**269 total tests across local + production environments.**
-**26 bugs found and fixed total (all deployed to production).**
+**275 total tests across local + production environments.**
+**27 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
 **API validation: All CRUD endpoints validated with Zod — invalid enums, dates, UUIDs, negative numbers all return 400.**
