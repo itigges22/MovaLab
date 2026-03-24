@@ -7,6 +7,8 @@ import { validateRequestBody, sendClientInvitationSchema } from '@/lib/validatio
 import { hasAccountAccessServer } from '@/lib/access-control-server';
 import { logger } from '@/lib/debug-logger';
 import { isValidUUID } from '@/lib/validation-helpers';
+import { sendEmail } from '@/lib/email/mailer';
+import { clientInvitationEmailHtml, clientInvitationEmailText } from '@/lib/email/templates/client-invitation';
 
 // POST /api/accounts/[id]/invite-client - Send client portal invitation
 export async function POST(
@@ -80,9 +82,48 @@ export async function POST(
       expiresInDays: validation.data.expires_in_days
     });
 
+    // Send invitation email
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client-invite/${invitation.token}`;
+
+    // Fetch account name for email
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('name')
+      .eq('id', accountId)
+      .single();
+
+    const emailResult = await sendEmail({
+      to: invitation.email,
+      subject: `You're invited to ${account?.name || 'a project'} on MovaLab`,
+      html: clientInvitationEmailHtml({
+        accountName: account?.name || 'Your Account',
+        inviteUrl,
+        expiresInDays: 7,
+      }),
+      text: clientInvitationEmailText({
+        accountName: account?.name || 'Your Account',
+        inviteUrl,
+        expiresInDays: 7,
+      }),
+    });
+
+    if (!emailResult.success) {
+      logger.warn('Failed to send client invitation email', { email: invitation.email, error: emailResult.error });
+      // Don't fail the request — invitation is created, email can be resent
+    }
+
     return NextResponse.json({ success: true, invitation }, { status: 201 });
   } catch (error: unknown) {
-    logger.error('Error in POST /api/accounts/[id]/invite-client', {}, error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const err = error as Error;
+    logger.error('Error in POST /api/accounts/[id]/invite-client', {}, err);
+
+    if (err.message?.includes('pending invitation already exists')) {
+      return NextResponse.json({ error: 'A pending invitation already exists for this email' }, { status: 409 });
+    }
+    if (err.message?.includes('internal user') || err.message?.includes('already exists')) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 });
   }
 }
