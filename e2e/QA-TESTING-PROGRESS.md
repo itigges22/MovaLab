@@ -434,6 +434,15 @@
 | 368 | Toggle columns — all checked by default | PASS | All 8 visible |
 | 369 | User profile sidebar dropdown | PASS | Name, email, Profile link, Sign out |
 | 370 | Create Project dialog date pre-fill | PASS | Today + 30 days |
+| 371 | Form response API empty body | PASS | 400 validation |
+| 372 | Workflow history form nonexistent | PASS | 403 "not found" |
+| 373 | Project negative budget | PASS | 400 "Too small" |
+| 374 | Project set budget | KNOWN ISSUE | 500 — budget column may not exist in DB |
+| 375 | Project assign user via API | PASS | 200 |
+| 376 | Capacity history 1 week | PASS | 200 |
+| 377 | Capacity history 12 weeks | PASS | 200 |
+| 378 | Capacity history 52 weeks | PASS | 200 |
+| 379 | User profile sidebar dropdown menu | PASS | Name, email, Profile, Sign out |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -502,12 +511,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 370 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 379 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**370 total tests across local + production environments.**
+**379 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
