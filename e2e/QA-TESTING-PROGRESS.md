@@ -1,6 +1,6 @@
 # QA Testing Progress Tracker
 
-## Last Updated: 2026-03-23
+## Last Updated: 2026-03-24
 
 ## End-to-End Interactions Tested (Actually Submitted/Executed)
 
@@ -205,6 +205,80 @@
 | 139 | Clock in | PASS | Session started |
 | 140 | Double clock in | PASS | 400 "Already clocked in" — race condition protected |
 | 141 | Task with due before start (post-fix, production) | PASS | 400 "Due date cannot be before start date" |
+| 142 | Project update invalid priority (production) | PASS | 400 with valid enum options listed |
+| 143 | Project update empty body (production) | PASS | 400 "No fields to update" |
+| 144 | Project update valid priority change | PASS | 200, project updated |
+| 145 | Project update invalid status | PASS | 400 with valid enum options listed |
+| 146 | Project update end_date before start_date | PASS | 400 "End date cannot be before start date" |
+| 147 | Project update negative estimated_hours | PASS | 400 "Too small: expected number to be >=0" |
+| 148 | Project update invalid UUID assigned_user_id | PASS | 400 "Invalid UUID" |
+| 149 | Task create with due before start | PASS | 400 "Due date cannot be before start date" |
+| 150 | Task create empty name | PASS | 400 "Task name is required" |
+| 151 | Task create invalid project_id | PASS | 400 "Invalid project ID" |
+| 152 | Task create invalid priority | PASS | 400 with enum options |
+| 153 | Task create invalid status | PASS | 400 with enum options |
+| 154 | Task create negative hours | PASS | 400 "Too small" |
+| 155 | Task create name >500 chars | PASS | 400 "Too big" |
+| 156 | Accounts list API | PASS | 200, 3 accounts |
+| 157 | Time entries list API | PASS | 200 |
+| 158 | Capacity API | PASS | 200 |
+| 159 | Capacity history API | PASS | 200 |
+| 160 | Departments list API | PASS | 200 |
+| 161 | Project invalid UUID in URL | PASS | 400 "Invalid ID format" |
+| 162 | Project DELETE invalid UUID | PASS | 400 "Invalid ID format" |
+| 163 | Project PATCH malformed JSON body | PASS | 400 "Invalid request body" |
+| 164 | Dashboard page full render (production) | PASS | All widgets, 7 projects, capacity chart, collaborators |
+| 165 | Projects list page (production) | PASS | 7 projects with sorting, department filter |
+| 166 | Project detail page — Testing Workflows! | PASS | Tasks, updates, issues, info panel, team |
+| 167 | Accounts list page (production) | PASS | 3 accounts with search, details links |
+| 168 | Time entries page (production) | PASS | Filters, stats, tabs, quick tips |
+| 169 | Admin dashboard (production) | PASS | All 3 sections, 6 admin cards |
+| 170 | Analytics dashboard (production) | PASS | 7 tabs, charts, capacity, projects, team |
+| 171 | Department admin page — Accounts | PASS | Team overview (4 users, 3 roles), settings tab |
+| 172 | Department admin save settings | PASS | Toast "Settings saved successfully!" |
+| 173 | Workflow builder admin (production) | PASS | Graphics Workflow template shown |
+| 174 | Account detail — Apex Fitness (production) | PASS | 2 projects, capacity chart, health 100, team 3 |
+| 175 | User Management page (production) | PASS | Hierarchy view, 10 roles, correct levels |
+| 176 | Task CRUD: create task | PASS | 201, task persisted |
+| 177 | Task CRUD: update task (PATCH) | PASS | 200, status+priority updated |
+| 178 | Task CRUD: delete task | PASS | 200, task removed |
+| 179 | Task update invalid status (pre-fix) | BUG #22 | 500 instead of 400 |
+| 180 | Task update invalid status (post-fix) | PASS | 400 with enum options |
+| 181 | Task update invalid priority (post-fix) | PASS | 400 with enum options |
+| 182 | Task update date mismatch (post-fix) | PASS | 400 "Due date cannot be before start date" |
+| 183 | Task update negative hours (post-fix) | PASS | 400 "Too small" |
+| 184 | Task update valid (status+priority) | PASS | 200, updated |
+| 185 | Task PUT invalid status (post-fix) | PASS | 400 with enum options |
+| 186 | Duplicate account name (pre-fix) | BUG #21 | 500 instead of 409 |
+| 187 | Duplicate account name (post-fix) | PASS | 409 "An account with this name already exists" |
+| 188 | Account create empty name | PASS | 400 "Account name is required" |
+| 189 | Task with non-existent project | PASS | 400 "Invalid project ID" |
+| 190 | Workflow start with non-existent IDs | PASS | 400 "Missing required fields" |
+| 191 | Docker image cleanup on VPS | N/A | All 12 images active (Supabase), no dangling |
+| 192 | Invitations page (production) | PASS | 7 invitations, statuses correct, actions shown |
+| 193 | Admin time tracking page (production) | PASS | 1 entry, stats, filters, Export CSV |
+| 194 | RBAC diagnostics page (production) | PASS | 4 users, 11 roles, 37 permissions, 0 issues |
+| 195 | Profile page (production) | PASS | All sections, edit button, security settings |
+| 196 | Capacity page (production) | PASS | Returns 200 |
+| 197 | Client portal page (production) | PASS | Returns 200 |
+| 198 | Superadmin setup page (production) | PASS | Returns 200 |
+| 199 | Database admin page (production) | PASS | Returns 200 |
+| 200 | Roles list API | PASS | 200 |
+| 201 | Role create duplicate name | PASS | 400 validation error |
+| 202 | Role create empty name | PASS | 400 validation error |
+| 203 | Project update create via API | PASS | 201 |
+| 204 | Project update empty content | PASS | 400 "Update content is required" |
+| 205 | Project issue create via API | PASS | 201 |
+| 206 | Project issue empty content | PASS | 400 "Issue content is required" |
+| 207 | Invitation empty body | PASS | 400 "A valid email address is required" |
+| 208 | Invitation invalid email | PASS | 400 "A valid email address is required" |
+| 209 | Clock status API | PASS | 200, isClockedIn: false |
+| 210 | Availability set API | PASS | 400 validation (body format) |
+| 211 | Kanban board (production) | PASS | 6 columns, task in Review |
+| 212 | Gantt chart (production) | PASS | Timeline renders, task bar visible, view toggles |
+| 213 | Clock in via widget (production) | PASS | Timer starts, "Clocked in successfully" toast |
+| 214 | Clock out dialog (production) | PASS | Time allocation form, project/task dropdowns |
+| 215 | Discard clock session (production) | PASS | "Clocked out without saving time" toast |
 
 ## Bugs Found and Fixed (Session 3 continued)
 
@@ -213,6 +287,16 @@
 | 16 | Workflow approval/rejection 500 error | workflow-execution-service.ts | workflow_approvals table didn't exist | Created table with migration |
 | 17 | Department admin page redirects to dashboard | departments/[id]/admin/page.tsx | User profile query missing is_superadmin, permissions, is_system_role | Changed to select('*') with proper FK hints |
 | 18 | Task API allows due_date before start_date | api/tasks/route.ts | No server-side date relationship validation | Added Zod refinement to validate due_date >= start_date |
+
+## Bugs Found and Fixed (Session 4 — 2026-03-24)
+
+| # | Bug | Component | Root Cause | Fix |
+|---|-----|-----------|-----------|-----|
+| 19 | Project update accepts invalid priority/status | api/projects/[projectId]/route.ts | No Zod validation on PUT body | Added updateProjectSchema with enum validation |
+| 20 | Project update empty body returns 500 | api/projects/[projectId]/route.ts | Supabase .update({}) throws error | Added empty update check before DB call |
+| 20b | Project update Zod error returns 500 | api/projects/[projectId]/route.ts | Used .errors instead of .issues on ZodError | Changed to .issues[0] (correct Zod API) |
+| 21 | Duplicate account name returns 500 | api/accounts/route.ts | Unique constraint violation (23505) not caught | Added 23505 check returning 409 with descriptive message |
+| 22 | Task update PATCH/PUT accepts invalid status | api/tasks/[taskId]/route.ts | No Zod validation on update body | Added updateTaskSchema with enum/date/hours validation |
 
 ## Workflow Edge Case Analysis
 
@@ -252,15 +336,17 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 118 end-to-end interactions + edge case analysis across 3 sessions**
-**Total Bugs Found: 15 (all fixed)**
-**Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer) — all tested locally**
+**Total Tests: 215 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Bugs Found: 22 (all fixed and deployed to production)**
+**Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**141 total tests across local + production environments.**
-**18 bugs found and fixed total (all deployed to production).**
+**215 total tests across local + production environments.**
+**22 bugs found and fixed total (all deployed to production).**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
 **Workflow: Full revision loop lifecycle tested on production (reject → revise → approve).**
+**API validation: All CRUD endpoints validated with Zod — invalid enums, dates, UUIDs, negative numbers all return 400.**
+**Duplicate detection: Account/department creation returns 409 for duplicate names.**
 
 ### Test Coverage by Category
 | Category | Tests | Status |
