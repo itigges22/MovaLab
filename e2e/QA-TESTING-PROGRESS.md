@@ -485,6 +485,8 @@
 | 419 | Kyle Reilly no clock widget | PASS | Not shown in sidebar |
 | 420 | Sign out as Kyle, sign in as superadmin | PASS | Full nav restored |
 | 421 | 3-user login cycle verified on production | PASS | Superadmin → Account Manager → No Role → Superadmin |
+| 422 | Workflow start on project with active workflow | PASS | 409 "already has an active workflow" |
+| 423 | Workflow start endpoint fix verified (bug #27) | PASS | Returns 409 not 500 for conflicts |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -553,12 +555,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 421 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 423 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**421 total tests across local + production environments.**
+**423 total tests across local + production environments.**
 **3 user roles tested: Superadmin (full access), Account Manager (limited admin), No Assigned Role (pending state).**
 **Stress tested: 20 concurrent reads + 10 concurrent writes — no 500 errors.**
 **27 bugs found and fixed total (all deployed to production).**
