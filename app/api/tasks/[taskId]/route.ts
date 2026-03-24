@@ -5,6 +5,26 @@ import { taskServiceDB, UpdateTaskData } from '@/lib/task-service-db'
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard'
 import { logger } from '@/lib/debug-logger'
 import { isValidUUID } from '@/lib/validation-helpers'
+import { z } from 'zod'
+
+const updateTaskSchema = z.object({
+  name: z.string().min(1, 'Task name is required').max(500).optional(),
+  description: z.string().max(5000).optional().nullable(),
+  status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'blocked']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  start_date: z.string().optional().nullable(),
+  due_date: z.string().optional().nullable(),
+  estimated_hours: z.number().min(0).max(10000).optional().nullable(),
+  actual_hours: z.number().min(0).max(10000).optional().nullable(),
+  remaining_hours: z.number().min(0).max(10000).optional().nullable(),
+  assigned_to: z.string().uuid().optional().nullable(),
+  display_order: z.number().min(0).optional(),
+}).refine((data) => {
+  if (data.start_date && data.due_date) {
+    return data.due_date >= data.start_date;
+  }
+  return true;
+}, { message: 'Due date cannot be before start date', path: ['due_date'] })
 
 // Helper function to get task's project info
 async function getTaskProject(supabase: any, taskId: string): Promise<{ project_id: string; status: string } | null> {
@@ -86,12 +106,20 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
+
+    // Validate input with Zod
+    const parseResult = updateTaskSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0];
+      return NextResponse.json({ error: `${firstError.path.join('.')}: ${firstError.message}` }, { status: 400 });
+    }
+    const body = parseResult.data;
 
     const updateData: UpdateTaskData = {
       id: taskId,
@@ -198,12 +226,20 @@ export async function PATCH(
       }, { status: 400 })
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
+
+    // Validate input with Zod
+    const parseResult = updateTaskSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0];
+      return NextResponse.json({ error: `${firstError.path.join('.')}: ${firstError.message}` }, { status: 400 });
+    }
+    const body = parseResult.data;
 
     // Build update object with only provided fields
     const updateFields: Record<string, unknown> = {}
