@@ -117,3 +117,59 @@ CREATE POLICY "Client users can insert project issues"
       WHERE p.id = project_id AND up.id = auth.uid()
     )
   );
+
+-- ============================================================
+-- 4. SECURITY DEFINER helper functions for client RLS (avoids recursion)
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION user_is_client_for_account(check_account_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_profiles
+    WHERE id = auth.uid()
+    AND is_client = true
+    AND client_account_id = check_account_id
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION user_is_client_for_project(check_project_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.projects p
+    JOIN public.user_profiles up ON up.client_account_id = p.account_id
+    WHERE p.id = check_project_id
+    AND up.id = auth.uid()
+    AND up.is_client = true
+  );
+$$;
+
+-- 5. Client SELECT policies (using SECURITY DEFINER to avoid recursion)
+
+CREATE POLICY client_portal_projects_select ON projects FOR SELECT
+  USING (user_is_client_for_account(account_id));
+
+CREATE POLICY client_portal_updates_select ON project_updates FOR SELECT
+  USING (user_is_client_for_project(project_id));
+
+CREATE POLICY client_portal_assignments_select ON project_assignments FOR SELECT
+  USING (user_is_client_for_project(project_id));
+
+CREATE POLICY client_portal_workflow_instances_select ON workflow_instances FOR SELECT
+  USING (user_is_client_for_project(project_id));
+
+CREATE POLICY client_portal_workflow_history_select ON workflow_history FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.workflow_instances wi
+      WHERE wi.id = workflow_history.workflow_instance_id
+      AND user_is_client_for_project(wi.project_id)
+    )
+  );
