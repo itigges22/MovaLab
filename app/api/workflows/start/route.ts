@@ -57,7 +57,17 @@ export async function POST(request: NextRequest) {
     const result = await startWorkflowForProject(supabase, projectId, workflowTemplateId, userProfile.id);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      const notFoundErrors = ['Workflow template not found', 'Project not found'];
+      const conflictErrors = ['already has an active workflow', 'already has a workflow'];
+      const errorMsg = result.error || 'Failed to start workflow';
+
+      if (notFoundErrors.some(e => errorMsg.includes(e))) {
+        return NextResponse.json({ error: errorMsg }, { status: 404 });
+      }
+      if (conflictErrors.some(e => errorMsg.includes(e))) {
+        return NextResponse.json({ error: errorMsg }, { status: 409 });
+      }
+      return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
 
     return NextResponse.json({
