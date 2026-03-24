@@ -158,6 +158,10 @@ export interface Database {
           skills: string[] | null;
           workload_sentiment: 'comfortable' | 'stretched' | 'overwhelmed' | null;
           is_superadmin: boolean;
+          is_client: boolean;
+          client_account_id: string | null;
+          client_contact_name: string | null;
+          client_company_position: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -170,6 +174,10 @@ export interface Database {
           skills?: string[] | null;
           workload_sentiment?: 'comfortable' | 'stretched' | 'overwhelmed' | null;
           is_superadmin?: boolean;
+          is_client?: boolean;
+          client_account_id?: string | null;
+          client_contact_name?: string | null;
+          client_company_position?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -182,6 +190,10 @@ export interface Database {
           skills?: string[] | null;
           workload_sentiment?: 'comfortable' | 'stretched' | 'overwhelmed' | null;
           is_superadmin?: boolean;
+          is_client?: boolean;
+          client_account_id?: string | null;
+          client_contact_name?: string | null;
+          client_company_position?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { SidebarNavigation } from '@/components/sidebar';
 import { TopHeader } from '@/components/top-header';
 import { SidebarMobileDrawer } from '@/components/sidebar/sidebar-mobile-drawer';
@@ -11,10 +12,12 @@ interface AppLayoutProps {
 }
 
 // Pages that should NOT show the sidebar (auth pages, etc.)
-const noSidebarPages = ['/login', '/signup', '/auth', '/reset-password', '/update-password', '/onboarding', '/invite'];
+const noSidebarPages = ['/login', '/signup', '/auth', '/reset-password', '/update-password', '/onboarding', '/invite', '/client-portal', '/client-invite'];
 
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { userProfile, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -22,6 +25,16 @@ export function AppLayout({ children }: AppLayoutProps) {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Redirect client users to client portal when they access internal pages
+  useEffect(() => {
+    if (!loading && userProfile && (userProfile as any).is_client) {
+      const isInternalPage = !noSidebarPages.some(page => pathname.startsWith(page));
+      if (isInternalPage) {
+        router.replace('/client-portal');
+      }
+    }
+  }, [loading, userProfile, pathname, router]);
 
   // Close mobile menu on route change
   useEffect(() => {
