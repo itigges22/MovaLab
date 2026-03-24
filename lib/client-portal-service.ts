@@ -43,7 +43,7 @@ export interface ClientFeedback {
   what_needs_improvement: string | null;
   performance_metrics: Record<string, Record<string, unknown>> | null;
   submitted_at: string;
-  visibility: 'private' | 'public';
+  visibility: 'account' | 'project' | 'private';
 }
 
 export interface ClientUser {
@@ -65,7 +65,13 @@ export interface ClientProject {
   start_date: string | null;
   end_date: string | null;
   created_at: string;
-  workflow_instance_id: string | null;
+  workflow_instance: {
+    id: string;
+    project_id: string;
+    current_node_id: string | null;
+    status: string;
+    workflow_templates: { id: string; name: string } | null;
+  } | null;
 }
 
 // =====================================================
@@ -323,9 +329,9 @@ export async function getClientProjects(clientUserId: string): Promise<ClientPro
     throw new Error('User is not a client or has no associated account');
   }
 
-  const { data, error } = await supabase
+  const { data: projects, error } = await supabase
     .from('projects')
-    .select('id, name, description, status, account_id, start_date, end_date, created_at, workflow_instance_id')
+    .select('id, name, description, status, account_id, start_date, end_date, created_at')
     .eq('account_id', userProfile.client_account_id)
     .order('created_at', { ascending: false });
 
@@ -334,7 +340,33 @@ export async function getClientProjects(clientUserId: string): Promise<ClientPro
     throw error;
   }
 
-  return data || [];
+  if (!projects || projects.length === 0) {
+    return [];
+  }
+
+  // Fetch workflow instances separately (workflow_instances has project_id FK)
+  const projectIds = projects.map((p: any) => p.id);
+  const { data: workflowInstances } = await supabase
+    .from('workflow_instances')
+    .select('id, project_id, current_node_id, status, workflow_templates(id, name)')
+    .in('project_id', projectIds)
+    .eq('status', 'active');
+
+  // Normalize workflow_templates from Supabase (may be array or object)
+  const normalizeWI = (wi: any) => ({
+    ...wi,
+    workflow_templates: Array.isArray(wi.workflow_templates)
+      ? wi.workflow_templates[0] || null
+      : wi.workflow_templates || null,
+  });
+
+  // Merge workflow data into projects
+  return projects.map((p: any) => ({
+    ...p,
+    workflow_instance: workflowInstances?.find((wi: any) => wi.project_id === p.id)
+      ? normalizeWI(workflowInstances!.find((wi: any) => wi.project_id === p.id))
+      : null,
+  }));
 }
 
 /**
@@ -354,9 +386,9 @@ export async function getClientProjectById(clientUserId: string, projectId: stri
     throw new Error('User is not a client or has no associated account');
   }
 
-  const { data, error } = await supabase
+  const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, description, status, account_id, start_date, end_date, created_at, workflow_instance_id')
+    .select('id, name, description, status, account_id, start_date, end_date, created_at')
     .eq('id', projectId)
     .eq('account_id', userProfile.client_account_id)
     .single();
@@ -366,7 +398,29 @@ export async function getClientProjectById(clientUserId: string, projectId: stri
     throw error;
   }
 
-  return data || null;
+  if (!project) {
+    return null;
+  }
+
+  // Fetch workflow instance separately (workflow_instances has project_id FK)
+  const { data: workflowInstances } = await supabase
+    .from('workflow_instances')
+    .select('id, project_id, current_node_id, status, workflow_templates(id, name)')
+    .eq('project_id', projectId)
+    .eq('status', 'active');
+
+  const wi = workflowInstances?.[0] || null;
+  return {
+    ...project,
+    workflow_instance: wi
+      ? {
+          ...wi,
+          workflow_templates: Array.isArray(wi.workflow_templates)
+            ? wi.workflow_templates[0] || null
+            : wi.workflow_templates || null,
+        }
+      : null,
+  };
 }
 
 // =====================================================
@@ -675,9 +729,9 @@ export async function clientApproveProject(params: {
     workflow_instance_id: workflowInstanceId,
     from_node_id: instance.current_node_id,
     to_node_id: nextNodeId,
-    handed_off_by: clientUserId,
+    transitioned_by: clientUserId,
     notes: notes || `Client approved project${notes ? `: ${notes}` : ''}`,
-    out_of_order: false,
+    transition_type: 'normal',
   });
 
   // 7. Log approval in project updates
@@ -752,9 +806,9 @@ export async function clientRejectProject(params: {
       workflow_instance_id: workflowInstanceId,
       from_node_id: instance.current_node_id,
       to_node_id: instance.current_node_id, // Stay at current node
-      handed_off_by: clientUserId,
+      transitioned_by: clientUserId,
       notes: `❌ Client rejected: ${notes}`,
-      out_of_order: false,
+      transition_type: 'normal',
     })
     .select()
     .single();
