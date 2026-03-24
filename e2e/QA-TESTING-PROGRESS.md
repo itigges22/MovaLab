@@ -348,6 +348,14 @@
 | 282 | Report Issue via UI | PASS | Inline form, issue posted with Open status |
 | 283 | Issue has status dropdown (Open) | PASS | Combobox to change status |
 | 284 | Test data cleanup (update + issue) | PASS | Both deleted via API |
+| 285 | Capacity page full render (production) | PASS | Chart, availability editor, week nav, quick set |
+| 286 | Capacity quick set 6h weekdays | PASS | All weekdays → 6h, total → 30h |
+| 287 | Capacity quick set 8h weekdays | PASS | All weekdays → 8h, total → 40h |
+| 288 | Workflow start non-existent template (post-fix) | PASS | 404 "Workflow template not found" |
+| 289 | Workflow editor canvas (production) | PASS | 4 nodes, 4 edges, node palette, controls |
+| 290 | Workflow revision loop visible in editor | PASS | Approval→Role rejection edge visible |
+| 291 | Workflow editor node palette | PASS | Start, Role, Approval, Form, Conditional, End |
+| 292 | Workflow editor controls | PASS | Save, Delete, Clear, Tutorial, Zoom |
 | 238 | Complete project via API | PASS | 200, status → complete |
 | 239 | Task creation in completed project | PASS | 400 "read-only mode" |
 | 240 | Update in completed project | PASS | 400 "read-only mode" |
@@ -416,12 +424,12 @@
 
 ## Final Testing Summary (All Sessions Combined)
 
-**Total Tests: 284 end-to-end interactions + edge case analysis across 4 sessions**
+**Total Tests: 292 end-to-end interactions + edge case analysis across 4 sessions**
 **Total Bugs Found: 27 (all fixed and deployed to production)**
 **Roles Tested: 3 (Superadmin, Account Manager, Graphic Designer)**
 **Full workflow lifecycle tested: Create template → Create project with workflow → Progress through steps → Approve → Complete**
 **Workflow edge cases verified: Snapshot system protects in-progress workflows from template edits/deletions**
-**284 total tests across local + production environments.**
+**292 total tests across local + production environments.**
 **27 bugs found and fixed total (all deployed to production).**
 **UI interaction tests: Task CRUD, Update posting, Issue reporting, Clock widget, Kanban, Gantt — all verified on production.**
 **Security: XSS blocked, SQL injection blocked, invalid IDs handled, unauthenticated access blocked, double clock-in prevented.**
