@@ -61,7 +61,9 @@ export interface ClientProject {
   name: string;
   description: string | null;
   status: string;
+  priority: string;
   account_id: string;
+  estimated_hours: number | null;
   start_date: string | null;
   end_date: string | null;
   created_at: string;
@@ -71,6 +73,7 @@ export interface ClientProject {
     current_node_id: string | null;
     status: string;
     workflow_templates: { id: string; name: string } | null;
+    current_node: { id: string; node_type: string; label: string } | null;
   } | null;
 }
 
@@ -331,7 +334,7 @@ export async function getClientProjects(clientUserId: string): Promise<ClientPro
 
   const { data: projects, error } = await supabase
     .from('projects')
-    .select('id, name, description, status, account_id, start_date, end_date, created_at')
+    .select('id, name, description, status, priority, account_id, estimated_hours, start_date, end_date, created_at')
     .eq('account_id', userProfile.client_account_id)
     .order('created_at', { ascending: false });
 
@@ -352,12 +355,30 @@ export async function getClientProjects(clientUserId: string): Promise<ClientPro
     .in('project_id', projectIds)
     .eq('status', 'active');
 
+  // Fetch current node details for all active workflow instances
+  const nodeIds = (workflowInstances || [])
+    .map((wi: any) => wi.current_node_id)
+    .filter(Boolean);
+
+  let nodeMap: Record<string, { id: string; node_type: string; label: string }> = {};
+  if (nodeIds.length > 0) {
+    const { data: nodes } = await supabase
+      .from('workflow_nodes')
+      .select('id, node_type, label')
+      .in('id', nodeIds);
+
+    if (nodes) {
+      nodeMap = Object.fromEntries(nodes.map((n: any) => [n.id, n]));
+    }
+  }
+
   // Normalize workflow_templates from Supabase (may be array or object)
   const normalizeWI = (wi: any) => ({
     ...wi,
     workflow_templates: Array.isArray(wi.workflow_templates)
       ? wi.workflow_templates[0] || null
       : wi.workflow_templates || null,
+    current_node: wi.current_node_id ? (nodeMap[wi.current_node_id] || null) : null,
   });
 
   // Merge workflow data into projects
@@ -388,7 +409,7 @@ export async function getClientProjectById(clientUserId: string, projectId: stri
 
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, description, status, account_id, start_date, end_date, created_at')
+    .select('id, name, description, status, priority, account_id, estimated_hours, start_date, end_date, created_at')
     .eq('id', projectId)
     .eq('account_id', userProfile.client_account_id)
     .single();
@@ -410,6 +431,18 @@ export async function getClientProjectById(clientUserId: string, projectId: stri
     .eq('status', 'active');
 
   const wi = workflowInstances?.[0] || null;
+
+  // Fetch current node details if workflow instance exists
+  let currentNode = null;
+  if (wi?.current_node_id) {
+    const { data: node } = await supabase
+      .from('workflow_nodes')
+      .select('id, node_type, label')
+      .eq('id', wi.current_node_id)
+      .single();
+    currentNode = node || null;
+  }
+
   return {
     ...project,
     workflow_instance: wi
@@ -418,6 +451,7 @@ export async function getClientProjectById(clientUserId: string, projectId: stri
           workflow_templates: Array.isArray(wi.workflow_templates)
             ? wi.workflow_templates[0] || null
             : wi.workflow_templates || null,
+          current_node: currentNode,
         }
       : null,
   };
