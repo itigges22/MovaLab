@@ -5,6 +5,25 @@ import { Permission } from '@/lib/permissions';
 import { checkDemoModeForDestructiveAction } from '@/lib/api-demo-guard';
 import { logger } from '@/lib/debug-logger';
 import { isValidUUID } from '@/lib/validation-helpers';
+import { z } from 'zod';
+
+const updateProjectSchema = z.object({
+  name: z.string().min(1, 'Project name is required').max(500, 'Project name too long').optional(),
+  description: z.string().max(5000).optional().nullable(),
+  status: z.enum(['planning', 'in_progress', 'review', 'complete', 'on_hold']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  start_date: z.string().optional().nullable(),
+  end_date: z.string().optional().nullable(),
+  estimated_hours: z.number().min(0).max(100000).optional().nullable(),
+  budget: z.number().min(0).optional().nullable(),
+  assigned_user_id: z.string().uuid().optional().nullable(),
+  notes: z.string().max(50000).optional().nullable(),
+}).refine((data) => {
+  if (data.start_date && data.end_date) {
+    return data.end_date >= data.start_date;
+  }
+  return true;
+}, { message: 'End date cannot be before start date', path: ['end_date'] });
 
 /**
  * GET /api/projects/[projectId]
@@ -162,26 +181,37 @@ export async function PUT(
       return NextResponse.json({ error: 'Insufficient permissions to edit project' }, { status: 403 });
     }
 
-    let body;
+    let rawBody;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    // NOTE: MOVE_ALL_KANBAN_ITEMS permission is deprecated (workflows replace project kanban)
-    // Status changes are now controlled by EDIT_PROJECT permission which was already checked above
+    // Validate input
+    const parseResult = updateProjectSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      return NextResponse.json({ error: `${firstError.path.join('.')}: ${firstError.message}` }, { status: 400 });
+    }
+    const body = parseResult.data;
 
     // Build update object with only provided fields
     const updates: Record<string, unknown> = {};
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.status !== undefined) updates.status = body.status;
+    if (body.priority !== undefined) updates.priority = body.priority;
     if (body.start_date !== undefined) updates.start_date = body.start_date;
     if (body.end_date !== undefined) updates.end_date = body.end_date;
+    if (body.estimated_hours !== undefined) updates.estimated_hours = body.estimated_hours;
     if (body.budget !== undefined) updates.budget = body.budget;
     if (body.assigned_user_id !== undefined) updates.assigned_user_id = body.assigned_user_id;
     if (body.notes !== undefined) updates.notes = body.notes;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
 
     // Update the project
     const { data: updatedProject, error: updateError } = await supabase
