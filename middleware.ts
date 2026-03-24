@@ -22,6 +22,7 @@ const publicRoutes = [
   '/setup',
   '/onboarding',
   '/invite',
+  '/client-invite',  // Client portal invitations
   '/pending-approval',
   '/welcome',
   '/reset-password',
