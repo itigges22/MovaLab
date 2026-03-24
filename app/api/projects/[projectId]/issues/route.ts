@@ -162,6 +162,10 @@ export async function POST(
       return NextResponse.json({ error: 'Issue content is required' }, { status: 400 });
     }
 
+    if (content.length > 5000) {
+      return NextResponse.json({ error: 'Issue content must be 5000 characters or less' }, { status: 400 });
+    }
+
     // Create issue
     const { data: issue, error } = await supabase
       .from('project_issues')

@@ -164,6 +164,10 @@ export async function POST(
       return NextResponse.json({ error: 'Update content is required' }, { status: 400 });
     }
 
+    if (content.length > 5000) {
+      return NextResponse.json({ error: 'Update content must be 5000 characters or less' }, { status: 400 });
+    }
+
     // Create update
     const { data: update, error } = await supabase
       .from('project_updates')
