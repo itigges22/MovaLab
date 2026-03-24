@@ -227,21 +227,32 @@ export async function PUT(
     const existingNodeIds = existingNodes?.map(n => n.id) || [];
     logger.debug('[Workflow Save] Found existing nodes', { count: existingNodeIds.length });
 
-    // Clear FK references to these nodes before deleting them
+    // Clear ALL FK references to these nodes before deleting them
     if (existingNodeIds.length > 0) {
-      logger.debug('[Workflow Save] Clearing FK references for node deletion');
+      logger.debug('[Workflow Save] Clearing FK references for node deletion', { count: existingNodeIds.length });
 
-      // Nullify current_node_id on workflow_instances
+      // 1. Nullify current_node_id on workflow_instances
       await supabase
         .from('workflow_instances')
         .update({ current_node_id: null })
         .in('current_node_id', existingNodeIds);
 
-      // Delete workflow_active_steps referencing these nodes
+      // 2. Delete workflow_active_steps referencing these nodes
       await supabase
         .from('workflow_active_steps')
         .delete()
         .in('node_id', existingNodeIds);
+
+      // 3. Nullify workflow_history from_node_id and to_node_id references
+      await supabase
+        .from('workflow_history')
+        .update({ from_node_id: null })
+        .in('from_node_id', existingNodeIds);
+
+      await supabase
+        .from('workflow_history')
+        .update({ to_node_id: null })
+        .in('to_node_id', existingNodeIds);
     }
 
     // Delete existing nodes and connections for this template
