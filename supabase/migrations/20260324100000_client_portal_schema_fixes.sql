@@ -196,3 +196,36 @@ CREATE POLICY client_portal_workflow_templates_select ON workflow_templates FOR 
 
 CREATE POLICY client_portal_accounts_select ON accounts FOR SELECT
   USING (user_is_client_for_account(id));
+
+-- 7. Client UPDATE/INSERT policies for workflow state management
+
+CREATE POLICY client_portal_workflow_instances_update ON workflow_instances FOR UPDATE
+  USING (user_is_client_for_project(project_id))
+  WITH CHECK (user_is_client_for_project(project_id));
+
+CREATE POLICY client_portal_active_steps_update ON workflow_active_steps FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM workflow_instances wi
+      WHERE wi.id = workflow_active_steps.workflow_instance_id
+      AND user_is_client_for_project(wi.project_id)
+    )
+  );
+
+CREATE POLICY client_portal_active_steps_insert ON workflow_active_steps FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM workflow_instances wi
+      WHERE wi.id = workflow_active_steps.workflow_instance_id
+      AND user_is_client_for_project(wi.project_id)
+    )
+  );
+
+CREATE POLICY client_portal_workflow_connections_select ON workflow_connections FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM workflow_instances wi
+      WHERE wi.workflow_template_id = workflow_connections.workflow_template_id
+      AND user_is_client_for_project(wi.project_id)
+    )
+  );
