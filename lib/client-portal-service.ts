@@ -781,6 +781,38 @@ export async function clientApproveProject(params: {
     }
   }
 
+  // Update workflow_active_steps: mark current as completed, next as active
+  await supabase
+    .from('workflow_active_steps')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('workflow_instance_id', workflowInstanceId)
+    .eq('node_id', instance.current_node_id);
+
+  if (!isEndNode) {
+    const { data: existingStep } = await supabase
+      .from('workflow_active_steps')
+      .select('id')
+      .eq('workflow_instance_id', workflowInstanceId)
+      .eq('node_id', nextNodeId)
+      .single();
+
+    if (existingStep) {
+      await supabase
+        .from('workflow_active_steps')
+        .update({ status: 'active', completed_at: null })
+        .eq('id', existingStep.id);
+    } else {
+      await supabase
+        .from('workflow_active_steps')
+        .insert({
+          workflow_instance_id: workflowInstanceId,
+          node_id: nextNodeId,
+          branch_id: 'main',
+          status: 'active',
+        });
+    }
+  }
+
   // Create workflow history entry
   await supabase.from('workflow_history').insert({
     workflow_instance_id: workflowInstanceId,
@@ -880,12 +912,43 @@ export async function clientRejectProject(params: {
     }
   }
 
-  // 5. Update workflow instance to the rejection target node
+  // 5. Update workflow instance and active steps to the rejection target node
   if (rejectionTargetNodeId !== instance.current_node_id) {
     await supabase
       .from('workflow_instances')
       .update({ current_node_id: rejectionTargetNodeId })
       .eq('id', workflowInstanceId);
+
+    // Update workflow_active_steps: mark current as completed, target as active
+    await supabase
+      .from('workflow_active_steps')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('workflow_instance_id', workflowInstanceId)
+      .eq('node_id', instance.current_node_id);
+
+    // Check if target node has an active step entry, if not create one
+    const { data: existingStep } = await supabase
+      .from('workflow_active_steps')
+      .select('id')
+      .eq('workflow_instance_id', workflowInstanceId)
+      .eq('node_id', rejectionTargetNodeId)
+      .single();
+
+    if (existingStep) {
+      await supabase
+        .from('workflow_active_steps')
+        .update({ status: 'active', completed_at: null })
+        .eq('id', existingStep.id);
+    } else {
+      await supabase
+        .from('workflow_active_steps')
+        .insert({
+          workflow_instance_id: workflowInstanceId,
+          node_id: rejectionTargetNodeId,
+          branch_id: 'main',
+          status: 'active',
+        });
+    }
   }
 
   // 6. Create workflow history entry for rejection
