@@ -699,11 +699,12 @@ export async function clientApproveProject(params: {
     throw new Error('Current workflow node is not an approval node. Cannot approve at this stage.');
   }
 
-  // 4. Get next available nodes
+  // 4. Find the approval edge — look for a connection with decision=approved
   const { data: connections, error: connectionsError } = await supabase
     .from('workflow_connections')
-    .select('to_node_id, workflow_nodes!workflow_connections_to_node_id_fkey(*)')
-    .eq('from_node_id', instance.current_node_id);
+    .select('to_node_id, condition, workflow_nodes!workflow_connections_to_node_id_fkey(*)')
+    .eq('from_node_id', instance.current_node_id)
+    .eq('workflow_template_id', currentNode.workflow_template_id);
 
   if (connectionsError) {
     logger.error('Error fetching next nodes', { action: 'clientApproveProject', workflowInstanceId }, connectionsError);
@@ -722,7 +723,6 @@ export async function clientApproveProject(params: {
 
     logger.info('Client approved project - workflow completed', { projectId, workflowInstanceId, clientUserId });
 
-    // Log approval in project updates
     await supabase.from('project_updates').insert({
       project_id: projectId,
       content: `✅ Client approved the project${notes ? `: "${notes}"` : ''}. Workflow completed successfully.`,
@@ -735,27 +735,50 @@ export async function clientApproveProject(params: {
     };
   }
 
-  // 5. If multiple next nodes, return them for client to choose
-  if (connections.length > 1) {
-    return {
-      success: false,
-      message: 'Multiple workflow paths available. Please specify which path to take.',
-      nextNodes: connections.map((c: any) => c.workflow_nodes) as any,
-    };
+  // 5. Find the specific approval edge (decision=approved), or fall back to first non-rejected edge
+  let nextNodeId: string;
+  const approvalEdge = connections.find((c: any) => {
+    const cond = typeof c.condition === 'string' ? JSON.parse(c.condition) : c.condition;
+    return cond?.decision === 'approved' || cond?.conditionValue === 'approved';
+  });
+
+  if (approvalEdge) {
+    nextNodeId = approvalEdge.to_node_id;
+  } else if (connections.length === 1) {
+    nextNodeId = connections[0].to_node_id;
+  } else {
+    // Multiple edges but no clear approval edge — take the non-rejected one
+    const nonRejected = connections.find((c: any) => {
+      const cond = typeof c.condition === 'string' ? JSON.parse(c.condition) : c.condition;
+      return !cond?.decision || (cond.decision !== 'rejected' && cond.conditionValue !== 'rejected');
+    });
+    nextNodeId = nonRejected ? nonRejected.to_node_id : connections[0].to_node_id;
   }
 
-  // 6. Single next node - automatically hand off
-  const nextNodeId = connections[0].to_node_id;
+  // Check if next node is an end node — if so, complete the workflow
+  const nextNode = connections.find((c: any) => c.to_node_id === nextNodeId)?.workflow_nodes;
+  const isEndNode = nextNode && (Array.isArray(nextNode) ? nextNode[0]?.node_type : nextNode?.node_type) === 'end';
 
-  // Update workflow instance to next node
-  const { error: updateError } = await supabase
-    .from('workflow_instances')
-    .update({ current_node_id: nextNodeId })
-    .eq('id', workflowInstanceId);
+  // Update workflow instance — move to next node (or complete if End node)
+  if (isEndNode) {
+    await supabase
+      .from('workflow_instances')
+      .update({
+        current_node_id: nextNodeId,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', workflowInstanceId);
+  } else {
+    const { error: updateError } = await supabase
+      .from('workflow_instances')
+      .update({ current_node_id: nextNodeId })
+      .eq('id', workflowInstanceId);
 
-  if (updateError) {
-    logger.error('Error updating workflow instance', { action: 'clientApproveProject', workflowInstanceId }, updateError);
-    throw new Error('Failed to advance workflow');
+    if (updateError) {
+      logger.error('Error updating workflow instance', { action: 'clientApproveProject', workflowInstanceId }, updateError);
+      throw new Error('Failed to advance workflow');
+    }
   }
 
   // Create workflow history entry
@@ -764,22 +787,28 @@ export async function clientApproveProject(params: {
     from_node_id: instance.current_node_id,
     to_node_id: nextNodeId,
     transitioned_by: clientUserId,
-    notes: notes || `Client approved project${notes ? `: ${notes}` : ''}`,
+    notes: `✅ Client approved${notes ? `: ${notes}` : ''}`,
     transition_type: 'normal',
   });
 
-  // 7. Log approval in project updates
+  // Log approval in project updates
+  const statusMsg = isEndNode
+    ? `✅ Client approved the project${notes ? `: "${notes}"` : ''}. Workflow completed successfully.`
+    : `✅ Client approved the project${notes ? `: "${notes}"` : ''}. Moving to next workflow stage.`;
+
   await supabase.from('project_updates').insert({
     project_id: projectId,
-    content: `✅ Client approved the project${notes ? `: "${notes}"` : ''}. Moving to next workflow stage.`,
+    content: statusMsg,
     created_by: clientUserId,
   });
 
-  logger.info('Client approved project', { projectId, workflowInstanceId, clientUserId, nextNodeId });
+  logger.info('Client approved project', { projectId, workflowInstanceId, clientUserId, nextNodeId, isEndNode });
 
   return {
     success: true,
-    message: 'Project approved successfully. Workflow advanced to next stage.',
+    message: isEndNode
+      ? 'Project approved successfully. Workflow is now complete.'
+      : 'Project approved successfully. Workflow advanced to next stage.',
   };
 }
 
@@ -833,13 +862,39 @@ export async function clientRejectProject(params: {
     throw new Error('Current workflow node is not an approval node. Cannot reject at this stage.');
   }
 
-  // 4. Create workflow history entry for rejection
+  // 4. Find the rejection edge — look for a connection from this node with decision=rejected
+  const { data: connections } = await supabase
+    .from('workflow_connections')
+    .select('to_node_id, condition')
+    .eq('from_node_id', instance.current_node_id)
+    .eq('workflow_template_id', currentNode.workflow_template_id);
+
+  let rejectionTargetNodeId = instance.current_node_id; // fallback: stay at current node
+  if (connections && connections.length > 0) {
+    const rejectionEdge = connections.find((c: any) => {
+      const cond = typeof c.condition === 'string' ? JSON.parse(c.condition) : c.condition;
+      return cond?.decision === 'rejected' || cond?.conditionValue === 'rejected';
+    });
+    if (rejectionEdge) {
+      rejectionTargetNodeId = rejectionEdge.to_node_id;
+    }
+  }
+
+  // 5. Update workflow instance to the rejection target node
+  if (rejectionTargetNodeId !== instance.current_node_id) {
+    await supabase
+      .from('workflow_instances')
+      .update({ current_node_id: rejectionTargetNodeId })
+      .eq('id', workflowInstanceId);
+  }
+
+  // 6. Create workflow history entry for rejection
   const { data: historyEntry } = await supabase
     .from('workflow_history')
     .insert({
       workflow_instance_id: workflowInstanceId,
       from_node_id: instance.current_node_id,
-      to_node_id: instance.current_node_id, // Stay at current node
+      to_node_id: rejectionTargetNodeId,
       transitioned_by: clientUserId,
       notes: `❌ Client rejected: ${notes}`,
       transition_type: 'normal',
