@@ -62,13 +62,14 @@ export async function POST(
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Reject project
+    // Reject project (pass authenticated supabase client for proper RLS context)
     const result = await clientRejectProject({
       projectId: id,
       workflowInstanceId: validation.data.workflow_instance_id,
       clientUserId: user.id,
       notes: validation.data.notes,
-      issues: validation.data.issues || []
+      issues: validation.data.issues || [],
+      supabaseClient: supabase,
     });
 
     return NextResponse.json({

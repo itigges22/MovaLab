@@ -658,8 +658,9 @@ export async function clientApproveProject(params: {
   workflowInstanceId: string;
   clientUserId: string;
   notes?: string | null;
+  supabaseClient?: any;
 }): Promise<{ success: boolean; message: string; nextNodes?: Record<string, unknown>[] }> {
-  const supabase = await getSupabase();
+  const supabase = params.supabaseClient || await getSupabase();
   const { projectId, workflowInstanceId, clientUserId, notes } = params;
 
   // 1. Verify client has access to this project
@@ -853,8 +854,9 @@ export async function clientRejectProject(params: {
   clientUserId: string;
   notes: string;
   issues?: string[];
+  supabaseClient?: any;
 }): Promise<{ success: boolean; message: string }> {
-  const supabase = await getSupabase();
+  const supabase = params.supabaseClient || await getSupabase();
   const { projectId, workflowInstanceId, clientUserId, notes, issues = [] } = params;
 
   // 1. Verify client has access to this project

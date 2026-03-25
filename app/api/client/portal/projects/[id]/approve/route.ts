@@ -56,7 +56,8 @@ export async function POST(
       projectId: id,
       workflowInstanceId: validation.data.workflow_instance_id,
       clientUserId: user.id,
-      notes: validation.data.notes || null
+      notes: validation.data.notes || null,
+      supabaseClient: supabase,
     });
 
     return NextResponse.json({
