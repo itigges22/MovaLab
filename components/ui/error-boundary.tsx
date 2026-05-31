@@ -143,9 +143,9 @@ export class ErrorBoundary extends Component<Props, State> {
         toast.success('Debug information copied to clipboard');
       })
       .catch(() => {
-        console.log('Debug information:', debugInfo);
-        toast.info('Debug information logged to console');
-      });
+  logger.debug('Debug information', { ...debugInfo, component: this.props.component || 'Unknown' });
+  toast.info('Debug information logged to console');
+});
   };
 
   render() {
